@@ -1,0 +1,9 @@
+Options -Indexes
+RewriteEngine On
+
+# Serve existing files directly (CSS, JS, images, uploads)
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Send all other requests to index.php
+RewriteRule ^ index.php [L]

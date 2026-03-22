@@ -1,0 +1,121 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/config/config.php';
+
+// Autoloader
+spl_autoload_register(function (string $class) {
+    $prefix = 'App\\';
+    $baseDir = __DIR__ . '/src/';
+    if (!str_starts_with($class, $prefix)) return;
+    $relative = substr($class, strlen($prefix));
+    $file = $baseDir . str_replace('\\', '/', $relative) . '.php';
+    if (file_exists($file)) require $file;
+});
+
+use App\Core\Session;
+use App\Core\Router;
+use App\Controllers\AuthController;
+use App\Controllers\DashboardController;
+use App\Controllers\CalendarController;
+use App\Controllers\WallController;
+use App\Controllers\TaskController;
+use App\Controllers\ChatController;
+use App\Controllers\BudgetController;
+use App\Controllers\CustodyController;
+use App\Controllers\ProjectController;
+use App\Controllers\SettingsController;
+
+Session::start();
+
+$router = new Router();
+
+// Auth
+$router->get('/login', [AuthController::class, 'showLogin']);
+$router->post('/login', [AuthController::class, 'login']);
+$router->get('/register', [AuthController::class, 'showRegister']);
+$router->post('/register', [AuthController::class, 'register']);
+$router->get('/logout', [AuthController::class, 'logout']);
+
+// Dashboard
+$router->get('/', [DashboardController::class, 'index']);
+
+// Calendar
+$router->get('/calendar', [CalendarController::class, 'index']);
+$router->get('/api/calendar/events', [CalendarController::class, 'apiEvents']);
+$router->post('/api/calendar/events', [CalendarController::class, 'create']);
+$router->post('/api/calendar/events/:id', [CalendarController::class, 'update']);
+$router->post('/api/calendar/events/:id/delete', [CalendarController::class, 'delete']);
+$router->post('/api/calendar/caldav', [CalendarController::class, 'addCalDAV']);
+$router->post('/api/calendar/caldav/:id/sync', [CalendarController::class, 'syncCalDAV']);
+$router->post('/api/calendar/caldav/:id/delete', [CalendarController::class, 'deleteCalDAV']);
+
+// Wall
+$router->get('/wall', [WallController::class, 'index']);
+$router->post('/wall', [WallController::class, 'create']);
+$router->post('/wall/:id/delete', [WallController::class, 'delete']);
+$router->post('/api/wall/:id/comment', [WallController::class, 'addComment']);
+$router->post('/api/wall/:id/react', [WallController::class, 'toggleReaction']);
+$router->get('/api/wall/more', [WallController::class, 'loadMore']);
+
+// Tasks
+$router->get('/tasks', [TaskController::class, 'index']);
+$router->post('/tasks/list', [TaskController::class, 'createList']);
+$router->post('/tasks/list/:id/delete', [TaskController::class, 'deleteList']);
+$router->post('/api/tasks/list/:id/task', [TaskController::class, 'createTask']);
+$router->post('/api/tasks/task/:id/toggle', [TaskController::class, 'toggleTask']);
+$router->post('/api/tasks/task/:id/update', [TaskController::class, 'updateTask']);
+$router->post('/api/tasks/task/:id/delete', [TaskController::class, 'deleteTask']);
+
+// Chat
+$router->get('/chat', [ChatController::class, 'index']);
+$router->post('/api/chat/send', [ChatController::class, 'send']);
+$router->get('/api/chat/poll', [ChatController::class, 'poll']);
+$router->post('/api/chat/:id/delete', [ChatController::class, 'delete']);
+
+// Budget
+$router->get('/budget', [BudgetController::class, 'index']);
+$router->get('/api/budget/data', [BudgetController::class, 'apiData']);
+$router->post('/api/budget/category', [BudgetController::class, 'createCategory']);
+$router->post('/api/budget/category/:id/delete', [BudgetController::class, 'deleteCategory']);
+$router->post('/api/budget/transaction', [BudgetController::class, 'createTransaction']);
+$router->post('/api/budget/transaction/:id', [BudgetController::class, 'updateTransaction']);
+$router->post('/api/budget/transaction/:id/delete', [BudgetController::class, 'deleteTransaction']);
+$router->post('/api/budget/goal', [BudgetController::class, 'createGoal']);
+$router->post('/api/budget/goal/:id', [BudgetController::class, 'updateGoal']);
+$router->post('/api/budget/goal/:id/delete', [BudgetController::class, 'deleteGoal']);
+
+// Custody
+$router->get('/custody', [CustodyController::class, 'index']);
+$router->get('/api/custody/events', [CustodyController::class, 'apiEvents']);
+$router->post('/api/custody/schedule', [CustodyController::class, 'createSchedule']);
+$router->post('/api/custody/schedule/:id', [CustodyController::class, 'updateSchedule']);
+$router->post('/api/custody/schedule/:id/delete', [CustodyController::class, 'deleteSchedule']);
+$router->post('/api/custody/event', [CustodyController::class, 'createEvent']);
+$router->post('/api/custody/event/:id', [CustodyController::class, 'updateEvent']);
+$router->post('/api/custody/event/:id/delete', [CustodyController::class, 'deleteEvent']);
+
+// Projects
+$router->get('/projects', [ProjectController::class, 'index']);
+$router->get('/projects/:id', [ProjectController::class, 'show']);
+$router->post('/api/projects', [ProjectController::class, 'create']);
+$router->post('/api/projects/:id', [ProjectController::class, 'update']);
+$router->post('/api/projects/:id/delete', [ProjectController::class, 'delete']);
+$router->post('/api/projects/:id/task', [ProjectController::class, 'createTask']);
+$router->post('/api/projects/task/:id', [ProjectController::class, 'updateTask']);
+$router->post('/api/projects/task/:id/delete', [ProjectController::class, 'deleteTask']);
+$router->post('/api/projects/:id/expense', [ProjectController::class, 'createExpense']);
+$router->post('/api/projects/expense/:id/delete', [ProjectController::class, 'deleteExpense']);
+
+// Settings
+$router->get('/settings', [SettingsController::class, 'index']);
+$router->post('/settings/profile', [SettingsController::class, 'updateProfile']);
+$router->post('/settings/family', [SettingsController::class, 'updateFamily']);
+$router->post('/settings/family/code', [SettingsController::class, 'regenerateCode']);
+$router->post('/settings/smtp', [SettingsController::class, 'updateSmtp']);
+$router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
+$router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
+$router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
+$router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
+
+$router->dispatch();
