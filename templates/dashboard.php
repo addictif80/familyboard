@@ -6,7 +6,7 @@ ob_start();
     <!-- Welcome card -->
     <div class="card card-welcome">
         <h2>Bonjour, <?= htmlspecialchars($user['name']) ?> 👋</h2>
-        <p><?= date('l j F Y') ?></p>
+        <p><?= ucfirst(\App\Core\DateHelper::format(date('Y-m-d'), 'l j F Y')) ?></p>
     </div>
 
     <!-- Upcoming events -->
