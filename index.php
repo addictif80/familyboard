@@ -45,14 +45,16 @@ use App\Controllers\InvitationController;
 
 Session::start();
 
-// Apply family timezone as early as possible
+// Apply family timezone as early as possible (graceful fallback if migration not yet applied)
+$_appTz = 'Europe/Paris';
 if (Session::isLoggedIn()) {
-    $tz = \App\Models\Family::getTimezone(Session::user()['family_id']);
-    date_default_timezone_set($tz);
-    define('APP_TIMEZONE', $tz);
-} else {
-    define('APP_TIMEZONE', 'Europe/Paris');
+    try {
+        $_appTz = \App\Models\Family::getTimezone(Session::user()['family_id']);
+    } catch (\Throwable) { /* column may not exist yet */ }
 }
+date_default_timezone_set($_appTz);
+define('APP_TIMEZONE', $_appTz);
+unset($_appTz);
 
 $router = new Router();
 
