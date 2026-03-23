@@ -100,6 +100,20 @@ class SettingsController extends BaseController
         });
     }
 
+    public function sendTestEmail(array $params): void
+    {
+        $this->requireAdmin();
+        $this->json(function () {
+            $user     = Session::user();
+            $settings = SmtpSettings::getByFamily($user['family_id']);
+            if (!$settings) {
+                return ['ok' => false, 'error' => 'Aucune configuration SMTP enregistrée.', 'steps' => []];
+            }
+            // Send to the admin's own email address
+            return Mail::sendTest($settings, $user['email'], $user['name']);
+        });
+    }
+
     public function removeMember(array $params): void
     {
         $this->requireAdmin();

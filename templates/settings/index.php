@@ -170,7 +170,8 @@ ob_start();
             <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.5rem">
                 <button type="submit" class="btn btn-primary">Enregistrer la configuration SMTP</button>
                 <?php if ($smtp): ?>
-                <button type="button" class="btn btn-secondary" onclick="testSmtp()">🔌 Tester la connexion</button>
+                <button type="button" class="btn btn-secondary" onclick="testSmtp(false)">🔌 Tester la connexion</button>
+                <button type="button" class="btn btn-secondary" onclick="testSmtp(true)" title="Envoie un email réel à votre adresse">📨 Envoyer un email test</button>
                 <?php endif; ?>
             </div>
         </form>
@@ -283,18 +284,21 @@ function previewAvatar(input) {
         reader.readAsDataURL(input.files[0]);
     }
 }
-async function testSmtp() {
-    const btn = document.querySelector('[onclick="testSmtp()"]');
+async function testSmtp(sendReal = false) {
     const box = document.getElementById('smtp-test-result');
-    btn.disabled = true; btn.textContent = '⏳ Test en cours…';
+    const url = sendReal
+        ? BASE_URL + '/api/settings/smtp/send-test'
+        : BASE_URL + '/api/settings/smtp/test';
     box.style.display = 'none';
+    box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';
+    box.style.display = 'block';
     try {
-        const r = await apiFetch(BASE_URL + '/api/settings/smtp/test', { method: 'POST' });
+        const r = await apiFetch(url, { method: 'POST' });
         let html = '<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">';
         for (const step of (r.steps || [])) {
             html += `<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem .75rem;border-bottom:1px solid var(--border)">
                 <span style="font-size:1rem">${step.ok ? '✅' : '❌'}</span>
-                <strong style="min-width:130px">${step.label}</strong>
+                <strong style="min-width:140px;flex-shrink:0">${step.label}</strong>
                 <code style="font-size:.75rem;color:var(--text-muted)">${step.detail}</code>
             </div>`;
         }
@@ -302,14 +306,15 @@ async function testSmtp() {
         if (!r.ok && r.error) {
             html += `<p style="color:var(--danger);margin-top:.5rem;font-size:.85rem">❌ ${r.error}</p>`;
         } else if (r.ok) {
-            html += `<p style="color:var(--success);margin-top:.5rem;font-size:.85rem">✅ Connexion SMTP réussie !</p>`;
+            const msg = sendReal
+                ? '✅ Email envoyé ! Vérifiez votre boîte de réception (et les spams).'
+                : '✅ Connexion SMTP réussie !';
+            html += `<p style="color:var(--success);margin-top:.5rem;font-size:.85rem">${msg}</p>`;
         }
         box.innerHTML = html;
     } catch(e) {
         box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
     }
-    box.style.display = 'block';
-    btn.disabled = false; btn.textContent = '🔌 Tester la connexion';
 }
 async function sendInvitation() {
     const email = document.getElementById('invite-email').value.trim();

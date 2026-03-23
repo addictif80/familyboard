@@ -142,6 +142,7 @@ $router->post('/settings/family', [SettingsController::class, 'updateFamily']);
 $router->post('/settings/family/code', [SettingsController::class, 'regenerateCode']);
 $router->post('/settings/smtp', [SettingsController::class, 'updateSmtp']);
 $router->post('/api/settings/smtp/test', [SettingsController::class, 'testSmtp']);
+$router->post('/api/settings/smtp/send-test', [SettingsController::class, 'sendTestEmail']);
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
 $router->post('/api/settings/email-template', [SettingsController::class, 'saveEmailTemplate']);
 $router->post('/api/settings/email-template/:type/reset', [SettingsController::class, 'resetEmailTemplate']);
