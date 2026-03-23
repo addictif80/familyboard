@@ -15,7 +15,11 @@ class CalendarController extends BaseController
         $user = Session::user();
         $familyId = $user['family_id'];
         $members = User::getByFamily($familyId);
-        $caldavSources = CalDAVSource::getByFamily($familyId);
+        try {
+            $caldavSources = CalDAVSource::getByFamily($familyId);
+        } catch (\Exception $e) {
+            $caldavSources = [];
+        }
         require BASE_PATH . '/templates/calendar/index.php';
     }
 

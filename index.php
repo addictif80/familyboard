@@ -3,6 +3,22 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config/config.php';
 
+// Global exception handler — ensures a clean HTTP response even on fatal errors
+set_exception_handler(function (\Throwable $e) {
+    if (!headers_sent()) {
+        http_response_code(500);
+    }
+    $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+        || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'));
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => $e->getMessage()]);
+    } else {
+        echo '<h1>Erreur interne</h1><p>' . htmlspecialchars($e->getMessage()) . '</p>';
+    }
+    exit;
+});
+
 // Autoloader
 spl_autoload_register(function (string $class) {
     $prefix = 'App\\';
