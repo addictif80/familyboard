@@ -17,7 +17,7 @@ async function saveTransaction() {
     const amount = parseFloat(document.getElementById('tx-amount').value);
     const date = document.getElementById('tx-date').value;
 
-    if (!title || !amount || !date) { alert('Titre, montant et date requis.'); return; }
+    if (!title || !amount || !date) { Dialog.toast('Titre, montant et date requis.', 'error'); return; }
 
     const type = document.querySelector('input[name="tx-type-r"]:checked').value;
     const data = {
@@ -31,7 +31,7 @@ async function saveTransaction() {
 }
 
 async function deleteTransaction(id) {
-    if (!confirm('Supprimer cette transaction ?')) return;
+    if (!await Dialog.confirm('Supprimer cette transaction ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/budget/transaction/${id}/delete`, { method: 'POST' });
     if (result.success) {
         const el = document.querySelector(`.transaction-item[data-id="${id}"]`);
@@ -64,7 +64,7 @@ function openEditGoalModal(goal) {
 async function saveGoal() {
     const name = document.getElementById('goal-name').value.trim();
     const target = parseFloat(document.getElementById('goal-target').value);
-    if (!name || !target) { alert('Nom et montant cible requis.'); return; }
+    if (!name || !target) { Dialog.toast('Nom et montant cible requis.', 'error'); return; }
 
     const data = {
         name, target_amount: target,
@@ -80,7 +80,7 @@ async function saveGoal() {
 }
 
 async function deleteGoal(id) {
-    if (!confirm('Supprimer cet objectif ?')) return;
+    if (!await Dialog.confirm('Supprimer cet objectif ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/budget/goal/${id}/delete`, { method: 'POST' });
     if (result.success) location.reload();
 }
@@ -111,7 +111,7 @@ async function createCategory() {
 }
 
 async function deleteCategory(id) {
-    if (!confirm('Supprimer cette catégorie ?')) return;
+    if (!await Dialog.confirm('Supprimer cette catégorie ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/budget/category/${id}/delete`, { method: 'POST' });
     if (result.success) {
         const el = document.querySelector(`.cat-manage-item[data-id="${id}"]`);

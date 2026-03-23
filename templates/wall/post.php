@@ -12,7 +12,7 @@
             <span class="post-date"><?= date('d/m/Y à H:i', strtotime($post['created_at'])) ?></span>
         </div>
         <?php if ($post['user_id'] === $user['id'] || $user['role'] === 'admin'): ?>
-            <form method="POST" action="<?= BASE_URL ?>/wall/<?= $post['id'] ?>/delete" class="post-delete" onsubmit="return confirm('Supprimer ce post ?')">
+            <form method="POST" action="<?= BASE_URL ?>/wall/<?= $post['id'] ?>/delete" class="post-delete" onsubmit="return confirmSubmit(this,'Supprimer ce post ?')">
                 <button type="submit" class="btn-icon-sm">🗑</button>
             </form>
         <?php endif; ?>

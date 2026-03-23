@@ -212,7 +212,7 @@ function fillParentFromMember(num, select) {
 
 async function saveSchedule() {
     const childName = document.getElementById('schedule-child-name').value.trim();
-    if (!childName) { alert('Prénom requis.'); return; }
+    if (!childName) { Dialog.toast('Prénom requis.', 'error'); return; }
 
     const recType = document.getElementById('schedule-recurrence-type').value;
     const recStart = document.getElementById('schedule-recurrence-start').value;
@@ -220,9 +220,9 @@ async function saveSchedule() {
     const p2label = document.getElementById('schedule-parent2-label').value.trim();
 
     if (recType !== 'none') {
-        if (!recStart) { alert('Veuillez indiquer la date de début de la périodicité.'); return; }
-        if (!p1label || !p2label) { alert('Veuillez renseigner le nom des deux parents.'); return; }
-        if (p1label === p2label) { alert('Les deux parents doivent avoir des noms différents.'); return; }
+        if (!recStart) { Dialog.toast('Veuillez indiquer la date de début de la périodicité.', 'error'); return; }
+        if (!p1label || !p2label) { Dialog.toast('Veuillez renseigner le nom des deux parents.', 'error'); return; }
+        if (p1label === p2label) { Dialog.toast('Les deux parents doivent avoir des noms différents.', 'error'); return; }
     }
 
     const data = {
@@ -246,7 +246,7 @@ async function saveSchedule() {
 }
 
 async function deleteSchedule(id) {
-    if (!confirm('Supprimer ce planning de garde et tous ses événements ?')) return;
+    if (!await Dialog.confirm('Supprimer ce planning de garde et tous ses événements ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/custody/schedule/${id}/delete`, { method: 'POST' });
     if (result.success) location.reload();
 }
@@ -299,7 +299,7 @@ async function saveCustodyEvent() {
     const end = document.getElementById('custody-end').value;
 
     if (!scheduleId || !parentId || !start || !end) {
-        alert('Enfant, parent et dates requis.');
+        Dialog.toast('Enfant, parent et dates requis.', 'error');
         return;
     }
 
@@ -321,7 +321,7 @@ async function saveCustodyEvent() {
 
 async function deleteCustodyEvent() {
     const id = document.getElementById('custody-event-id').value;
-    if (!id || !confirm('Supprimer cette période de garde ?')) return;
+    if (!id || !await Dialog.confirm('Supprimer cette période de garde ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/custody/event/${id}/delete`, { method: 'POST' });
     if (result.success) { closeModal('custody-event-modal'); loadCustodyEvents(); }
 }

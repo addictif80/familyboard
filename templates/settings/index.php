@@ -80,7 +80,7 @@ ob_start();
             <code class="invite-code"><?= htmlspecialchars($family['invite_code']) ?></code>
             <button onclick="copyCode('<?= htmlspecialchars($family['invite_code']) ?>')" class="btn btn-secondary btn-sm">📋 Copier</button>
             <form method="POST" action="<?= BASE_URL ?>/settings/family/code" style="display:inline">
-                <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Régénérer le code ? L\'ancien ne fonctionnera plus.')">🔄 Régénérer</button>
+                <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirmSubmit(this.closest('form'),&quot;Régénérer le code ? L\'ancien ne fonctionnera plus.&quot;)">🔄 Régénérer</button>
             </form>
         </div>
 
@@ -116,7 +116,7 @@ ob_start();
                         <small><?= htmlspecialchars($member['email']) ?> · <?= $member['role'] === 'admin' ? '👑 Admin' : 'Membre' ?></small>
                     </div>
                     <?php if ($member['id'] !== $user['id']): ?>
-                        <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirm('Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')">
+                        <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')">
                             <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
                         </form>
                     <?php endif; ?>
@@ -272,7 +272,7 @@ ob_start();
 
 <script>
 function copyCode(code) {
-    navigator.clipboard.writeText(code).then(() => alert('Code copié !'));
+    navigator.clipboard.writeText(code).then(() => Dialog.toast('Code copié !'));
 }
 function previewAvatar(input) {
     if (input.files && input.files[0]) {
@@ -318,13 +318,13 @@ async function testSmtp(sendReal = false) {
 }
 async function sendInvitation() {
     const email = document.getElementById('invite-email').value.trim();
-    if (!email) { alert('Entrez une adresse email.'); return; }
+    if (!email) { Dialog.toast('Entrez une adresse email.', 'error'); return; }
     const r = await apiFetch(BASE_URL + '/api/settings/invite', { method: 'POST', body: JSON.stringify({ email }) });
     if (r.success) {
-        alert('Invitation envoyée à ' + email + ' !');
+        Dialog.toast('Invitation envoyée à ' + email + ' !');
         document.getElementById('invite-email').value = '';
     } else {
-        alert(r.error || 'Erreur lors de l\'envoi.');
+        Dialog.toast(r.error || 'Erreur lors de l\'envoi.', 'error');
     }
 }
 function toggleTemplate(type) {
@@ -338,11 +338,11 @@ async function saveTemplate(type) {
         method: 'POST',
         body: JSON.stringify({ type, subject, body })
     });
-    if (r.success) alert('Template enregistré !');
-    else alert(r.error || 'Erreur.');
+    if (r.success) Dialog.toast('Template enregistré !');
+    else Dialog.toast(r.error || 'Erreur.', 'error');
 }
 async function resetTemplate(type) {
-    if (!confirm('Réinitialiser ce template avec la valeur par défaut ?')) return;
+    if (!await Dialog.confirm('Réinitialiser ce template avec la valeur par défaut ?')) return;
     const r = await apiFetch(BASE_URL + '/api/settings/email-template/' + type + '/reset', { method: 'POST', body: '{}' });
     if (r.success) location.reload();
 }

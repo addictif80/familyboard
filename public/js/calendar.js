@@ -242,7 +242,7 @@ async function saveEvent() {
     const title = document.getElementById('event-title').value.trim();
     const start = document.getElementById('event-start').value;
     const end = document.getElementById('event-end').value;
-    if (!title || !start || !end) { alert('Remplissez les champs obligatoires.'); return; }
+    if (!title || !start || !end) { Dialog.toast('Remplissez les champs obligatoires.', 'error'); return; }
 
     const allDay = document.getElementById('event-allday').checked;
     const data = {
@@ -267,7 +267,7 @@ async function saveEvent() {
 
 async function deleteEvent() {
     const id = document.getElementById('event-id').value;
-    if (!id || !confirm('Supprimer cet événement ?')) return;
+    if (!id || !await Dialog.confirm('Supprimer cet événement ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/calendar/events/${id}/delete`, { method: 'POST' });
     if (result.success) {
         closeModal('event-modal');
@@ -294,10 +294,10 @@ async function addCalDAV() {
         password: document.getElementById('caldav-pass').value,
         color: document.getElementById('caldav-color').value,
     };
-    if (!data.name || !data.url) { alert('Nom et URL requis.'); return; }
+    if (!data.name || !data.url) { Dialog.toast('Nom et URL requis.', 'error'); return; }
     const result = await apiFetch(`${BASE_URL}/api/calendar/caldav`, { method: 'POST', body: JSON.stringify(data) });
     if (result.success) { closeModal('caldav-modal'); location.reload(); }
-    else alert('Erreur lors de l\'ajout.');
+    else Dialog.toast('Erreur lors de l\'ajout.', 'error');
 }
 
 async function syncCalDAV(id) {
@@ -308,16 +308,16 @@ async function syncCalDAV(id) {
         loadEvents();
         btn.textContent = '🔄';
         if (result.count === 0) {
-            alert('Synchronisation effectuée mais aucun événement trouvé.\n\nVérifiez :\n• L\'URL (doit être une URL .ics publique ou avec identifiants)\n• Les identifiants si requis\n• Que le calendrier contient des événements');
+            Dialog.alert('Synchronisation effectuée mais aucun événement trouvé.\n\nVérifiez :\n• L\'URL (doit être une URL .ics publique ou avec identifiants)\n• Les identifiants si requis\n• Que le calendrier contient des événements', 'Aucun événement');
         }
     } else {
         btn.textContent = '❌';
-        alert('Erreur : ' + (result.error || 'Échec de la synchronisation'));
+        Dialog.alert('Échec de la synchronisation : ' + (result.error || 'Erreur inconnue'), 'Erreur');
     }
 }
 
 async function deleteCalDAV(id) {
-    if (!confirm('Supprimer ce calendrier CalDAV et ses événements ?')) return;
+    if (!await Dialog.confirm('Supprimer ce calendrier CalDAV et ses événements ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/calendar/caldav/${id}/delete`, { method: 'POST' });
     if (result.success) location.reload();
 }

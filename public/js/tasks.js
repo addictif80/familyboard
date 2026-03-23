@@ -34,7 +34,7 @@ function openEditTaskModal(task) {
 
 async function saveTask() {
     const title = document.getElementById('task-title').value.trim();
-    if (!title) { alert('Le titre est requis.'); return; }
+    if (!title) { Dialog.toast('Le titre est requis.', 'error'); return; }
 
     const data = {
         title,
@@ -71,7 +71,7 @@ async function toggleTask(id) {
 }
 
 async function deleteTask(id) {
-    if (!confirm('Supprimer cette tâche ?')) return;
+    if (!await Dialog.confirm('Supprimer cette tâche ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/tasks/task/${id}/delete`, { method: 'POST' });
     if (result.success) {
         const item = document.querySelector(`[data-task-id="${id}"]`);

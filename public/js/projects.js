@@ -9,7 +9,7 @@ function openProjectModal() {
 
 async function createProject() {
     const name = document.getElementById('proj-name').value.trim();
-    if (!name) { alert('Nom requis.'); return; }
+    if (!name) { Dialog.toast('Nom requis.', 'error'); return; }
 
     const data = {
         name,
@@ -50,7 +50,7 @@ async function updateProject() {
 }
 
 async function deleteProject(id) {
-    if (!confirm('Supprimer ce projet et toutes ses données ?')) return;
+    if (!await Dialog.confirm('Supprimer ce projet et toutes ses données ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/projects/${id}/delete`, { method: 'POST' });
     if (result.success) window.location.href = `${BASE_URL}/projects`;
 }
@@ -84,7 +84,7 @@ function openEditProjectTask(task) {
 
 async function saveProjectTask() {
     const title = document.getElementById('ptask-title').value.trim();
-    if (!title) { alert('Titre requis.'); return; }
+    if (!title) { Dialog.toast('Titre requis.', 'error'); return; }
 
     const data = {
         title,
@@ -105,7 +105,7 @@ async function saveProjectTask() {
 }
 
 async function deleteProjectTask(id) {
-    if (!confirm('Supprimer cette tâche ?')) return;
+    if (!await Dialog.confirm('Supprimer cette tâche ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/projects/task/${id}/delete`, { method: 'POST' });
     if (result.success) {
         const el = document.querySelector(`.project-task-item[data-id="${id}"]`);
@@ -126,7 +126,7 @@ async function saveExpense() {
     const title = document.getElementById('exp-title').value.trim();
     const amount = parseFloat(document.getElementById('exp-amount').value);
     const date = document.getElementById('exp-date').value;
-    if (!title || !amount || !date) { alert('Description, montant et date requis.'); return; }
+    if (!title || !amount || !date) { Dialog.toast('Description, montant et date requis.', 'error'); return; }
 
     const data = { title, amount, date, notes: document.getElementById('exp-notes').value };
     const result = await apiFetch(`${BASE_URL}/api/projects/${PROJECT_ID}/expense`, { method: 'POST', body: JSON.stringify(data) });
@@ -134,7 +134,7 @@ async function saveExpense() {
 }
 
 async function deleteExpense(id) {
-    if (!confirm('Supprimer cette dépense ?')) return;
+    if (!await Dialog.confirm('Supprimer cette dépense ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/projects/expense/${id}/delete`, { method: 'POST' });
     if (result.success) {
         const el = document.querySelector(`.expense-item[data-id="${id}"]`);

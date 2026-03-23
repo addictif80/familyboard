@@ -2,7 +2,93 @@
 // FamilyBoard - Core JS
 // ============================================
 
-// Modal management
+// ---- Dialog system (replaces alert / confirm) ----
+
+const Dialog = (() => {
+    // Inject styles once
+    const s = document.createElement('style');
+    s.textContent = `
+    .dlg-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9990;display:flex;align-items:center;justify-content:center;padding:1rem;animation:dlgFadeIn .15s ease}
+    @keyframes dlgFadeIn{from{opacity:0}to{opacity:1}}
+    .dlg-box{background:var(--card-bg);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,.18);padding:1.5rem;max-width:380px;width:100%;animation:dlgSlideIn .15s ease}
+    @keyframes dlgSlideIn{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+    .dlg-title{font-weight:700;font-size:1rem;margin-bottom:.5rem}
+    .dlg-msg{color:var(--text-muted);font-size:.9rem;line-height:1.55;margin-bottom:1.25rem;white-space:pre-wrap}
+    .dlg-actions{display:flex;justify-content:flex-end;gap:.5rem}
+    .toast-wrap{position:fixed;bottom:1.25rem;right:1.25rem;z-index:9999;display:flex;flex-direction:column;gap:.4rem;pointer-events:none}
+    .dlg-toast{padding:.55rem 1rem;border-radius:8px;font-size:.85rem;font-weight:500;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.15);animation:toastIn .2s ease;pointer-events:auto;cursor:default}
+    @keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .dlg-toast.success{background:var(--success,#27ae60)}
+    .dlg-toast.error  {background:var(--danger,#e74c3c)}
+    .dlg-toast.info   {background:var(--primary,#4a90d9)}
+    @media(max-width:768px){.dlg-overlay{align-items:flex-end;padding:0}.dlg-box{border-radius:var(--radius) var(--radius) 0 0;max-width:100%}}
+    `;
+    document.head.appendChild(s);
+
+    let toastWrap = null;
+    function getToastWrap() {
+        if (!toastWrap) { toastWrap = document.createElement('div'); toastWrap.className = 'toast-wrap'; document.body.appendChild(toastWrap); }
+        return toastWrap;
+    }
+
+    function toast(msg, type = 'success', duration = 3000) {
+        const t = document.createElement('div');
+        t.className = `dlg-toast ${type}`;
+        t.textContent = msg;
+        getToastWrap().appendChild(t);
+        setTimeout(() => { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, duration);
+    }
+
+    function alert(msg, title = '') {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'dlg-overlay';
+            overlay.innerHTML = `<div class="dlg-box">
+                ${title ? `<div class="dlg-title">${escapeHtml(title)}</div>` : ''}
+                <div class="dlg-msg">${escapeHtml(msg)}</div>
+                <div class="dlg-actions"><button class="btn btn-primary" id="dlg-ok">OK</button></div>
+            </div>`;
+            document.body.appendChild(overlay);
+            document.body.style.overflow = 'hidden';
+            const close = () => { overlay.remove(); document.body.style.overflow = ''; resolve(); };
+            overlay.querySelector('#dlg-ok').addEventListener('click', close);
+            overlay.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape') close(); });
+            overlay.querySelector('#dlg-ok').focus();
+        });
+    }
+
+    function confirm(msg, title = 'Confirmation') {
+        return new Promise(resolve => {
+            const overlay = document.createElement('div');
+            overlay.className = 'dlg-overlay';
+            overlay.innerHTML = `<div class="dlg-box">
+                <div class="dlg-title">${escapeHtml(title)}</div>
+                <div class="dlg-msg">${escapeHtml(msg)}</div>
+                <div class="dlg-actions">
+                    <button class="btn btn-secondary" id="dlg-cancel">Annuler</button>
+                    <button class="btn btn-danger"    id="dlg-confirm">Confirmer</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+            document.body.style.overflow = 'hidden';
+            const close = ok => { overlay.remove(); document.body.style.overflow = ''; resolve(ok); };
+            overlay.querySelector('#dlg-cancel').addEventListener('click', () => close(false));
+            overlay.querySelector('#dlg-confirm').addEventListener('click', () => close(true));
+            overlay.addEventListener('keydown', e => { if (e.key === 'Escape') close(false); if (e.key === 'Enter') close(true); });
+            overlay.querySelector('#dlg-cancel').focus();
+        });
+    }
+
+    return { toast, alert, confirm };
+})();
+
+/** Helper for forms with confirmation: <form onsubmit="return confirmSubmit(this,'msg')"> */
+function confirmSubmit(form, msg) {
+    Dialog.confirm(msg).then(ok => { if (ok) form.submit(); });
+    return false;
+}
+
+// ---- Modal management ----
 function openModal(id) {
     document.getElementById(id).style.display = 'flex';
     document.body.style.overflow = 'hidden';

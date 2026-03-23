@@ -23,7 +23,7 @@ ob_start();
                         <?php endif; ?>
                     </a>
                     <?php if ($list['user_id'] === $user['id'] || $user['role'] === 'admin'): ?>
-                        <form method="POST" action="<?= BASE_URL ?>/tasks/list/<?= $list['id'] ?>/delete" onsubmit="return confirm('Supprimer cette liste ?')">
+                        <form method="POST" action="<?= BASE_URL ?>/tasks/list/<?= $list['id'] ?>/delete" onsubmit="return confirmSubmit(this,'Supprimer cette liste ?')">
                             <button type="submit" class="btn-icon-sm">🗑</button>
                         </form>
                     <?php endif; ?>
