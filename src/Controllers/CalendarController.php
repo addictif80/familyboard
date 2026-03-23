@@ -104,32 +104,24 @@ class CalendarController extends BaseController
             $id = CalDAVSource::create($user['family_id'], $user['id'], $data);
             // Initial sync
             $source = CalDAVSource::getById($id);
-            $this->syncCalDAV($source, $user['family_id'], $user['id']);
+            $this->doCalDAVSync($source, $user['family_id'], $user['id']);
             return ['success' => true, 'id' => $id];
         });
     }
 
-    public function syncCalDAV(array $params, ?array $source = null, ?int $familyId = null, ?int $userId = null): void
+    public function syncCalDAV(array $params): void
     {
-        $isApi = is_array($params) && isset($params['id']);
-        if ($isApi) {
-            $this->requireAuth();
-            $this->json(function () use ($params) {
-                $user = Session::user();
-                $id = (int)$params['id'];
-                $source = CalDAVSource::getById($id);
-                if (!$source || $source['family_id'] !== $user['family_id']) {
-                    return ['success' => false, 'error' => 'Non autorisé'];
-                }
-                $count = $this->doCalDAVSync($source, $user['family_id'], $user['id']);
-                return ['success' => true, 'count' => $count];
-            });
-        }
-    }
-
-    private function syncCalDAV(array $source, int $familyId, int $userId): void
-    {
-        $this->doCalDAVSync($source, $familyId, $userId);
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id = (int)$params['id'];
+            $source = CalDAVSource::getById($id);
+            if (!$source || $source['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Non autorisé'];
+            }
+            $count = $this->doCalDAVSync($source, $user['family_id'], $user['id']);
+            return ['success' => true, 'count' => $count];
+        });
     }
 
     private function doCalDAVSync(array $source, int $familyId, int $userId): int
