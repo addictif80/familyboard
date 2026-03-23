@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS families (
     name VARCHAR(100) NOT NULL,
     invite_code VARCHAR(20) UNIQUE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Users
 CREATE TABLE IF NOT EXISTS users (
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
     color VARCHAR(7) DEFAULT '#4A90D9',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- SMTP Settings
 CREATE TABLE IF NOT EXISTS smtp_settings (
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS smtp_settings (
     from_name VARCHAR(100) NOT NULL,
     encryption ENUM('tls','ssl','none') DEFAULT 'tls',
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Calendar Events
 CREATE TABLE IF NOT EXISTS events (
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS events (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- CalDAV Sources
 CREATE TABLE IF NOT EXISTS caldav_sources (
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS caldav_sources (
     last_sync DATETIME DEFAULT NULL,
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Wall Posts
 CREATE TABLE IF NOT EXISTS posts (
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS posts (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Post Comments
 CREATE TABLE IF NOT EXISTS post_comments (
@@ -94,18 +94,18 @@ CREATE TABLE IF NOT EXISTS post_comments (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Post Reactions
 CREATE TABLE IF NOT EXISTS post_reactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     post_id INT NOT NULL,
     user_id INT NOT NULL,
-    emoji VARCHAR(10) DEFAULT '❤️',
+    emoji VARCHAR(10) DEFAULT 'heart',
     UNIQUE KEY unique_reaction (post_id, user_id),
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Task Lists
 CREATE TABLE IF NOT EXISTS task_lists (
@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS task_lists (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tasks
 CREATE TABLE IF NOT EXISTS tasks (
@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     FOREIGN KEY (list_id) REFERENCES task_lists(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Chat Messages
 CREATE TABLE IF NOT EXISTS messages (
@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Budget Categories
 CREATE TABLE IF NOT EXISTS budget_categories (
@@ -155,9 +155,9 @@ CREATE TABLE IF NOT EXISTS budget_categories (
     family_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     color VARCHAR(7) DEFAULT '#4A90D9',
-    icon VARCHAR(50) DEFAULT '💰',
+    icon VARCHAR(50) DEFAULT 'money',
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Budget Transactions
 CREATE TABLE IF NOT EXISTS budget_transactions (
@@ -174,7 +174,7 @@ CREATE TABLE IF NOT EXISTS budget_transactions (
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES budget_categories(id) ON DELETE SET NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Budget Goals
 CREATE TABLE IF NOT EXISTS budget_goals (
@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS budget_goals (
     color VARCHAR(7) DEFAULT '#4A90D9',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Custody Schedules
 CREATE TABLE IF NOT EXISTS custody_schedules (
@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS custody_schedules (
     notes TEXT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Custody Events (who has the child on which dates)
 CREATE TABLE IF NOT EXISTS custody_events (
@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS custody_events (
     notes TEXT DEFAULT NULL,
     FOREIGN KEY (schedule_id) REFERENCES custody_schedules(id) ON DELETE CASCADE,
     FOREIGN KEY (parent_user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Projects
 CREATE TABLE IF NOT EXISTS projects (
@@ -228,7 +228,7 @@ CREATE TABLE IF NOT EXISTS projects (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Project Tasks
 CREATE TABLE IF NOT EXISTS project_tasks (
@@ -244,7 +244,7 @@ CREATE TABLE IF NOT EXISTS project_tasks (
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Project Expenses
 CREATE TABLE IF NOT EXISTS project_expenses (
@@ -258,7 +258,7 @@ CREATE TABLE IF NOT EXISTS project_expenses (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Notifications
 CREATE TABLE IF NOT EXISTS notifications (
@@ -271,6 +271,6 @@ CREATE TABLE IF NOT EXISTS notifications (
     is_read TINYINT(1) DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
