@@ -24,6 +24,7 @@ ob_start();
     </div>
 
     <div id="custody-calendar"></div>
+    <div id="custody-mobile-agenda" class="cal-agenda" style="display:none"></div>
 
     <!-- Legend -->
     <div class="custody-legend">

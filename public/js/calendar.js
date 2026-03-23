@@ -85,9 +85,16 @@ function renderCalendar() {
             return dateStr >= start && dateStr <= end;
         });
 
+        // Dots for mobile (max 4 shown)
+        const dotsHtml = '<div class="cal-day-dots">' +
+            dayEvents.slice(0, 4).map(e =>
+                `<span class="cal-day-dot" style="background:${e.color || '#4A90D9'}"></span>`
+            ).join('') + '</div>';
+
         html += `<div class="cal-day ${isCurrentMonth ? '' : 'cal-other-month'} ${isToday ? 'cal-today' : ''}"
                       onclick="handleDayClick('${dateStr}')">
             <span class="cal-day-num">${d.getDate()}</span>
+            ${dotsHtml}
             <div class="cal-events">`;
 
         dayEvents.slice(0, 3).forEach(e => {
@@ -110,6 +117,64 @@ function renderCalendar() {
 
     html += `</div></div>`;
     container.innerHTML = html;
+
+    // Restore selected-day agenda if we're on mobile
+    if (_selectedDay) renderMobileAgenda(_selectedDay);
+}
+
+let _selectedDay = null;
+
+function renderMobileAgenda(dateStr) {
+    _selectedDay = dateStr;
+
+    // Remove previous selection highlight
+    document.querySelectorAll('.cal-day.cal-selected').forEach(el => el.classList.remove('cal-selected'));
+
+    // Highlight selected cell (find by onclick attribute value)
+    document.querySelectorAll('.cal-day').forEach(el => {
+        if (el.getAttribute('onclick') === `handleDayClick('${dateStr}')`) {
+            el.classList.add('cal-selected');
+        }
+    });
+
+    const agenda = document.getElementById('cal-mobile-agenda');
+    if (!agenda) return;
+
+    const dayEvents = events.filter(e => {
+        const start = e.start.substring(0, 10);
+        const end = (e.end || e.start).substring(0, 10);
+        return dateStr >= start && dateStr <= end;
+    });
+
+    const d = new Date(dateStr + 'T12:00:00');
+    const label = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    let inner = `<div class="cal-agenda-header">
+        <span class="cal-agenda-title">${label.charAt(0).toUpperCase() + label.slice(1)}</span>
+        <button class="btn btn-primary btn-sm" onclick="openEventModal('${dateStr}')">+ Ajouter</button>
+    </div>`;
+
+    if (dayEvents.length === 0) {
+        inner += `<p class="cal-agenda-empty">Aucun événement ce jour.</p>`;
+    } else {
+        dayEvents.forEach(e => {
+            const isCustody = e.extendedProps?.type === 'custody';
+            const timeStr = e.start && e.start.length > 10 ? fmtEventTime(e.start) : 'Toute la journée';
+            const onClick = isCustody
+                ? `window.location='${BASE_URL}/custody'`
+                : `openEventDetails(${JSON.stringify(e.id)})`;
+            inner += `<div class="cal-agenda-event" onclick="${onClick}" style="cursor:pointer">
+                <span class="cal-agenda-dot" style="background:${e.color || '#4A90D9'}"></span>
+                <div class="cal-agenda-info">
+                    <div class="cal-agenda-name">${isCustody ? '👶 ' : ''}${escapeHtml(e.title)}</div>
+                    <div class="cal-agenda-time">${timeStr}</div>
+                </div>
+            </div>`;
+        });
+    }
+
+    agenda.innerHTML = inner;
+    agenda.style.display = 'block';
 }
 
 function loadEvents() {
@@ -133,7 +198,11 @@ function nextMonth() { currentDate.setMonth(currentDate.getMonth() + 1); loadEve
 function goToday() { currentDate = new Date(); loadEvents(); }
 
 function handleDayClick(dateStr) {
-    openEventModal(dateStr);
+    if (window.innerWidth <= 768) {
+        renderMobileAgenda(dateStr);
+    } else {
+        openEventModal(dateStr);
+    }
 }
 
 function openEventModal(date = null, eventData = null) {

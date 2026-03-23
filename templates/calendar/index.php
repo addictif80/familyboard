@@ -30,6 +30,7 @@ ob_start();
     </div>
 
     <div id="calendar"></div>
+    <div id="cal-mobile-agenda" class="cal-agenda" style="display:none"></div>
 
     <?php if (!empty($caldavSources)): ?>
     <div class="caldav-list card" style="margin-top:1rem">

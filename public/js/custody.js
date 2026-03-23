@@ -44,10 +44,16 @@ function renderCustodyCalendar() {
         // Background tint from first event's schedule color
         const bgColor = dayEvents.length > 0 ? hexToRgba(dayEvents[0].backgroundColor, 0.25) : '';
 
+        const dotsHtml = '<div class="cal-day-dots">' +
+            dayEvents.slice(0, 4).map(e =>
+                `<span class="cal-day-dot" style="background:${e.color || '#4A90D9'}"></span>`
+            ).join('') + '</div>';
+
         html += `<div class="cal-day ${isCurrentMonth ? '' : 'cal-other-month'} ${isToday ? 'cal-today' : ''}"
                       style="${bgColor ? 'background:' + bgColor : ''}"
-                      onclick="openCustodyEventModal('${dateStr}')">
+                      onclick="handleCustodyDayClick('${dateStr}')">
             <span class="cal-day-num">${d.getDate()}</span>
+            ${dotsHtml}
             <div class="cal-events">`;
 
         dayEvents.forEach(e => {
@@ -66,6 +72,63 @@ function renderCustodyCalendar() {
 
     html += `</div></div>`;
     container.innerHTML = html;
+
+    if (_custodySelectedDay) renderCustodyMobileAgenda(_custodySelectedDay);
+}
+
+let _custodySelectedDay = null;
+
+function handleCustodyDayClick(dateStr) {
+    if (window.innerWidth <= 768) {
+        renderCustodyMobileAgenda(dateStr);
+    } else {
+        openCustodyEventModal(dateStr);
+    }
+}
+
+function renderCustodyMobileAgenda(dateStr) {
+    _custodySelectedDay = dateStr;
+
+    document.querySelectorAll('#custody-calendar .cal-day.cal-selected').forEach(el => el.classList.remove('cal-selected'));
+    document.querySelectorAll('#custody-calendar .cal-day').forEach(el => {
+        if (el.getAttribute('onclick') === `handleCustodyDayClick('${dateStr}')`) {
+            el.classList.add('cal-selected');
+        }
+    });
+
+    const agenda = document.getElementById('custody-mobile-agenda');
+    if (!agenda) return;
+
+    const dayEvents = custodyEvents.filter(e => dateStr >= e.start && dateStr < e.end);
+
+    const d = new Date(dateStr + 'T12:00:00');
+    const label = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    let inner = `<div class="cal-agenda-header">
+        <span class="cal-agenda-title">${label.charAt(0).toUpperCase() + label.slice(1)}</span>
+        <button class="btn btn-primary btn-sm" onclick="openCustodyEventModal('${dateStr}')">+ Ajouter</button>
+    </div>`;
+
+    if (dayEvents.length === 0) {
+        inner += `<p class="cal-agenda-empty">Aucune garde ce jour.</p>`;
+    } else {
+        dayEvents.forEach(e => {
+            const isRecurring = e.extendedProps?.is_recurring;
+            const onClick = isRecurring
+                ? `openCustodyEventModal('${dateStr}')`
+                : `openEditCustodyEvent('${e.id}')`;
+            inner += `<div class="cal-agenda-event" onclick="${onClick}" style="cursor:pointer">
+                <span class="cal-agenda-dot" style="background:${e.color || '#4A90D9'}"></span>
+                <div class="cal-agenda-info">
+                    <div class="cal-agenda-name">${escapeHtml(e.title)}${isRecurring ? ' 🔄' : ''}</div>
+                    <div class="cal-agenda-time">${isRecurring ? 'Récurrent' : 'Événement unique'}</div>
+                </div>
+            </div>`;
+        });
+    }
+
+    agenda.innerHTML = inner;
+    agenda.style.display = 'block';
 }
 
 function hexToRgba(hex, alpha) {
