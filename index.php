@@ -42,6 +42,7 @@ use App\Controllers\CustodyController;
 use App\Controllers\ProjectController;
 use App\Controllers\SettingsController;
 use App\Controllers\InvitationController;
+use App\Controllers\WarrantyController;
 
 Session::start();
 
@@ -153,6 +154,15 @@ $router->post('/api/settings/email-template/:type/reset', [SettingsController::c
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
 $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
+
+// Warranties
+$router->get('/warranties', [WarrantyController::class, 'index']);
+$router->get('/warranties/file/:id', [WarrantyController::class, 'serveFile']);
+$router->post('/api/warranties', [WarrantyController::class, 'create']);
+$router->post('/api/warranties/ocr', [WarrantyController::class, 'ocr']);
+$router->get('/api/warranties/search', [WarrantyController::class, 'search']);
+$router->post('/api/warranties/:id', [WarrantyController::class, 'update']);
+$router->post('/api/warranties/:id/delete', [WarrantyController::class, 'delete']);
 
 // Invitations
 $router->get('/invite/:token', [InvitationController::class, 'show']);

@@ -516,6 +516,45 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 #custody-calendar { min-height: 600px; }
 .custody-actions { display: flex; gap: .5rem; }
 
+/* ---- Warranties ---- */
+.warranty-toolbar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.warranty-search-wrap { flex: 1; min-width: 200px; }
+.warranty-search { width: 100%; padding: .55rem .85rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card-bg); color: var(--text); font-size: .9rem; }
+.warranty-alert-strip { background: rgba(243,156,18,.12); border: 1px solid rgba(243,156,18,.4); border-radius: var(--radius); padding: .6rem 1rem; margin-bottom: 1rem; font-size: .85rem; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.warranty-alert-chip { padding: .15rem .55rem; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+.warranty-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.warranty-card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.1rem; border-left: 4px solid var(--border); display: flex; flex-direction: column; gap: .4rem; transition: box-shadow .2s; }
+.warranty-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+.warranty-card.w-ok       { border-left-color: var(--success); }
+.warranty-card.w-soon     { border-left-color: #F39C12; }
+.warranty-card.w-critical { border-left-color: var(--danger); }
+.warranty-card.w-expired  { border-left-color: var(--text-muted); opacity: .65; }
+.warranty-card.w-none     { border-left-color: var(--primary); }
+.wc-header { display: flex; justify-content: space-between; align-items: center; }
+.wc-status-badge { font-size: .68rem; font-weight: 700; text-transform: uppercase; padding: .15rem .5rem; border-radius: 12px; letter-spacing: .03em; }
+.wc-status-badge.w-ok       { background: rgba(39,174,96,.15); color: var(--success); }
+.wc-status-badge.w-soon     { background: rgba(243,156,18,.15); color: #E67E22; }
+.wc-status-badge.w-critical { background: rgba(231,76,60,.15);  color: var(--danger); }
+.wc-status-badge.w-expired  { background: rgba(127,127,127,.12); color: var(--text-muted); }
+.wc-status-badge.w-none     { background: rgba(74,144,217,.12);  color: var(--primary); }
+.wc-actions { display: flex; gap: .2rem; }
+.wc-title { font-weight: 600; font-size: .95rem; }
+.wc-meta { font-size: .8rem; color: var(--text-muted); }
+.wc-details { display: flex; flex-wrap: wrap; gap: .3rem .75rem; font-size: .78rem; color: var(--text-muted); }
+.wc-countdown { font-size: .8rem; font-weight: 600; margin-top: .2rem; }
+.wc-countdown.w-ok       { color: var(--success); }
+.wc-countdown.w-soon     { color: #E67E22; }
+.wc-countdown.w-critical { color: var(--danger); }
+.wc-countdown.w-expired  { color: var(--text-muted); }
+.wc-file-link { font-size: .78rem; color: var(--primary); text-decoration: none; word-break: break-all; }
+.wc-file-link:hover { text-decoration: underline; }
+.wc-notes { font-size: .78rem; color: var(--text-muted); font-style: italic; border-top: 1px solid var(--border); padding-top: .35rem; margin-top: .2rem; }
+.wm-upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 1.25rem; text-align: center; transition: border-color .2s, background .2s; }
+.wm-upload-zone.drag-over { border-color: var(--primary); background: rgba(74,144,217,.06); }
+#wm-file-preview { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; font-size: .85rem; }
+.modal-lg { max-width: 680px; }
+@media (max-width: 600px) { .warranty-grid { grid-template-columns: 1fr; } }
+
 /* ---- Projects ---- */
 .projects-container { }
 .projects-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
