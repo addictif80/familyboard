@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="FamilyBoard">
     <link rel="apple-touch-icon" href="<?= BASE_URL ?>/public/icons/icon-192.png">
     <!-- Styles -->
-    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css?v=<?= APP_VERSION ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
 </head>
@@ -156,10 +156,12 @@ $family = \App\Models\Family::findById($currentUser['family_id']);
 const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const APP_TIMEZONE = <?= json_encode(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Paris') ?>;
 </script>
-<script src="<?= ASSETS_URL ?>/js/app.js"></script>
+<script src="<?= ASSETS_URL ?>/js/app.js?v=<?= APP_VERSION ?>"></script>
 <script>
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('/public/sw.js'));
+    window.addEventListener('load', () => navigator.serviceWorker.register(
+        '<?= BASE_URL ?>/public/sw.js?v=<?= APP_VERSION ?>'
+    ));
 }
 // PWA install prompt
 let deferredPrompt;
@@ -181,7 +183,7 @@ function installPWA() {
 </script>
 <?php if (isset($extraJs)): ?>
     <?php foreach ((array)$extraJs as $js): ?>
-        <script src="<?= ASSETS_URL ?>/js/<?= $js ?>"></script>
+        <script src="<?= ASSETS_URL ?>/js/<?= $js ?>?v=<?= APP_VERSION ?>"></script>
     <?php endforeach; ?>
 <?php endif; ?>
 </body>
