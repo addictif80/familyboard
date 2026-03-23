@@ -147,23 +147,24 @@ class Custody
             ],
         ];
 
+        // If recurrence hasn't started yet in this range, nothing to show
+        if ($recStart > $rangeTo) return [];
+
         $events = [];
 
-        // Find the first period that overlaps with rangeStart
-        $diff = (int)$recStart->diff($rangeFrom)->days;
-        // Go back one period to not miss events that started before rangeStart but overlap
-        $periodsBack = max(0, (int)floor($diff / $periodDays) - 1);
-
+        // Start from recStart; jump ahead efficiently if rangeFrom is well after recStart
         $current = clone $recStart;
-        $current->modify("+{$periodsBack} days" . ($periodsBack > 0 ? '' : ''));
-        // Align to exact period boundary
-        $current = clone $recStart;
-        if ($periodsBack > 0) {
-            $current->modify("+" . ($periodsBack * $periodDays) . " days");
+        if ($rangeFrom > $recStart) {
+            // diff->days is always positive (absolute) and safe here since rangeFrom > recStart
+            $diff = (int)$recStart->diff($rangeFrom)->days;
+            $skip = max(0, (int)floor($diff / $periodDays) - 1);
+            if ($skip > 0) {
+                $current->modify('+' . ($skip * $periodDays) . ' days');
+            }
         }
 
         $iterations = 0;
-        $maxIterations = (int)ceil(($rangeTo->diff($current)->days + $periodDays * 2) / $periodDays) + 4;
+        $maxIterations = (int)ceil(($current->diff($rangeTo)->days + $periodDays * 2) / $periodDays) + 4;
 
         while ($current <= $rangeTo && $iterations < $maxIterations) {
             $iterations++;

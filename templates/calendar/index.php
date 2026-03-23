@@ -14,6 +14,12 @@ ob_start();
             <?php endforeach; ?>
         </div>
         <div class="calendar-actions">
+            <?php if (!empty($custodySchedules)): ?>
+            <label class="member-filter" style="--color:#E67E22">
+                <input type="checkbox" id="custody-toggle" onchange="loadEvents()">
+                👶 Garde alternée
+            </label>
+            <?php endif; ?>
             <button class="btn btn-secondary btn-sm" onclick="openCalDAVModal()">
                 🔗 Ajouter CalDAV
             </button>

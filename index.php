@@ -41,6 +41,7 @@ use App\Controllers\BudgetController;
 use App\Controllers\CustodyController;
 use App\Controllers\ProjectController;
 use App\Controllers\SettingsController;
+use App\Controllers\InvitationController;
 
 Session::start();
 
@@ -130,8 +131,15 @@ $router->post('/settings/family', [SettingsController::class, 'updateFamily']);
 $router->post('/settings/family/code', [SettingsController::class, 'regenerateCode']);
 $router->post('/settings/smtp', [SettingsController::class, 'updateSmtp']);
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
+$router->post('/api/settings/email-template', [SettingsController::class, 'saveEmailTemplate']);
+$router->post('/api/settings/email-template/:type/reset', [SettingsController::class, 'resetEmailTemplate']);
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
 $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
+
+// Invitations
+$router->get('/invite/:token', [InvitationController::class, 'show']);
+$router->post('/invite/:token', [InvitationController::class, 'accept']);
+$router->post('/api/settings/invite', [InvitationController::class, 'sendInvite']);
 
 $router->dispatch();

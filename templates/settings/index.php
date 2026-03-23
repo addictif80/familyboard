@@ -57,13 +57,30 @@ ob_start();
                 <button type="submit" class="btn btn-primary" style="align-self:end">Enregistrer</button>
             </div>
         </form>
-        <div class="invite-section">
+        <div class="invite-section" style="margin-top:1rem">
             <strong>Code d'invitation :</strong>
             <code class="invite-code"><?= htmlspecialchars($family['invite_code']) ?></code>
             <button onclick="copyCode('<?= htmlspecialchars($family['invite_code']) ?>')" class="btn btn-secondary btn-sm">📋 Copier</button>
             <form method="POST" action="<?= BASE_URL ?>/settings/family/code" style="display:inline">
                 <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Régénérer le code ? L\'ancien ne fonctionnera plus.')">🔄 Régénérer</button>
             </form>
+        </div>
+
+        <!-- Email invitation -->
+        <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border)">
+            <h4 style="margin-bottom:.75rem">✉️ Inviter par email</h4>
+            <div class="form-row" style="align-items:flex-end">
+                <div class="form-group flex-2" style="margin-bottom:0">
+                    <label>Adresse email de la personne à inviter</label>
+                    <input type="email" id="invite-email" placeholder="prenom@exemple.fr">
+                </div>
+                <button class="btn btn-primary" onclick="sendInvitation()" style="white-space:nowrap">
+                    Envoyer l'invitation
+                </button>
+            </div>
+            <small style="color:var(--text-muted);display:block;margin-top:.4rem">
+                Un lien valide 7 jours sera envoyé par email. Requiert la configuration SMTP.
+            </small>
         </div>
     </div>
 
@@ -135,8 +152,93 @@ ob_start();
             <button type="submit" class="btn btn-primary">Enregistrer la configuration SMTP</button>
         </form>
     </div>
+
+    <!-- Email templates -->
+    <div class="card settings-section">
+        <h3>📝 Templates d'emails</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Personnalisez le contenu des emails automatiques. Variables disponibles entre <code>{{'{{'}}double accolades{{'}}'}}</code>.
+        </p>
+        <div class="template-tabs">
+            <?php foreach ($emailTemplates as $type => $tpl): ?>
+            <div class="template-block" id="tpl-<?= $type ?>">
+                <div class="template-header" onclick="toggleTemplate('<?= $type ?>')">
+                    <strong><?= htmlspecialchars($tpl['label']) ?></strong>
+                    <?php if ($tpl['is_custom']): ?>
+                        <span class="badge-custom">Personnalisé</span>
+                    <?php endif; ?>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="template-body" style="display:none">
+                    <div style="margin-bottom:.5rem;font-size:.78rem;color:var(--text-muted)">
+                        Variables : <?= implode(', ', array_map(fn($v) => '<code>{{' . $v . '}}</code>', \App\Models\EmailTemplate::variables($type))) ?>
+                    </div>
+                    <div class="form-group">
+                        <label>Sujet</label>
+                        <input type="text" id="tpl-subject-<?= $type ?>" value="<?= htmlspecialchars($tpl['subject']) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Corps (HTML)</label>
+                        <textarea id="tpl-body-<?= $type ?>" rows="6" style="font-family:monospace;font-size:.8rem"><?= htmlspecialchars($tpl['body']) ?></textarea>
+                    </div>
+                    <div style="display:flex;gap:.5rem">
+                        <button class="btn btn-primary btn-sm" onclick="saveTemplate('<?= $type ?>')">Enregistrer</button>
+                        <?php if ($tpl['is_custom']): ?>
+                        <button class="btn btn-secondary btn-sm" onclick="resetTemplate('<?= $type ?>')">Réinitialiser</button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- Email logs -->
+    <?php if (!empty($emailLogs)): ?>
+    <div class="card settings-section">
+        <h3>📨 Historique des emails</h3>
+        <div class="email-log-table">
+            <table style="width:100%;font-size:.82rem;border-collapse:collapse">
+                <thead>
+                    <tr style="text-align:left;border-bottom:2px solid var(--border)">
+                        <th style="padding:.4rem .6rem">Date</th>
+                        <th style="padding:.4rem .6rem">À</th>
+                        <th style="padding:.4rem .6rem">Sujet</th>
+                        <th style="padding:.4rem .6rem">Type</th>
+                        <th style="padding:.4rem .6rem">Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($emailLogs as $log): ?>
+                    <tr style="border-bottom:1px solid var(--border)">
+                        <td style="padding:.4rem .6rem;color:var(--text-muted)"><?= date('d/m H:i', strtotime($log['created_at'])) ?></td>
+                        <td style="padding:.4rem .6rem"><?= htmlspecialchars($log['to_email']) ?></td>
+                        <td style="padding:.4rem .6rem"><?= htmlspecialchars(mb_substr($log['subject'], 0, 50)) ?><?= strlen($log['subject']) > 50 ? '…' : '' ?></td>
+                        <td style="padding:.4rem .6rem"><span class="badge"><?= htmlspecialchars($log['type']) ?></span></td>
+                        <td style="padding:.4rem .6rem">
+                            <span style="color:<?= $log['status'] === 'sent' ? 'var(--success)' : 'var(--danger)' ?>">
+                                <?= $log['status'] === 'sent' ? '✓ Envoyé' : '✗ Échec' ?>
+                            </span>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
     <?php endif; ?>
 </div>
+
+<style>
+.template-block { border: 1px solid var(--border); border-radius: 8px; margin-bottom: .5rem; overflow: hidden; }
+.template-header { display:flex; align-items:center; gap:.75rem; padding: .75rem 1rem; cursor:pointer; background:var(--bg); }
+.template-header:hover { background: var(--bg-hover, #f5f5f5); }
+.template-header strong { flex:1; }
+.template-body { padding: 1rem; border-top: 1px solid var(--border); }
+.badge-custom { background:#fef3c7;color:#92400e;padding:.15rem .5rem;border-radius:4px;font-size:.75rem; }
+.toggle-icon { color:var(--text-muted);font-size:.75rem; }
+</style>
 
 <script>
 function copyCode(code) {
@@ -151,6 +253,36 @@ function previewAvatar(input) {
         };
         reader.readAsDataURL(input.files[0]);
     }
+}
+async function sendInvitation() {
+    const email = document.getElementById('invite-email').value.trim();
+    if (!email) { alert('Entrez une adresse email.'); return; }
+    const r = await apiFetch(BASE_URL + '/api/settings/invite', { method: 'POST', body: JSON.stringify({ email }) });
+    if (r.success) {
+        alert('Invitation envoyée à ' + email + ' !');
+        document.getElementById('invite-email').value = '';
+    } else {
+        alert(r.error || 'Erreur lors de l\'envoi.');
+    }
+}
+function toggleTemplate(type) {
+    const body = document.querySelector('#tpl-' + type + ' .template-body');
+    body.style.display = body.style.display === 'none' ? 'block' : 'none';
+}
+async function saveTemplate(type) {
+    const subject = document.getElementById('tpl-subject-' + type).value;
+    const body = document.getElementById('tpl-body-' + type).value;
+    const r = await apiFetch(BASE_URL + '/api/settings/email-template', {
+        method: 'POST',
+        body: JSON.stringify({ type, subject, body })
+    });
+    if (r.success) alert('Template enregistré !');
+    else alert(r.error || 'Erreur.');
+}
+async function resetTemplate(type) {
+    if (!confirm('Réinitialiser ce template avec la valeur par défaut ?')) return;
+    const r = await apiFetch(BASE_URL + '/api/settings/email-template/' + type + '/reset', { method: 'POST', body: '{}' });
+    if (r.success) location.reload();
 }
 </script>
 <?php

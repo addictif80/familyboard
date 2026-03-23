@@ -57,9 +57,15 @@ function renderCalendar() {
             <div class="cal-events">`;
 
         dayEvents.slice(0, 3).forEach(e => {
-            html += `<div class="cal-event" style="background:${e.color || '#4A90D9'}"
-                          onclick="event.stopPropagation();openEventDetails(${e.id})" title="${escapeHtml(e.title)}">
-                ${escapeHtml(e.title)}
+            const isCustody = e.extendedProps?.type === 'custody';
+            const onClick = isCustody
+                ? `window.location='${BASE_URL}/custody'`
+                : `openEventDetails(${JSON.stringify(e.id)})`;
+            html += `<div class="cal-event${isCustody ? ' cal-event-custody' : ''}"
+                          style="background:${e.color || '#4A90D9'}"
+                          onclick="event.stopPropagation();${onClick}"
+                          title="${escapeHtml(e.title)}${isCustody ? ' (Garde alternée)' : ''}">
+                ${isCustody ? '👶 ' : ''}${escapeHtml(e.title)}
             </div>`;
         });
         if (dayEvents.length > 3) html += `<div class="cal-more">+${dayEvents.length - 3}</div>`;
@@ -77,8 +83,10 @@ function loadEvents() {
     const month = currentDate.getMonth();
     const start = `${year}-${String(month+1).padStart(2,'0')}-01`;
     const end = `${year}-${String(month+1).padStart(2,'0')}-${new Date(year, month+1, 0).getDate()}`;
+    const custodyToggle = document.getElementById('custody-toggle');
+    const custody = custodyToggle && custodyToggle.checked ? 1 : 0;
 
-    fetch(`${BASE_URL}/api/calendar/events?start=${start}&end=${end}`)
+    fetch(`${BASE_URL}/api/calendar/events?start=${start}&end=${end}&custody=${custody}`)
         .then(r => r.json())
         .then(data => {
             events = data;

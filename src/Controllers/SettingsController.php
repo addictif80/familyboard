@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\Family;
 use App\Models\SmtpSettings;
 use App\Models\Notification;
+use App\Models\EmailLog;
+use App\Models\EmailTemplate;
 
 class SettingsController extends BaseController
 {
@@ -16,6 +18,8 @@ class SettingsController extends BaseController
         $family = Family::findById($user['family_id']);
         $members = User::getByFamily($user['family_id']);
         $smtp = SmtpSettings::getByFamily($user['family_id']);
+        $emailLogs = ($user['role'] === 'admin') ? EmailLog::getByFamily($user['family_id'], 30) : [];
+        $emailTemplates = ($user['role'] === 'admin') ? EmailTemplate::getAll($user['family_id']) : [];
         require BASE_PATH . '/templates/settings/index.php';
     }
 
@@ -122,6 +126,34 @@ class SettingsController extends BaseController
         $this->json(function () {
             $user = Session::user();
             Notification::markAllRead($user['id']);
+            return ['success' => true];
+        });
+    }
+
+    public function saveEmailTemplate(array $params): void
+    {
+        $this->requireAdmin();
+        $this->json(function () {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $type    = $data['type'] ?? '';
+            $subject = trim($data['subject'] ?? '');
+            $body    = trim($data['body'] ?? '');
+            if (!$type || !$subject || !$body) {
+                return ['success' => false, 'error' => 'Champs requis manquants.'];
+            }
+            EmailTemplate::save($user['family_id'], $type, $subject, $body);
+            return ['success' => true];
+        });
+    }
+
+    public function resetEmailTemplate(array $params): void
+    {
+        $this->requireAdmin();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $type = $params['type'] ?? '';
+            if ($type) EmailTemplate::reset($user['family_id'], $type);
             return ['success' => true];
         });
     }

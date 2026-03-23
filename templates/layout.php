@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? APP_NAME) ?></title>
+    <!-- PWA -->
+    <link rel="manifest" href="<?= BASE_URL ?>/public/manifest.json">
+    <meta name="theme-color" content="#4A90D9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="FamilyBoard">
+    <link rel="apple-touch-icon" href="<?= BASE_URL ?>/public/icons/icon-192.png">
+    <!-- Styles -->
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
@@ -80,6 +88,10 @@ $family = \App\Models\Family::findById($currentUser['family_id']);
         </ul>
 
         <div class="sidebar-footer">
+            <button id="pwa-install-btn" onclick="installPWA()" class="nav-link" style="display:none;background:none;border:none;width:100%;cursor:pointer;text-align:left" title="Installer l'application">
+                <span class="nav-icon">📲</span>
+                <span class="nav-label">Installer l'app</span>
+            </button>
             <a href="<?= BASE_URL ?>/settings" class="nav-link <?= str_contains($currentPath, '/settings') ? 'active' : '' ?>">
                 <div class="user-avatar" style="background:<?= htmlspecialchars($currentUser['color']) ?>">
                     <?php if ($currentUser['avatar']): ?>
@@ -142,6 +154,28 @@ $family = \App\Models\Family::findById($currentUser['family_id']);
 
 <script>const BASE_URL = <?= json_encode(BASE_URL) ?>;</script>
 <script src="<?= ASSETS_URL ?>/js/app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/public/sw.js'));
+}
+// PWA install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'flex';
+});
+function installPWA() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+        deferredPrompt = null;
+        const btn = document.getElementById('pwa-install-btn');
+        if (btn) btn.style.display = 'none';
+    });
+}
+</script>
 <?php if (isset($extraJs)): ?>
     <?php foreach ((array)$extraJs as $js): ?>
         <script src="<?= ASSETS_URL ?>/js/<?= $js ?>"></script>

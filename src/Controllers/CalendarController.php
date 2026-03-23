@@ -20,6 +20,7 @@ class CalendarController extends BaseController
         } catch (\Exception $e) {
             $caldavSources = [];
         }
+        $custodySchedules = \App\Models\Custody::getSchedules($familyId);
         require BASE_PATH . '/templates/calendar/index.php';
     }
 
@@ -31,8 +32,7 @@ class CalendarController extends BaseController
             $start = $_GET['start'] ?? date('Y-m-01');
             $end = $_GET['end'] ?? date('Y-m-t');
             $events = Event::getByFamily($user['family_id'], $start, $end);
-            // Format for FullCalendar
-            return array_map(fn($e) => [
+            $formatted = array_map(fn($e) => [
                 'id' => $e['id'],
                 'title' => $e['title'],
                 'start' => $e['is_all_day'] ? substr($e['start_datetime'], 0, 10) : $e['start_datetime'],
@@ -44,8 +44,32 @@ class CalendarController extends BaseController
                     'user_name' => $e['user_name'],
                     'user_color' => $e['user_color'],
                     'caldav' => (bool)$e['caldav_uid'],
+                    'type' => 'event',
                 ],
             ], $events);
+
+            // Optionally include custody events
+            if (!empty($_GET['custody'])) {
+                $custodyEvents = \App\Models\Custody::getAllEventsForFamily($user['family_id'], $start, $end);
+                foreach ($custodyEvents as $e) {
+                    $formatted[] = [
+                        'id'    => 'custody_' . $e['id'],
+                        'title' => $e['child_name'] . ' chez ' . $e['parent_name'],
+                        'start' => $e['start_date'],
+                        'end'   => date('Y-m-d', strtotime($e['end_date'] . ' +1 day')),
+                        'allDay' => true,
+                        'color' => $e['parent_color'] ?: '#aaa',
+                        'extendedProps' => [
+                            'type'        => 'custody',
+                            'child_name'  => $e['child_name'],
+                            'parent_name' => $e['parent_name'],
+                            'is_recurring' => !empty($e['is_recurring']),
+                        ],
+                    ];
+                }
+            }
+
+            return $formatted;
         });
     }
 

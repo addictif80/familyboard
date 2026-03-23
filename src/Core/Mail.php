@@ -5,7 +5,7 @@ use App\Models\SmtpSettings;
 
 class Mail
 {
-    public static function send(int $familyId, string $to, string $toName, string $subject, string $htmlBody): bool
+    public static function send(int $familyId, string $to, string $toName, string $subject, string $htmlBody, string $type = 'manual', ?int $sentBy = null): bool
     {
         $settings = SmtpSettings::getByFamily($familyId);
         if (!$settings) return false;
@@ -18,8 +18,11 @@ class Mail
             'X-Mailer: FamilyBoard',
         ];
 
-        // Use PHP's mail() with SMTP via ini settings, or socket-based SMTP
-        return self::sendViaSMTP($settings, $to, $toName, $subject, $htmlBody, $headers);
+        $ok = self::sendViaSMTP($settings, $to, $toName, $subject, $htmlBody, $headers);
+
+        \App\Models\EmailLog::add($familyId, $sentBy, $to, $toName, $subject, $htmlBody, $type, $ok);
+
+        return $ok;
     }
 
     private static function sendViaSMTP(array $s, string $to, string $toName, string $subject, string $body, array $extraHeaders): bool
