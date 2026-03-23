@@ -26,20 +26,22 @@ class CustodyController extends BaseController
             $end = $_GET['end'] ?? date('Y-m-t');
             $events = Custody::getAllEventsForFamily($user['family_id'], $start, $end);
             return array_map(fn($e) => [
-                'id' => 'custody_' . $e['id'],
-                'title' => $e['child_name'] . ' - ' . $e['parent_name'],
-                'start' => $e['start_date'],
-                'end' => date('Y-m-d', strtotime($e['end_date'] . ' +1 day')),
-                'allDay' => true,
-                'color' => $e['parent_color'],
+                'id'              => 'custody_' . $e['id'],
+                'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
+                'start'           => $e['start_date'],
+                'end'             => date('Y-m-d', strtotime($e['end_date'] . ' +1 day')),
+                'allDay'          => true,
+                'color'           => $e['parent_color'],
                 'backgroundColor' => $e['schedule_color'],
-                'extendedProps' => [
-                    'child_name' => $e['child_name'],
-                    'parent_name' => $e['parent_name'],
-                    'arrival_time' => $e['arrival_time'],
+                'borderColor'     => $e['parent_color'],
+                'extendedProps'   => [
+                    'child_name'     => $e['child_name'],
+                    'parent_name'    => $e['parent_name'],
+                    'arrival_time'   => $e['arrival_time'],
                     'departure_time' => $e['departure_time'],
-                    'notes' => $e['notes'],
-                    'type' => 'custody',
+                    'notes'          => $e['notes'],
+                    'is_recurring'   => !empty($e['is_recurring']),
+                    'type'           => 'custody',
                 ],
             ], $events);
         });
@@ -51,7 +53,13 @@ class CustodyController extends BaseController
         $this->json(function () {
             $user = Session::user();
             $data = $this->jsonInput();
-            $id = Custody::createSchedule($user['family_id'], $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '');
+            $recurrence = [
+                'type'      => $data['recurrence_type'] ?? 'none',
+                'start'     => $data['recurrence_start'] ?? null,
+                'parent1_id'=> $data['recurrence_parent1_id'] ?? null,
+                'parent2_id'=> $data['recurrence_parent2_id'] ?? null,
+            ];
+            $id = Custody::createSchedule($user['family_id'], $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -65,7 +73,13 @@ class CustodyController extends BaseController
             $schedule = Custody::getScheduleById($id);
             if (!$schedule || $schedule['family_id'] !== $user['family_id']) return ['success' => false];
             $data = $this->jsonInput();
-            Custody::updateSchedule($id, $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '');
+            $recurrence = [
+                'type'      => $data['recurrence_type'] ?? 'none',
+                'start'     => $data['recurrence_start'] ?? null,
+                'parent1_id'=> $data['recurrence_parent1_id'] ?? null,
+                'parent2_id'=> $data['recurrence_parent2_id'] ?? null,
+            ];
+            Custody::updateSchedule($id, $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence);
             return ['success' => true];
         });
     }

@@ -5,7 +5,6 @@
 let custodyEvents = [];
 let custodyCurrentDate = new Date();
 let editingCustodyEventId = null;
-let editingScheduleId = null;
 
 function renderCustodyCalendar() {
     const container = document.getElementById('custody-calendar');
@@ -41,23 +40,24 @@ function renderCustodyCalendar() {
         const isToday = d.getTime() === today.getTime();
         const dateStr = formatCustodyDate(d);
 
-        const dayEvents = custodyEvents.filter(e => {
-            return dateStr >= e.start && dateStr < e.end;
-        });
+        const dayEvents = custodyEvents.filter(e => dateStr >= e.start && dateStr < e.end);
 
-        const bg = dayEvents.length === 1 ? dayEvents[0].backgroundColor + '40' : '';
+        // Background tint from first event's schedule color
+        const bgColor = dayEvents.length > 0 ? hexToRgba(dayEvents[0].backgroundColor, 0.25) : '';
 
-        html += `<div class="cal-day custody-day ${isCurrentMonth ? '' : 'cal-other-month'} ${isToday ? 'cal-today' : ''}"
-                      style="${bg ? 'background:' + bg : ''}"
+        html += `<div class="cal-day ${isCurrentMonth ? '' : 'cal-other-month'} ${isToday ? 'cal-today' : ''}"
+                      style="${bgColor ? 'background:' + bgColor : ''}"
                       onclick="openCustodyEventModal('${dateStr}')">
             <span class="cal-day-num">${d.getDate()}</span>
             <div class="cal-events">`;
 
         dayEvents.forEach(e => {
-            html += `<div class="cal-event" style="background:${e.color}"
-                          onclick="event.stopPropagation();openEditCustodyEvent(${e.custodyId})"
-                          title="${escapeHtml(e.title)}">
-                ${escapeHtml(e.title)}
+            const isRecurring = e.extendedProps?.is_recurring;
+            html += `<div class="cal-event ${isRecurring ? 'cal-event-recurring' : ''}"
+                          style="background:${e.color};${isRecurring ? 'border-left:3px solid rgba(255,255,255,.7)' : ''}"
+                          onclick="event.stopPropagation();${isRecurring ? 'openCustodyEventModal(\'' + dateStr + '\')' : 'openEditCustodyEvent(\'' + e.id + '\')'}"
+                          title="${escapeHtml(e.title)}${isRecurring ? ' (récurrent)' : ''}">
+                ${escapeHtml(e.title)}${isRecurring ? ' 🔄' : ''}
             </div>`;
         });
 
@@ -69,6 +69,14 @@ function renderCustodyCalendar() {
     container.innerHTML = html;
 }
 
+function hexToRgba(hex, alpha) {
+    if (!hex) return '';
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function loadCustodyEvents() {
     const year = custodyCurrentDate.getFullYear();
     const month = custodyCurrentDate.getMonth();
@@ -78,10 +86,7 @@ function loadCustodyEvents() {
     fetch(`${BASE_URL}/api/custody/events?start=${start}&end=${end}`)
         .then(r => r.json())
         .then(data => {
-            custodyEvents = data.map(e => ({
-                ...e,
-                custodyId: e.id.toString().replace('custody_', ''),
-            }));
+            custodyEvents = data;
             renderCustodyCalendar();
         });
 }
@@ -89,23 +94,35 @@ function loadCustodyEvents() {
 function custodyPrevMonth() { custodyCurrentDate.setMonth(custodyCurrentDate.getMonth() - 1); loadCustodyEvents(); }
 function custodyNextMonth() { custodyCurrentDate.setMonth(custodyCurrentDate.getMonth() + 1); loadCustodyEvents(); }
 
+// ---- Schedule modal ----
+
 function openScheduleModal() {
-    editingScheduleId = null;
     document.getElementById('schedule-modal-title').textContent = 'Ajouter un enfant';
     document.getElementById('schedule-id').value = '';
     document.getElementById('schedule-child-name').value = '';
     document.getElementById('schedule-color').value = '#E67E22';
     document.getElementById('schedule-notes').value = '';
+    document.getElementById('schedule-recurrence-type').value = 'none';
+    document.getElementById('schedule-recurrence-start').value = '';
+    document.getElementById('schedule-parent1').value = '';
+    document.getElementById('schedule-parent2').value = '';
+    document.getElementById('recurrence-fields').style.display = 'none';
     openModal('schedule-modal');
 }
 
 function openEditScheduleModal(schedule) {
-    editingScheduleId = schedule.id;
-    document.getElementById('schedule-modal-title').textContent = 'Modifier';
+    document.getElementById('schedule-modal-title').textContent = 'Modifier le planning';
     document.getElementById('schedule-id').value = schedule.id;
     document.getElementById('schedule-child-name').value = schedule.child_name;
     document.getElementById('schedule-color').value = schedule.color;
     document.getElementById('schedule-notes').value = schedule.notes || '';
+
+    const recType = schedule.recurrence_type || 'none';
+    document.getElementById('schedule-recurrence-type').value = recType;
+    document.getElementById('schedule-recurrence-start').value = schedule.recurrence_start || '';
+    document.getElementById('schedule-parent1').value = schedule.recurrence_parent1_id || '';
+    document.getElementById('schedule-parent2').value = schedule.recurrence_parent2_id || '';
+    document.getElementById('recurrence-fields').style.display = recType === 'none' ? 'none' : 'block';
     openModal('schedule-modal');
 }
 
@@ -113,10 +130,25 @@ async function saveSchedule() {
     const childName = document.getElementById('schedule-child-name').value.trim();
     if (!childName) { alert('Prénom requis.'); return; }
 
+    const recType = document.getElementById('schedule-recurrence-type').value;
+    const recStart = document.getElementById('schedule-recurrence-start').value;
+    const parent1 = document.getElementById('schedule-parent1').value;
+    const parent2 = document.getElementById('schedule-parent2').value;
+
+    if (recType !== 'none') {
+        if (!recStart) { alert('Veuillez indiquer la date de début de la périodicité.'); return; }
+        if (!parent1 || !parent2) { alert('Veuillez sélectionner les deux parents.'); return; }
+        if (parent1 === parent2) { alert('Les deux parents doivent être différents.'); return; }
+    }
+
     const data = {
         child_name: childName,
         color: document.getElementById('schedule-color').value,
         notes: document.getElementById('schedule-notes').value,
+        recurrence_type: recType,
+        recurrence_start: recType !== 'none' ? recStart : null,
+        recurrence_parent1_id: recType !== 'none' ? parent1 : null,
+        recurrence_parent2_id: recType !== 'none' ? parent2 : null,
     };
 
     const id = document.getElementById('schedule-id').value;
@@ -126,14 +158,16 @@ async function saveSchedule() {
 }
 
 async function deleteSchedule(id) {
-    if (!confirm('Supprimer ce planning de garde ?')) return;
+    if (!confirm('Supprimer ce planning de garde et tous ses événements ?')) return;
     const result = await apiFetch(`${BASE_URL}/api/custody/schedule/${id}/delete`, { method: 'POST' });
     if (result.success) location.reload();
 }
 
+// ---- Event modal (exceptions / manual) ----
+
 function openCustodyEventModal(date = null) {
     editingCustodyEventId = null;
-    document.getElementById('custody-event-modal-title').textContent = 'Période de garde';
+    document.getElementById('custody-event-modal-title').textContent = 'Exception / période manuelle';
     document.getElementById('custody-event-id').value = '';
     document.getElementById('custody-event-delete-btn').style.display = 'none';
     document.getElementById('custody-notes').value = '';
@@ -147,14 +181,21 @@ function openCustodyEventModal(date = null) {
 }
 
 function openEditCustodyEvent(rawId) {
+    // rawId format: "custody_123"
     const id = rawId.toString().replace('custody_', '');
-    const e = custodyEvents.find(ev => ev.custodyId == id);
-    if (!e) return;
+    // Only manual events are editable (recurring ones open the "new exception" modal)
+    const e = custodyEvents.find(ev => ev.id === rawId);
+    if (!e || e.extendedProps?.is_recurring) return;
+
     editingCustodyEventId = id;
     document.getElementById('custody-event-id').value = id;
     document.getElementById('custody-event-delete-btn').style.display = '';
-    document.getElementById('custody-schedule-id').value = e.extendedProps?.schedule_id || '';
-    document.getElementById('custody-parent').value = e.extendedProps?.parent_id || '';
+    document.getElementById('custody-event-modal-title').textContent = 'Modifier la période';
+
+    // Find schedule
+    const scheduleId = e.extendedProps?.schedule_id;
+    if (scheduleId) document.getElementById('custody-schedule-id').value = scheduleId;
+
     document.getElementById('custody-start').value = e.start;
     document.getElementById('custody-end').value = e.start;
     document.getElementById('custody-arrival-time').value = e.extendedProps?.arrival_time || '';
@@ -169,7 +210,10 @@ async function saveCustodyEvent() {
     const start = document.getElementById('custody-start').value;
     const end = document.getElementById('custody-end').value;
 
-    if (!scheduleId || !parentId || !start || !end) { alert('Tous les champs obligatoires doivent être remplis.'); return; }
+    if (!scheduleId || !parentId || !start || !end) {
+        alert('Enfant, parent et dates requis.');
+        return;
+    }
 
     const data = {
         schedule_id: scheduleId,
