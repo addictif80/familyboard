@@ -1,7 +1,8 @@
 Options -Indexes
 RewriteEngine On
 
-# Force HTTPS (uncomment if your server has a valid SSL certificate)
+# Force HTTPS - NE PAS ACTIVER si vous utilisez un reverse proxy (Nginx Proxy Manager, Traefik...)
+# Le reverse proxy gère le SSL, Apache reçoit du HTTP en interne.
 # RewriteCond %{HTTPS} off
 # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
