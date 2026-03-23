@@ -11,7 +11,7 @@ ob_start();
         $nextMonth = date('Y-m', strtotime($month . '-01 +1 month'));
         ?>
         <a href="?month=<?= $prevMonth ?>" class="btn btn-secondary btn-sm">‹</a>
-        <h3><?= date('F Y', strtotime($month . '-01')) ?></h3>
+        <h3><?= \App\Core\DateHelper::monthYearUc($month . '-01') ?></h3>
         <a href="?month=<?= $nextMonth ?>" class="btn btn-secondary btn-sm">›</a>
     </div>
 

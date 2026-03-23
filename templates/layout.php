@@ -152,7 +152,10 @@ $family = \App\Models\Family::findById($currentUser['family_id']);
 </div>
 <?php endif; ?>
 
-<script>const BASE_URL = <?= json_encode(BASE_URL) ?>;</script>
+<script>
+const BASE_URL = <?= json_encode(BASE_URL) ?>;
+const APP_TIMEZONE = <?= json_encode(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Paris') ?>;
+</script>
 <script src="<?= ASSETS_URL ?>/js/app.js"></script>
 <script>
 if ('serviceWorker' in navigator) {

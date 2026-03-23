@@ -54,8 +54,26 @@ ob_start();
                     <label>Nom de la famille</label>
                     <input type="text" name="family_name" value="<?= htmlspecialchars($family['name']) ?>" required>
                 </div>
-                <button type="submit" class="btn btn-primary" style="align-self:end">Enregistrer</button>
             </div>
+            <div class="form-group">
+                <label>🌍 Fuseau horaire</label>
+                <select name="timezone">
+                    <?php foreach (\App\Core\DateHelper::timezoneList() as $group => $zones): ?>
+                        <optgroup label="<?= htmlspecialchars($group) ?>">
+                            <?php foreach ($zones as $tz => $label): ?>
+                                <option value="<?= $tz ?>" <?= ($family['timezone'] ?? 'Europe/Paris') === $tz ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($label) ?>
+                                    (<?= (new \DateTime('now', new \DateTimeZone($tz)))->format('P') ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </optgroup>
+                    <?php endforeach; ?>
+                </select>
+                <small style="color:var(--text-muted)">
+                    Heure actuelle dans ce fuseau : <strong><?= (new \DateTime('now', new \DateTimeZone($family['timezone'] ?? 'Europe/Paris')))->format('H:i') ?></strong>
+                </small>
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
         </form>
         <div class="invite-section" style="margin-top:1rem">
             <strong>Code d'invitation :</strong>

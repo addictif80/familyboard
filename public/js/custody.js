@@ -11,8 +11,7 @@ function renderCustodyCalendar() {
     const year = custodyCurrentDate.getFullYear();
     const month = custodyCurrentDate.getMonth();
 
-    const monthNames = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-    const dayNames = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+    const dayNames = typeof fmtDayNames === 'function' ? fmtDayNames() : ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 
     const firstDay = new Date(year, month, 1);
     let startDow = firstDay.getDay();
@@ -24,7 +23,7 @@ function renderCustodyCalendar() {
     <div class="cal-wrapper">
         <div class="cal-nav">
             <button onclick="custodyPrevMonth()" class="btn btn-secondary btn-sm">‹</button>
-            <h3>${monthNames[month]} ${year}</h3>
+            <h3>${typeof fmtMonthYear === 'function' ? fmtMonthYear(year, month) : month + ' ' + year}</h3>
             <button onclick="custodyNextMonth()" class="btn btn-secondary btn-sm">›</button>
         </div>
         <div class="cal-grid">

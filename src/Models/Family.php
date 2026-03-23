@@ -24,9 +24,19 @@ class Family
         );
     }
 
-    public static function update(int $id, string $name): void
+    public static function update(int $id, string $name, ?string $timezone = null): void
     {
-        Database::execute('UPDATE families SET name = ? WHERE id = ?', [$name, $id]);
+        if ($timezone) {
+            Database::execute('UPDATE families SET name = ?, timezone = ? WHERE id = ?', [$name, $timezone, $id]);
+        } else {
+            Database::execute('UPDATE families SET name = ? WHERE id = ?', [$name, $id]);
+        }
+    }
+
+    public static function getTimezone(int $id): string
+    {
+        $row = Database::fetch('SELECT timezone FROM families WHERE id = ?', [$id]);
+        return $row['timezone'] ?? 'Europe/Paris';
     }
 
     public static function regenerateCode(int $id): string

@@ -45,6 +45,15 @@ use App\Controllers\InvitationController;
 
 Session::start();
 
+// Apply family timezone as early as possible
+if (Session::isLoggedIn()) {
+    $tz = \App\Models\Family::getTimezone(Session::user()['family_id']);
+    date_default_timezone_set($tz);
+    define('APP_TIMEZONE', $tz);
+} else {
+    define('APP_TIMEZONE', 'Europe/Paris');
+}
+
 $router = new Router();
 
 // Auth

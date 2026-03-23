@@ -6,14 +6,48 @@ let currentDate = new Date();
 let events = [];
 let editingEventId = null;
 
+// Intl formatters — use APP_TIMEZONE so display matches the server
+function tzDate(dateStr) {
+    // For date-only strings (YYYY-MM-DD), parse as local noon to avoid DST off-by-one
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        return new Date(dateStr + 'T12:00:00');
+    }
+    return new Date(dateStr);
+}
+
+const _intlMonth = new Intl.DateTimeFormat('fr-FR', { month: 'long', timeZone: APP_TIMEZONE });
+const _intlDay   = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', timeZone: APP_TIMEZONE });
+const _intlTime  = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIMEZONE });
+
+function fmtMonthYear(year, month) {
+    const d = new Date(year, month, 1);
+    const m = _intlMonth.format(d);
+    return m.charAt(0).toUpperCase() + m.slice(1) + ' ' + year;
+}
+
+function fmtDayNames() {
+    const names = [];
+    // Get Mon-Sun: use a known Monday (2024-01-01 was a Monday)
+    for (let i = 1; i <= 7; i++) {
+        const d = new Date(2024, 0, i);
+        const s = _intlDay.format(d);
+        names.push(s.charAt(0).toUpperCase() + s.slice(1).replace('.',''));
+    }
+    return names;
+}
+
+function fmtEventTime(dateStr) {
+    if (!dateStr || dateStr.length === 10) return '';
+    return _intlTime.format(new Date(dateStr));
+}
+
 // Simple calendar renderer
 function renderCalendar() {
     const container = document.getElementById('calendar');
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
-    const monthNames = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-    const dayNames = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+    const dayNames = fmtDayNames();
 
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -28,7 +62,7 @@ function renderCalendar() {
     <div class="cal-wrapper">
         <div class="cal-nav">
             <button onclick="prevMonth()" class="btn btn-secondary btn-sm">‹</button>
-            <h3>${monthNames[month]} ${year}</h3>
+            <h3>${fmtMonthYear(year, month)}</h3>
             <button onclick="nextMonth()" class="btn btn-secondary btn-sm">›</button>
             <button onclick="goToday()" class="btn btn-secondary btn-sm" style="margin-left:.5rem">Aujourd'hui</button>
         </div>

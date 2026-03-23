@@ -19,6 +19,7 @@ spl_autoload_register(function (string $class) {
 
 use App\Core\Database;
 use App\Core\Mail;
+use App\Core\DateHelper;
 use App\Models\Family;
 use App\Models\User;
 use App\Models\Event;
@@ -37,6 +38,10 @@ $families = Database::fetchAll(
 foreach ($families as $family) {
     $familyId = (int)$family['id'];
     $members  = User::getByFamily($familyId);
+
+    // Apply family timezone for date calculations
+    $tz = $family['timezone'] ?? 'Europe/Paris';
+    date_default_timezone_set($tz);
 
     sendEventReminders($familyId, $members, $appUrl);
     sendTaskReminders($familyId, $members, $appUrl);
@@ -71,7 +76,7 @@ function sendEventReminders(int $familyId, array $members, string $appUrl): void
             );
             if ($alreadySent) continue;
 
-            $date = date('d/m/Y à H:i', strtotime($event['start_datetime']));
+            $date = DateHelper::longTime($event['start_datetime']);
             $rendered = EmailTemplate::render($familyId, 'event_reminder', [
                 'family_name'       => '',
                 'user_name'         => $member['name'],
@@ -127,7 +132,7 @@ function sendTaskReminders(int $familyId, array $members, string $appUrl): void
                 'user_name'   => $member['name'],
                 'task_name'   => $task['title'],
                 'list_name'   => $task['list_name'],
-                'task_created' => date('d/m/Y', strtotime($task['created_at'])),
+                'task_created' => DateHelper::long($task['created_at']),
                 'app_url'     => $appUrl,
             ]);
 
