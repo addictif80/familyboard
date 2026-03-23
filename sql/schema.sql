@@ -1,4 +1,11 @@
 -- FamilyBoard Database Schema
+--
+-- IMPORTANT (CyberPanel / bases créées en utf8mb3) :
+-- Le charset utf8mb4 est défini sur chaque table individuellement,
+-- donc l'import fonctionne même si la base est en utf8mb3_general_ci.
+-- Pour convertir la base entière (optionnel, depuis phpMyAdmin > SQL) :
+--   ALTER DATABASE `familyboard` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
