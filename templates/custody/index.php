@@ -218,7 +218,6 @@ ob_start();
 </style>
 
 <script>
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const SCHEDULES = <?= json_encode($schedules) ?>;
 
 function toggleRecurrenceFields(value) {

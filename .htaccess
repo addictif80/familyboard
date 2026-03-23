@@ -1,6 +1,10 @@
 Options -Indexes
 RewriteEngine On
 
+# Force HTTPS (uncomment if your server has a valid SSL certificate)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
 # Serve existing files directly (CSS, JS, images, uploads)
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]

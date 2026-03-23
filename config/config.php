@@ -3,12 +3,15 @@
 define('APP_NAME', 'FamilyBoard');
 define('APP_VERSION', '1.0.0');
 define('BASE_PATH', dirname(__DIR__));
-define('BASE_URL', ''); // e.g. /familyboard or empty if at root
 
 // Load local overrides FIRST so they take priority
 if (file_exists(__DIR__ . '/config.local.php')) {
     require_once __DIR__ . '/config.local.php';
 }
+
+// BASE_URL: path prefix only (no protocol/domain), e.g. '' or '/familyboard'
+// Can be overridden in config.local.php with: define('BASE_URL', '/subdir');
+if (!defined('BASE_URL')) define('BASE_URL', '');
 
 // Database defaults (used only if not defined in config.local.php)
 if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
