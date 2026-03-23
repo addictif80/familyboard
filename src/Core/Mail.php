@@ -2,94 +2,246 @@
 namespace App\Core;
 
 use App\Models\SmtpSettings;
+use App\Models\EmailLog;
 
 class Mail
 {
-    public static function send(int $familyId, string $to, string $toName, string $subject, string $htmlBody, string $type = 'manual', ?int $sentBy = null): bool
-    {
+    public static function send(
+        int $familyId,
+        string $to,
+        string $toName,
+        string $subject,
+        string $htmlBody,
+        string $type = 'manual',
+        ?int $sentBy = null
+    ): bool {
         $settings = SmtpSettings::getByFamily($familyId);
-        if (!$settings) return false;
+        if (!$settings) {
+            EmailLog::add($familyId, $sentBy, $to, $toName, $subject, $htmlBody, $type, false, 'Configuration SMTP manquante.');
+            return false;
+        }
 
-        $headers = [
-            'MIME-Version: 1.0',
-            'Content-Type: text/html; charset=UTF-8',
-            'From: ' . $settings['from_name'] . ' <' . $settings['from_email'] . '>',
-            'To: ' . $toName . ' <' . $to . '>',
-            'X-Mailer: FamilyBoard',
-        ];
-
-        $ok = self::sendViaSMTP($settings, $to, $toName, $subject, $htmlBody, $headers);
-
-        \App\Models\EmailLog::add($familyId, $sentBy, $to, $toName, $subject, $htmlBody, $type, $ok);
-
+        [$ok, $error] = self::sendViaSMTP($settings, $to, $toName, $subject, $htmlBody);
+        EmailLog::add($familyId, $sentBy, $to, $toName, $subject, $htmlBody, $type, $ok, $error);
         return $ok;
     }
 
-    private static function sendViaSMTP(array $s, string $to, string $toName, string $subject, string $body, array $extraHeaders): bool
+    /**
+     * Returns [bool $success, string $errorMessage]
+     */
+    private static function sendViaSMTP(array $s, string $to, string $toName, string $subject, string $body): array
     {
-        $port = (int)$s['port'];
-        $host = $s['host'];
+        $port   = (int)$s['port'];
+        $host   = $s['host'];
+        $prefix = $s['encryption'] === 'ssl' ? 'ssl://' : '';
 
-        $prefix = match($s['encryption']) {
-            'ssl' => 'ssl://',
-            'tls' => '',
-            default => '',
-        };
+        // Allow self-signed certs (common on shared/internal SMTP servers)
+        $ctx = stream_context_create(['ssl' => [
+            'verify_peer'       => false,
+            'verify_peer_name'  => false,
+            'allow_self_signed' => true,
+        ]]);
 
-        $errno = 0;
+        $errno  = 0;
         $errstr = '';
-        $socket = @fsockopen($prefix . $host, $port, $errno, $errstr, 10);
-        if (!$socket) return false;
+        $socket = @stream_socket_client(
+            "{$prefix}{$host}:{$port}",
+            $errno, $errstr, 15,
+            STREAM_CLIENT_CONNECT, $ctx
+        );
+        if (!$socket) {
+            return [false, "Connexion impossible à {$host}:{$port} – {$errstr} (errno {$errno})"];
+        }
+        stream_set_timeout($socket, 15);
 
-        $read = fgets($socket, 512);
-        if (!str_starts_with($read, '220')) { fclose($socket); return false; }
+        $banner = fgets($socket, 512);
+        if (!$banner || !str_starts_with($banner, '220')) {
+            fclose($socket);
+            return [false, "Bannière SMTP inattendue : " . trim((string)$banner)];
+        }
 
         $ehlo = gethostname() ?: 'localhost';
-        fputs($socket, "EHLO $ehlo\r\n");
-        $resp = '';
-        while ($line = fgets($socket, 512)) {
-            $resp .= $line;
-            if ($line[3] === ' ') break;
-        }
+        self::cmd($socket, "EHLO {$ehlo}");
 
         if ($s['encryption'] === 'tls') {
-            fputs($socket, "STARTTLS\r\n");
-            fgets($socket, 512);
-            stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
-            fputs($socket, "EHLO $ehlo\r\n");
-            while ($line = fgets($socket, 512)) {
-                if ($line[3] === ' ') break;
+            $tlsR = self::cmd($socket, 'STARTTLS');
+            if (!str_starts_with($tlsR, '220')) {
+                fclose($socket);
+                return [false, "STARTTLS refusé : " . trim($tlsR)];
             }
+            if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                fclose($socket);
+                return [false, 'Négociation TLS échouée (certificat ou protocole incompatible)'];
+            }
+            self::cmd($socket, "EHLO {$ehlo}");
         }
 
-        fputs($socket, "AUTH LOGIN\r\n");
-        fgets($socket, 512);
-        fputs($socket, base64_encode($s['username']) . "\r\n");
-        fgets($socket, 512);
-        fputs($socket, base64_encode($s['password']) . "\r\n");
+        // AUTH LOGIN
+        self::raw($socket, "AUTH LOGIN\r\n");
+        $r1 = fgets($socket, 512);
+        if (!$r1 || !str_starts_with($r1, '334')) {
+            fclose($socket);
+            return [false, "AUTH LOGIN refusé : " . trim((string)$r1) . " (le serveur supporte peut-être AUTH PLAIN ou XOAUTH2 uniquement)"];
+        }
+        self::raw($socket, base64_encode($s['username']) . "\r\n");
+        $r2 = fgets($socket, 512);
+        if (!$r2 || !str_starts_with($r2, '334')) {
+            fclose($socket);
+            return [false, "Identifiant rejeté : " . trim((string)$r2)];
+        }
+        self::raw($socket, base64_encode($s['password']) . "\r\n");
         $authResp = fgets($socket, 512);
-        if (!str_starts_with($authResp, '235')) { fclose($socket); return false; }
+        if (!$authResp || !str_starts_with($authResp, '235')) {
+            fclose($socket);
+            return [false, "Authentification échouée : " . trim((string)$authResp)];
+        }
 
-        fputs($socket, "MAIL FROM:<{$s['from_email']}>\r\n");
-        fgets($socket, 512);
-        fputs($socket, "RCPT TO:<$to>\r\n");
-        fgets($socket, 512);
-        fputs($socket, "DATA\r\n");
-        fgets($socket, 512);
+        // MAIL FROM
+        $mfR = self::cmd($socket, "MAIL FROM:<{$s['from_email']}>");
+        if (!str_starts_with($mfR, '250')) {
+            fclose($socket);
+            return [false, "MAIL FROM rejeté : " . trim($mfR)];
+        }
 
-        $headers = implode("\r\n", $extraHeaders);
-        $message = "$headers\r\nSubject: =?UTF-8?B?" . base64_encode($subject) . "?=\r\n\r\n$body";
-        fputs($socket, $message . "\r\n.\r\n");
+        // RCPT TO
+        $rtR = self::cmd($socket, "RCPT TO:<{$to}>");
+        if (!str_starts_with($rtR, '250') && !str_starts_with($rtR, '251')) {
+            fclose($socket);
+            return [false, "RCPT TO rejeté : " . trim($rtR) . " (relais refusé ou adresse invalide)"];
+        }
+
+        // DATA
+        $dataStart = self::cmd($socket, 'DATA');
+        if (!str_starts_with($dataStart, '354')) {
+            fclose($socket);
+            return [false, "DATA refusé : " . trim($dataStart)];
+        }
+
+        $headers = implode("\r\n", [
+            'MIME-Version: 1.0',
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $s['from_name'] . ' <' . $s['from_email'] . '>',
+            'To: ' . $toName . ' <' . $to . '>',
+            'Subject: =?UTF-8?B?' . base64_encode($subject) . '?=',
+            'X-Mailer: FamilyBoard',
+        ]);
+
+        // Dot-stuffing: lines starting with '.' must be escaped as '..'
+        $safeBody = preg_replace('/^\.(?=.)/m', '..', $body);
+
+        self::raw($socket, $headers . "\r\n\r\n" . $safeBody . "\r\n.\r\n");
         $dataResp = fgets($socket, 512);
-
-        fputs($socket, "QUIT\r\n");
+        self::raw($socket, "QUIT\r\n");
         fclose($socket);
 
-        return str_starts_with($dataResp, '250');
+        if (!$dataResp || !str_starts_with($dataResp, '250')) {
+            return [false, "Message refusé : " . trim((string)$dataResp)];
+        }
+        return [true, ''];
+    }
+
+    /**
+     * Send a command, read the full (possibly multi-line) response, return last line.
+     */
+    private static function cmd($socket, string $command): string
+    {
+        self::raw($socket, $command . "\r\n");
+        $last = '';
+        while ($line = fgets($socket, 512)) {
+            $last = $line;
+            if (strlen($line) < 4 || $line[3] === ' ') break;
+        }
+        return $last;
+    }
+
+    private static function raw($socket, string $data): void
+    {
+        fputs($socket, $data);
     }
 
     public static function notifyUser(array $user, string $subject, string $html): bool
     {
         return self::send($user['family_id'], $user['email'], $user['name'], $subject, $html);
+    }
+
+    /**
+     * Test the SMTP connection step by step without sending a real email.
+     * Returns ['ok' => bool, 'steps' => [['label','ok','detail']], 'error' => string]
+     */
+    public static function testConnection(array $s): array
+    {
+        $steps  = [];
+        $port   = (int)$s['port'];
+        $host   = $s['host'];
+        $prefix = $s['encryption'] === 'ssl' ? 'ssl://' : '';
+
+        $ctx = stream_context_create(['ssl' => [
+            'verify_peer'       => false,
+            'verify_peer_name'  => false,
+            'allow_self_signed' => true,
+        ]]);
+
+        $errno  = 0;
+        $errstr = '';
+        $socket = @stream_socket_client("{$prefix}{$host}:{$port}", $errno, $errstr, 10, STREAM_CLIENT_CONNECT, $ctx);
+        if (!$socket) {
+            $steps[] = ['label' => 'Connexion', 'ok' => false, 'detail' => "{$host}:{$port} – {$errstr}"];
+            return ['ok' => false, 'steps' => $steps, 'error' => "Connexion impossible à {$host}:{$port} – {$errstr}"];
+        }
+        stream_set_timeout($socket, 10);
+
+        $banner = fgets($socket, 512);
+        $steps[] = ['label' => 'Connexion', 'ok' => str_starts_with((string)$banner, '220'), 'detail' => trim((string)$banner)];
+
+        $ehlo = gethostname() ?: 'localhost';
+        self::raw($socket, "EHLO {$ehlo}\r\n");
+        $ehloLast = '';
+        while ($l = fgets($socket, 512)) { $ehloLast = $l; if (strlen($l) < 4 || $l[3] === ' ') break; }
+        $steps[] = ['label' => 'EHLO', 'ok' => str_starts_with($ehloLast, '250'), 'detail' => trim($ehloLast)];
+
+        if ($s['encryption'] === 'tls') {
+            $tlsR  = self::cmd($socket, 'STARTTLS');
+            $tlsOk = str_starts_with($tlsR, '220');
+            $steps[] = ['label' => 'STARTTLS', 'ok' => $tlsOk, 'detail' => trim($tlsR)];
+            if ($tlsOk) {
+                $cryptoOk = (bool)stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+                $steps[] = ['label' => 'Handshake TLS', 'ok' => $cryptoOk, 'detail' => $cryptoOk ? 'OK' : 'Échec'];
+                if (!$cryptoOk) {
+                    fclose($socket);
+                    return ['ok' => false, 'steps' => $steps, 'error' => 'TLS handshake échoué'];
+                }
+                self::cmd($socket, "EHLO {$ehlo}");
+            }
+        }
+
+        self::raw($socket, "AUTH LOGIN\r\n");
+        $r1 = fgets($socket, 512);
+        $steps[] = ['label' => 'AUTH LOGIN', 'ok' => str_starts_with((string)$r1, '334'), 'detail' => trim((string)$r1)];
+        if (!str_starts_with((string)$r1, '334')) {
+            fclose($socket);
+            return ['ok' => false, 'steps' => $steps, 'error' => trim((string)$r1)];
+        }
+
+        self::raw($socket, base64_encode($s['username']) . "\r\n");
+        $r2 = fgets($socket, 512);
+        $steps[] = ['label' => 'Identifiant', 'ok' => str_starts_with((string)$r2, '334'), 'detail' => trim((string)$r2)];
+        if (!str_starts_with((string)$r2, '334')) {
+            fclose($socket);
+            return ['ok' => false, 'steps' => $steps, 'error' => trim((string)$r2)];
+        }
+
+        self::raw($socket, base64_encode($s['password']) . "\r\n");
+        $r3 = fgets($socket, 512);
+        $authOk = str_starts_with((string)$r3, '235');
+        $steps[] = ['label' => 'Authentification', 'ok' => $authOk, 'detail' => trim((string)$r3)];
+
+        self::raw($socket, "QUIT\r\n");
+        fclose($socket);
+
+        return [
+            'ok'    => $authOk,
+            'steps' => $steps,
+            'error' => $authOk ? '' : "Authentification refusée : " . trim((string)$r3),
+        ];
     }
 }

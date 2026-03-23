@@ -167,8 +167,14 @@ ob_start();
                     <input type="text" name="smtp_from_name" value="<?= htmlspecialchars($smtp['from_name'] ?? 'FamilyBoard') ?>">
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary">Enregistrer la configuration SMTP</button>
+            <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.5rem">
+                <button type="submit" class="btn btn-primary">Enregistrer la configuration SMTP</button>
+                <?php if ($smtp): ?>
+                <button type="button" class="btn btn-secondary" onclick="testSmtp()">🔌 Tester la connexion</button>
+                <?php endif; ?>
+            </div>
         </form>
+        <div id="smtp-test-result" style="display:none;margin-top:1rem"></div>
     </div>
 
     <!-- Email templates -->
@@ -237,6 +243,11 @@ ob_start();
                             <span style="color:<?= $log['status'] === 'sent' ? 'var(--success)' : 'var(--danger)' ?>">
                                 <?= $log['status'] === 'sent' ? '✓ Envoyé' : '✗ Échec' ?>
                             </span>
+                            <?php if ($log['status'] === 'failed' && $log['error_message']): ?>
+                                <br><small style="color:var(--danger);font-size:.7rem" title="<?= htmlspecialchars($log['error_message']) ?>">
+                                    <?= htmlspecialchars(mb_substr($log['error_message'], 0, 60)) ?><?= mb_strlen($log['error_message']) > 60 ? '…' : '' ?>
+                                </small>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -271,6 +282,34 @@ function previewAvatar(input) {
         };
         reader.readAsDataURL(input.files[0]);
     }
+}
+async function testSmtp() {
+    const btn = document.querySelector('[onclick="testSmtp()"]');
+    const box = document.getElementById('smtp-test-result');
+    btn.disabled = true; btn.textContent = '⏳ Test en cours…';
+    box.style.display = 'none';
+    try {
+        const r = await apiFetch(BASE_URL + '/api/settings/smtp/test', { method: 'POST' });
+        let html = '<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">';
+        for (const step of (r.steps || [])) {
+            html += `<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem .75rem;border-bottom:1px solid var(--border)">
+                <span style="font-size:1rem">${step.ok ? '✅' : '❌'}</span>
+                <strong style="min-width:130px">${step.label}</strong>
+                <code style="font-size:.75rem;color:var(--text-muted)">${step.detail}</code>
+            </div>`;
+        }
+        html += '</div>';
+        if (!r.ok && r.error) {
+            html += `<p style="color:var(--danger);margin-top:.5rem;font-size:.85rem">❌ ${r.error}</p>`;
+        } else if (r.ok) {
+            html += `<p style="color:var(--success);margin-top:.5rem;font-size:.85rem">✅ Connexion SMTP réussie !</p>`;
+        }
+        box.innerHTML = html;
+    } catch(e) {
+        box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
+    }
+    box.style.display = 'block';
+    btn.disabled = false; btn.textContent = '🔌 Tester la connexion';
 }
 async function sendInvitation() {
     const email = document.getElementById('invite-email').value.trim();

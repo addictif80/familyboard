@@ -2,6 +2,7 @@
 namespace App\Controllers;
 
 use App\Core\Session;
+use App\Core\Mail;
 use App\Models\User;
 use App\Models\Family;
 use App\Models\SmtpSettings;
@@ -84,6 +85,19 @@ class SettingsController extends BaseController
         Session::flash('success', 'Paramètres SMTP enregistrés.');
         header('Location: ' . BASE_URL . '/settings');
         exit;
+    }
+
+    public function testSmtp(array $params): void
+    {
+        $this->requireAdmin();
+        $this->json(function () {
+            $user     = Session::user();
+            $settings = SmtpSettings::getByFamily($user['family_id']);
+            if (!$settings) {
+                return ['ok' => false, 'error' => 'Aucune configuration SMTP enregistrée.', 'steps' => []];
+            }
+            return Mail::testConnection($settings);
+        });
     }
 
     public function removeMember(array $params): void
