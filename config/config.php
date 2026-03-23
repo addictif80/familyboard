@@ -13,6 +13,9 @@ define('DB_USER', getenv('DB_USER') ?: 'root');
 define('DB_PASS', getenv('DB_PASS') ?: '');
 define('DB_CHARSET', 'utf8mb4');
 
+// Assets URL (chemin vers le dossier public/)
+define('ASSETS_URL', BASE_URL . '/public');
+
 // Upload settings
 define('UPLOAD_DIR', BASE_PATH . '/public/uploads/');
 define('UPLOAD_MAX_SIZE', 10 * 1024 * 1024); // 10MB

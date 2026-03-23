@@ -81,7 +81,7 @@ class BaseController
 
         if (!is_dir(UPLOAD_DIR)) mkdir(UPLOAD_DIR, 0755, true);
         if (move_uploaded_file($file['tmp_name'], $dest)) {
-            return '/uploads/' . $filename;
+            return '/public/uploads/' . $filename;
         }
         return null;
     }

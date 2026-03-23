@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? APP_NAME) ?></title>
-    <link rel="stylesheet" href="<?= BASE_URL ?>/css/app.css">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
 </head>
@@ -141,10 +141,10 @@ $family = \App\Models\Family::findById($currentUser['family_id']);
 <?php endif; ?>
 
 <script>const BASE_URL = <?= json_encode(BASE_URL) ?>;</script>
-<script src="<?= BASE_URL ?>/js/app.js"></script>
+<script src="<?= ASSETS_URL ?>/js/app.js"></script>
 <?php if (isset($extraJs)): ?>
     <?php foreach ((array)$extraJs as $js): ?>
-        <script src="<?= BASE_URL ?>/js/<?= $js ?>"></script>
+        <script src="<?= ASSETS_URL ?>/js/<?= $js ?>"></script>
     <?php endforeach; ?>
 <?php endif; ?>
 </body>
