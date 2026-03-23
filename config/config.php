@@ -1,9 +1,9 @@
 <?php
 // Application Configuration
 define('APP_NAME', 'FamilyBoard');
+define('BASE_PATH', dirname(__DIR__));
 // Assets version — auto-updates whenever app.css is modified (no manual bump needed)
 define('APP_VERSION', @filemtime(BASE_PATH . '/public/css/app.css') ?: '1');
-define('BASE_PATH', dirname(__DIR__));
 
 // Load local overrides FIRST so they take priority
 if (file_exists(__DIR__ . '/config.local.php')) {
