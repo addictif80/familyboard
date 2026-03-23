@@ -112,6 +112,10 @@ $router->post('/api/budget/transaction/:id/delete', [BudgetController::class, 'd
 $router->post('/api/budget/goal', [BudgetController::class, 'createGoal']);
 $router->post('/api/budget/goal/:id', [BudgetController::class, 'updateGoal']);
 $router->post('/api/budget/goal/:id/delete', [BudgetController::class, 'deleteGoal']);
+$router->post('/api/budget/recurring', [BudgetController::class, 'createRecurring']);
+$router->post('/api/budget/recurring/:id', [BudgetController::class, 'updateRecurring']);
+$router->post('/api/budget/recurring/:id/delete', [BudgetController::class, 'deleteRecurring']);
+$router->get('/api/budget/chart', [BudgetController::class, 'chartData']);
 
 // Custody
 $router->get('/custody', [CustodyController::class, 'index']);

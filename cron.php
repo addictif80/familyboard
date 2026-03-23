@@ -46,6 +46,7 @@ foreach ($families as $family) {
     sendEventReminders($familyId, $members, $appUrl);
     sendTaskReminders($familyId, $members, $appUrl);
     sendShoppingReminders($familyId, $members, $appUrl);
+    sendRecurringAlerts($familyId, $appUrl);
 }
 
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;
@@ -140,6 +141,76 @@ function sendTaskReminders(int $familyId, array $members, string $appUrl): void
                 $rendered['subject'], $rendered['body'], 'task_reminder');
 
             echo "  → Task reminder sent to {$member['email']} for task #{$task['id']}" . PHP_EOL;
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Recurring alerts: notify the assigned member N days before day_of_month
+// ──────────────────────────────────────────────────────────────────────────
+function sendRecurringAlerts(int $familyId, string $appUrl): void
+{
+    $today    = (int)date('j');
+    $todayStr = date('Y-m-d');
+
+    // Fetch active recurring items for this family
+    $items = Database::fetchAll(
+        'SELECT br.*, u.name as user_name, u.email as user_email,
+                bc.name as category_name
+         FROM budget_recurring br
+         JOIN users u ON u.id = br.user_id
+         LEFT JOIN budget_categories bc ON bc.id = br.category_id
+         WHERE br.family_id = ? AND br.is_active = 1',
+        [$familyId]
+    );
+
+    foreach ($items as $item) {
+        if (empty($item['user_email'])) continue;
+
+        $alertDay = (int)$item['alert_days_before'];
+        if ($alertDay <= 0) continue;
+
+        // The day we should send the alert
+        $triggerDay = (int)$item['day_of_month'] - $alertDay;
+        // Handle month wrap (e.g. day=1 with 3 days alert → trigger on last days of prev month)
+        if ($triggerDay < 1) {
+            // Calculate the trigger date properly
+            $dueDate  = new \DateTime(date('Y-m') . '-' . str_pad((string)$item['day_of_month'], 2, '0', STR_PAD_LEFT));
+            $trigDate = clone $dueDate;
+            $trigDate->modify("-{$alertDay} days");
+            if ($trigDate->format('Y-m-d') !== $todayStr) continue;
+        } else {
+            if ($today !== $triggerDay) continue;
+        }
+
+        // Deduplication: already sent this month?
+        if (!empty($item['last_alert_sent'])) {
+            $lastSent = new \DateTime($item['last_alert_sent']);
+            $now      = new \DateTime($todayStr);
+            if ($lastSent->format('Y-m') === $now->format('Y-m')) continue;
+        }
+
+        $typeLabel = $item['type'] === 'income' ? 'virement' : 'prélèvement';
+        $amountFmt = number_format((float)$item['amount'], 2, ',', ' ') . ' €';
+        $dueStr    = DateHelper::format(date('Y-m') . '-' . str_pad((string)$item['day_of_month'], 2, '0', STR_PAD_LEFT), 'j F Y');
+
+        $subject = "Rappel : {$typeLabel} « {$item['title']} » de {$amountFmt} le {$dueStr}";
+        $body = '<p>Bonjour ' . htmlspecialchars($item['user_name']) . ',</p>'
+            . '<p>Rappel : votre <strong>' . htmlspecialchars($typeLabel) . '</strong> '
+            . '« <strong>' . htmlspecialchars($item['title']) . '</strong> » '
+            . 'de <strong>' . $amountFmt . '</strong> '
+            . 'est prévu le <strong>' . $dueStr . '</strong>.</p>'
+            . ($item['category_name'] ? '<p>Catégorie : ' . htmlspecialchars($item['category_name']) . '</p>' : '')
+            . '<p><a href="' . $appUrl . '/budget">Voir le budget</a></p>';
+
+        [$ok] = Mail::send($familyId, $item['user_email'], $item['user_name'], $subject, $body, 'budget_recurring');
+
+        if ($ok) {
+            Database::execute(
+                'UPDATE budget_recurring SET last_alert_sent=? WHERE id=?',
+                [$todayStr, $item['id']]
+            );
+            echo "  → Recurring alert sent to {$item['user_email']} for item #{$item['id']} ({$item['title']})" . PHP_EOL;
         }
     }
 }

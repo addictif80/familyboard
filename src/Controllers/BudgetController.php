@@ -13,12 +13,14 @@ class BudgetController extends BaseController
         $user = Session::user();
         $familyId = $user['family_id'];
         $month = $_GET['month'] ?? date('Y-m');
-        $categories = Budget::getCategories($familyId);
-        $transactions = Budget::getTransactions($familyId, $month);
-        $summary = Budget::getSummary($familyId, $month);
-        $breakdown = Budget::getCategoryBreakdown($familyId, $month);
-        $goals = Budget::getGoals($familyId);
-        $members = User::getByFamily($familyId);
+        $categories      = Budget::getCategories($familyId);
+        $transactions    = Budget::getTransactions($familyId, $month);
+        $summary         = Budget::getSummary($familyId, $month);
+        $breakdown       = Budget::getCategoryBreakdown($familyId, $month);
+        $goals           = Budget::getGoals($familyId);
+        $members         = User::getByFamily($familyId);
+        $recurring       = Budget::getRecurring($familyId);
+        $recurringSummary = Budget::getRecurringSummary($familyId);
         require BASE_PATH . '/templates/budget/index.php';
     }
 
@@ -121,9 +123,59 @@ class BudgetController extends BaseController
             $month = $_GET['month'] ?? date('Y-m');
             return [
                 'transactions' => Budget::getTransactions($user['family_id'], $month),
-                'summary' => Budget::getSummary($user['family_id'], $month),
-                'breakdown' => Budget::getCategoryBreakdown($user['family_id'], $month),
+                'summary'      => Budget::getSummary($user['family_id'], $month),
+                'breakdown'    => Budget::getCategoryBreakdown($user['family_id'], $month),
             ];
+        });
+    }
+
+    // ---- Recurring items ----
+
+    public function createRecurring(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $userId = isset($data['user_id']) ? (int)$data['user_id'] : $user['id'];
+            $id = Budget::createRecurring($user['family_id'], $userId, $data);
+            return ['success' => true, 'id' => $id];
+        });
+    }
+
+    public function updateRecurring(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id   = (int)$params['id'];
+            $item = Budget::getRecurringItem($id);
+            if (!$item || $item['family_id'] !== $user['family_id']) return ['success' => false];
+            Budget::updateRecurring($id, $this->jsonInput());
+            return ['success' => true];
+        });
+    }
+
+    public function deleteRecurring(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id   = (int)$params['id'];
+            $item = Budget::getRecurringItem($id);
+            if (!$item || $item['family_id'] !== $user['family_id']) return ['success' => false];
+            Budget::deleteRecurring($id);
+            return ['success' => true];
+        });
+    }
+
+    public function chartData(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user  = Session::user();
+            $month = $_GET['month'] ?? date('Y-m');
+            return Budget::getChartData($user['family_id'], $month);
         });
     }
 }

@@ -491,6 +491,18 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .cat-label span:last-child { margin-left: auto; }
 .cat-manage-item { display: flex; justify-content: space-between; align-items: center; padding: .4rem 0; border-bottom: 1px solid var(--border); font-size: .875rem; }
 
+/* Recurring items table */
+.recurring-table-wrap { overflow-x: auto; }
+.recurring-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.recurring-table th { text-align: left; padding: .5rem .75rem; font-size: .72rem; text-transform: uppercase; color: var(--text-muted); border-bottom: 2px solid var(--border); }
+.recurring-table td { padding: .55rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.recurring-table tr:last-child td { border-bottom: none; }
+.recurring-inactive { opacity: .45; }
+.badge { display: inline-flex; align-items: center; gap: .25rem; padding: .2rem .55rem; border-radius: 20px; font-size: .72rem; font-weight: 600; white-space: nowrap; }
+.badge-income  { background: rgba(39,174,96,.15);  color: var(--success); }
+.badge-expense { background: rgba(231,76,60,.15);  color: var(--danger); }
+.user-avatar-xs { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: .65rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+
 /* ---- Custody ---- */
 .custody-container { }
 .custody-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
