@@ -210,7 +210,6 @@ ob_start();
 .recurrence-info { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: .65rem .9rem; font-size: .8rem; color: #1e40af; margin-top: .5rem; }
 .field-hint { font-size: .75rem; color: var(--text-muted); margin-top: .2rem; display:block; }
 .recurrence-badge { font-size: .8rem; }
-.cal-event-recurring { opacity: .85; border-left: 3px solid rgba(255,255,255,.6) !important; }
 .parent-block { background: var(--bg); border-radius: 8px; padding: .75rem; margin-bottom: .75rem; }
 .parent-block-header { display: flex; align-items: center; gap: .75rem; margin-bottom: .5rem; font-size: .85rem; }
 .parent-block-header small { color: var(--text-muted); flex:1; }

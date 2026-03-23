@@ -70,30 +70,6 @@ function renderCalendar() {
 
     html += `</div></div>`;
     container.innerHTML = html;
-
-    // Add styles
-    if (!document.getElementById('cal-styles')) {
-        const s = document.createElement('style');
-        s.id = 'cal-styles';
-        s.textContent = `
-        .cal-wrapper { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
-        .cal-nav { display: flex; align-items: center; gap: .5rem; padding: 1rem; border-bottom: 1px solid var(--border); }
-        .cal-nav h3 { flex: 1; text-align: center; font-size: 1rem; font-weight: 600; }
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-        .cal-dayname { text-align: center; padding: .5rem; font-size: .75rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); }
-        .cal-day { min-height: 90px; padding: .3rem; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
-        .cal-day:hover { background: rgba(74,144,217,.05); }
-        .cal-day:nth-child(7n) { border-right: none; }
-        .cal-other-month .cal-day-num { color: var(--text-muted); opacity: .4; }
-        .cal-today .cal-day-num { background: var(--primary); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
-        .cal-day-num { font-size: .8rem; font-weight: 500; margin-bottom: .2rem; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
-        .cal-events { display: flex; flex-direction: column; gap: 2px; }
-        .cal-event { font-size: .7rem; padding: 1px 5px; border-radius: 3px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-        .cal-event:hover { opacity: .85; filter: brightness(1.1); }
-        .cal-more { font-size: .65rem; color: var(--text-muted); padding: 1px 4px; }
-        `;
-        document.head.appendChild(s);
-    }
 }
 
 function loadEvents() {
