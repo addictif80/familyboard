@@ -81,26 +81,55 @@ ob_start();
                     <input type="date" id="schedule-recurrence-start">
                     <small class="field-hint">Premier jour où le parent 1 prend la garde</small>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Parent 1 (commence)</label>
-                        <select id="schedule-parent1">
-                            <option value="">— Choisir —</option>
+
+                <!-- Parent 1 -->
+                <div class="parent-block">
+                    <div class="parent-block-header">
+                        <strong>Parent 1</strong> <small>(commence en premier)</small>
+                        <select class="fill-from-member btn-text" onchange="fillParentFromMember(1, this)" title="Remplir depuis un membre">
+                            <option value="">Remplir depuis un membre…</option>
                             <?php foreach ($members as $m): ?>
-                                <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['name']) ?></option>
+                                <option value="<?= $m['id'] ?>" data-name="<?= htmlspecialchars($m['name']) ?>" data-color="<?= htmlspecialchars($m['color']) ?>"><?= htmlspecialchars($m['name']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Parent 2 (suit)</label>
-                        <select id="schedule-parent2">
-                            <option value="">— Choisir —</option>
-                            <?php foreach ($members as $m): ?>
-                                <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label>Nom</label>
+                            <input type="text" id="schedule-parent1-label" placeholder="Ex: Marie, Papa…">
+                        </div>
+                        <div class="form-group">
+                            <label>Couleur</label>
+                            <input type="color" id="schedule-parent1-color" value="#4A90D9">
+                        </div>
                     </div>
+                    <input type="hidden" id="schedule-parent1-id">
                 </div>
+
+                <!-- Parent 2 -->
+                <div class="parent-block">
+                    <div class="parent-block-header">
+                        <strong>Parent 2</strong>
+                        <select class="fill-from-member btn-text" onchange="fillParentFromMember(2, this)" title="Remplir depuis un membre">
+                            <option value="">Remplir depuis un membre…</option>
+                            <?php foreach ($members as $m): ?>
+                                <option value="<?= $m['id'] ?>" data-name="<?= htmlspecialchars($m['name']) ?>" data-color="<?= htmlspecialchars($m['color']) ?>"><?= htmlspecialchars($m['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label>Nom</label>
+                            <input type="text" id="schedule-parent2-label" placeholder="Ex: Jean, Maman…">
+                        </div>
+                        <div class="form-group">
+                            <label>Couleur</label>
+                            <input type="color" id="schedule-parent2-color" value="#E74C3C">
+                        </div>
+                    </div>
+                    <input type="hidden" id="schedule-parent2-id">
+                </div>
+
                 <div class="recurrence-info">
                     💡 Les périodes récurrentes s'affichent automatiquement. Utilisez <strong>"+ Exception de garde"</strong> pour modifier une période spécifique (vacances, échange ponctuel…).
                 </div>
@@ -179,9 +208,13 @@ ob_start();
 
 <style>
 .recurrence-info { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: .65rem .9rem; font-size: .8rem; color: #1e40af; margin-top: .5rem; }
-.field-hint { font-size: .75rem; color: var(--text-muted); margin-top: .2rem; }
+.field-hint { font-size: .75rem; color: var(--text-muted); margin-top: .2rem; display:block; }
 .recurrence-badge { font-size: .8rem; }
 .cal-event-recurring { opacity: .85; border-left: 3px solid rgba(255,255,255,.6) !important; }
+.parent-block { background: var(--bg); border-radius: 8px; padding: .75rem; margin-bottom: .75rem; }
+.parent-block-header { display: flex; align-items: center; gap: .75rem; margin-bottom: .5rem; font-size: .85rem; }
+.parent-block-header small { color: var(--text-muted); flex:1; }
+.fill-from-member { font-size: .75rem; border: 1px solid var(--border); border-radius: 6px; padding: .2rem .4rem; background: white; cursor: pointer; }
 </style>
 
 <script>

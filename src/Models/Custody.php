@@ -36,14 +36,22 @@ class Custody
     public static function createSchedule(int $familyId, string $childName, string $color = '#E67E22', string $notes = '', array $recurrence = []): int
     {
         return Database::insert(
-            'INSERT INTO custody_schedules (family_id, child_name, color, notes, recurrence_type, recurrence_start, recurrence_parent1_id, recurrence_parent2_id)
-             VALUES (?,?,?,?,?,?,?,?)',
+            'INSERT INTO custody_schedules
+             (family_id, child_name, color, notes, recurrence_type, recurrence_start,
+              recurrence_parent1_id, recurrence_parent2_id,
+              recurrence_parent1_label, recurrence_parent1_color,
+              recurrence_parent2_label, recurrence_parent2_color)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId, $childName, $color, $notes,
                 $recurrence['type'] ?? 'none',
                 $recurrence['start'] ?? null,
-                $recurrence['parent1_id'] ?? null,
-                $recurrence['parent2_id'] ?? null,
+                $recurrence['parent1_id'] ?: null,
+                $recurrence['parent2_id'] ?: null,
+                $recurrence['parent1_label'] ?? null,
+                $recurrence['parent1_color'] ?? '#4A90D9',
+                $recurrence['parent2_label'] ?? null,
+                $recurrence['parent2_color'] ?? '#E74C3C',
             ]
         );
     }
@@ -51,13 +59,21 @@ class Custody
     public static function updateSchedule(int $id, string $childName, string $color, string $notes, array $recurrence = []): void
     {
         Database::execute(
-            'UPDATE custody_schedules SET child_name=?, color=?, notes=?, recurrence_type=?, recurrence_start=?, recurrence_parent1_id=?, recurrence_parent2_id=? WHERE id=?',
+            'UPDATE custody_schedules SET child_name=?, color=?, notes=?, recurrence_type=?, recurrence_start=?,
+             recurrence_parent1_id=?, recurrence_parent2_id=?,
+             recurrence_parent1_label=?, recurrence_parent1_color=?,
+             recurrence_parent2_label=?, recurrence_parent2_color=?
+             WHERE id=?',
             [
                 $childName, $color, $notes,
                 $recurrence['type'] ?? 'none',
                 $recurrence['start'] ?? null,
-                $recurrence['parent1_id'] ?? null,
-                $recurrence['parent2_id'] ?? null,
+                $recurrence['parent1_id'] ?: null,
+                $recurrence['parent2_id'] ?: null,
+                $recurrence['parent1_label'] ?? null,
+                $recurrence['parent1_color'] ?? '#4A90D9',
+                $recurrence['parent2_label'] ?? null,
+                $recurrence['parent2_color'] ?? '#E74C3C',
                 $id,
             ]
         );
@@ -101,7 +117,9 @@ class Custody
      */
     public static function generateRecurringEvents(array $schedule, string $rangeStart, string $rangeEnd): array
     {
-        if (!$schedule['recurrence_parent1_id'] || !$schedule['recurrence_parent2_id']) return [];
+        $p1ok = $schedule['recurrence_parent1_id'] || !empty($schedule['recurrence_parent1_label']);
+        $p2ok = $schedule['recurrence_parent2_id'] || !empty($schedule['recurrence_parent2_label']);
+        if (!$p1ok || !$p2ok) return [];
 
         $periodDays = match($schedule['recurrence_type']) {
             'every_other_day'  => 1,
@@ -117,8 +135,16 @@ class Custody
         $rangeTo   = new \DateTime($rangeEnd);
 
         $parents = [
-            1 => ['id' => $schedule['recurrence_parent1_id'], 'name' => $schedule['parent1_name'], 'color' => $schedule['parent1_color']],
-            2 => ['id' => $schedule['recurrence_parent2_id'], 'name' => $schedule['parent2_name'], 'color' => $schedule['parent2_color']],
+            1 => [
+                'id'    => $schedule['recurrence_parent1_id'],
+                'name'  => $schedule['recurrence_parent1_label'] ?: ($schedule['parent1_name'] ?? 'Parent 1'),
+                'color' => $schedule['recurrence_parent1_color'] ?: ($schedule['parent1_color'] ?? '#4A90D9'),
+            ],
+            2 => [
+                'id'    => $schedule['recurrence_parent2_id'],
+                'name'  => $schedule['recurrence_parent2_label'] ?: ($schedule['parent2_name'] ?? 'Parent 2'),
+                'color' => $schedule['recurrence_parent2_color'] ?: ($schedule['parent2_color'] ?? '#E74C3C'),
+            ],
         ];
 
         $events = [];

@@ -104,8 +104,12 @@ function openScheduleModal() {
     document.getElementById('schedule-notes').value = '';
     document.getElementById('schedule-recurrence-type').value = 'none';
     document.getElementById('schedule-recurrence-start').value = '';
-    document.getElementById('schedule-parent1').value = '';
-    document.getElementById('schedule-parent2').value = '';
+    document.getElementById('schedule-parent1-label').value = '';
+    document.getElementById('schedule-parent1-color').value = '#4A90D9';
+    document.getElementById('schedule-parent1-id').value = '';
+    document.getElementById('schedule-parent2-label').value = '';
+    document.getElementById('schedule-parent2-color').value = '#E74C3C';
+    document.getElementById('schedule-parent2-id').value = '';
     document.getElementById('recurrence-fields').style.display = 'none';
     openModal('schedule-modal');
 }
@@ -120,10 +124,28 @@ function openEditScheduleModal(schedule) {
     const recType = schedule.recurrence_type || 'none';
     document.getElementById('schedule-recurrence-type').value = recType;
     document.getElementById('schedule-recurrence-start').value = schedule.recurrence_start || '';
-    document.getElementById('schedule-parent1').value = schedule.recurrence_parent1_id || '';
-    document.getElementById('schedule-parent2').value = schedule.recurrence_parent2_id || '';
+
+    // Parent 1
+    document.getElementById('schedule-parent1-label').value = schedule.recurrence_parent1_label || schedule.parent1_name || '';
+    document.getElementById('schedule-parent1-color').value = schedule.recurrence_parent1_color || '#4A90D9';
+    document.getElementById('schedule-parent1-id').value = schedule.recurrence_parent1_id || '';
+
+    // Parent 2
+    document.getElementById('schedule-parent2-label').value = schedule.recurrence_parent2_label || schedule.parent2_name || '';
+    document.getElementById('schedule-parent2-color').value = schedule.recurrence_parent2_color || '#E74C3C';
+    document.getElementById('schedule-parent2-id').value = schedule.recurrence_parent2_id || '';
+
     document.getElementById('recurrence-fields').style.display = recType === 'none' ? 'none' : 'block';
     openModal('schedule-modal');
+}
+
+function fillParentFromMember(num, select) {
+    const opt = select.options[select.selectedIndex];
+    if (!opt.value) return;
+    document.getElementById(`schedule-parent${num}-label`).value = opt.dataset.name;
+    document.getElementById(`schedule-parent${num}-color`).value = opt.dataset.color;
+    document.getElementById(`schedule-parent${num}-id`).value = opt.value;
+    select.selectedIndex = 0; // reset dropdown
 }
 
 async function saveSchedule() {
@@ -132,13 +154,13 @@ async function saveSchedule() {
 
     const recType = document.getElementById('schedule-recurrence-type').value;
     const recStart = document.getElementById('schedule-recurrence-start').value;
-    const parent1 = document.getElementById('schedule-parent1').value;
-    const parent2 = document.getElementById('schedule-parent2').value;
+    const p1label = document.getElementById('schedule-parent1-label').value.trim();
+    const p2label = document.getElementById('schedule-parent2-label').value.trim();
 
     if (recType !== 'none') {
         if (!recStart) { alert('Veuillez indiquer la date de début de la périodicité.'); return; }
-        if (!parent1 || !parent2) { alert('Veuillez sélectionner les deux parents.'); return; }
-        if (parent1 === parent2) { alert('Les deux parents doivent être différents.'); return; }
+        if (!p1label || !p2label) { alert('Veuillez renseigner le nom des deux parents.'); return; }
+        if (p1label === p2label) { alert('Les deux parents doivent avoir des noms différents.'); return; }
     }
 
     const data = {
@@ -147,8 +169,12 @@ async function saveSchedule() {
         notes: document.getElementById('schedule-notes').value,
         recurrence_type: recType,
         recurrence_start: recType !== 'none' ? recStart : null,
-        recurrence_parent1_id: recType !== 'none' ? parent1 : null,
-        recurrence_parent2_id: recType !== 'none' ? parent2 : null,
+        recurrence_parent1_id: document.getElementById('schedule-parent1-id').value || null,
+        recurrence_parent1_label: p1label || null,
+        recurrence_parent1_color: document.getElementById('schedule-parent1-color').value,
+        recurrence_parent2_id: document.getElementById('schedule-parent2-id').value || null,
+        recurrence_parent2_label: p2label || null,
+        recurrence_parent2_color: document.getElementById('schedule-parent2-color').value,
     };
 
     const id = document.getElementById('schedule-id').value;

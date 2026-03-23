@@ -54,10 +54,14 @@ class CustodyController extends BaseController
             $user = Session::user();
             $data = $this->jsonInput();
             $recurrence = [
-                'type'      => $data['recurrence_type'] ?? 'none',
-                'start'     => $data['recurrence_start'] ?? null,
-                'parent1_id'=> $data['recurrence_parent1_id'] ?? null,
-                'parent2_id'=> $data['recurrence_parent2_id'] ?? null,
+                'type'          => $data['recurrence_type'] ?? 'none',
+                'start'         => $data['recurrence_start'] ?? null,
+                'parent1_id'    => $data['recurrence_parent1_id'] ?? null,
+                'parent2_id'    => $data['recurrence_parent2_id'] ?? null,
+                'parent1_label' => $data['recurrence_parent1_label'] ?? null,
+                'parent1_color' => $data['recurrence_parent1_color'] ?? '#4A90D9',
+                'parent2_label' => $data['recurrence_parent2_label'] ?? null,
+                'parent2_color' => $data['recurrence_parent2_color'] ?? '#E74C3C',
             ];
             $id = Custody::createSchedule($user['family_id'], $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence);
             return ['success' => true, 'id' => $id];
@@ -74,10 +78,14 @@ class CustodyController extends BaseController
             if (!$schedule || $schedule['family_id'] !== $user['family_id']) return ['success' => false];
             $data = $this->jsonInput();
             $recurrence = [
-                'type'      => $data['recurrence_type'] ?? 'none',
-                'start'     => $data['recurrence_start'] ?? null,
-                'parent1_id'=> $data['recurrence_parent1_id'] ?? null,
-                'parent2_id'=> $data['recurrence_parent2_id'] ?? null,
+                'type'          => $data['recurrence_type'] ?? 'none',
+                'start'         => $data['recurrence_start'] ?? null,
+                'parent1_id'    => $data['recurrence_parent1_id'] ?? null,
+                'parent2_id'    => $data['recurrence_parent2_id'] ?? null,
+                'parent1_label' => $data['recurrence_parent1_label'] ?? null,
+                'parent1_color' => $data['recurrence_parent1_color'] ?? '#4A90D9',
+                'parent2_label' => $data['recurrence_parent2_label'] ?? null,
+                'parent2_color' => $data['recurrence_parent2_color'] ?? '#E74C3C',
             ];
             Custody::updateSchedule($id, $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence);
             return ['success' => true];
