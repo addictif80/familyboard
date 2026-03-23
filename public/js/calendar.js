@@ -201,8 +201,16 @@ async function syncCalDAV(id) {
     const btn = event.currentTarget;
     btn.textContent = '⏳';
     const result = await apiFetch(`${BASE_URL}/api/calendar/caldav/${id}/sync`, { method: 'POST' });
-    if (result.success) { loadEvents(); btn.textContent = '🔄'; }
-    else { btn.textContent = '❌'; }
+    if (result.success) {
+        loadEvents();
+        btn.textContent = '🔄';
+        if (result.count === 0) {
+            alert('Synchronisation effectuée mais aucun événement trouvé.\n\nVérifiez :\n• L\'URL (doit être une URL .ics publique ou avec identifiants)\n• Les identifiants si requis\n• Que le calendrier contient des événements');
+        }
+    } else {
+        btn.textContent = '❌';
+        alert('Erreur : ' + (result.error || 'Échec de la synchronisation'));
+    }
 }
 
 async function deleteCalDAV(id) {

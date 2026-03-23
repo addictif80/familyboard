@@ -151,14 +151,21 @@ class CalendarController extends BaseController
     private function doCalDAVSync(array $source, int $familyId, int $userId): int
     {
         $events = CalDAVSource::fetchEvents($source);
+        if (empty($events)) {
+            // Don't wipe existing events if fetch returned nothing (network error / empty feed)
+            CalDAVSource::updateSyncTime($source['id']);
+            return 0;
+        }
         Event::deleteBySource($source['id']);
+        $count = 0;
         foreach ($events as $e) {
             if ($e['start_datetime'] && $e['end_datetime']) {
                 Event::createFromCalDAV($familyId, $userId, $source['id'], array_merge($e, ['color' => $source['color']]));
+                $count++;
             }
         }
         CalDAVSource::updateSyncTime($source['id']);
-        return count($events);
+        return $count;
     }
 
     public function deleteCalDAV(array $params): void
