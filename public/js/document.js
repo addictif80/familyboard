@@ -119,6 +119,10 @@ function resetDocFileZone() {
     document.getElementById('doc-file-preview').style.display = 'none';
     document.getElementById('doc-file-preview').innerHTML = '';
     document.getElementById('doc-drop-zone').classList.remove('drag-over');
+    const scanBtn = document.getElementById('doc-btn-scan-image');
+    if (scanBtn) scanBtn.style.display = 'none';
+    const result = document.getElementById('doc-2ddoc-result');
+    if (result) result.style.display = 'none';
 }
 
 // ── File handling + OCR ───────────────────────────────────────────────────
@@ -148,7 +152,19 @@ async function handleDocFile(file) {
         preview.insertBefore(thumb, preview.firstChild);
     }
 
-    await runDocOcr(file);
+    // Show the 2D-Doc scan button
+    const scanBtn = document.getElementById('doc-btn-scan-image');
+    if (scanBtn && file.type !== 'application/pdf') scanBtn.style.display = '';
+
+    // Hide any previous 2D-Doc result
+    const prev = document.getElementById('doc-2ddoc-result');
+    if (prev) prev.style.display = 'none';
+
+    // Run OCR and 2D-Doc detection in parallel
+    await Promise.all([
+        runDocOcr(file),
+        typeof try2DDocFromFile === 'function' ? try2DDocFromFile(file) : Promise.resolve(),
+    ]);
 }
 
 async function runDocOcr(file) {

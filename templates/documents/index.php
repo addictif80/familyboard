@@ -1,6 +1,6 @@
 <?php
 $pageTitle = 'Gestionnaire de documents';
-$extraJs   = ['document.js'];
+$extraJs   = ['document.js', 'twodoc.js'];
 ob_start();
 
 use App\Core\OcrHelper;
@@ -151,14 +151,32 @@ $totalDocs = array_sum($typeCounts);
                 <div id="doc-upload-label" onclick="document.getElementById('doc-file').click()" style="cursor:pointer">
                     <span style="font-size:2rem">📄</span>
                     <p>Glissez votre document ici ou <u>cliquez pour choisir</u></p>
-                    <small style="color:var(--text-muted)">JPEG, PNG, PDF — max 20 Mo · OCR automatique</small>
+                    <small style="color:var(--text-muted)">JPEG, PNG, PDF — max 20 Mo · OCR + 2D-Doc automatique</small>
                 </div>
                 <div id="doc-file-preview" style="display:none"></div>
             </div>
 
+            <!-- 2D-Doc scan actions (always visible) -->
+            <div class="twodoc-actions">
+                <button class="btn btn-secondary btn-sm" id="doc-btn-scan-image"
+                        style="display:none" onclick="scan2DDocFromUpload()">🔲 Lire le 2D-Doc</button>
+                <button class="btn btn-secondary btn-sm" onclick="openCameraScanner()">📷 Scanner avec la caméra</button>
+                <span class="twodoc-hint">Lit le code 2D-Doc des CNI, avis d'imposition, cartes grises…</span>
+            </div>
+
             <div id="doc-ocr-status" style="display:none;margin:.4rem 0;font-size:.8rem;color:var(--text-muted)"></div>
 
-            <!-- Detected type banner -->
+            <!-- 2D-Doc result panel -->
+            <div id="doc-2ddoc-result" style="display:none" class="twodoc-result">
+                <div class="twodoc-result-head">
+                    <div id="doc-2ddoc-type" class="twodoc-type-badge"></div>
+                    <button class="btn btn-sm btn-primary" onclick="apply2DocAndCollapse()">✅ Pré-remplir le formulaire</button>
+                    <button class="btn btn-sm btn-secondary" onclick="document.getElementById('doc-2ddoc-result').style.display='none'">✕</button>
+                </div>
+                <table class="twodoc-fields-table" id="doc-2ddoc-fields"></table>
+            </div>
+
+            <!-- OCR detected type banner -->
             <div id="doc-detected-type" style="display:none;margin:.5rem 0;padding:.5rem .85rem;border-radius:var(--radius);font-size:.85rem;font-weight:500"></div>
 
             <div class="form-row" style="margin-top:.75rem">
@@ -223,6 +241,35 @@ $totalDocs = array_sum($typeCounts);
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('doc-modal')">Annuler</button>
             <button class="btn btn-primary" id="doc-save-btn" onclick="saveDoc()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Camera / 2D-Doc scanner Modal ────────────────────────────────────── -->
+<div class="modal-overlay" id="twodoc-camera-modal" style="display:none">
+    <div class="modal twodoc-camera-modal">
+        <div class="modal-header">
+            <h3>📷 Scanner le 2D-Doc</h3>
+            <button onclick="stopCameraScanner()">✕</button>
+        </div>
+        <div class="modal-body" style="padding:0">
+            <div class="camera-container">
+                <video id="twodoc-video" playsinline autoplay muted></video>
+                <!-- animated crosshair overlay -->
+                <div class="camera-overlay">
+                    <div class="camera-frame">
+                        <span class="camera-corner tl"></span>
+                        <span class="camera-corner tr"></span>
+                        <span class="camera-corner bl"></span>
+                        <span class="camera-corner br"></span>
+                        <div class="camera-scan-line"></div>
+                    </div>
+                </div>
+            </div>
+            <p class="camera-hint" id="twodoc-camera-status">Pointez la caméra vers le code 2D-Doc</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="stopCameraScanner()">Annuler</button>
         </div>
     </div>
 </div>
