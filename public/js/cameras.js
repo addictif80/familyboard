@@ -172,7 +172,7 @@ function startDiscovery() {
     document.getElementById('disc-progress-wrap').style.display = 'block';
 
     const params = new URLSearchParams({ target, username: user, password: pass, model, channel });
-    _discEvSource = new EventSource(`${BASE_URL}/api/cameras/strix-discover?${params}`);
+    _discEvSource = new EventSource(`${BASE_URL}/api/cameras/strix-discover?${params}`, { withCredentials: true });
 
     _discEvSource.addEventListener('progress', e => {
         const d = JSON.parse(e.data);

@@ -16,10 +16,7 @@ class Camera
 
     public static function getById(int $id): ?array
     {
-        return Database::fetch(
-            'SELECT c.*, p.family_id FROM cameras c JOIN families p ON p.id=c.family_id WHERE c.id=?',
-            [$id]
-        );
+        return Database::fetch('SELECT * FROM cameras WHERE id=?', [$id]);
     }
 
     public static function create(int $familyId, int $userId, array $data): int
