@@ -80,6 +80,16 @@ ob_start();
                        placeholder="Paris, Lyon, Bordeaux…">
                 <small style="color:var(--text-muted)">Affiché dans le bandeau de l'écran mural. Laisser vide pour utiliser la géolocalisation du navigateur.</small>
             </div>
+            <div class="form-group" id="strix">
+                <label>🔍 URL Strix (découverte de flux caméras)</label>
+                <input type="url" name="strix_url"
+                       value="<?= htmlspecialchars($family['strix_url'] ?? '') ?>"
+                       placeholder="http://192.168.1.x:4567">
+                <small style="color:var(--text-muted)">
+                    Instance <a href="https://github.com/eduard256/Strix" target="_blank" rel="noopener">Strix</a> pour détecter automatiquement les flux RTSP/MJPEG.
+                    Démarrer avec : <code>docker run -p 4567:4567 eduard256/strix</code>
+                </small>
+            </div>
             <button type="submit" class="btn btn-primary">Enregistrer</button>
         </form>
         <div class="invite-section" style="margin-top:1rem">

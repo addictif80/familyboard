@@ -97,6 +97,12 @@ $family = \App\Models\Family::findById($currentUser['family_id']);
                     <span class="nav-label">Documents</span>
                 </a>
             </li>
+            <li class="nav-item <?= str_contains($currentPath, '/cameras') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/cameras" class="nav-link">
+                    <span class="nav-icon">🎥</span>
+                    <span class="nav-label">Caméras</span>
+                </a>
+            </li>
             <li class="nav-item <?= str_contains($currentPath, '/family-wall') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/family-wall" class="nav-link">
                     <span class="nav-icon">📺</span>

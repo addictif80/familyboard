@@ -668,6 +668,65 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .expense-item div strong { display: block; font-size: .875rem; }
 .expense-item div small { font-size: .75rem; color: var(--text-muted); }
 
+/* ---- Shared page header (title + action button) ---- */
+.content-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.content-header h2 { font-size: 1.1rem; font-weight: 700; }
+
+/* ---- Empty full-page state ---- */
+.empty-page { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+.empty-page .empty-icon { font-size: 3rem; margin-bottom: .75rem; }
+.empty-page h3 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: .4rem; }
+.empty-page p { font-size: .875rem; margin-bottom: 1.25rem; line-height: 1.6; }
+
+/* ---- Camera cards ---- */
+.cameras-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 1rem;
+}
+
+.cam-card { padding: 0; overflow: hidden; }
+
+.cam-preview {
+    width: 100%; aspect-ratio: 16 / 9;
+    background: #0f172a; position: relative;
+    overflow: hidden; display: flex;
+    align-items: center; justify-content: center;
+}
+.cam-preview img, .cam-preview video { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+.cam-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; color: #64748b; width: 100%; height: 100%; }
+.cam-placeholder span { font-size: 2.5rem; }
+.cam-placeholder small { font-size: .72rem; }
+
+.cam-type-pill { position: absolute; bottom: .45rem; left: .45rem; font-size: .6rem; font-weight: 700; text-transform: uppercase; padding: .1rem .45rem; border-radius: 20px; letter-spacing: .05em; }
+.cam-type-mjpeg    { background: rgba(46,204,113,.85); color: #fff; }
+.cam-type-snapshot { background: rgba(74,144,217,.85); color: #fff; }
+.cam-type-hls      { background: rgba(243,156,18,.85); color: #fff; }
+.cam-type-rtsp     { background: rgba(107,114,128,.85); color: #fff; }
+.cam-type-other    { background: rgba(107,114,128,.6);  color: #fff; }
+
+.cam-body { padding: .75rem 1rem .4rem; }
+.cam-name { font-weight: 600; font-size: .9rem; margin-bottom: .2rem; }
+.cam-host  { font-size: .75rem; color: var(--text-muted); font-family: monospace; }
+.cam-model { font-size: .75rem; color: var(--text-muted); margin-top: .15rem; }
+.cam-stream-url { font-size: .68rem; color: var(--text-muted); margin-top: .25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cam-stream-url span { font-family: monospace; }
+.cam-footer { display: flex; gap: .35rem; flex-wrap: wrap; padding: .5rem .85rem .85rem; }
+
+/* ---- Strix discovery UI ---- */
+.strix-suggestions { border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); box-shadow: var(--shadow); max-height: 180px; overflow-y: auto; margin-top: 2px; position: relative; z-index: 10; }
+.strix-sug-item { padding: .45rem .75rem; cursor: pointer; font-size: .83rem; border-bottom: 1px solid var(--border); transition: background .1s; }
+.strix-sug-item:last-child { border-bottom: none; }
+.strix-sug-item:hover { background: var(--bg); }
+
+.strix-streams-list { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
+.strix-stream-item { display: flex; align-items: flex-start; gap: .65rem; padding: .6rem .75rem; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); }
+.strix-stream-info { flex: 1; min-width: 0; }
+.strix-stream-url { font-family: monospace; font-size: .71rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.strix-stream-meta { font-size: .72rem; color: var(--text-muted); margin-top: .15rem; }
+.strix-proto-badge { font-size: .6rem; font-weight: 700; text-transform: uppercase; padding: .1rem .4rem; border-radius: 20px; background: var(--primary); color: #fff; flex-shrink: 0; align-self: flex-start; margin-top: 2px; }
+
 /* ---- Project Materials ---- */
 .materials-list { display: flex; flex-direction: column; }
 

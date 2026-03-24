@@ -50,11 +50,14 @@ class SettingsController extends BaseController
     {
         $this->requireAdmin();
         $user = Session::user();
-        $name        = trim($_POST['family_name'] ?? '');
-        $tz          = $_POST['timezone'] ?? '';
-        $weatherCity = trim($_POST['weather_city'] ?? '');
+        $name = trim($_POST['family_name'] ?? '');
+        $tz   = $_POST['timezone'] ?? '';
         if (!$tz || !in_array($tz, \DateTimeZone::listIdentifiers())) $tz = null;
-        if ($name) Family::update($user['family_id'], $name, $tz, $weatherCity ?: null);
+        if ($name) Family::update($user['family_id'], $name, [
+            'timezone'     => $tz,
+            'weather_city' => trim($_POST['weather_city'] ?? ''),
+            'strix_url'    => trim($_POST['strix_url'] ?? ''),
+        ]);
         Session::flash('success', 'Famille mise à jour.');
         header('Location: ' . BASE_URL . '/settings');
         exit;

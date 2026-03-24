@@ -45,6 +45,7 @@ use App\Controllers\InvitationController;
 use App\Controllers\WarrantyController;
 use App\Controllers\DocumentController;
 use App\Controllers\FamilyWallController;
+use App\Controllers\CameraController;
 
 Session::start();
 
@@ -152,6 +153,14 @@ $router->post('/api/projects/:id/material', [ProjectController::class, 'createMa
 $router->post('/api/projects/material/:id', [ProjectController::class, 'updateMaterial']);
 $router->post('/api/projects/material/:id/toggle', [ProjectController::class, 'toggleMaterial']);
 $router->post('/api/projects/material/:id/delete', [ProjectController::class, 'deleteMaterial']);
+
+// Cameras
+$router->get('/cameras', [CameraController::class, 'index']);
+$router->post('/api/cameras', [CameraController::class, 'create']);
+$router->post('/api/cameras/:id', [CameraController::class, 'update']);
+$router->post('/api/cameras/:id/delete', [CameraController::class, 'delete']);
+$router->get('/api/cameras/strix-discover', [CameraController::class, 'strixDiscover']);
+$router->post('/api/cameras/strix-search', [CameraController::class, 'strixSearch']);
 
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);

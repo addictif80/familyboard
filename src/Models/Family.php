@@ -24,12 +24,17 @@ class Family
         );
     }
 
-    public static function update(int $id, string $name, ?string $timezone = null, ?string $weatherCity = null): void
+    public static function update(int $id, string $name, array $settings = []): void
     {
-        $city = ($weatherCity !== null) ? trim($weatherCity) : null;
         Database::execute(
-            'UPDATE families SET name = ?, timezone = COALESCE(?, timezone), weather_city = ? WHERE id = ?',
-            [$name, $timezone ?: null, $city ?: null, $id]
+            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, strix_url=? WHERE id=?',
+            [
+                $name,
+                $settings['timezone'] ?: null,
+                isset($settings['weather_city']) ? (trim($settings['weather_city']) ?: null) : null,
+                isset($settings['strix_url'])    ? (trim($settings['strix_url'])    ?: null) : null,
+                $id,
+            ]
         );
     }
 
