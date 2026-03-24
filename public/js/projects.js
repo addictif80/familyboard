@@ -141,3 +141,74 @@ async function deleteExpense(id) {
         if (el) el.remove();
     }
 }
+
+// ── Materials ─────────────────────────────────────────────────
+
+let _editingMaterialId = null;
+
+function openMaterialModal() {
+    _editingMaterialId = null;
+    document.getElementById('mat-modal-title').textContent = 'Nouveau matériau';
+    document.getElementById('mat-id').value = '';
+    document.getElementById('mat-name').value = '';
+    document.getElementById('mat-url').value = '';
+    document.getElementById('mat-price').value = '';
+    document.getElementById('mat-qty').value = '1';
+    document.getElementById('mat-unit').value = '';
+    document.getElementById('mat-notes').value = '';
+    openModal('material-modal');
+}
+
+function openEditMaterialModal(mat) {
+    _editingMaterialId = mat.id;
+    document.getElementById('mat-modal-title').textContent = 'Modifier le matériau';
+    document.getElementById('mat-id').value = mat.id;
+    document.getElementById('mat-name').value = mat.name;
+    document.getElementById('mat-url').value = mat.url || '';
+    document.getElementById('mat-price').value = mat.price ?? '';
+    document.getElementById('mat-qty').value = mat.quantity ?? 1;
+    document.getElementById('mat-unit').value = mat.unit || '';
+    document.getElementById('mat-notes').value = mat.notes || '';
+    openModal('material-modal');
+}
+
+async function saveMaterial() {
+    const name = document.getElementById('mat-name').value.trim();
+    if (!name) { Dialog.toast('Nom requis.', 'error'); return; }
+
+    const data = {
+        name,
+        url:      document.getElementById('mat-url').value.trim() || null,
+        price:    parseFloat(document.getElementById('mat-price').value) || null,
+        quantity: parseFloat(document.getElementById('mat-qty').value) || 1,
+        unit:     document.getElementById('mat-unit').value.trim() || null,
+        notes:    document.getElementById('mat-notes').value.trim() || null,
+    };
+
+    const id = document.getElementById('mat-id').value;
+    const url = id
+        ? `${BASE_URL}/api/projects/material/${id}`
+        : `${BASE_URL}/api/projects/${PROJECT_ID}/material`;
+
+    const result = await apiFetch(url, { method: 'POST', body: JSON.stringify(data) });
+    if (result.success) { closeModal('material-modal'); location.reload(); }
+}
+
+async function toggleMaterial(id, checkbox) {
+    const result = await apiFetch(`${BASE_URL}/api/projects/material/${id}/toggle`, { method: 'POST' });
+    if (result.success) {
+        const row = document.querySelector(`.material-item[data-id="${id}"]`);
+        if (row) row.classList.toggle('mat-purchased', checkbox.checked);
+    } else {
+        checkbox.checked = !checkbox.checked;
+    }
+}
+
+async function deleteMaterial(id) {
+    if (!await Dialog.confirm('Supprimer ce matériau ?')) return;
+    const result = await apiFetch(`${BASE_URL}/api/projects/material/${id}/delete`, { method: 'POST' });
+    if (result.success) {
+        const el = document.querySelector(`.material-item[data-id="${id}"]`);
+        if (el) el.remove();
+    }
+}

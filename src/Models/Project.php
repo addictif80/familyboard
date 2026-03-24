@@ -114,4 +114,44 @@ class Project
     {
         return Database::fetch('SELECT pe.*, p.family_id FROM project_expenses pe JOIN projects p ON p.id=pe.project_id WHERE pe.id=?', [$id]);
     }
+
+    // Materials
+    public static function getMaterials(int $projectId): array
+    {
+        return Database::fetchAll(
+            'SELECT pm.*, u.name as user_name FROM project_materials pm JOIN users u ON u.id=pm.user_id WHERE pm.project_id=? ORDER BY pm.is_purchased ASC, pm.created_at ASC',
+            [$projectId]
+        );
+    }
+
+    public static function getMaterial(int $id): ?array
+    {
+        return Database::fetch('SELECT pm.*, p.family_id FROM project_materials pm JOIN projects p ON p.id=pm.project_id WHERE pm.id=?', [$id]);
+    }
+
+    public static function createMaterial(int $projectId, int $userId, array $data): int
+    {
+        return Database::insert(
+            'INSERT INTO project_materials (project_id, user_id, name, url, price, quantity, unit, notes) VALUES (?,?,?,?,?,?,?,?)',
+            [$projectId, $userId, $data['name'], $data['url'] ?? null, $data['price'] ?? null, $data['quantity'] ?? 1, $data['unit'] ?? null, $data['notes'] ?? null]
+        );
+    }
+
+    public static function updateMaterial(int $id, array $data): void
+    {
+        Database::execute(
+            'UPDATE project_materials SET name=?, url=?, price=?, quantity=?, unit=?, notes=? WHERE id=?',
+            [$data['name'], $data['url'] ?? null, $data['price'] ?? null, $data['quantity'] ?? 1, $data['unit'] ?? null, $data['notes'] ?? null, $id]
+        );
+    }
+
+    public static function toggleMaterial(int $id): void
+    {
+        Database::execute('UPDATE project_materials SET is_purchased = NOT is_purchased WHERE id=?', [$id]);
+    }
+
+    public static function deleteMaterial(int $id): void
+    {
+        Database::execute('DELETE FROM project_materials WHERE id=?', [$id]);
+    }
 }

@@ -148,6 +148,10 @@ $router->post('/api/projects/task/:id', [ProjectController::class, 'updateTask']
 $router->post('/api/projects/task/:id/delete', [ProjectController::class, 'deleteTask']);
 $router->post('/api/projects/:id/expense', [ProjectController::class, 'createExpense']);
 $router->post('/api/projects/expense/:id/delete', [ProjectController::class, 'deleteExpense']);
+$router->post('/api/projects/:id/material', [ProjectController::class, 'createMaterial']);
+$router->post('/api/projects/material/:id', [ProjectController::class, 'updateMaterial']);
+$router->post('/api/projects/material/:id/toggle', [ProjectController::class, 'toggleMaterial']);
+$router->post('/api/projects/material/:id/delete', [ProjectController::class, 'deleteMaterial']);
 
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);

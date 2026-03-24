@@ -98,6 +98,61 @@ ob_start();
             </div>
         </div>
     </div>
+
+    <!-- Materials -->
+    <?php
+    $matTotal    = array_sum(array_map(fn($m) => ($m['price'] ?? 0) * ($m['quantity'] ?? 1), $materials));
+    $matPurchased = count(array_filter($materials, fn($m) => $m['is_purchased']));
+    ?>
+    <div class="card" style="margin-top:1rem">
+        <div class="card-header">
+            <h3>🔩 Matériaux à acheter</h3>
+            <div style="display:flex;align-items:center;gap:.75rem">
+                <?php if (!empty($materials)): ?>
+                    <span style="font-size:.8rem;color:var(--text-muted)"><?= $matPurchased ?>/<?= count($materials) ?> acheté<?= count($materials) > 1 ? 's' : '' ?><?php if ($matTotal > 0): ?> · <strong><?= number_format($matTotal, 2, ',', ' ') ?> €</strong> estimé<?php endif; ?></span>
+                <?php endif; ?>
+                <button class="btn btn-secondary btn-sm" onclick="openMaterialModal()">+ Matériau</button>
+            </div>
+        </div>
+
+        <?php if (empty($materials)): ?>
+            <p class="empty-state">Aucun matériau enregistré. Ajoutez des liens vers des articles à acheter.</p>
+        <?php else: ?>
+        <div class="materials-list" id="materials-list">
+            <?php foreach ($materials as $mat): ?>
+            <div class="material-item <?= $mat['is_purchased'] ? 'mat-purchased' : '' ?>" data-id="<?= $mat['id'] ?>">
+                <label class="mat-check" title="Marquer comme acheté">
+                    <input type="checkbox" onchange="toggleMaterial(<?= $mat['id'] ?>, this)" <?= $mat['is_purchased'] ? 'checked' : '' ?>>
+                </label>
+                <div class="mat-info">
+                    <span class="mat-name">
+                        <?php if ($mat['url']): ?>
+                            <a href="<?= htmlspecialchars($mat['url']) ?>" target="_blank" rel="noopener" class="mat-link"><?= htmlspecialchars($mat['name']) ?> 🔗</a>
+                        <?php else: ?>
+                            <?= htmlspecialchars($mat['name']) ?>
+                        <?php endif; ?>
+                    </span>
+                    <?php if ($mat['notes']): ?>
+                        <small class="mat-notes"><?= htmlspecialchars($mat['notes']) ?></small>
+                    <?php endif; ?>
+                </div>
+                <span class="mat-qty"><?= rtrim(rtrim(number_format((float)$mat['quantity'], 3, ',', ''), '0'), ',') ?><?= $mat['unit'] ? ' ' . htmlspecialchars($mat['unit']) : '' ?></span>
+                <?php if ($mat['price'] !== null): ?>
+                    <span class="mat-price"><?= number_format((float)$mat['price'], 2, ',', ' ') ?> €<small>/u</small></span>
+                    <span class="mat-total"><?= number_format((float)$mat['price'] * (float)$mat['quantity'], 2, ',', ' ') ?> €</span>
+                <?php else: ?>
+                    <span class="mat-price" style="color:var(--text-muted)">—</span>
+                    <span class="mat-total"></span>
+                <?php endif; ?>
+                <div class="mat-actions">
+                    <button class="btn-icon-sm" onclick="openEditMaterialModal(<?= htmlspecialchars(json_encode($mat)) ?>)" title="Modifier">✏️</button>
+                    <button class="btn-icon-sm" onclick="deleteMaterial(<?= $mat['id'] ?>)" title="Supprimer">🗑</button>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
 </div>
 
 <!-- Task Modal -->
@@ -230,6 +285,49 @@ ob_start();
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('edit-project-modal')">Annuler</button>
             <button class="btn btn-primary" onclick="updateProject()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Material Modal -->
+<div class="modal-overlay" id="material-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="mat-modal-title">Nouveau matériau</h3>
+            <button onclick="closeModal('material-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="mat-id">
+            <div class="form-group">
+                <label>Nom *</label>
+                <input type="text" id="mat-name" placeholder="Parquet chêne, Vis 5x60, Peinture blanche…">
+            </div>
+            <div class="form-group">
+                <label>Lien (URL)</label>
+                <input type="url" id="mat-url" placeholder="https://…">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Prix unitaire (€)</label>
+                    <input type="number" id="mat-price" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Quantité</label>
+                    <input type="number" id="mat-qty" step="any" min="0" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Unité</label>
+                    <input type="text" id="mat-unit" placeholder="m², pcs, kg…" style="max-width:80px">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea id="mat-notes" rows="2" placeholder="Référence, coloris, remarques…"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('material-modal')">Annuler</button>
+            <button class="btn btn-primary" onclick="saveMaterial()">Enregistrer</button>
         </div>
     </div>
 </div>

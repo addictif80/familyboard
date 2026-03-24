@@ -26,9 +26,10 @@ class ProjectController extends BaseController
             header('Location: ' . BASE_URL . '/projects');
             exit;
         }
-        $tasks = Project::getTasks($id);
-        $expenses = Project::getExpenses($id);
-        $members = User::getByFamily($user['family_id']);
+        $tasks     = Project::getTasks($id);
+        $expenses  = Project::getExpenses($id);
+        $materials = Project::getMaterials($id);
+        $members   = User::getByFamily($user['family_id']);
         require BASE_PATH . '/templates/projects/show.php';
     }
 
@@ -132,6 +133,58 @@ class ProjectController extends BaseController
             $expense = Project::getExpense($id);
             if (!$expense || $expense['family_id'] !== $user['family_id']) return ['success' => false];
             Project::deleteExpense($id);
+            return ['success' => true];
+        });
+    }
+
+    public function createMaterial(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user      = Session::user();
+            $projectId = (int)$params['id'];
+            $project   = Project::getById($projectId);
+            if (!$project || $project['family_id'] !== $user['family_id']) return ['success' => false];
+            $id = Project::createMaterial($projectId, $user['id'], $this->jsonInput());
+            return ['success' => true, 'material' => Project::getMaterial($id)];
+        });
+    }
+
+    public function updateMaterial(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id   = (int)$params['id'];
+            $mat  = Project::getMaterial($id);
+            if (!$mat || $mat['family_id'] !== $user['family_id']) return ['success' => false];
+            Project::updateMaterial($id, $this->jsonInput());
+            return ['success' => true, 'material' => Project::getMaterial($id)];
+        });
+    }
+
+    public function toggleMaterial(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id   = (int)$params['id'];
+            $mat  = Project::getMaterial($id);
+            if (!$mat || $mat['family_id'] !== $user['family_id']) return ['success' => false];
+            Project::toggleMaterial($id);
+            return ['success' => true];
+        });
+    }
+
+    public function deleteMaterial(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id   = (int)$params['id'];
+            $mat  = Project::getMaterial($id);
+            if (!$mat || $mat['family_id'] !== $user['family_id']) return ['success' => false];
+            Project::deleteMaterial($id);
             return ['success' => true];
         });
     }
