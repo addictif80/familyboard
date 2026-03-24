@@ -101,7 +101,7 @@ class Document
             $type = OcrHelper::classify($ocrText)['type'];
         }
 
-        Database::execute(
+        return (int)Database::insert(
             'INSERT INTO documents
              (family_id, user_id, title, doc_type, issuer, issue_date, expiry_date,
               tags, file_path, file_original, file_mime, ocr_text, notes)
@@ -119,7 +119,6 @@ class Document
                 $data['notes'] ?? null,
             ]
         );
-        return (int)Database::lastInsertId();
     }
 
     public static function update(int $id, int $familyId, array $data, ?array $file = null): void

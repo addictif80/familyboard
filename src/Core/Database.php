@@ -55,4 +55,38 @@ class Database
     {
         return self::query($sql, $params)->rowCount();
     }
+
+    /**
+     * Run any .sql migration files that have not yet been applied.
+     * Tracks applied migrations in a `_migrations` table.
+     */
+    public static function autoMigrate(string $dir): void
+    {
+        $pdo = self::getInstance();
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS _migrations (
+            filename   VARCHAR(255) PRIMARY KEY,
+            applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $applied = $pdo->query("SELECT filename FROM _migrations")
+                       ->fetchAll(PDO::FETCH_COLUMN);
+        $applied = array_flip($applied);
+
+        $files = glob($dir . '/*.sql') ?: [];
+        sort($files);
+
+        foreach ($files as $file) {
+            $name = basename($file);
+            if (isset($applied[$name])) continue;
+
+            try {
+                $pdo->exec((string)file_get_contents($file));
+                $pdo->prepare("INSERT INTO _migrations (filename) VALUES (?)")
+                    ->execute([$name]);
+            } catch (\PDOException $e) {
+                error_log("Migration $name failed: " . $e->getMessage());
+            }
+        }
+    }
 }

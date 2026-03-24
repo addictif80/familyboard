@@ -47,6 +47,13 @@ use App\Controllers\DocumentController;
 
 Session::start();
 
+// Auto-apply any pending SQL migrations
+try {
+    \App\Core\Database::autoMigrate(BASE_PATH . '/database/migrations');
+} catch (\Throwable $e) {
+    error_log('Migration error: ' . $e->getMessage());
+}
+
 // Apply family timezone as early as possible (graceful fallback if migration not yet applied)
 $_appTz = 'Europe/Paris';
 if (Session::isLoggedIn()) {
