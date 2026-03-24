@@ -138,11 +138,16 @@ class Document
             $type = OcrHelper::classify($ocrText)['type'];
         }
 
+        $userId = isset($data['user_id']) && (int)$data['user_id'] > 0
+            ? (int)$data['user_id']
+            : $existing['user_id'];
+
         Database::execute(
-            'UPDATE documents SET title=?, doc_type=?, issuer=?, issue_date=?, expiry_date=?,
+            'UPDATE documents SET user_id=?, title=?, doc_type=?, issuer=?, issue_date=?, expiry_date=?,
              tags=?, file_path=?, file_original=?, file_mime=?, ocr_text=?, notes=?
              WHERE id=? AND family_id=?',
             [
+                $userId,
                 $data['title'], $type,
                 $data['issuer']      ?? null,
                 $data['issue_date']  ?: null,

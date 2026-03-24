@@ -31,10 +31,11 @@ class DocumentController extends BaseController
     {
         $this->requireAuth();
         $this->json(function () {
-            $user = Session::user();
-            $data = $_POST ?: $this->jsonInput();
-            $file = $_FILES['file'] ?? null;
-            $id   = Document::create($user['family_id'], $user['id'], $data, $file);
+            $user   = Session::user();
+            $data   = $_POST ?: $this->jsonInput();
+            $file   = $_FILES['file'] ?? null;
+            $userId = (int)($data['user_id'] ?? $user['id']);
+            $id     = Document::create($user['family_id'], $userId, $data, $file);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -46,6 +47,7 @@ class DocumentController extends BaseController
             $user = Session::user();
             $data = $_POST ?: $this->jsonInput();
             $file = $_FILES['file'] ?? null;
+            if (isset($data['user_id'])) $data['user_id'] = (int)$data['user_id'];
             Document::update((int)$params['id'], $user['family_id'], $data, $file);
             return ['success' => true];
         });
