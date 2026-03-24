@@ -91,6 +91,12 @@ $family = \App\Models\Family::findById($currentUser['family_id']);
                     <span class="nav-label">Garanties</span>
                 </a>
             </li>
+            <li class="nav-item <?= str_contains($currentPath, '/documents') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/documents" class="nav-link">
+                    <span class="nav-icon">🗂️</span>
+                    <span class="nav-label">Documents</span>
+                </a>
+            </li>
         </ul>
 
         <div class="sidebar-footer">

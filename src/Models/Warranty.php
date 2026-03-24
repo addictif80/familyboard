@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use App\Core\Database;
+use App\Core\OcrHelper;
 
 class Warranty
 {
@@ -162,80 +163,16 @@ class Warranty
         Database::execute('DELETE FROM warranties WHERE id=? AND family_id=?', [$id, $familyId]);
     }
 
-    // ── OCR ──────────────────────────────────────────────────────────────────
-
-    /** Common install paths — web server PATH is often minimal */
-    private static array $binaryPaths = [
-        '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin', '/snap/bin',
-        '/usr/local/tesseract/bin',
-    ];
-
-    private static function findBinary(string $name): string
-    {
-        foreach (self::$binaryPaths as $dir) {
-            $path = $dir . '/' . $name;
-            if (is_executable($path)) return $path;
-        }
-        // Last resort: ask the shell
-        $found = trim((string)shell_exec('which ' . escapeshellarg($name) . ' 2>/dev/null'));
-        return $found ?: '';
-    }
+    // ── OCR — delegate to shared OcrHelper ───────────────────────────────────
 
     public static function runOcr(string $tmpPath, string $mime): string
     {
-        // PDF: try pdftotext (poppler-utils)
-        if ($mime === 'application/pdf') {
-            $bin = self::findBinary('pdftotext');
-            if ($bin) {
-                $out  = [];
-                $code = 0;
-                exec($bin . ' ' . escapeshellarg($tmpPath) . ' - 2>&1', $out, $code);
-                $text = trim(implode("\n", $out));
-                if ($text !== '' && $code === 0) return $text;
-            }
-        }
-
-        // Image (or PDF fallback): try tesseract with stdout output (no temp file needed)
-        $bin = self::findBinary('tesseract');
-        if (!$bin) return '';
-
-        // Try French first, then English, then no language flag
-        foreach (['fra', 'eng', ''] as $lang) {
-            $langFlag = $lang ? " -l $lang" : '';
-            $out  = [];
-            $code = 0;
-            exec($bin . ' ' . escapeshellarg($tmpPath) . ' stdout' . $langFlag . ' 2>/dev/null', $out, $code);
-            $text = trim(implode("\n", $out));
-            if ($text !== '') return $text;
-            if ($code === 0) break; // ran OK but blank page — no point retrying other langs
-        }
-
-        return '';
+        return OcrHelper::run($tmpPath, $mime);
     }
 
-    /** Returns debug info about binary availability (used by /api/warranties/ocr-check) */
     public static function ocrInfo(): array
     {
-        $tBin = self::findBinary('tesseract') ?: null;
-
-        // List available tesseract languages
-        $tLangs = [];
-        if ($tBin) {
-            $out = [];
-            exec($tBin . ' --list-langs 2>&1', $out);
-            // First line is "List of available tessdata:" — skip it
-            $tLangs = array_values(array_filter(array_slice($out, 1), fn($l) => trim($l) !== ''));
-        }
-
-        return [
-            'tesseract'        => $tBin,
-            'tesseract_langs'  => $tLangs,
-            'pdftotext'        => self::findBinary('pdftotext') ?: null,
-            'php_exec'         => function_exists('exec'),
-            'shell_exec'       => function_exists('shell_exec'),
-            'tmp_dir'          => sys_get_temp_dir(),
-            'tmp_writable'     => is_writable(sys_get_temp_dir()),
-        ];
+        return OcrHelper::info();
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

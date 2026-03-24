@@ -43,6 +43,7 @@ use App\Controllers\ProjectController;
 use App\Controllers\SettingsController;
 use App\Controllers\InvitationController;
 use App\Controllers\WarrantyController;
+use App\Controllers\DocumentController;
 
 Session::start();
 
@@ -164,6 +165,15 @@ $router->get('/api/warranties/search', [WarrantyController::class, 'search']);
 $router->get('/api/warranties/ocr-check', [WarrantyController::class, 'ocrCheck']);
 $router->post('/api/warranties/:id', [WarrantyController::class, 'update']);
 $router->post('/api/warranties/:id/delete', [WarrantyController::class, 'delete']);
+
+// Documents
+$router->get('/documents', [DocumentController::class, 'index']);
+$router->get('/documents/file/:id', [DocumentController::class, 'serveFile']);
+$router->post('/api/documents', [DocumentController::class, 'create']);
+$router->post('/api/documents/ocr', [DocumentController::class, 'ocr']);
+$router->get('/api/documents/search', [DocumentController::class, 'search']);
+$router->post('/api/documents/:id', [DocumentController::class, 'update']);
+$router->post('/api/documents/:id/delete', [DocumentController::class, 'delete']);
 
 // Invitations
 $router->get('/invite/:token', [InvitationController::class, 'show']);

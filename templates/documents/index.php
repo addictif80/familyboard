@@ -1,0 +1,252 @@
+<?php
+$pageTitle = 'Gestionnaire de documents';
+$extraJs   = ['document.js'];
+ob_start();
+
+use App\Core\OcrHelper;
+use App\Core\DateHelper;
+
+$totalDocs = array_sum($typeCounts);
+?>
+<div class="docs-container">
+
+    <!-- Toolbar -->
+    <div class="docs-toolbar">
+        <div class="docs-search-wrap">
+            <input type="search" id="docs-search" class="docs-search"
+                   placeholder="🔍 Rechercher dans vos documents…"
+                   value="<?= htmlspecialchars($search) ?>"
+                   oninput="searchDocs(this.value)">
+        </div>
+        <button class="btn btn-primary" onclick="openDocModal()">+ Ajouter un document</button>
+    </div>
+
+    <!-- Expiry alert -->
+    <?php if (!empty($expiring)): ?>
+    <div class="warranty-alert-strip" style="margin-bottom:1rem">
+        ⚠️ <strong><?= count($expiring) ?> document<?= count($expiring) > 1 ? 's' : '' ?> expire<?= count($expiring) > 1 ? 'nt' : '' ?> dans les 90 jours :</strong>
+        <?php foreach ($expiring as $d): ?>
+            <span class="warranty-alert-chip <?= $d['expiry_status'] === 'critical' ? 'w-critical' : 'w-soon' ?>">
+                <?= htmlspecialchars($d['title']) ?>
+                (<?= $d['days_until_expiry'] ?>j)
+            </span>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- Type filter chips -->
+    <div class="docs-type-filters" id="docs-type-filters">
+        <button class="doc-filter-chip <?= $filterType === '' ? 'active' : '' ?>"
+                onclick="filterByType('')">
+            📁 Tous <span class="doc-filter-count"><?= $totalDocs ?></span>
+        </button>
+        <?php foreach ($allTypes as $tKey => $tDef): ?>
+            <?php $cnt = $typeCounts[$tKey] ?? 0; if ($cnt === 0 && $filterType !== $tKey) continue; ?>
+            <button class="doc-filter-chip <?= $filterType === $tKey ? 'active' : '' ?>"
+                    onclick="filterByType('<?= $tKey ?>')"
+                    style="--type-color:<?= htmlspecialchars($tDef['color']) ?>">
+                <?= $tDef['icon'] ?> <?= htmlspecialchars($tDef['label']) ?>
+                <span class="doc-filter-count"><?= $cnt ?></span>
+            </button>
+        <?php endforeach; ?>
+    </div>
+
+    <!-- Member filter (if >1 member) -->
+    <?php if (count($members) > 1): ?>
+    <div class="docs-member-filters">
+        <span style="font-size:.8rem;color:var(--text-muted);margin-right:.5rem">Membre :</span>
+        <button class="doc-filter-chip small <?= $filterUser === 0 ? 'active' : '' ?>" onclick="filterByUser(0)">Tous</button>
+        <?php foreach ($members as $m): ?>
+            <button class="doc-filter-chip small <?= $filterUser === (int)$m['id'] ? 'active' : '' ?>"
+                    onclick="filterByUser(<?= $m['id'] ?>)">
+                <span class="user-avatar-xs" style="background:<?= htmlspecialchars($m['color']) ?>"><?= mb_substr($m['name'],0,1) ?></span>
+                <?= htmlspecialchars($m['name']) ?>
+            </button>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- Document grid -->
+    <div class="docs-grid" id="docs-grid">
+        <?php if (empty($documents)): ?>
+            <div class="empty-state" style="grid-column:1/-1">
+                Aucun document. Ajoutez vos pièces d'identité, justificatifs, contrats…
+            </div>
+        <?php else: ?>
+        <?php foreach ($documents as $doc): ?>
+        <div class="doc-card" data-id="<?= $doc['id'] ?>" data-type="<?= htmlspecialchars($doc['doc_type']) ?>"
+             onclick="openDocDetail(<?= htmlspecialchars(json_encode($doc)) ?>)">
+
+            <!-- Colored type header -->
+            <div class="doc-card-head" style="background:<?= htmlspecialchars($doc['type_color']) ?>">
+                <span class="doc-card-icon"><?= $doc['type_icon'] ?></span>
+                <span class="doc-card-type"><?= htmlspecialchars($doc['type_label']) ?></span>
+                <div class="doc-card-actions" onclick="event.stopPropagation()">
+                    <button class="btn-icon-sm light" onclick="openEditDocModal(<?= htmlspecialchars(json_encode($doc)) ?>)" title="Modifier">✏️</button>
+                    <button class="btn-icon-sm light" onclick="deleteDoc(<?= $doc['id'] ?>)" title="Supprimer">🗑</button>
+                </div>
+            </div>
+
+            <div class="doc-card-body">
+                <div class="doc-card-title"><?= htmlspecialchars($doc['title']) ?></div>
+
+                <div class="doc-card-meta">
+                    <?php if ($doc['issuer']): ?>
+                        <span>🏢 <?= htmlspecialchars($doc['issuer']) ?></span>
+                    <?php endif; ?>
+                    <?php if ($doc['issue_date']): ?>
+                        <span>📅 <?= DateHelper::format($doc['issue_date'], 'd/m/Y') ?></span>
+                    <?php endif; ?>
+                    <?php if ($doc['expiry_date']): ?>
+                        <span class="doc-expiry <?= $doc['expiry_status'] ?>">
+                            ⏳ <?= DateHelper::format($doc['expiry_date'], 'd/m/Y') ?>
+                            <?php if ($doc['days_until_expiry'] !== null): ?>
+                                <?php if ($doc['days_until_expiry'] < 0): ?>
+                                    (expirée)
+                                <?php elseif ($doc['days_until_expiry'] <= 90): ?>
+                                    (<?= $doc['days_until_expiry'] ?>j)
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </span>
+                    <?php endif; ?>
+                </div>
+
+                <div class="doc-card-footer">
+                    <div class="user-avatar-xs" style="background:<?= htmlspecialchars($doc['user_color']) ?>"
+                         title="<?= htmlspecialchars($doc['user_name']) ?>"><?= mb_substr($doc['user_name'],0,1) ?></div>
+                    <?php if ($doc['file_path']): ?>
+                        <a href="<?= BASE_URL ?>/documents/file/<?= $doc['id'] ?>" target="_blank"
+                           class="doc-file-badge" onclick="event.stopPropagation()">📎 Voir</a>
+                    <?php endif; ?>
+                    <?php if ($doc['tags']): ?>
+                        <?php foreach (array_slice(explode(',', $doc['tags']), 0, 3) as $tag): ?>
+                            <span class="doc-tag"><?= htmlspecialchars(trim($tag)) ?></span>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- ── Add / Edit Modal ─────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="doc-modal" style="display:none">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="doc-modal-title">Ajouter un document</h3>
+            <button onclick="closeModal('doc-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="doc-id">
+
+            <!-- File upload zone -->
+            <div class="wm-upload-zone" id="doc-drop-zone"
+                 ondragover="event.preventDefault();this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="handleDocDrop(event)">
+                <input type="file" id="doc-file" accept="image/*,application/pdf" style="display:none"
+                       onchange="handleDocFile(this.files[0])">
+                <div id="doc-upload-label" onclick="document.getElementById('doc-file').click()" style="cursor:pointer">
+                    <span style="font-size:2rem">📄</span>
+                    <p>Glissez votre document ici ou <u>cliquez pour choisir</u></p>
+                    <small style="color:var(--text-muted)">JPEG, PNG, PDF — max 20 Mo · OCR automatique</small>
+                </div>
+                <div id="doc-file-preview" style="display:none"></div>
+            </div>
+
+            <div id="doc-ocr-status" style="display:none;margin:.4rem 0;font-size:.8rem;color:var(--text-muted)"></div>
+
+            <!-- Detected type banner -->
+            <div id="doc-detected-type" style="display:none;margin:.5rem 0;padding:.5rem .85rem;border-radius:var(--radius);font-size:.85rem;font-weight:500"></div>
+
+            <div class="form-row" style="margin-top:.75rem">
+                <div class="form-group" style="flex:2">
+                    <label>Intitulé <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="doc-title" placeholder="Carte d'identité de Marie, Avis d'imposition 2024…">
+                </div>
+                <div class="form-group">
+                    <label>Appartient à</label>
+                    <select id="doc-user">
+                        <?php foreach ($members as $m): ?>
+                            <option value="<?= $m['id'] ?>" <?= $m['id'] == $user['id'] ? 'selected' : '' ?>><?= htmlspecialchars($m['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Type de document</label>
+                    <select id="doc-type">
+                        <option value="auto">🤖 Détection automatique</option>
+                        <?php foreach ($allTypes as $tKey => $tDef): ?>
+                            <option value="<?= $tKey ?>"><?= $tDef['icon'] ?> <?= htmlspecialchars($tDef['label']) ?></option>
+                        <?php endforeach; ?>
+                        <option value="other">📄 Autre</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Organisme émetteur</label>
+                    <input type="text" id="doc-issuer" placeholder="Mairie, DGFiP, employeur…">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date d'émission</label>
+                    <input type="date" id="doc-issue-date">
+                </div>
+                <div class="form-group">
+                    <label>Date d'expiration</label>
+                    <input type="date" id="doc-expiry-date">
+                    <small style="color:var(--text-muted)">Laisser vide si illimité</small>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Tags <small style="color:var(--text-muted)">(séparés par des virgules)</small></label>
+                <input type="text" id="doc-tags" placeholder="2024, important, à renouveler…">
+            </div>
+
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea id="doc-notes" rows="2"></textarea>
+            </div>
+
+            <details id="doc-ocr-details" style="display:none">
+                <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Texte extrait par OCR</summary>
+                <textarea id="doc-ocr-text" rows="5" style="font-size:.72rem;font-family:monospace;margin-top:.4rem"></textarea>
+            </details>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('doc-modal')">Annuler</button>
+            <button class="btn btn-primary" id="doc-save-btn" onclick="saveDoc()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Detail Modal ─────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="doc-detail-modal" style="display:none">
+    <div class="modal modal-lg">
+        <div class="modal-header" id="doc-detail-header">
+            <h3 id="doc-detail-title">Document</h3>
+            <button onclick="closeModal('doc-detail-modal')">✕</button>
+        </div>
+        <div class="modal-body" id="doc-detail-body"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('doc-detail-modal')">Fermer</button>
+            <button class="btn btn-primary" id="doc-detail-edit-btn">✏️ Modifier</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const DOC_TYPES = <?= json_encode(array_map(fn($k, $v) => ['key'=>$k,'label'=>$v['label'],'icon'=>$v['icon'],'color'=>$v['color']], array_keys($allTypes), $allTypes)) ?>;
+const DOC_CURRENT_FILTER_TYPE = <?= json_encode($filterType) ?>;
+const DOC_CURRENT_FILTER_USER = <?= json_encode($filterUser) ?>;
+</script>
+<?php
+$content = ob_get_clean();
+require __DIR__ . '/../layout.php';

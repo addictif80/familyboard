@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS documents (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    family_id     INT NOT NULL,
+    user_id       INT NOT NULL,
+    title         VARCHAR(255) NOT NULL,
+    doc_type      VARCHAR(50)  NOT NULL DEFAULT 'other',
+    issuer        VARCHAR(150) DEFAULT NULL,
+    issue_date    DATE         DEFAULT NULL,
+    expiry_date   DATE         DEFAULT NULL,
+    tags          VARCHAR(500) DEFAULT NULL,
+    file_path     VARCHAR(500) DEFAULT NULL,
+    file_original VARCHAR(255) DEFAULT NULL,
+    file_mime     VARCHAR(100) DEFAULT NULL,
+    ocr_text      MEDIUMTEXT   DEFAULT NULL,
+    notes         TEXT         DEFAULT NULL,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id)   REFERENCES users(id)    ON DELETE CASCADE,
+    FULLTEXT KEY ft_documents (title, doc_type, issuer, tags, ocr_text)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
