@@ -71,9 +71,20 @@ class CameraController extends BaseController
             exit;
         }
 
+        // Libère le verrou de session pour ne pas bloquer les autres requêtes
+        session_write_close();
+
         header('Content-Type: text/event-stream');
         header('Cache-Control: no-cache');
         header('X-Accel-Buffering: no');
+
+        // Désactive tous les niveaux de tampon PHP
+        while (ob_get_level() > 0) ob_end_flush();
+        @ini_set('implicit_flush', true);
+
+        // Signal initial pour que le navigateur sache que la connexion est ouverte
+        echo ": connected\n\n";
+        flush();
 
         $q = http_build_query([
             'target'      => $_GET['target']   ?? '',
@@ -86,7 +97,8 @@ class CameraController extends BaseController
         ]);
 
         if (!function_exists('curl_init')) {
-            echo "data: " . json_encode(['error' => 'cURL non disponible']) . "\n\n";
+            echo "event: complete\n";
+            echo "data: " . json_encode(['streams_found' => 0, 'error' => 'cURL non disponible sur ce serveur.']) . "\n\n";
             flush();
             exit;
         }
@@ -96,7 +108,6 @@ class CameraController extends BaseController
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_WRITEFUNCTION  => static function ($c, $data) {
                 echo $data;
-                if (ob_get_level()) ob_flush();
                 flush();
                 return strlen($data);
             },
@@ -104,7 +115,15 @@ class CameraController extends BaseController
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_FOLLOWLOCATION => true,
         ]);
-        curl_exec($ch);
+        $ok = curl_exec($ch);
+
+        if ($ok === false) {
+            $errMsg = curl_strerror(curl_errno($ch));
+            echo "event: complete\n";
+            echo "data: " . json_encode(['streams_found' => 0, 'error' => "Impossible de joindre Strix : $errMsg"]) . "\n\n";
+            flush();
+        }
+
         curl_close($ch);
         exit;
     }

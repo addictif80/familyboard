@@ -116,10 +116,11 @@ async function deleteCamera(id) {
 
 // ── Strix Discovery ───────────────────────────────────────────
 
-let _discCamId  = null;
-let _discCamObj = null; // full camera object for save
-let _discEvSource = null;
+let _discCamId      = null;
+let _discCamObj     = null;
+let _discEvSource   = null;
 let _discFoundStreams = [];
+let _discCompleted  = false; // empêche onerror de s'afficher après un complete normal
 
 function openDiscoverModal(cam) {
     _discCamId  = cam.id;
@@ -152,6 +153,7 @@ function _resetDiscoverUI() {
     document.getElementById('disc-start-btn').textContent       = 'Lancer la découverte';
     document.getElementById('disc-model-results').style.display = 'none';
     _discFoundStreams = [];
+    _discCompleted    = false;
 }
 
 function startDiscovery() {
@@ -207,23 +209,32 @@ function startDiscovery() {
         document.getElementById('disc-streams-list').appendChild(item);
     });
 
-    _discEvSource.addEventListener('complete', () => {
+    _discEvSource.addEventListener('complete', e => {
+        _discCompleted = true;
+        const result = (() => { try { return JSON.parse(e.data); } catch { return {}; } })();
         _discEvSource.close(); _discEvSource = null;
         btn.textContent = 'Relancer';
         btn.disabled = false;
         document.getElementById('disc-progress-fill').style.width = '100%';
         document.getElementById('disc-progress-pct').textContent  = '100%';
-        document.getElementById('disc-progress-label').textContent = 'Terminé.';
-        if (_discFoundStreams.length === 0) {
-            document.getElementById('disc-empty').style.display = 'block';
+
+        if (result.error) {
+            document.getElementById('disc-progress-label').textContent = `⚠️ ${result.error}`;
+        } else {
+            document.getElementById('disc-progress-label').textContent = '✓ Analyse terminée.';
+            if (_discFoundStreams.length === 0) {
+                document.getElementById('disc-empty').style.display = 'block';
+            }
         }
     });
 
     _discEvSource.onerror = () => {
-        _discEvSource.close(); _discEvSource = null;
+        if (_discCompleted) return; // fermeture normale après le complete, pas une erreur
+        _discEvSource?.close(); _discEvSource = null;
         btn.textContent = 'Relancer';
         btn.disabled = false;
-        document.getElementById('disc-progress-label').textContent = 'Erreur lors de la découverte.';
+        document.getElementById('disc-progress-label').textContent =
+            '⚠️ Connexion perdue. Vérifiez que Strix est démarré et que l\'URL est correcte.';
     };
 }
 
