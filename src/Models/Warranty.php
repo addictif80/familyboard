@@ -195,30 +195,19 @@ class Warranty
             }
         }
 
-        // Image (or PDF fallback): try tesseract
+        // Image (or PDF fallback): try tesseract with stdout output (no temp file needed)
         $bin = self::findBinary('tesseract');
         if (!$bin) return '';
 
-        $outBase = sys_get_temp_dir() . '/ocr_' . uniqid();
-
-        // Try French first, fall back to English, then no language flag
-        $langs = ['fra', 'eng', ''];
-        foreach ($langs as $lang) {
+        // Try French first, then English, then no language flag
+        foreach (['fra', 'eng', ''] as $lang) {
             $langFlag = $lang ? " -l $lang" : '';
-            $errFile  = $outBase . '_err.txt';
-            $cmd = $bin . ' ' . escapeshellarg($tmpPath)
-                 . ' ' . escapeshellarg($outBase)
-                 . $langFlag
-                 . ' 2>' . escapeshellarg($errFile);
-            exec($cmd, $out, $code);
-            $text = @file_get_contents($outBase . '.txt') ?: '';
-            @unlink($outBase . '.txt');
-            @unlink($errFile);
-            $text = trim($text);
+            $out  = [];
+            $code = 0;
+            exec($bin . ' ' . escapeshellarg($tmpPath) . ' stdout' . $langFlag . ' 2>/dev/null', $out, $code);
+            $text = trim(implode("\n", $out));
             if ($text !== '') return $text;
-            // If exit code is non-zero on first attempt, the lang pack is likely missing — try next
-            if ($code !== 0) continue;
-            break;
+            if ($code === 0) break; // ran OK but blank page — no point retrying other langs
         }
 
         return '';
