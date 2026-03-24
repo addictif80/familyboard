@@ -176,7 +176,8 @@ class Document
             if ($existingPath) @unlink(BASE_PATH . $existingPath);
             [$filePath, $fileOrig, $fileMime] = OcrHelper::saveUploadedFile($file, 'documents', $familyId);
             if ($ocrText === '') {
-                $ocrText = OcrHelper::run($file['tmp_name'], $file['type']);
+                // Use the moved destination path, not the now-gone tmp_name
+                $ocrText = OcrHelper::run(BASE_PATH . $filePath, $fileMime);
             }
         }
 

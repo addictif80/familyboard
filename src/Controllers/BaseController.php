@@ -43,10 +43,13 @@ class BaseController
     protected function json(callable $fn): void
     {
         header('Content-Type: application/json');
+        ob_start();
         try {
             $result = $fn();
+            ob_end_clean(); // discard any spurious warnings/notices
             echo json_encode($result);
         } catch (\Throwable $e) {
+            ob_end_clean();
             http_response_code(500);
             echo json_encode(['error' => $e->getMessage()]);
         }
