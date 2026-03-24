@@ -8,15 +8,23 @@
 
 const ZXING_CDN = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js';
 
+// Cached promise so the script is injected only once even if called concurrently
+let _zxingPromise = null;
+
 function loadZXing() {
-    return new Promise((resolve, reject) => {
-        if (window.ZXing) { resolve(); return; }
+    if (window.ZXing) return Promise.resolve();
+    if (_zxingPromise)  return _zxingPromise;
+    _zxingPromise = new Promise((resolve, reject) => {
         const s = document.createElement('script');
         s.src = ZXING_CDN;
         s.onload  = resolve;
-        s.onerror = () => reject(new Error('Impossible de charger ZXing depuis le CDN.'));
+        s.onerror = () => {
+            _zxingPromise = null;
+            reject(new Error('Impossible de charger ZXing (CDN indisponible).'));
+        };
         document.head.appendChild(s);
     });
+    return _zxingPromise;
 }
 
 // ── 2D-Doc constant tables ────────────────────────────────────────────────
@@ -220,119 +228,89 @@ function _addTag(tag) {
 
 // ── ZXing DataMatrix decoder (image file) ─────────────────────────────────
 
+/**
+ * Uses BrowserMultiFormatReader (high-level ZXing browser API) to decode a
+ * DataMatrix barcode from an image File.
+ * Returns the raw text string, or null if no barcode was found.
+ */
 async function decodeDataMatrixFromFile(file) {
     await loadZXing();
 
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    const hints = new Map([
+        [ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.DATA_MATRIX]],
+        [ZXing.DecodeHintType.TRY_HARDER, true],
+    ]);
 
-    // Try at 1× and 2× scale to help detection on small barcodes
-    for (const scale of [1, 2, 1.5]) {
-        const canvas = document.createElement('canvas');
-        canvas.width  = img.naturalWidth  * scale;
-        canvas.height = img.naturalHeight * scale;
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        try {
-            const lum    = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
-            const bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
-            const hints  = new Map([
-                [ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.DATA_MATRIX]],
-                [ZXing.DecodeHintType.TRY_HARDER, true],
-            ]);
-            const reader = new ZXing.MultiFormatReader();
-            reader.setHints(hints);
-            const result = reader.decode(bitmap);
-            URL.revokeObjectURL(img.src);
-            return result.getText();
-        } catch (e) {
-            // NotFoundException at this scale — try next
-        }
+    const url = URL.createObjectURL(file);
+    try {
+        const reader = new ZXing.BrowserMultiFormatReader(hints);
+        const result = await reader.decodeFromImageUrl(url);
+        return result.getText();
+    } catch (e) {
+        // ZXing throws NotFoundException when no barcode is found — that's normal
+        return null;
+    } finally {
+        URL.revokeObjectURL(url);
     }
-    URL.revokeObjectURL(img.src);
-    return null;
 }
 
 // ── Camera scanner ────────────────────────────────────────────────────────
 
-let _cameraStopFn = null;
+let _cameraReader = null;
 
+/**
+ * Uses BrowserMultiFormatReader.decodeFromVideoDevice() which manages the
+ * camera stream internally. Call stopCameraReader() to stop.
+ */
 async function startCameraScanner(videoEl, onResult, onError) {
-    await loadZXing();
-
-    let stream;
     try {
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
+        await loadZXing();
     } catch (e) {
-        onError('Impossible d\'accéder à la caméra : ' + e.message);
+        onError(e.message);
         return;
     }
 
-    videoEl.srcObject = stream;
-    videoEl.play().catch(() => {});
-
-    const canvas = document.createElement('canvas');
-    const hints  = new Map([
+    const hints = new Map([
         [ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.DATA_MATRIX]],
         [ZXing.DecodeHintType.TRY_HARDER, true],
     ]);
-    const reader = new ZXing.MultiFormatReader();
-    reader.setHints(hints);
 
-    let running = true;
-
-    const stop = () => {
-        running = false;
-        stream.getTracks().forEach(t => t.stop());
-        videoEl.srcObject = null;
-    };
-
-    const tick = () => {
-        if (!running) return;
-        if (videoEl.readyState >= 2 && videoEl.videoWidth > 0) {
-            canvas.width  = videoEl.videoWidth;
-            canvas.height = videoEl.videoHeight;
-            canvas.getContext('2d').drawImage(videoEl, 0, 0);
-            try {
-                const lum    = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
-                const bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
-                const result = reader.decode(bitmap);
-                stop();
+    try {
+        _cameraReader = new ZXing.BrowserMultiFormatReader(hints);
+        // undefined deviceId → browser picks the default/back camera
+        await _cameraReader.decodeFromVideoDevice(undefined, videoEl, (result, err) => {
+            if (result) {
+                stopCameraReader();
                 onResult(result.getText());
-                return;
-            } catch (e) { /* NotFoundException — continue */ }
-        }
-        requestAnimationFrame(tick);
-    };
+            }
+            // err on each frame without a barcode is normal (NotFoundException) — ignore
+        });
+    } catch (e) {
+        _cameraReader = null;
+        onError('Impossible d\'accéder à la caméra : ' + e.message);
+    }
+}
 
-    requestAnimationFrame(tick);
-    return stop;
+function stopCameraReader() {
+    if (_cameraReader) {
+        try { _cameraReader.reset(); } catch (e) {}
+        _cameraReader = null;
+    }
 }
 
 // ── UI glue ───────────────────────────────────────────────────────────────
 
 let _twodocParsed = null; // last parsed 2D-Doc result
 
-/** Called after file upload — tries to detect a DataMatrix in the image */
+/** Called after file upload — silently tries DataMatrix detection in background */
 async function try2DDocFromFile(file) {
     if (!file || file.type === 'application/pdf') return;
-
-    const btn = document.getElementById('doc-btn-scan-image');
-    if (btn) { btn.disabled = true; btn.textContent = '🔲 Lecture…'; }
-
+    // Run silently: button stays enabled so user can trigger it manually at any time
     try {
         const raw = await decodeDataMatrixFromFile(file);
-        if (btn) { btn.disabled = false; btn.textContent = '🔲 Lire le 2D-Doc'; }
-        if (raw) {
-            show2DDocResult(raw);
-        } else {
-            // no barcode found silently — user can still click the button manually
-        }
+        if (raw) show2DDocResult(raw);
     } catch (e) {
-        if (btn) { btn.disabled = false; btn.textContent = '🔲 Lire le 2D-Doc'; }
+        // Ignore — user can always click the button manually
     }
 }
 
@@ -361,26 +339,21 @@ async function scan2DDocFromUpload() {
 /** Open camera scanner modal */
 async function openCameraScanner() {
     openModal('twodoc-camera-modal');
-    const videoEl   = document.getElementById('twodoc-video');
-    const statusEl  = document.getElementById('twodoc-camera-status');
-    statusEl.textContent = '⏳ Chargement de la caméra…';
+    const videoEl  = document.getElementById('twodoc-video');
+    const statusEl = document.getElementById('twodoc-camera-status');
+    statusEl.textContent = '⏳ Chargement de ZXing et de la caméra…';
 
-    _cameraStopFn = await startCameraScanner(
+    await startCameraScanner(
         videoEl,
-        (raw) => {
-            closeModal('twodoc-camera-modal');
-            show2DDocResult(raw);
-        },
-        (err) => {
-            statusEl.textContent = '⚠️ ' + err;
-        }
+        (raw) => { closeModal('twodoc-camera-modal'); show2DDocResult(raw); },
+        (err)  => { statusEl.textContent = '⚠️ ' + err; }
     );
 
-    if (_cameraStopFn) statusEl.textContent = 'Pointez la caméra vers le code 2D-Doc';
+    if (_cameraReader) statusEl.textContent = 'Pointez la caméra vers le code 2D-Doc';
 }
 
 function stopCameraScanner() {
-    if (_cameraStopFn) { _cameraStopFn(); _cameraStopFn = null; }
+    stopCameraReader();
     closeModal('twodoc-camera-modal');
 }
 
