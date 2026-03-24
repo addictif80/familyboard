@@ -189,23 +189,36 @@ class Warranty
             if ($bin) {
                 $out  = [];
                 $code = 0;
-                exec($bin . ' ' . escapeshellarg($tmpPath) . ' - 2>/dev/null', $out, $code);
+                exec($bin . ' ' . escapeshellarg($tmpPath) . ' - 2>&1', $out, $code);
                 $text = trim(implode("\n", $out));
-                if ($text !== '') return $text;
+                if ($text !== '' && $code === 0) return $text;
             }
         }
 
         // Image (or PDF fallback): try tesseract
         $bin = self::findBinary('tesseract');
-        if ($bin) {
-            $outBase = sys_get_temp_dir() . '/ocr_' . uniqid();
-            $cmd     = $bin . ' ' . escapeshellarg($tmpPath)
-                     . ' ' . escapeshellarg($outBase)
-                     . ' -l fra 2>/dev/null';
-            exec($cmd);
+        if (!$bin) return '';
+
+        $outBase = sys_get_temp_dir() . '/ocr_' . uniqid();
+
+        // Try French first, fall back to English, then no language flag
+        $langs = ['fra', 'eng', ''];
+        foreach ($langs as $lang) {
+            $langFlag = $lang ? " -l $lang" : '';
+            $errFile  = $outBase . '_err.txt';
+            $cmd = $bin . ' ' . escapeshellarg($tmpPath)
+                 . ' ' . escapeshellarg($outBase)
+                 . $langFlag
+                 . ' 2>' . escapeshellarg($errFile);
+            exec($cmd, $out, $code);
             $text = @file_get_contents($outBase . '.txt') ?: '';
             @unlink($outBase . '.txt');
-            return trim($text);
+            @unlink($errFile);
+            $text = trim($text);
+            if ($text !== '') return $text;
+            // If exit code is non-zero on first attempt, the lang pack is likely missing — try next
+            if ($code !== 0) continue;
+            break;
         }
 
         return '';
@@ -214,12 +227,25 @@ class Warranty
     /** Returns debug info about binary availability (used by /api/warranties/ocr-check) */
     public static function ocrInfo(): array
     {
+        $tBin = self::findBinary('tesseract') ?: null;
+
+        // List available tesseract languages
+        $tLangs = [];
+        if ($tBin) {
+            $out = [];
+            exec($tBin . ' --list-langs 2>&1', $out);
+            // First line is "List of available tessdata:" — skip it
+            $tLangs = array_values(array_filter(array_slice($out, 1), fn($l) => trim($l) !== ''));
+        }
+
         return [
-            'tesseract'  => self::findBinary('tesseract')  ?: null,
-            'pdftotext'  => self::findBinary('pdftotext')  ?: null,
-            'php_exec'   => function_exists('exec'),
-            'shell_exec' => function_exists('shell_exec'),
-            'tmp_dir'    => sys_get_temp_dir(),
+            'tesseract'        => $tBin,
+            'tesseract_langs'  => $tLangs,
+            'pdftotext'        => self::findBinary('pdftotext') ?: null,
+            'php_exec'         => function_exists('exec'),
+            'shell_exec'       => function_exists('shell_exec'),
+            'tmp_dir'          => sys_get_temp_dir(),
+            'tmp_writable'     => is_writable(sys_get_temp_dir()),
         ];
     }
 
