@@ -73,6 +73,13 @@ ob_start();
                     Heure actuelle dans ce fuseau : <strong><?= (new \DateTime('now', new \DateTimeZone($family['timezone'] ?? 'Europe/Paris')))->format('H:i') ?></strong>
                 </small>
             </div>
+            <div class="form-group">
+                <label>📺 Ville pour la météo (écran mural)</label>
+                <input type="text" name="weather_city"
+                       value="<?= htmlspecialchars($family['weather_city'] ?? '') ?>"
+                       placeholder="Paris, Lyon, Bordeaux…">
+                <small style="color:var(--text-muted)">Affiché dans le bandeau de l'écran mural. Laisser vide pour utiliser la géolocalisation du navigateur.</small>
+            </div>
             <button type="submit" class="btn btn-primary">Enregistrer</button>
         </form>
         <div class="invite-section" style="margin-top:1rem">

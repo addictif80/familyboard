@@ -24,13 +24,13 @@ class Family
         );
     }
 
-    public static function update(int $id, string $name, ?string $timezone = null): void
+    public static function update(int $id, string $name, ?string $timezone = null, ?string $weatherCity = null): void
     {
-        if ($timezone) {
-            Database::execute('UPDATE families SET name = ?, timezone = ? WHERE id = ?', [$name, $timezone, $id]);
-        } else {
-            Database::execute('UPDATE families SET name = ? WHERE id = ?', [$name, $id]);
-        }
+        $city = ($weatherCity !== null) ? trim($weatherCity) : null;
+        Database::execute(
+            'UPDATE families SET name = ?, timezone = COALESCE(?, timezone), weather_city = ? WHERE id = ?',
+            [$name, $timezone ?: null, $city ?: null, $id]
+        );
     }
 
     public static function getTimezone(int $id): string

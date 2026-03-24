@@ -16,13 +16,15 @@ class FamilyWallController extends BaseController
         $user     = Session::user();
         $familyId = $user['family_id'];
         $family   = Family::findById($familyId);
+        $weatherCity = $family['weather_city'] ?? '';
 
         [
-            'byDate'        => $byDate,
-            'taskLists'     => $taskLists,
-            'shoppingLists' => $shoppingLists,
-            'budget'        => $budget,
-            'goals'         => $goals,
+            'byDate'         => $byDate,
+            'taskLists'      => $taskLists,
+            'shoppingLists'  => $shoppingLists,
+            'budget'         => $budget,
+            'goals'          => $goals,
+            'recentExpenses' => $recentExpenses,
         ] = $this->buildData($familyId);
 
         require BASE_PATH . '/templates/family-wall/index.php';
@@ -78,7 +80,6 @@ class FamilyWallController extends BaseController
             foreach (array_keys($byDate) as $dateStr) {
                 $d = new \DateTime($dateStr);
                 if ($d >= $eStart && $d <= $eEnd) {
-                    // Deduplicate by parent+child on same day
                     $key = ($e['parent_user_id'] ?? '0') . '_' . ($e['child_name'] ?? '');
                     $byDate[$dateStr]['custody'][$key] = $e;
                 }
@@ -101,14 +102,20 @@ class FamilyWallController extends BaseController
             }
         }
 
-        // Budget summary + goals
+        // Budget summary + goals + 3 most recent expenses
         $budget = ['income' => 0, 'expenses' => 0, 'balance' => 0];
         $goals  = [];
+        $recentExpenses = [];
         try {
             $budget = Budget::getSummary($familyId, date('Y-m'));
             $goals  = Budget::getGoals($familyId);
+            $allTx  = Budget::getTransactions($familyId, date('Y-m'));
+            $recentExpenses = array_slice(
+                array_filter($allTx, fn($t) => $t['type'] === 'expense'),
+                0, 3
+            );
         } catch (\Throwable) {}
 
-        return compact('byDate', 'taskLists', 'shoppingLists', 'budget', 'goals');
+        return compact('byDate', 'taskLists', 'shoppingLists', 'budget', 'goals', 'recentExpenses');
     }
 }
