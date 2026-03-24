@@ -56,7 +56,6 @@ class SettingsController extends BaseController
         if ($name) Family::update($user['family_id'], $name, [
             'timezone'     => $tz,
             'weather_city' => trim($_POST['weather_city'] ?? ''),
-            'strix_url'    => trim($_POST['strix_url'] ?? ''),
         ]);
         Session::flash('success', 'Famille mise à jour.');
         header('Location: ' . BASE_URL . '/settings');

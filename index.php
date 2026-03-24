@@ -159,8 +159,6 @@ $router->get('/cameras', [CameraController::class, 'index']);
 $router->post('/api/cameras', [CameraController::class, 'create']);
 $router->post('/api/cameras/:id', [CameraController::class, 'update']);
 $router->post('/api/cameras/:id/delete', [CameraController::class, 'delete']);
-$router->get('/api/cameras/strix-discover', [CameraController::class, 'strixDiscover']);
-$router->post('/api/cameras/strix-search', [CameraController::class, 'strixSearch']);
 
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);

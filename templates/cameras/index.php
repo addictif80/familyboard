@@ -4,16 +4,7 @@ $extraJs   = ['cameras.js'];
 ob_start();
 ?>
 <div class="content-header">
-    <div>
-        <h2>🎥 Caméras IP</h2>
-        <?php if ($strixUrl): ?>
-            <small style="color:var(--success)">● Strix connecté</small>
-        <?php else: ?>
-            <small style="color:var(--text-muted)">
-                Strix non configuré — <a href="<?= BASE_URL ?>/settings#strix" style="color:var(--primary)">Configurer</a> pour la découverte automatique
-            </small>
-        <?php endif; ?>
-    </div>
+    <h2>🎥 Caméras IP</h2>
     <button class="btn btn-primary" onclick="openCameraModal()">+ Ajouter une caméra</button>
 </div>
 
@@ -22,7 +13,7 @@ ob_start();
     <div class="empty-icon">🎥</div>
     <h3>Aucune caméra configurée</h3>
     <p>Ajoutez vos caméras IP pour afficher leurs flux en direct.<br>
-    Configurez l'URL de votre instance <strong>Strix</strong> dans les paramètres pour détecter automatiquement les flux de vos caméras.</p>
+    Renseignez l'URL du flux (MJPEG, snapshot, HLS) directement dans le formulaire.</p>
     <button class="btn btn-primary" onclick="openCameraModal()">+ Ajouter une caméra</button>
 </div>
 <?php else: ?>
@@ -82,9 +73,6 @@ ob_start();
 
         <!-- Actions -->
         <div class="cam-footer">
-            <?php if ($strixUrl): ?>
-                <button class="btn btn-secondary btn-sm" onclick="openDiscoverModal(<?= htmlspecialchars(json_encode($cam)) ?>)" title="Détecter les flux via Strix">🔍 Découvrir</button>
-            <?php endif; ?>
             <button class="btn btn-secondary btn-sm" onclick="openEditCameraModal(<?= htmlspecialchars(json_encode($cam)) ?>)">✏️ Modifier</button>
             <button class="btn btn-danger btn-sm" onclick="deleteCamera(<?= $cam['id'] ?>)">🗑</button>
         </div>
@@ -138,7 +126,6 @@ ob_start();
             <div class="form-group">
                 <label>URL du flux</label>
                 <input type="url" id="cam-stream-url" placeholder="http://192.168.1.100/video.cgi ou rtsp://…">
-                <small style="color:var(--text-muted)">Laissez vide et utilisez "Découvrir" pour détecter automatiquement.</small>
             </div>
 
             <div class="form-group">
@@ -164,72 +151,8 @@ ob_start();
     </div>
 </div>
 
-<!-- ═══ STRIX DISCOVER MODAL ═════════════════════════════════════ -->
-<div class="modal-overlay" id="discover-modal" style="display:none">
-    <div class="modal">
-        <div class="modal-header">
-            <h3>🔍 Découverte Strix</h3>
-            <button onclick="closeDiscoverModal()">✕</button>
-        </div>
-        <div class="modal-body">
-            <input type="hidden" id="disc-cam-id">
-            <div class="form-row">
-                <div class="form-group flex-2">
-                    <label>Adresse IP cible</label>
-                    <input type="text" id="disc-target" placeholder="192.168.1.100">
-                </div>
-                <div class="form-group flex-1">
-                    <label>Canal</label>
-                    <input type="number" id="disc-channel" value="1" min="1" max="32">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Identifiant</label>
-                    <input type="text" id="disc-user" value="admin">
-                </div>
-                <div class="form-group">
-                    <label>Mot de passe</label>
-                    <input type="password" id="disc-pass">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Modèle (laisser vide pour auto)</label>
-                <input type="text" id="disc-model" placeholder="Rechercher… ex: Hikvision" oninput="strixModelSearch(this.value)">
-                <div id="disc-model-results" class="strix-suggestions" style="display:none"></div>
-            </div>
-
-            <div id="disc-progress-wrap" style="display:none;margin-top:.75rem">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem">
-                    <small id="disc-progress-label" style="color:var(--text-muted)">Démarrage…</small>
-                    <small id="disc-progress-pct" style="color:var(--text-muted);font-weight:600">0%</small>
-                </div>
-                <div class="progress-bar" style="height:6px">
-                    <div id="disc-progress-fill" class="progress-fill" style="width:0%;background:var(--primary)"></div>
-                </div>
-            </div>
-
-            <div id="disc-streams" style="display:none;margin-top:.85rem">
-                <div class="form-group" style="margin-bottom:0">
-                    <label>Flux détectés</label>
-                </div>
-                <div id="disc-streams-list" class="strix-streams-list"></div>
-            </div>
-
-            <div id="disc-empty" style="display:none;margin-top:.75rem;color:var(--text-muted);font-size:.85rem;text-align:center">
-                Aucun flux trouvé pour cette caméra.
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeDiscoverModal()">Fermer</button>
-            <button class="btn btn-primary" id="disc-start-btn" onclick="startDiscovery()">Lancer la découverte</button>
-        </div>
-    </div>
-</div>
-
 <script>
-const BASE_URL  = <?= json_encode(BASE_URL) ?>;
-const STRIX_URL = <?= json_encode($strixUrl) ?>;
+const BASE_URL = <?= json_encode(BASE_URL) ?>;
 </script>
 <?php
 $content = ob_get_clean();
