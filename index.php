@@ -44,6 +44,7 @@ use App\Controllers\SettingsController;
 use App\Controllers\InvitationController;
 use App\Controllers\WarrantyController;
 use App\Controllers\DocumentController;
+use App\Controllers\FamilyWallController;
 
 Session::start();
 
@@ -181,6 +182,10 @@ $router->post('/api/documents/ocr', [DocumentController::class, 'ocr']);
 $router->get('/api/documents/search', [DocumentController::class, 'search']);
 $router->post('/api/documents/:id', [DocumentController::class, 'update']);
 $router->post('/api/documents/:id/delete', [DocumentController::class, 'delete']);
+
+// Family Wall (écran mural)
+$router->get('/family-wall', [FamilyWallController::class, 'index']);
+$router->get('/api/family-wall/data', [FamilyWallController::class, 'apiData']);
 
 // Invitations
 $router->get('/invite/:token', [InvitationController::class, 'show']);
