@@ -164,30 +164,63 @@ class Warranty
 
     // ── OCR ──────────────────────────────────────────────────────────────────
 
+    /** Common install paths — web server PATH is often minimal */
+    private static array $binaryPaths = [
+        '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin', '/snap/bin',
+        '/usr/local/tesseract/bin',
+    ];
+
+    private static function findBinary(string $name): string
+    {
+        foreach (self::$binaryPaths as $dir) {
+            $path = $dir . '/' . $name;
+            if (is_executable($path)) return $path;
+        }
+        // Last resort: ask the shell
+        $found = trim((string)shell_exec('which ' . escapeshellarg($name) . ' 2>/dev/null'));
+        return $found ?: '';
+    }
+
     public static function runOcr(string $tmpPath, string $mime): string
     {
-        // PDF: try pdftotext
+        // PDF: try pdftotext (poppler-utils)
         if ($mime === 'application/pdf') {
-            $bin = trim((string)shell_exec('which pdftotext 2>/dev/null'));
+            $bin = self::findBinary('pdftotext');
             if ($bin) {
-                $out = [];
-                exec($bin . ' ' . escapeshellarg($tmpPath) . ' - 2>/dev/null', $out);
+                $out  = [];
+                $code = 0;
+                exec($bin . ' ' . escapeshellarg($tmpPath) . ' - 2>/dev/null', $out, $code);
                 $text = trim(implode("\n", $out));
                 if ($text !== '') return $text;
             }
         }
 
-        // Image: try tesseract
-        $bin = trim((string)shell_exec('which tesseract 2>/dev/null'));
+        // Image (or PDF fallback): try tesseract
+        $bin = self::findBinary('tesseract');
         if ($bin) {
             $outBase = sys_get_temp_dir() . '/ocr_' . uniqid();
-            exec($bin . ' ' . escapeshellarg($tmpPath) . ' ' . escapeshellarg($outBase) . ' -l fra 2>/dev/null');
+            $cmd     = $bin . ' ' . escapeshellarg($tmpPath)
+                     . ' ' . escapeshellarg($outBase)
+                     . ' -l fra 2>/dev/null';
+            exec($cmd);
             $text = @file_get_contents($outBase . '.txt') ?: '';
             @unlink($outBase . '.txt');
             return trim($text);
         }
 
         return '';
+    }
+
+    /** Returns debug info about binary availability (used by /api/warranties/ocr-check) */
+    public static function ocrInfo(): array
+    {
+        return [
+            'tesseract'  => self::findBinary('tesseract')  ?: null,
+            'pdftotext'  => self::findBinary('pdftotext')  ?: null,
+            'php_exec'   => function_exists('exec'),
+            'shell_exec' => function_exists('shell_exec'),
+            'tmp_dir'    => sys_get_temp_dir(),
+        ];
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

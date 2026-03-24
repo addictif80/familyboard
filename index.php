@@ -161,6 +161,7 @@ $router->get('/warranties/file/:id', [WarrantyController::class, 'serveFile']);
 $router->post('/api/warranties', [WarrantyController::class, 'create']);
 $router->post('/api/warranties/ocr', [WarrantyController::class, 'ocr']);
 $router->get('/api/warranties/search', [WarrantyController::class, 'search']);
+$router->get('/api/warranties/ocr-check', [WarrantyController::class, 'ocrCheck']);
 $router->post('/api/warranties/:id', [WarrantyController::class, 'update']);
 $router->post('/api/warranties/:id/delete', [WarrantyController::class, 'delete']);
 

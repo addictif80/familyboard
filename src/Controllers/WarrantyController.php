@@ -97,15 +97,31 @@ class WarrantyController extends BaseController
         $text = Warranty::runOcr($file['tmp_name'], $file['type']);
 
         if ($text === '') {
+            $info = Warranty::ocrInfo();
+            $missing = [];
+            if (!$info['tesseract']) $missing[] = 'tesseract-ocr tesseract-ocr-fra';
+            if (!$info['pdftotext']) $missing[] = 'poppler-utils';
+            $hint = $missing
+                ? 'Binaires introuvables. Installez : apt install ' . implode(' ', $missing)
+                : 'Binaires trouvés mais OCR a retourné un résultat vide (image trop petite ou illisible ?).';
             echo json_encode([
                 'success' => false,
-                'error'   => 'OCR non disponible. Installez tesseract-ocr (images) ou poppler-utils (PDF) sur le serveur.',
+                'error'   => $hint,
+                'debug'   => $info,
                 'text'    => '',
             ]);
             return;
         }
 
         echo json_encode(['success' => true, 'text' => $text]);
+    }
+
+    /** OCR diagnostic endpoint — returns binary paths and PHP config */
+    public function ocrCheck(array $params): void
+    {
+        $this->requireAuth();
+        header('Content-Type: application/json');
+        echo json_encode(Warranty::ocrInfo());
     }
 
     /** Search (AJAX — returns JSON for dynamic filtering) */
