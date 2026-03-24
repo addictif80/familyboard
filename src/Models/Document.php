@@ -15,30 +15,28 @@ class Document
             $where[]  = 'd.doc_type = ?';
             $params[] = $type;
         }
+        // Filter by member via junction table
         if ($userId > 0) {
-            $where[]  = 'd.user_id = ?';
+            $where[]  = 'd.id IN (SELECT document_id FROM document_members WHERE user_id = ?)';
             $params[] = $userId;
         }
 
         $whereStr = implode(' AND ', $where);
+        $select   = 'SELECT d.*, u.name as user_name, u.color as user_color FROM documents d JOIN users u ON u.id = d.user_id';
 
         if ($search !== '') {
             try {
                 $rows = Database::fetchAll(
-                    "SELECT d.*, u.name as user_name, u.color as user_color
-                     FROM documents d JOIN users u ON u.id = d.user_id
-                     WHERE $whereStr
+                    "$select WHERE $whereStr
                        AND MATCH(d.title, d.doc_type, d.issuer, d.tags, d.ocr_text)
                            AGAINST(? IN BOOLEAN MODE)
                      ORDER BY d.created_at DESC",
                     [...$params, $search . '*']
                 );
             } catch (\Throwable) {
-                $like     = '%' . $search . '%';
+                $like = '%' . $search . '%';
                 $rows = Database::fetchAll(
-                    "SELECT d.*, u.name as user_name, u.color as user_color
-                     FROM documents d JOIN users u ON u.id = d.user_id
-                     WHERE $whereStr
+                    "$select WHERE $whereStr
                        AND (d.title LIKE ? OR d.issuer LIKE ? OR d.tags LIKE ?)
                      ORDER BY d.created_at DESC",
                     [...$params, $like, $like, $like]
@@ -46,14 +44,12 @@ class Document
             }
         } else {
             $rows = Database::fetchAll(
-                "SELECT d.*, u.name as user_name, u.color as user_color
-                 FROM documents d JOIN users u ON u.id = d.user_id
-                 WHERE $whereStr
-                 ORDER BY d.created_at DESC",
+                "$select WHERE $whereStr ORDER BY d.created_at DESC",
                 $params
             );
         }
 
+        self::attachMembers($rows);
         return array_map([self::class, 'decorate'], $rows);
     }
 
@@ -65,7 +61,10 @@ class Document
              WHERE d.id = ? AND d.family_id = ?',
             [$id, $familyId]
         );
-        return $row ? self::decorate($row) : null;
+        if (!$row) return null;
+        $rows = [&$row];
+        self::attachMembers($rows);
+        return self::decorate($row);
     }
 
     public static function getTypeCounts(int $familyId): array
@@ -82,32 +81,36 @@ class Document
     public static function getExpiringsSoon(int $familyId, int $days = 60): array
     {
         $rows = Database::fetchAll(
-            'SELECT d.*, u.name as user_name FROM documents d JOIN users u ON u.id=d.user_id
+            'SELECT d.*, u.name as user_name, u.color as user_color
+             FROM documents d JOIN users u ON u.id=d.user_id
              WHERE d.family_id=?
                AND d.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
              ORDER BY d.expiry_date ASC',
             [$familyId, $days]
         );
+        self::attachMembers($rows);
         return array_map([self::class, 'decorate'], $rows);
     }
 
-    public static function create(int $familyId, int $userId, array $data, ?array $file = null): int
+    public static function create(int $familyId, int $creatorId, array $data, ?array $file = null): int
     {
         [$filePath, $fileOrig, $fileMime, $ocrText] = self::processFile($file, $familyId, $data['ocr_text'] ?? '');
 
-        // Auto-classify if no type given or type is 'auto'
+        $memberIds     = self::extractMemberIds($data, $creatorId);
+        $primaryUserId = $memberIds[0];
+
         $type = $data['doc_type'] ?? 'other';
         if (($type === '' || $type === 'auto') && $ocrText !== '') {
             $type = OcrHelper::classify($ocrText)['type'];
         }
 
-        return (int)Database::insert(
+        $docId = (int)Database::insert(
             'INSERT INTO documents
              (family_id, user_id, title, doc_type, issuer, issue_date, expiry_date,
               tags, file_path, file_original, file_mime, ocr_text, notes)
              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
-                $familyId, $userId,
+                $familyId, $primaryUserId,
                 $data['title'],
                 $type,
                 $data['issuer']      ?? null,
@@ -119,6 +122,9 @@ class Document
                 $data['notes'] ?? null,
             ]
         );
+
+        self::syncMembers($docId, $memberIds);
+        return $docId;
     }
 
     public static function update(int $id, int $familyId, array $data, ?array $file = null): void
@@ -133,21 +139,20 @@ class Document
 
         $ocrText = $newOcr !== '' ? $newOcr : ($existing['ocr_text'] ?? '');
 
+        $memberIds     = self::extractMemberIds($data, $existing['user_id']);
+        $primaryUserId = $memberIds[0];
+
         $type = $data['doc_type'] ?? $existing['doc_type'];
         if (($type === '' || $type === 'auto') && $ocrText !== '') {
             $type = OcrHelper::classify($ocrText)['type'];
         }
-
-        $userId = isset($data['user_id']) && (int)$data['user_id'] > 0
-            ? (int)$data['user_id']
-            : $existing['user_id'];
 
         Database::execute(
             'UPDATE documents SET user_id=?, title=?, doc_type=?, issuer=?, issue_date=?, expiry_date=?,
              tags=?, file_path=?, file_original=?, file_mime=?, ocr_text=?, notes=?
              WHERE id=? AND family_id=?',
             [
-                $userId,
+                $primaryUserId,
                 $data['title'], $type,
                 $data['issuer']      ?? null,
                 $data['issue_date']  ?: null,
@@ -159,16 +164,83 @@ class Document
                 $id, $familyId,
             ]
         );
+
+        self::syncMembers($id, $memberIds);
     }
 
     public static function delete(int $id, int $familyId): void
     {
         $row = Database::fetch('SELECT file_path FROM documents WHERE id=? AND family_id=?', [$id, $familyId]);
         if ($row && $row['file_path']) @unlink(BASE_PATH . $row['file_path']);
+        // document_members deleted via ON DELETE CASCADE
         Database::execute('DELETE FROM documents WHERE id=? AND family_id=?', [$id, $familyId]);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /** Attach a 'members' array to each row (1 extra query regardless of row count) */
+    private static function attachMembers(array &$rows): void
+    {
+        if (empty($rows)) return;
+
+        $docIds = array_column($rows, 'id');
+        $ph     = implode(',', array_fill(0, count($docIds), '?'));
+
+        $memberRows = Database::fetchAll(
+            "SELECT dm.document_id, u.id, u.name, u.color
+             FROM document_members dm JOIN users u ON u.id = dm.user_id
+             WHERE dm.document_id IN ($ph)
+             ORDER BY u.name",
+            $docIds
+        );
+
+        $byDoc = [];
+        foreach ($memberRows as $mr) {
+            $byDoc[$mr['document_id']][] = [
+                'id'    => (int)$mr['id'],
+                'name'  => $mr['name'],
+                'color' => $mr['color'],
+            ];
+        }
+
+        foreach ($rows as &$row) {
+            $row['members'] = $byDoc[$row['id']] ?? [];
+            // Fallback: if junction table empty (pre-migration row), use user_id
+            if (empty($row['members']) && !empty($row['user_name'])) {
+                $row['members'] = [[
+                    'id'    => (int)$row['user_id'],
+                    'name'  => $row['user_name'],
+                    'color' => $row['user_color'],
+                ]];
+            }
+        }
+        unset($row);
+    }
+
+    /** Parse member_ids from form data, fallback to $default */
+    private static function extractMemberIds(array $data, int $default): array
+    {
+        $raw = $data['member_ids'] ?? $data['user_id'] ?? null;
+        $ids = array_values(array_filter(
+            array_map('intval', (array)$raw),
+            fn($id) => $id > 0
+        ));
+        return empty($ids) ? [$default] : $ids;
+    }
+
+    /** Replace all members in junction table for a document */
+    private static function syncMembers(int $docId, array $memberIds): void
+    {
+        Database::execute('DELETE FROM document_members WHERE document_id = ?', [$docId]);
+        foreach (array_unique($memberIds) as $uid) {
+            if ($uid > 0) {
+                Database::execute(
+                    'INSERT IGNORE INTO document_members (document_id, user_id) VALUES (?, ?)',
+                    [$docId, $uid]
+                );
+            }
+        }
+    }
 
     private static function processFile(?array $file, int $familyId, string $providedOcr, ?string $existingPath = null): array
     {
@@ -181,7 +253,6 @@ class Document
             if ($existingPath) @unlink(BASE_PATH . $existingPath);
             [$filePath, $fileOrig, $fileMime] = OcrHelper::saveUploadedFile($file, 'documents', $familyId);
             if ($ocrText === '') {
-                // Use the moved destination path, not the now-gone tmp_name
                 $ocrText = OcrHelper::run(BASE_PATH . $filePath, $fileMime);
             }
         }

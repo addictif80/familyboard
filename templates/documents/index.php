@@ -112,8 +112,11 @@ $totalDocs = array_sum($typeCounts);
                 </div>
 
                 <div class="doc-card-footer">
-                    <div class="user-avatar-xs" style="background:<?= htmlspecialchars($doc['user_color']) ?>"
-                         title="<?= htmlspecialchars($doc['user_name']) ?>"><?= mb_substr($doc['user_name'],0,1) ?></div>
+                    <div class="doc-card-members">
+                        <?php foreach ($doc['members'] as $m): ?>
+                            <div class="user-avatar-xs" style="background:<?= htmlspecialchars($m['color']) ?>"
+                                 title="<?= htmlspecialchars($m['name']) ?>"><?= mb_substr($m['name'],0,1) ?></div>
+                        <?php endforeach; ?></div>
                     <?php if ($doc['file_path']): ?>
                         <a href="<?= BASE_URL ?>/documents/file/<?= $doc['id'] ?>" target="_blank"
                            class="doc-file-badge" onclick="event.stopPropagation()">📎 Voir</a>
@@ -184,13 +187,18 @@ $totalDocs = array_sum($typeCounts);
                     <label>Intitulé <span style="color:var(--danger)">*</span></label>
                     <input type="text" id="doc-title" placeholder="Carte d'identité de Marie, Avis d'imposition 2024…">
                 </div>
-                <div class="form-group">
+                <div class="form-group" style="flex:1">
                     <label>Appartient à</label>
-                    <select id="doc-user">
+                    <div class="member-picker" id="doc-member-picker">
                         <?php foreach ($members as $m): ?>
-                            <option value="<?= $m['id'] ?>" <?= $m['id'] == $user['id'] ? 'selected' : '' ?>><?= htmlspecialchars($m['name']) ?></option>
+                        <label class="member-pick-item">
+                            <input type="checkbox" class="doc-member-cb" value="<?= (int)$m['id'] ?>">
+                            <span class="user-avatar-xs" style="background:<?= htmlspecialchars($m['color']) ?>"><?= mb_substr($m['name'],0,1) ?></span>
+                            <?= htmlspecialchars($m['name']) ?>
+                        </label>
                         <?php endforeach; ?>
-                    </select>
+                    </div>
+                    <small class="form-hint">Sélectionnez un ou plusieurs membres</small>
                 </div>
             </div>
 
@@ -293,6 +301,7 @@ $totalDocs = array_sum($typeCounts);
 const DOC_TYPES = <?= json_encode(array_map(fn($k, $v) => ['key'=>$k,'label'=>$v['label'],'icon'=>$v['icon'],'color'=>$v['color']], array_keys($allTypes), $allTypes)) ?>;
 const DOC_CURRENT_FILTER_TYPE = <?= json_encode($filterType) ?>;
 const DOC_CURRENT_FILTER_USER = <?= json_encode($filterUser) ?>;
+const DOC_CURRENT_USER_ID = <?= json_encode((int)($_SESSION['user_id'] ?? 0)) ?>;
 </script>
 <?php
 $content = ob_get_clean();

@@ -67,8 +67,10 @@ function openDocModal() {
     document.getElementById('doc-ocr-details').style.display = 'none';
     document.getElementById('doc-ocr-status').style.display = 'none';
     document.getElementById('doc-detected-type').style.display = 'none';
-    const sel = document.getElementById('doc-user');
-    if (sel && sel.options.length) sel.selectedIndex = 0;
+    // Reset member checkboxes: check only current user
+    document.querySelectorAll('.doc-member-cb').forEach(cb => {
+        cb.checked = (parseInt(cb.value) === DOC_CURRENT_USER_ID);
+    });
     resetDocFileZone();
     openModal('doc-modal');
 }
@@ -84,7 +86,12 @@ function openEditDocModal(item) {
     document.getElementById('doc-expiry-date').value = item.expiry_date || '';
     document.getElementById('doc-tags').value = item.tags || '';
     document.getElementById('doc-notes').value = item.notes || '';
-    document.getElementById('doc-user').value = item.user_id;
+    // Check member checkboxes based on item.members array
+    const memberIds = new Set((item.members || []).map(m => parseInt(m.id)));
+    if (memberIds.size === 0 && item.user_id) memberIds.add(parseInt(item.user_id));
+    document.querySelectorAll('.doc-member-cb').forEach(cb => {
+        cb.checked = memberIds.has(parseInt(cb.value));
+    });
     document.getElementById('doc-detected-type').style.display = 'none';
     document.getElementById('doc-ocr-status').style.display = 'none';
 
@@ -274,7 +281,9 @@ async function saveDoc() {
     fd.append('tags',        document.getElementById('doc-tags').value);
     fd.append('notes',       document.getElementById('doc-notes').value);
     fd.append('ocr_text',    document.getElementById('doc-ocr-text').value);
-    fd.append('user_id',     document.getElementById('doc-user').value);
+    document.querySelectorAll('.doc-member-cb:checked').forEach(cb => {
+        fd.append('member_ids[]', cb.value);
+    });
     if (_docFile) fd.append('file', _docFile);
 
     const url = id ? `${BASE_URL}/api/documents/${id}` : `${BASE_URL}/api/documents`;
@@ -315,7 +324,9 @@ function openDocDetail(item) {
         item.issuer      && ['Émetteur',    item.issuer],
         item.issue_date  && ['Émis le',     fmtDate(item.issue_date)],
         item.expiry_date && ['Expire le',   fmtDate(item.expiry_date) + expiryBadge(item)],
-        item.user_name   && ['Appartient à',item.user_name],
+        (item.members && item.members.length) && ['Appartient à', item.members.map(m =>
+            `<span class="user-avatar-xs" style="background:${escapeHtml(m.color)}" title="${escapeHtml(m.name)}">${escapeHtml(m.name.charAt(0))}</span> ${escapeHtml(m.name)}`
+        ).join('&nbsp; ')],
         item.tags        && ['Tags',        item.tags],
         item.notes       && ['Notes',       item.notes],
     ].filter(Boolean);
