@@ -42,6 +42,7 @@ use App\Controllers\CustodyController;
 use App\Controllers\ProjectController;
 use App\Controllers\SettingsController;
 use App\Controllers\InvitationController;
+use App\Controllers\ContactController;
 use App\Controllers\WarrantyController;
 use App\Controllers\DocumentController;
 use App\Controllers\FamilyWallController;
@@ -155,6 +156,15 @@ $router->post('/api/projects/:id/material', [ProjectController::class, 'createMa
 $router->post('/api/projects/material/:id', [ProjectController::class, 'updateMaterial']);
 $router->post('/api/projects/material/:id/toggle', [ProjectController::class, 'toggleMaterial']);
 $router->post('/api/projects/material/:id/delete', [ProjectController::class, 'deleteMaterial']);
+
+// Contacts
+$router->get('/contacts', [ContactController::class, 'index']);
+$router->get('/contacts/export.vcf', [ContactController::class, 'exportVcf']);
+$router->get('/contacts/:id/vcard', [ContactController::class, 'downloadVcard']);
+$router->post('/api/contacts', [ContactController::class, 'create']);
+$router->post('/api/contacts/:id', [ContactController::class, 'update']);
+$router->post('/api/contacts/:id/delete', [ContactController::class, 'delete']);
+$router->post('/api/contacts/:id/avatar', [ContactController::class, 'uploadAvatar']);
 
 // Cameras
 $router->get('/cameras', [CameraController::class, 'index']);

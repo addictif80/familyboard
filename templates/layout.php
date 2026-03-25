@@ -100,6 +100,14 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 </a>
             </li>
             <?php endif; ?>
+            <?php if (!in_array('contacts', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/contacts') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/contacts" class="nav-link">
+                    <span class="nav-icon">📒</span>
+                    <span class="nav-label">Répertoire</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if (!in_array('warranties', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/warranties') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/warranties" class="nav-link">

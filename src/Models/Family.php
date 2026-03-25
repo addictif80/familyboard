@@ -14,6 +14,7 @@ class Family
         'chat'        => ['label' => 'Chat familial',     'icon' => '💬'],
         'budget'      => ['label' => 'Budget',            'icon' => '💰'],
         'projects'    => ['label' => 'Projets',           'icon' => '📋'],
+        'contacts'    => ['label' => 'Répertoire',        'icon' => '📒'],
         'warranties'  => ['label' => 'Garanties',         'icon' => '🛡️'],
         'documents'   => ['label' => 'Documents',         'icon' => '🗂️'],
         'cameras'     => ['label' => 'Caméras',           'icon' => '🎥'],
