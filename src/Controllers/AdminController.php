@@ -12,7 +12,7 @@ class AdminController extends BaseController
 {
     // ── Auth ────────────────────────────────────────────────────
 
-    private function requireAdmin(): void
+    private function requireSuperAdmin(): void
     {
         if (!($_SESSION['admin_logged_in'] ?? false)) {
             header('Location: ' . BASE_URL . '/admin/login');
@@ -54,7 +54,7 @@ class AdminController extends BaseController
 
     public function index(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $tab = $_GET['tab'] ?? 'dashboard';
 
         $stats = [
@@ -77,7 +77,7 @@ class AdminController extends BaseController
 
     public function blockUser(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $id     = (int)$params['id'];
         $reason = trim($_POST['reason'] ?? '');
         Database::execute('UPDATE users SET blocked_at=NOW(), blocked_reason=? WHERE id=?', [$reason ?: null, $id]);
@@ -88,7 +88,7 @@ class AdminController extends BaseController
 
     public function unblockUser(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $id = (int)$params['id'];
         Database::execute('UPDATE users SET blocked_at=NULL, blocked_reason=NULL WHERE id=?', [$id]);
         $this->redirect('/admin?tab=users&msg=unblocked');
@@ -98,7 +98,7 @@ class AdminController extends BaseController
 
     public function addIp(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $ip     = trim($_POST['ip'] ?? '');
         $reason = trim($_POST['reason'] ?? '');
         if ($ip) {
@@ -111,7 +111,7 @@ class AdminController extends BaseController
 
     public function deleteIp(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $id = (int)$params['id'];
         Database::execute('DELETE FROM blocked_ips WHERE id=?', [$id]);
         $this->redirect('/admin?tab=ips');
@@ -121,7 +121,7 @@ class AdminController extends BaseController
 
     public function generateVapidKeys(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $keys = WebPush::generateVapidKeys();
         AppSetting::set('vapid_public',  $keys['public']);
         AppSetting::set('vapid_private', $keys['private']);
@@ -130,7 +130,7 @@ class AdminController extends BaseController
 
     public function sendPush(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $title    = trim($_POST['title'] ?? '');
         $body     = trim($_POST['body']  ?? '');
         $url      = trim($_POST['url']   ?? '/');
@@ -168,7 +168,7 @@ class AdminController extends BaseController
 
     public function viewTicket(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $id      = (int)$params['id'];
         $ticket  = SupportTicket::getById($id);
         if (!$ticket) { $this->redirect('/admin?tab=tickets'); return; }
@@ -178,7 +178,7 @@ class AdminController extends BaseController
 
     public function replyTicket(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $id      = (int)$params['id'];
         $message = trim($_POST['message'] ?? '');
         if ($message) {
@@ -195,7 +195,7 @@ class AdminController extends BaseController
 
     public function closeTicket(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $id = (int)$params['id'];
         SupportTicket::setStatus($id, 'closed');
         $this->redirect('/admin/tickets/' . $id);
@@ -203,7 +203,7 @@ class AdminController extends BaseController
 
     public function reopenTicket(array $params): void
     {
-        $this->requireAdmin();
+        $this->requireSuperAdmin();
         $id = (int)$params['id'];
         SupportTicket::setStatus($id, 'open');
         $this->redirect('/admin/tickets/' . $id);

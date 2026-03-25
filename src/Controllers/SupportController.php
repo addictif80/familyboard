@@ -5,7 +5,7 @@ use App\Core\Database;
 use App\Core\Session;
 use App\Models\AppSetting;
 use App\Models\SupportTicket;
-use App\Models\WebPush;
+use App\Core\WebPush;
 
 class SupportController extends BaseController
 {
