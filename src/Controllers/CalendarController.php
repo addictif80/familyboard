@@ -22,7 +22,7 @@ class CalendarController extends BaseController
             $caldavSources = [];
         }
         $custodySchedules = \App\Models\Custody::getSchedules($familyId);
-        $hasProjects = !empty(Project::getByFamily($familyId));
+        $hasProjects = !empty(\App\Models\Project::getByFamily($familyId));
         require BASE_PATH . '/templates/calendar/index.php';
     }
 
