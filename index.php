@@ -159,8 +159,10 @@ $router->get('/cameras', [CameraController::class, 'index']);
 $router->post('/api/cameras', [CameraController::class, 'create']);
 $router->post('/api/cameras/:id', [CameraController::class, 'update']);
 $router->post('/api/cameras/:id/delete', [CameraController::class, 'delete']);
-$router->post('/api/cameras/:id/go2rtc', [CameraController::class, 'go2rtcRegister']);
-$router->get('/api/cameras/:id/go2rtc',  [CameraController::class, 'go2rtcStream']);
+$router->post('/api/cameras/:id/go2rtc',         [CameraController::class, 'go2rtcRegister']);
+$router->get('/api/cameras/:id/go2rtc',          [CameraController::class, 'go2rtcStream']);
+$router->get('/api/cameras/:id/go2rtc/hls',      [CameraController::class, 'go2rtcHls']);
+$router->get('/api/cameras/:id/go2rtc/hls/seg',  [CameraController::class, 'go2rtcHlsSeg']);
 
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);

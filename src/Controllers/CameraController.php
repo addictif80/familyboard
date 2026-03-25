@@ -133,6 +133,119 @@ class CameraController extends BaseController
     }
 
     /**
+     * GET : proxifie la playlist HLS (m3u8) de go2rtc, en réécrivant les URLs
+     * des segments pour qu'elles passent par PHP (go2rtcHlsSeg).
+     * Permet la lecture audio dans un <video> via hls.js sans accès direct au go2rtc.
+     */
+    public function go2rtcHls(array $params): void
+    {
+        $this->requireAuth();
+        session_write_close();
+
+        $user = Session::user();
+        $id   = (int)$params['id'];
+        $cam  = Camera::getById($id);
+
+        if (!$cam || $cam['family_id'] !== $user['family_id']) {
+            http_response_code(404); exit;
+        }
+
+        $family     = Family::findById($user['family_id']);
+        $go2rtcBase = rtrim($family['go2rtc_url'] ?? '', '/');
+        $name       = 'cam_' . $id;
+
+        $ch = curl_init($go2rtcBase . '/api/stream.m3u8?' . http_build_query(['src' => $name]));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_FOLLOWLOCATION => true,
+        ]);
+        $m3u8 = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if (!$m3u8 || $code >= 400) {
+            http_response_code(502); exit;
+        }
+
+        // Rewrite every non-comment, non-empty line (segment URLs) to go through PHP proxy
+        $phpBase = BASE_URL . '/api/cameras/' . $id . '/go2rtc/hls/seg?u=';
+        $m3u8 = preg_replace_callback(
+            '/^(?!#)(\S+)$/m',
+            function ($matches) use ($go2rtcBase, $phpBase) {
+                $raw = $matches[1];
+                // Make absolute if relative
+                if (!preg_match('#^https?://#', $raw)) {
+                    $raw = $go2rtcBase . '/api/' . ltrim($raw, './');
+                }
+                return $phpBase . urlencode($raw);
+            },
+            $m3u8
+        );
+
+        header('Content-Type: application/vnd.apple.mpegurl');
+        header('Cache-Control: no-cache, no-store');
+        header('Access-Control-Allow-Origin: *');
+        echo $m3u8;
+        exit;
+    }
+
+    /**
+     * GET : proxifie un segment HLS (.ts) depuis go2rtc.
+     * Le segment URL est passé encodé dans le paramètre ?u=.
+     */
+    public function go2rtcHlsSeg(array $params): void
+    {
+        $this->requireAuth();
+        session_write_close();
+
+        $user = Session::user();
+        $id   = (int)$params['id'];
+        $cam  = Camera::getById($id);
+
+        if (!$cam || $cam['family_id'] !== $user['family_id']) {
+            http_response_code(404); exit;
+        }
+
+        $segUrl = urldecode($_GET['u'] ?? '');
+        if (!$segUrl) { http_response_code(400); exit; }
+
+        // Security: only proxy to the configured go2rtc base
+        $family     = Family::findById($user['family_id']);
+        $go2rtcBase = rtrim($family['go2rtc_url'] ?? '', '/');
+        if (!$go2rtcBase || !str_starts_with($segUrl, $go2rtcBase)) {
+            http_response_code(403); exit;
+        }
+
+        header('Cache-Control: no-cache, no-store');
+        header('X-Accel-Buffering: no');
+        header('Access-Control-Allow-Origin: *');
+        while (ob_get_level() > 0) ob_end_flush();
+
+        $ch = curl_init($segUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_HEADERFUNCTION => static function ($c, $header) {
+                if (stripos($header, 'content-type:') === 0) {
+                    header(trim($header));
+                }
+                return strlen($header);
+            },
+            CURLOPT_WRITEFUNCTION  => static function ($c, $data) {
+                echo $data;
+                flush();
+                return strlen($data);
+            },
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_CONNECTTIMEOUT => 5,
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+        exit;
+    }
+
+    /**
      * Étape 2 (GET) : proxifie le flux MJPEG de go2rtc vers le navigateur.
      * Le navigateur ne contacte que PHP — go2rtc peut rester sur 127.0.0.1.
      */
