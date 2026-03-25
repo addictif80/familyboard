@@ -114,57 +114,48 @@ async function deleteCamera(id) {
     }
 }
 
-// ── RTSP live stream (FFmpeg MJPEG proxy) ────────────────────
+// ── RTSP live stream via go2rtc (WebRTC) ─────────────────────
 
-function startRtspStream(el, camId) {
+async function startRtspStream(el, camId) {
     const preview = el.closest('.cam-preview');
     el.onclick = null;
     el.innerHTML = '<span>⏳</span><small>Connexion…</small>';
 
-    const img = document.createElement('img');
-    img.className = 'cam-img';
+    const res = await apiFetch(`${BASE_URL}/api/cameras/${camId}/go2rtc`);
 
-    const addStopBtn = () => {
-        if (!el.parentNode) return; // déjà retiré
-        el.remove();
-        preview.classList.add('cam-rtsp-live');
-        const stop = document.createElement('button');
-        stop.className = 'cam-rtsp-stop';
-        stop.textContent = '■ Stop';
-        stop.onclick = () => stopRtspStream(img, stop, camId);
-        preview.appendChild(stop);
-    };
-
-    img.onerror = () => {
-        clearTimeout(startTimer);
-        img.remove();
-        el.innerHTML = '<span>⚠️</span><small>Flux inaccessible</small>';
+    if (res.error) {
+        el.innerHTML = `<span>⚠️</span><small>${res.error}</small>`;
         el.onclick = () => startRtspStream(el, camId);
-    };
+        return;
+    }
 
-    // img.onload ne se déclenche pas toujours sur un stream multipart/x-mixed-replace ;
-    // on ajoute un timeout de 4s pour laisser FFmpeg démarrer et envoyer la 1re frame.
-    img.onload = () => { clearTimeout(startTimer); addStopBtn(); };
-    const startTimer = setTimeout(addStopBtn, 4000);
+    const iframe = document.createElement('iframe');
+    iframe.src = res.player_url;
+    iframe.className = 'cam-go2rtc';
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('allow', 'autoplay; fullscreen');
 
-    img.src = `${BASE_URL}/api/cameras/${camId}/stream`;
-    preview.prepend(img);
+    el.remove();
+    preview.style.position = 'relative';
+    preview.prepend(iframe);
+
+    const stop = document.createElement('button');
+    stop.className = 'cam-rtsp-stop';
+    stop.textContent = '■ Stop';
+    stop.onclick = () => stopRtspStream(iframe, stop, camId, preview);
+    preview.appendChild(stop);
 }
 
-function stopRtspStream(img, stopBtn, camId) {
-    const preview = img.closest('.cam-preview');
-    img.src = ''; // coupe la connexion HTTP → PHP/FFmpeg se terminent
-    img.remove();
+function stopRtspStream(iframe, stopBtn, camId, preview) {
+    iframe.src = '';
+    iframe.remove();
     stopBtn.remove();
-    if (preview) preview.classList.remove('cam-rtsp-live');
 
-    // Restaure le placeholder "▶ Voir en direct"
     const ph = document.createElement('div');
     ph.className = 'cam-placeholder cam-rtsp-trigger';
-    ph.id = `cam-rtsp-${camId}`;
     ph.innerHTML = '<span class="cam-play-icon">▶</span><small>Voir en direct</small>';
     ph.onclick = () => startRtspStream(ph, camId);
-    if (preview) preview.prepend(ph);
+    preview.prepend(ph);
 }
 
 // ── Helpers ───────────────────────────────────────────────────

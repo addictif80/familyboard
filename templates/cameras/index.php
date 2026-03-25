@@ -170,8 +170,12 @@ ob_start();
     margin-bottom: .25rem;
     color: var(--primary);
 }
-.cam-rtsp-live {
-    position: relative;
+.cam-go2rtc {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    min-height: 200px;
 }
 .cam-rtsp-stop {
     position: absolute;

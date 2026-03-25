@@ -80,7 +80,17 @@ ob_start();
                        placeholder="Paris, Lyon, Bordeaux…">
                 <small style="color:var(--text-muted)">Affiché dans le bandeau de l'écran mural. Laisser vide pour utiliser la géolocalisation du navigateur.</small>
             </div>
-<button type="submit" class="btn btn-primary">Enregistrer</button>
+            <div class="form-group">
+                <label>🎥 URL go2rtc (lecture RTSP en direct)</label>
+                <input type="url" name="go2rtc_url"
+                       value="<?= htmlspecialchars($family['go2rtc_url'] ?? '') ?>"
+                       placeholder="http://192.168.1.x:1984">
+                <small style="color:var(--text-muted)">
+                    Démarrer avec Docker :
+                    <code>docker run -d --network=host alexxit/go2rtc</code>
+                </small>
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
         </form>
         <div class="invite-section" style="margin-top:1rem">
             <strong>Code d'invitation :</strong>

@@ -27,12 +27,12 @@ class Family
     public static function update(int $id, string $name, array $settings = []): void
     {
         Database::execute(
-            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, strix_url=? WHERE id=?',
+            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, go2rtc_url=? WHERE id=?',
             [
                 $name,
                 $settings['timezone'] ?: null,
                 isset($settings['weather_city']) ? (trim($settings['weather_city']) ?: null) : null,
-                isset($settings['strix_url'])    ? (trim($settings['strix_url'])    ?: null) : null,
+                isset($settings['go2rtc_url'])   ? (trim($settings['go2rtc_url'])   ?: null) : null,
                 $id,
             ]
         );
