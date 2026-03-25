@@ -115,13 +115,23 @@ async function deleteCamera(id) {
 }
 
 // ── RTSP live stream via go2rtc (proxy MJPEG côté PHP) ───────
-// Le navigateur ne contacte que PHP ; go2rtc peut rester sur 127.0.0.1.
+// Étape 1 POST : enregistre le stream dans go2rtc (retourne JSON ok/error)
+// Étape 2 GET  : proxifie le flux MJPEG de go2rtc vers <img>
 
-function startRtspStream(el, camId) {
+async function startRtspStream(el, camId) {
     const preview = el.closest('.cam-preview');
     el.onclick = null;
     el.innerHTML = '<span>⏳</span><small>Connexion…</small>';
 
+    // Étape 1 : enregistrement + vérification go2rtc
+    const reg = await apiFetch(`${BASE_URL}/api/cameras/${camId}/go2rtc`, { method: 'POST', body: '{}' });
+    if (!reg.ok) {
+        el.innerHTML = `<span>⚠️</span><small>${reg.error || 'Erreur go2rtc'}</small>`;
+        el.onclick = () => startRtspStream(el, camId);
+        return;
+    }
+
+    // Étape 2 : charge le flux MJPEG proxifié
     const img = document.createElement('img');
     img.className = 'cam-img';
 
@@ -139,11 +149,10 @@ function startRtspStream(el, camId) {
     img.onerror = () => {
         clearTimeout(t);
         img.remove();
-        el.innerHTML = '<span>⚠️</span><small>Flux inaccessible — vérifiez go2rtc et l\'URL RTSP</small>';
+        el.innerHTML = '<span>⚠️</span><small>go2rtc ne joindre pas la caméra RTSP — vérifiez l\'URL et que la caméra est allumée</small>';
         el.onclick = () => startRtspStream(el, camId);
     };
 
-    // img.onload ne se déclenche pas toujours pour multipart/x-mixed-replace
     img.onload = () => { clearTimeout(t); showStream(); };
     const t = setTimeout(showStream, 4000);
 

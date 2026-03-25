@@ -52,7 +52,62 @@ class CameraController extends BaseController
     }
 
     /**
-     * Enregistre la caméra dans go2rtc puis proxifie son flux MJPEG vers le navigateur.
+     * Étape 1 (POST) : enregistre la caméra dans go2rtc et vérifie que c'est OK.
+     * Retourne JSON {ok:true} ou {error:"message lisible"}.
+     */
+    public function go2rtcRegister(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id   = (int)$params['id'];
+            $cam  = Camera::getById($id);
+
+            if (!$cam || $cam['family_id'] !== $user['family_id'] || !$cam['stream_url']) {
+                return ['error' => 'Caméra introuvable.'];
+            }
+
+            $family     = Family::findById($user['family_id']);
+            $go2rtcBase = rtrim($family['go2rtc_url'] ?? '', '/');
+
+            if (!$go2rtcBase) {
+                return ['error' => 'go2rtc non configuré — renseignez l\'URL dans Paramètres.'];
+            }
+
+            $rtspUrl = $cam['stream_url'];
+            if (!empty($cam['username']) && !preg_match('#://[^@/]+@#', $rtspUrl)) {
+                $cu      = urlencode($cam['username']);
+                $cp      = $cam['password'] ? ':' . urlencode($cam['password']) : '';
+                $rtspUrl = preg_replace('#^(rtsp://)#i', "rtsp://{$cu}{$cp}@", $rtspUrl);
+            }
+
+            $name = 'cam_' . $id;
+
+            $ch = curl_init($go2rtcBase . '/api/streams?' . http_build_query(['name' => $name, 'src' => $rtspUrl]));
+            curl_setopt_array($ch, [
+                CURLOPT_CUSTOMREQUEST  => 'PUT',
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 5,
+                CURLOPT_CONNECTTIMEOUT => 3,
+            ]);
+            curl_exec($ch);
+            $cerr = curl_error($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($cerr) {
+                return ['error' => "go2rtc inaccessible ({$go2rtcBase}) : $cerr"];
+            }
+            if ($code >= 400) {
+                return ['error' => "go2rtc a refusé l'enregistrement du stream (HTTP $code). Vérifiez les logs go2rtc."];
+            }
+
+            return ['ok' => true];
+        });
+    }
+
+    /**
+     * Étape 2 (GET) : proxifie le flux MJPEG de go2rtc vers le navigateur.
      * Le navigateur ne contacte que PHP — go2rtc peut rester sur 127.0.0.1.
      */
     public function go2rtcStream(array $params): void
@@ -64,50 +119,14 @@ class CameraController extends BaseController
         $id   = (int)$params['id'];
         $cam  = Camera::getById($id);
 
-        if (!$cam || $cam['family_id'] !== $user['family_id'] || !$cam['stream_url']) {
+        if (!$cam || $cam['family_id'] !== $user['family_id']) {
             http_response_code(404); exit;
         }
 
         $family     = Family::findById($user['family_id']);
         $go2rtcBase = rtrim($family['go2rtc_url'] ?? '', '/');
+        $name       = 'cam_' . $id;
 
-        if (!$go2rtcBase) {
-            http_response_code(503);
-            header('Content-Type: text/plain');
-            echo 'go2rtc non configuré dans les Paramètres.';
-            exit;
-        }
-
-        // Injecte les identifiants RTSP si absents de l'URL
-        $rtspUrl = $cam['stream_url'];
-        if (!empty($cam['username']) && !preg_match('#://[^@/]+@#', $rtspUrl)) {
-            $cu      = urlencode($cam['username']);
-            $cp      = $cam['password'] ? ':' . urlencode($cam['password']) : '';
-            $rtspUrl = preg_replace('#^(rtsp://)#i', "rtsp://{$cu}{$cp}@", $rtspUrl);
-        }
-
-        $name = 'cam_' . $id;
-
-        // 1. Enregistre (ou met à jour) le stream dans go2rtc
-        $reg = curl_init($go2rtcBase . '/api/streams?' . http_build_query(['name' => $name, 'src' => $rtspUrl]));
-        curl_setopt_array($reg, [
-            CURLOPT_CUSTOMREQUEST  => 'PUT',
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 5,
-            CURLOPT_CONNECTTIMEOUT => 3,
-        ]);
-        curl_exec($reg);
-        $cerr = curl_error($reg);
-        curl_close($reg);
-
-        if ($cerr) {
-            http_response_code(503);
-            header('Content-Type: text/plain');
-            echo "Impossible de joindre go2rtc : $cerr";
-            exit;
-        }
-
-        // 2. Proxifie le flux MJPEG de go2rtc vers le navigateur
         header('Cache-Control: no-cache, no-store');
         header('X-Accel-Buffering: no');
         while (ob_get_level() > 0) ob_end_flush();
@@ -116,7 +135,6 @@ class CameraController extends BaseController
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_HEADERFUNCTION => static function ($c, $header) {
-                // Transmet uniquement le Content-Type (multipart/x-mixed-replace)
                 if (stripos($header, 'content-type:') === 0) {
                     header(trim($header));
                 }
