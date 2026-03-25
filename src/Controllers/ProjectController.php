@@ -17,6 +17,31 @@ class ProjectController extends BaseController
         require BASE_PATH . '/templates/projects/index.php';
     }
 
+    /** GET /api/projects/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD */
+    public function apiCalendar(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user  = Session::user();
+            $start = $_GET['start'] ?? date('Y-m-01');
+            $end   = $_GET['end']   ?? date('Y-m-t');
+            $deadlines = Project::getDeadlines($user['family_id'], $start, $end);
+            return array_map(fn($p) => [
+                'id'     => 'project_' . $p['id'],
+                'title'  => $p['name'],
+                'start'  => $p['date'],
+                'end'    => $p['date'],
+                'allDay' => true,
+                'color'  => $p['color'],
+                'extendedProps' => [
+                    'type'       => 'project',
+                    'project_id' => (int)$p['id'],
+                    'status'     => $p['status'],
+                ],
+            ], $deadlines);
+        });
+    }
+
     public function show(array $params): void
     {
         $this->requireAuth();

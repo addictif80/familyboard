@@ -22,6 +22,7 @@ class CalendarController extends BaseController
             $caldavSources = [];
         }
         $custodySchedules = \App\Models\Custody::getSchedules($familyId);
+        $hasProjects = !empty(Project::getByFamily($familyId));
         require BASE_PATH . '/templates/calendar/index.php';
     }
 
@@ -65,6 +66,25 @@ class CalendarController extends BaseController
                             'child_name'  => $e['child_name'],
                             'parent_name' => $e['parent_name'],
                             'is_recurring' => !empty($e['is_recurring']),
+                        ],
+                    ];
+                }
+            }
+
+            // Optionally include project deadlines
+            if (!empty($_GET['projects'])) {
+                $deadlines = \App\Models\Project::getDeadlines($user['family_id'], $start, $end);
+                foreach ($deadlines as $p) {
+                    $formatted[] = [
+                        'id'     => 'project_' . $p['id'],
+                        'title'  => $p['name'],
+                        'start'  => $p['date'],
+                        'end'    => $p['date'],
+                        'allDay' => true,
+                        'color'  => $p['color'],
+                        'extendedProps' => [
+                            'type'       => 'project',
+                            'project_id' => (int)$p['id'],
                         ],
                     ];
                 }

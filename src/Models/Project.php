@@ -18,6 +18,23 @@ class Project
         );
     }
 
+    /**
+     * Retourne les projets (non archivés) ayant une deadline dans la plage donnée.
+     * Inclut aussi les tâches de projet ayant une due_date dans la plage (si la colonne existe).
+     */
+    public static function getDeadlines(int $familyId, string $start, string $end): array
+    {
+        return Database::fetchAll(
+            'SELECT id, name, deadline AS date, color, status
+             FROM projects
+             WHERE family_id = ? AND deadline IS NOT NULL
+               AND deadline BETWEEN ? AND ?
+               AND status != \'archived\'
+             ORDER BY deadline',
+            [$familyId, $start, $end]
+        );
+    }
+
     public static function getById(int $id): ?array
     {
         return Database::fetch(

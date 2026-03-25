@@ -99,14 +99,19 @@ function renderCalendar() {
 
         dayEvents.slice(0, 3).forEach(e => {
             const isCustody = e.extendedProps?.type === 'custody';
+            const isProject = e.extendedProps?.type === 'project';
             const onClick = isCustody
                 ? `window.location='${BASE_URL}/custody'`
-                : `openEventDetails(${JSON.stringify(e.id)})`;
+                : isProject
+                    ? `window.location='${BASE_URL}/projects/${e.extendedProps.project_id}'`
+                    : `openEventDetails(${JSON.stringify(e.id)})`;
+            const label = isCustody ? '👶 ' : isProject ? '📋 ' : '';
+            const suffix = isCustody ? ' (Garde alternée)' : isProject ? ' (Projet)' : '';
             html += `<div class="cal-event${isCustody ? ' cal-event-custody' : ''}"
                           style="background:${e.color || '#4A90D9'}"
                           onclick="event.stopPropagation();${onClick}"
-                          title="${escapeHtml(e.title)}${isCustody ? ' (Garde alternée)' : ''}">
-                ${isCustody ? '👶 ' : ''}${escapeHtml(e.title)}
+                          title="${escapeHtml(e.title)}${suffix}">
+                ${label}${escapeHtml(e.title)}
             </div>`;
         });
         if (dayEvents.length > 3) html += `<div class="cal-more">+${dayEvents.length - 3}</div>`;
@@ -159,14 +164,18 @@ function renderMobileAgenda(dateStr) {
     } else {
         dayEvents.forEach(e => {
             const isCustody = e.extendedProps?.type === 'custody';
+            const isProject = e.extendedProps?.type === 'project';
             const timeStr = e.start && e.start.length > 10 ? fmtEventTime(e.start) : 'Toute la journée';
             const onClick = isCustody
                 ? `window.location='${BASE_URL}/custody'`
-                : `openEventDetails(${JSON.stringify(e.id)})`;
+                : isProject
+                    ? `window.location='${BASE_URL}/projects/${e.extendedProps.project_id}'`
+                    : `openEventDetails(${JSON.stringify(e.id)})`;
+            const label = isCustody ? '👶 ' : isProject ? '📋 ' : '';
             inner += `<div class="cal-agenda-event" onclick="${onClick}" style="cursor:pointer">
                 <span class="cal-agenda-dot" style="background:${e.color || '#4A90D9'}"></span>
                 <div class="cal-agenda-info">
-                    <div class="cal-agenda-name">${isCustody ? '👶 ' : ''}${escapeHtml(e.title)}</div>
+                    <div class="cal-agenda-name">${label}${escapeHtml(e.title)}</div>
                     <div class="cal-agenda-time">${timeStr}</div>
                 </div>
             </div>`;
@@ -184,8 +193,10 @@ function loadEvents() {
     const end = `${year}-${String(month+1).padStart(2,'0')}-${new Date(year, month+1, 0).getDate()}`;
     const custodyToggle = document.getElementById('custody-toggle');
     const custody = custodyToggle && custodyToggle.checked ? 1 : 0;
+    const projectsToggle = document.getElementById('projects-toggle');
+    const projects = projectsToggle && projectsToggle.checked ? 1 : 0;
 
-    fetch(`${BASE_URL}/api/calendar/events?start=${start}&end=${end}&custody=${custody}`)
+    fetch(`${BASE_URL}/api/calendar/events?start=${start}&end=${end}&custody=${custody}&projects=${projects}`)
         .then(r => r.json())
         .then(data => {
             events = data;

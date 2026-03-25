@@ -20,6 +20,12 @@ ob_start();
                 👶 Garde alternée
             </label>
             <?php endif; ?>
+            <?php if (!empty($hasProjects)): ?>
+            <label class="member-filter" style="--color:#27AE60">
+                <input type="checkbox" id="projects-toggle" onchange="loadEvents()">
+                📋 Projets
+            </label>
+            <?php endif; ?>
             <button class="btn btn-secondary btn-sm" onclick="openCalDAVModal()">
                 🔗 Ajouter CalDAV
             </button>
