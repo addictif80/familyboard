@@ -257,7 +257,8 @@ function _renderProjCal() {
     const year  = _projCalDate.getFullYear();
     const month = _projCalDate.getMonth();
 
-    document.getElementById('proj-cal-label').textContent = _projFmtMonthYear(year, month);
+    const label = document.getElementById('proj-cal-label');
+    if (label) label.textContent = _projFmtMonthYear(year, month);
 
     const firstDay = new Date(year, month, 1);
     let startDow = firstDay.getDay();
@@ -266,15 +267,18 @@ function _renderProjCal() {
     startDate.setDate(startDate.getDate() - (startDow - 1));
 
     const dayNames = _projDayNames();
-    let html = `<div class="cal-grid">${dayNames.map(d => `<div class="cal-dayname">${d}</div>`).join('')}`;
+    let html = `<div class="cal-wrapper"><div class="cal-grid">${dayNames.map(n => `<div class="cal-dayname">${n}</div>`).join('')}`;
 
-    const today = new Date(); today.setHours(0,0,0,0);
+    const now = new Date(); now.setHours(0,0,0,0);
 
-    let d = new Date(startDate);
+    let cur = new Date(startDate);
     for (let i = 0; i < 42; i++) {
-        const isCurrentMonth = d.getMonth() === month;
-        const isToday = d.getTime() === today.getTime();
-        const dateStr = d.toISOString().slice(0, 10);
+        const isCurrentMonth = cur.getMonth() === month;
+        const isToday = cur.getTime() === now.getTime();
+        // Build local date string to avoid UTC offset issues
+        const dateStr = cur.getFullYear() + '-' +
+            String(cur.getMonth() + 1).padStart(2, '0') + '-' +
+            String(cur.getDate()).padStart(2, '0');
 
         const dayEvents = _projCalEvents.filter(e => e.start === dateStr);
 
@@ -285,21 +289,21 @@ function _renderProjCal() {
 
         let eventsHtml = '';
         dayEvents.slice(0, 3).forEach(e => {
-            const label = e.title.length > 18 ? e.title.slice(0, 16) + '…' : e.title;
+            const lbl = e.title.length > 18 ? e.title.slice(0, 16) + '…' : e.title;
             const taskId = e.extendedProps?.task_id;
             const onclick = taskId ? `onclick="projCalTaskClick(${taskId})"` : '';
-            eventsHtml += `<div class="cal-event" style="background:${e.color || '#4A90D9'}" ${onclick} title="${e.title}">${label}</div>`;
+            eventsHtml += `<div class="cal-event" style="background:${e.color || '#4A90D9'}" ${onclick} title="${e.title}">${lbl}</div>`;
         });
 
         html += `<div class="cal-day ${isCurrentMonth ? '' : 'cal-other-month'} ${isToday ? 'cal-today' : ''}">
-            <span class="cal-day-num">${d.getDate()}</span>
+            <span class="cal-day-num">${cur.getDate()}</span>
             ${dotsHtml}
             <div class="cal-events">${eventsHtml}</div>
         </div>`;
 
-        d.setDate(d.getDate() + 1);
+        cur.setDate(cur.getDate() + 1);
     }
-    html += '</div>';
+    html += '</div></div>';
     container.innerHTML = html;
 }
 
@@ -315,5 +319,6 @@ function projCalTaskClick(taskId) {
 
 // Init on project detail page
 if (typeof PROJECT_ID !== 'undefined' && document.getElementById('proj-calendar')) {
-    _loadProjCalEvents();
+    _renderProjCal();        // affiche la grille vide immédiatement
+    _loadProjCalEvents();    // puis charge les événements async
 }
