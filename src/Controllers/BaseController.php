@@ -26,6 +26,28 @@ class BaseController
         Session::set('user', $user);
     }
 
+    protected function requireModule(string $slug): void
+    {
+        $user = Session::user();
+        if (!$user) return;
+        try {
+            $family   = \App\Models\Family::findById($user['family_id']);
+            $disabled = \App\Models\Family::getDisabledModules($family ?? []);
+        } catch (\Throwable) {
+            return; // column may not exist yet during migration
+        }
+        if (!in_array($slug, $disabled, true)) return;
+
+        if ($this->isAjax()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Module désactivé.']);
+            exit;
+        }
+        Session::flash('error', 'Ce module est désactivé par votre administrateur familial.');
+        header('Location: ' . BASE_URL . '/');
+        exit;
+    }
+
     protected function requireAdmin(): void
     {
         $this->requireAuth();

@@ -14,6 +14,7 @@ class FamilyWallController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('family-wall');
         $user     = Session::user();
         $familyId = $user['family_id'];
         $family   = Family::findById($familyId);

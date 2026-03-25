@@ -9,6 +9,7 @@ class ChatController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('chat');
         $user = Session::user();
         $messages = array_reverse(Message::getByFamily($user['family_id'], 50));
         $lastId = Message::getLastId($user['family_id']);

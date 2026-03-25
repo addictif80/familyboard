@@ -119,6 +119,31 @@ ob_start();
         </div>
     </div>
 
+    <!-- Modules (admin only) -->
+    <?php if ($user['role'] === 'admin'): ?>
+    <?php $_disabledMods = \App\Models\Family::getDisabledModules($family ?? []); ?>
+    <div class="card settings-section">
+        <h3>🧩 Modules actifs</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Tous les modules sont activés par défaut. Décochez ceux que vous souhaitez masquer pour toute la famille.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/settings/modules">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;margin-bottom:1rem">
+                <?php foreach (\App\Models\Family::MODULES as $slug => $mod): ?>
+                <label style="display:flex;align-items:center;gap:.55rem;padding:.5rem .65rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:background .12s"
+                       onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+                    <input type="checkbox" name="modules[]" value="<?= $slug ?>"
+                           <?= !in_array($slug, $_disabledMods) ? 'checked' : '' ?>
+                           style="width:16px;height:16px;cursor:pointer">
+                    <span><?= $mod['icon'] ?> <?= htmlspecialchars($mod['label']) ?></span>
+                </label>
+                <?php endforeach; ?>
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer les modules</button>
+        </form>
+    </div>
+    <?php endif; ?>
+
     <!-- Members -->
     <div class="card settings-section">
         <h3>Membres de la famille</h3>

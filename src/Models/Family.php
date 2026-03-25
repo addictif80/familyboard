@@ -5,6 +5,21 @@ use App\Core\Database;
 
 class Family
 {
+    /** All disableable modules: slug => [label, icon] */
+    public const MODULES = [
+        'wall'        => ['label' => 'Mur familial',     'icon' => '📸'],
+        'calendar'    => ['label' => 'Calendrier',        'icon' => '📅'],
+        'custody'     => ['label' => 'Garde alternée',    'icon' => '👶'],
+        'tasks'       => ['label' => 'Tâches & Courses',  'icon' => '✅'],
+        'chat'        => ['label' => 'Chat familial',     'icon' => '💬'],
+        'budget'      => ['label' => 'Budget',            'icon' => '💰'],
+        'projects'    => ['label' => 'Projets',           'icon' => '📋'],
+        'warranties'  => ['label' => 'Garanties',         'icon' => '🛡️'],
+        'documents'   => ['label' => 'Documents',         'icon' => '🗂️'],
+        'cameras'     => ['label' => 'Caméras',           'icon' => '🎥'],
+        'family-wall' => ['label' => 'Écran mural',       'icon' => '📺'],
+    ];
+
     public static function findById(int $id): ?array
     {
         return Database::fetch('SELECT * FROM families WHERE id = ?', [$id]);
@@ -35,6 +50,22 @@ class Family
                 isset($settings['go2rtc_url'])   ? (trim($settings['go2rtc_url'])   ?: null) : null,
                 $id,
             ]
+        );
+    }
+
+    /** Returns list of disabled module slugs for a family row (never throws). */
+    public static function getDisabledModules(array $family): array
+    {
+        if (empty($family['disabled_modules'])) return [];
+        $decoded = json_decode($family['disabled_modules'], true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    public static function setDisabledModules(int $id, array $disabled): void
+    {
+        Database::execute(
+            'UPDATE families SET disabled_modules = ? WHERE id = ?',
+            [empty($disabled) ? null : json_encode(array_values($disabled)), $id]
         );
     }
 

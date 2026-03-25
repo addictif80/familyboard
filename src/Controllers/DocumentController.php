@@ -11,6 +11,7 @@ class DocumentController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('documents');
         $user     = Session::user();
         $familyId = $user['family_id'];
 

@@ -12,6 +12,7 @@ class WallController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('wall');
         $user = Session::user();
         $posts = Post::getByFamily($user['family_id'], 20);
         foreach ($posts as &$post) {

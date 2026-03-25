@@ -10,6 +10,7 @@ class CameraController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('cameras');
         $user    = Session::user();
         $cameras = Camera::getByFamily($user['family_id']);
         require BASE_PATH . '/templates/cameras/index.php';

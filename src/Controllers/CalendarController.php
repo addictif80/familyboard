@@ -12,6 +12,7 @@ class CalendarController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('calendar');
         $user = Session::user();
         $familyId = $user['family_id'];
         $members = User::getByFamily($familyId);

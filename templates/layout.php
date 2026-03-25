@@ -24,6 +24,7 @@ $currentUser = \App\Core\Session::user();
 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $unreadCount = \App\Models\Notification::getUnreadCount($currentUser['id']);
 $family = \App\Models\Family::findById($currentUser['family_id']);
+$_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
 ?>
 <div class="app-wrapper">
     <!-- Sidebar -->
@@ -43,72 +44,94 @@ $family = \App\Models\Family::findById($currentUser['family_id']);
                     <span class="nav-label">Tableau de bord</span>
                 </a>
             </li>
-            <li class="nav-item <?= str_contains($currentPath, '/wall') ? 'active' : '' ?>">
+            <?php if (!in_array('wall', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/wall') && !str_contains($currentPath, '/family-wall') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/wall" class="nav-link">
                     <span class="nav-icon">📸</span>
                     <span class="nav-label">Mur familial</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (!in_array('calendar', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/calendar" class="nav-link">
                     <span class="nav-icon">📅</span>
                     <span class="nav-label">Calendrier</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (!in_array('custody', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/custody') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/custody" class="nav-link">
                     <span class="nav-icon">👶</span>
                     <span class="nav-label">Garde alternée</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (!in_array('tasks', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/tasks') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/tasks" class="nav-link">
                     <span class="nav-icon">✅</span>
                     <span class="nav-label">Tâches & Courses</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (!in_array('chat', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/chat" class="nav-link">
                     <span class="nav-icon">💬</span>
                     <span class="nav-label">Chat familial</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (!in_array('budget', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/budget') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/budget" class="nav-link">
                     <span class="nav-icon">💰</span>
                     <span class="nav-label">Budget</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (!in_array('projects', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/projects') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/projects" class="nav-link">
                     <span class="nav-icon">📋</span>
                     <span class="nav-label">Projets</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (!in_array('warranties', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/warranties') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/warranties" class="nav-link">
                     <span class="nav-icon">🛡️</span>
                     <span class="nav-label">Garanties</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (!in_array('documents', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/documents') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/documents" class="nav-link">
                     <span class="nav-icon">🗂️</span>
                     <span class="nav-label">Documents</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (!in_array('cameras', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/cameras') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/cameras" class="nav-link">
                     <span class="nav-icon">🎥</span>
                     <span class="nav-label">Caméras</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (!in_array('family-wall', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/family-wall') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/family-wall" class="nav-link">
                     <span class="nav-icon">📺</span>
                     <span class="nav-label">Écran mural</span>
                 </a>
             </li>
+            <?php endif; ?>
         </ul>
 
         <div class="sidebar-footer">

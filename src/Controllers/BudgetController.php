@@ -10,6 +10,7 @@ class BudgetController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('budget');
         $user = Session::user();
         $familyId = $user['family_id'];
         $month = $_GET['month'] ?? date('Y-m');

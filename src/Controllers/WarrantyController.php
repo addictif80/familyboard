@@ -9,6 +9,7 @@ class WarrantyController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('warranties');
         $user     = Session::user();
         $familyId = $user['family_id'];
         $search   = trim($_GET['q'] ?? '');

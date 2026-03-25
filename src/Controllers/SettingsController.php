@@ -73,6 +73,19 @@ class SettingsController extends BaseController
         exit;
     }
 
+    public function updateModules(array $params): void
+    {
+        $this->requireAdmin();
+        $user    = Session::user();
+        $all     = array_keys(\App\Models\Family::MODULES);
+        $enabled = $_POST['modules'] ?? [];
+        $disabled = array_values(array_diff($all, $enabled));
+        Family::setDisabledModules($user['family_id'], $disabled);
+        Session::flash('success', 'Modules mis à jour.');
+        header('Location: ' . BASE_URL . '/settings');
+        exit;
+    }
+
     public function updateSmtp(array $params): void
     {
         $this->requireAdmin();

@@ -11,6 +11,7 @@ class CustodyController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('custody');
         $user = Session::user();
         $schedules = Custody::getSchedules($user['family_id']);
         $members = User::getByFamily($user['family_id']);

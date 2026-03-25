@@ -11,6 +11,7 @@ class ProjectController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('projects');
         $user = Session::user();
         $projects = Project::getByFamily($user['family_id']);
         require BASE_PATH . '/templates/projects/index.php';

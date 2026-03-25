@@ -167,7 +167,8 @@ $router->get('/api/cameras/:id/go2rtc/hls/seg',  [CameraController::class, 'go2r
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);
 $router->post('/settings/profile', [SettingsController::class, 'updateProfile']);
-$router->post('/settings/family', [SettingsController::class, 'updateFamily']);
+$router->post('/settings/family',   [SettingsController::class, 'updateFamily']);
+$router->post('/settings/modules',  [SettingsController::class, 'updateModules']);
 $router->post('/settings/family/code', [SettingsController::class, 'regenerateCode']);
 $router->post('/settings/smtp', [SettingsController::class, 'updateSmtp']);
 $router->post('/api/settings/smtp/test', [SettingsController::class, 'testSmtp']);

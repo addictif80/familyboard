@@ -65,7 +65,6 @@ ob_start();
         <!-- Info -->
         <div class="cam-body">
             <div class="cam-name"><?= htmlspecialchars($cam['name']) ?></div>
-            <div class="cam-host">📡 <?= htmlspecialchars($cam['host']) ?></div>
             <?php if ($cam['model']): ?>
                 <div class="cam-model">🔧 <?= htmlspecialchars($cam['model']) ?></div>
             <?php endif; ?>

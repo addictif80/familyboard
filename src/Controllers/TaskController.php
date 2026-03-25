@@ -11,6 +11,7 @@ class TaskController extends BaseController
     public function index(array $params): void
     {
         $this->requireAuth();
+        $this->requireModule('tasks');
         $user = Session::user();
         $lists = TaskList::getByFamily($user['family_id']);
         $members = User::getByFamily($user['family_id']);
