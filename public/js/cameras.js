@@ -118,38 +118,34 @@ async function deleteCamera(id) {
 
 function startRtspStream(el, camId) {
     const preview = el.closest('.cam-preview');
-
-    // Phase 1 : affiche "Connexion…" pendant le démarrage de FFmpeg (~2s)
     el.onclick = null;
     el.innerHTML = '<span>⏳</span><small>Connexion…</small>';
 
     const img = document.createElement('img');
     img.className = 'cam-img';
-    img.style.display = 'none';
 
-    img.onload = () => {
-        // Première frame reçue : montre l'image et retire le placeholder
-        img.style.display = '';
+    const addStopBtn = () => {
+        if (!el.parentNode) return; // déjà retiré
         el.remove();
-
-        // Bouton "Arrêter" superposé
-        const wrap = img.closest('.cam-preview');
-        if (wrap) {
-            wrap.classList.add('cam-rtsp-live');
-            const stop = document.createElement('button');
-            stop.className = 'cam-rtsp-stop';
-            stop.title = 'Arrêter le flux';
-            stop.textContent = '■ Stop';
-            stop.onclick = () => stopRtspStream(img, stop, camId);
-            wrap.appendChild(stop);
-        }
+        preview.classList.add('cam-rtsp-live');
+        const stop = document.createElement('button');
+        stop.className = 'cam-rtsp-stop';
+        stop.textContent = '■ Stop';
+        stop.onclick = () => stopRtspStream(img, stop, camId);
+        preview.appendChild(stop);
     };
 
     img.onerror = () => {
+        clearTimeout(startTimer);
         img.remove();
         el.innerHTML = '<span>⚠️</span><small>Flux inaccessible</small>';
         el.onclick = () => startRtspStream(el, camId);
     };
+
+    // img.onload ne se déclenche pas toujours sur un stream multipart/x-mixed-replace ;
+    // on ajoute un timeout de 4s pour laisser FFmpeg démarrer et envoyer la 1re frame.
+    img.onload = () => { clearTimeout(startTimer); addStopBtn(); };
+    const startTimer = setTimeout(addStopBtn, 4000);
 
     img.src = `${BASE_URL}/api/cameras/${camId}/stream`;
     preview.prepend(img);
