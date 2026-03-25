@@ -309,10 +309,10 @@ ob_start();
             Recevez des alertes sur cet appareil même lorsque l'application est fermée.
         </p>
         <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-            <span id="push-status-text" class="push-status-badge push-inactive">…</span>
+            <span id="push-status-text" class="push-status-badge push-inactive">Vérification…</span>
             <button id="push-settings-enable"
                     onclick="enablePushNotifications()"
-                    class="btn btn-primary btn-sm" style="display:none">
+                    class="btn btn-primary btn-sm">
                 Activer les notifications
             </button>
             <button id="push-settings-disable"

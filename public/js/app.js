@@ -335,4 +335,9 @@ async function disablePushNotifications() {
     }
 }
 
-window.addEventListener('load', initPushSubscription);
+// Call immediately if DOM ready, otherwise wait — avoids PWA timing issues
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPushSubscription);
+} else {
+    initPushSubscription();
+}
