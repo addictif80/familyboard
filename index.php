@@ -51,7 +51,7 @@ Session::start();
 
 // Auto-apply any pending SQL migrations
 try {
-    \App\Core\Database::autoMigrate(BASE_PATH . '/database/migrations');
+    \App\Core\Database::autoMigrate(BASE_PATH . '/database');
 } catch (\Throwable $e) {
     error_log('Migration error: ' . $e->getMessage());
 }
