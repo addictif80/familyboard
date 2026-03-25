@@ -81,9 +81,11 @@ class CameraController extends BaseController
                 $rtspUrl = preg_replace('#^(rtsp://)#i', "rtsp://{$cu}{$cp}@", $rtspUrl);
             }
 
+            // Préfixe ffmpeg: pour transcoder H.264 → MJPEG via FFmpeg embarqué dans go2rtc
+            $src  = 'ffmpeg:' . $rtspUrl . '#video=mjpeg';
             $name = 'cam_' . $id;
 
-            $ch = curl_init($go2rtcBase . '/api/streams?' . http_build_query(['name' => $name, 'src' => $rtspUrl]));
+            $ch = curl_init($go2rtcBase . '/api/streams?' . http_build_query(['name' => $name, 'src' => $src]));
             curl_setopt_array($ch, [
                 CURLOPT_CUSTOMREQUEST  => 'PUT',
                 CURLOPT_RETURNTRANSFER => true,
