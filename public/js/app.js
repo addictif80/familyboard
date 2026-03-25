@@ -237,40 +237,66 @@ function urlBase64ToUint8Array(base64String) {
     return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
+// ── Push state: 'unsupported' | 'denied' | 'inactive' | 'active' | 'no_vapid'
+function _pushUpdateUI(state) {
+    // Sidebar button
+    const sideBtn = document.getElementById('push-enable-btn');
+    if (sideBtn) sideBtn.style.display = state === 'inactive' ? 'flex' : 'none';
+
+    // Settings page widgets (only present on /settings)
+    const statusEl  = document.getElementById('push-status-text');
+    const enableBtn = document.getElementById('push-settings-enable');
+    const disableBtn= document.getElementById('push-settings-disable');
+    const deniedMsg = document.getElementById('push-denied-msg');
+    if (!statusEl) return;
+
+    statusEl.className = 'push-status-badge push-' + state;
+    const labels = {
+        active:      '🔔 Activées',
+        inactive:    '🔕 Désactivées',
+        denied:      '🚫 Bloquées par le navigateur',
+        unsupported: '⚠️ Non supportées',
+        no_vapid:    '⚙️ Non configurées (admin)',
+    };
+    statusEl.textContent = labels[state] || state;
+
+    if (enableBtn)  enableBtn.style.display  = state === 'inactive' ? 'inline-flex' : 'none';
+    if (disableBtn) disableBtn.style.display  = state === 'active'  ? 'inline-flex' : 'none';
+    if (deniedMsg)  deniedMsg.style.display   = state === 'denied'  ? 'block'       : 'none';
+}
+
 async function initPushSubscription() {
-    if (typeof VAPID_PUBLIC_KEY === 'undefined') return;
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    if (Notification.permission === 'denied') return;
+    if (typeof VAPID_PUBLIC_KEY === 'undefined') { _pushUpdateUI('no_vapid'); return; }
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) { _pushUpdateUI('unsupported'); return; }
+    if (Notification.permission === 'denied') { _pushUpdateUI('denied'); return; }
 
     try {
         const sw = await navigator.serviceWorker.ready;
         const existing = await sw.pushManager.getSubscription();
 
-        if (!existing && Notification.permission === 'default') {
-            // Don't auto-prompt; expose a button instead
-            const btn = document.getElementById('push-enable-btn');
-            if (btn) btn.style.display = 'flex';
+        if (!existing) {
+            _pushUpdateUI('inactive');
             return;
         }
-        if (existing) {
-            // Re-register in case it changed
-            const j = existing.toJSON();
-            await apiFetch(`${BASE_URL}/api/push/subscribe`, {
-                method: 'POST',
-                body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
-            });
-        }
+        // Re-sync endpoint with server in case it changed
+        const j = existing.toJSON();
+        await apiFetch(`${BASE_URL}/api/push/subscribe`, {
+            method: 'POST',
+            body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
+        });
+        _pushUpdateUI('active');
     } catch (e) { /* silent */ }
 }
 
 async function enablePushNotifications() {
     if (typeof VAPID_PUBLIC_KEY === 'undefined') {
-        Dialog.toast('Notifications push non configurées.', 'error');
+        Dialog.toast('Notifications push non configurées par l\'administrateur.', 'error');
         return;
     }
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') {
-        Dialog.toast('Permission refusée.', 'error');
+        _pushUpdateUI('denied');
+        Dialog.toast('Permission refusée dans le navigateur.', 'error');
         return;
     }
     try {
@@ -284,11 +310,28 @@ async function enablePushNotifications() {
             method: 'POST',
             body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
         });
-        const btn = document.getElementById('push-enable-btn');
-        if (btn) btn.style.display = 'none';
+        _pushUpdateUI('active');
         Dialog.toast('Notifications activées !', 'success');
     } catch (e) {
         Dialog.toast('Erreur lors de l\'activation.', 'error');
+    }
+}
+
+async function disablePushNotifications() {
+    try {
+        const sw  = await navigator.serviceWorker.ready;
+        const sub = await sw.pushManager.getSubscription();
+        if (sub) {
+            await apiFetch(`${BASE_URL}/api/push/unsubscribe`, {
+                method: 'POST',
+                body: JSON.stringify({ endpoint: sub.endpoint }),
+            });
+            await sub.unsubscribe();
+        }
+        _pushUpdateUI('inactive');
+        Dialog.toast('Notifications désactivées.', 'info');
+    } catch (e) {
+        Dialog.toast('Erreur lors de la désactivation.', 'error');
     }
 }
 

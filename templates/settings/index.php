@@ -300,9 +300,41 @@ ob_start();
     </div>
     <?php endif; ?>
     <?php endif; ?>
+
+    <!-- Push notifications -->
+    <?php if (\App\Models\AppSetting::get('vapid_public') || true): ?>
+    <div class="card settings-section">
+        <h3>🔔 Notifications push</h3>
+        <p style="color:var(--text-muted);font-size:.875rem;margin-bottom:1rem">
+            Recevez des alertes sur cet appareil même lorsque l'application est fermée.
+        </p>
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+            <span id="push-status-text" class="push-status-badge push-inactive">…</span>
+            <button id="push-settings-enable"
+                    onclick="enablePushNotifications()"
+                    class="btn btn-primary btn-sm" style="display:none">
+                Activer les notifications
+            </button>
+            <button id="push-settings-disable"
+                    onclick="disablePushNotifications()"
+                    class="btn btn-secondary btn-sm" style="display:none">
+                Désactiver
+            </button>
+        </div>
+        <p id="push-denied-msg" style="display:none;margin-top:.75rem;font-size:.8rem;color:var(--danger)">
+            Les notifications sont bloquées dans votre navigateur. Pour les réactiver, cliquez sur l'icône 🔒 dans la barre d'adresse et autorisez les notifications pour ce site.
+        </p>
+    </div>
+    <?php endif; ?>
+
 </div>
 
 <style>
+.push-status-badge { display:inline-flex;align-items:center;padding:.3rem .75rem;border-radius:999px;font-size:.82rem;font-weight:600; }
+.push-active      { background:#d1fae5;color:#065f46; }
+.push-inactive    { background:#fef3c7;color:#92400e; }
+.push-denied, .push-unsupported { background:#fee2e2;color:#991b1b; }
+.push-no_vapid    { background:#f3f4f6;color:#6b7280; }
 .template-block { border: 1px solid var(--border); border-radius: 8px; margin-bottom: .5rem; overflow: hidden; }
 .template-header { display:flex; align-items:center; gap:.75rem; padding: .75rem 1rem; cursor:pointer; background:var(--bg); }
 .template-header:hover { background: var(--bg-hover, #f5f5f5); }

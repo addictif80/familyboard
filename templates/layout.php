@@ -147,10 +147,10 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 <span class="nav-icon">🎫</span>
                 <span class="nav-label">Support</span>
             </a>
-            <button id="push-enable-btn" onclick="enablePushNotifications()" class="nav-link" style="display:none;background:none;border:none;width:100%;cursor:pointer;text-align:left" title="Activer les notifications push">
+            <a href="<?= BASE_URL ?>/settings#push" id="push-enable-btn" class="nav-link push-cta-btn" style="display:none" title="Activer les notifications push">
                 <span class="nav-icon">🔔</span>
                 <span class="nav-label">Activer les notifs</span>
-            </button>
+            </a>
             <button id="pwa-install-btn" onclick="installPWA()" class="nav-link" style="display:none;background:none;border:none;width:100%;cursor:pointer;text-align:left" title="Installer l'application">
                 <span class="nav-icon">📲</span>
                 <span class="nav-label">Installer l'app</span>

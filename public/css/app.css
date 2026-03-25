@@ -110,6 +110,26 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 
 .sidebar-footer .nav-link { border-radius: 8px; }
 
+.push-cta-btn {
+  background: rgba(251,191,36,.15) !important;
+  color: #fbbf24 !important;
+  position: relative;
+}
+.push-cta-btn:hover { background: rgba(251,191,36,.28) !important; }
+.push-cta-btn .nav-icon::after {
+  content: '';
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 8px; height: 8px;
+  background: #fbbf24;
+  border-radius: 50%;
+  animation: pushPulse 1.8s ease-in-out infinite;
+}
+@keyframes pushPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.5); opacity: .4; }
+}
+
 /* ---- Main content ---- */
 .main-content {
   margin-left: var(--sidebar-width);
