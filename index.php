@@ -191,6 +191,8 @@ $router->get('/admin/tickets/:id', [AdminController::class, 'viewTicket']);
 $router->post('/admin/tickets/:id/reply', [AdminController::class, 'replyTicket']);
 $router->post('/admin/tickets/:id/close', [AdminController::class, 'closeTicket']);
 $router->post('/admin/tickets/:id/reopen', [AdminController::class, 'reopenTicket']);
+$router->get('/admin/profile', [AdminController::class, 'showProfile']);
+$router->post('/admin/profile', [AdminController::class, 'updateProfile']);
 
 // Support (user-facing)
 $router->get('/support', [SupportController::class, 'index']);

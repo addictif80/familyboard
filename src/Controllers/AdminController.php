@@ -33,7 +33,19 @@ class AdminController extends BaseController
     {
         $user = trim($_POST['username'] ?? '');
         $pass = $_POST['password'] ?? '';
-        if (hash_equals(ADMIN_USER, $user) && hash_equals(ADMIN_PASS, $pass)) {
+
+        // Credentials stored in app_settings take priority over config constants
+        $storedUser = AppSetting::get('admin_username');
+        $storedHash = AppSetting::get('admin_password_hash');
+
+        $ok = false;
+        if ($storedUser !== null && $storedHash !== null) {
+            $ok = hash_equals($storedUser, $user) && password_verify($pass, $storedHash);
+        } else {
+            $ok = hash_equals(ADMIN_USER, $user) && hash_equals(ADMIN_PASS, $pass);
+        }
+
+        if ($ok) {
             $_SESSION['admin_logged_in'] = true;
             header('Location: ' . BASE_URL . '/admin');
         } else {
@@ -41,6 +53,57 @@ class AdminController extends BaseController
             header('Location: ' . BASE_URL . '/admin/login');
         }
         exit;
+    }
+
+    // ── Profile ──────────────────────────────────────────────────
+
+    public function showProfile(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $adminUsername = AppSetting::get('admin_username') ?? ADMIN_USER;
+        require BASE_PATH . '/templates/admin/profile.php';
+    }
+
+    public function updateProfile(array $params): void
+    {
+        $this->requireSuperAdmin();
+
+        $currentPass = $_POST['current_password'] ?? '';
+        $newUser     = trim($_POST['username'] ?? '');
+        $newPass     = $_POST['new_password'] ?? '';
+        $confirmPass = $_POST['confirm_password'] ?? '';
+
+        // Verify current password
+        $storedUser = AppSetting::get('admin_username');
+        $storedHash = AppSetting::get('admin_password_hash');
+        $currentUser = $storedUser ?? ADMIN_USER;
+
+        $validCurrent = $storedHash !== null
+            ? password_verify($currentPass, $storedHash)
+            : hash_equals(ADMIN_PASS, $currentPass);
+
+        if (!$validCurrent) {
+            $this->redirect('/admin/profile?error=wrong_password');
+            return;
+        }
+
+        if ($newUser !== '') {
+            AppSetting::set('admin_username', $newUser);
+        }
+
+        if ($newPass !== '') {
+            if ($newPass !== $confirmPass) {
+                $this->redirect('/admin/profile?error=password_mismatch');
+                return;
+            }
+            if (strlen($newPass) < 8) {
+                $this->redirect('/admin/profile?error=password_short');
+                return;
+            }
+            AppSetting::set('admin_password_hash', password_hash($newPass, PASSWORD_BCRYPT));
+        }
+
+        $this->redirect('/admin/profile?msg=saved');
     }
 
     public function logout(array $params): void

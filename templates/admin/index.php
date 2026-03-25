@@ -19,6 +19,7 @@
                 <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
             </li>
             <?php endforeach; ?>
+            <li><a href="<?= BASE_URL ?>/admin/profile">👤 Mon profil</a></li>
         </ul>
         <div class="admin-sidebar-footer">
             <a href="<?= BASE_URL ?>/" style="font-size:.8rem;color:var(--text-muted)">← Site</a>
