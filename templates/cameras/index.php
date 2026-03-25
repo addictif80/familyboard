@@ -41,7 +41,7 @@ ob_start();
             <?php elseif ($cam['stream_url'] && $cam['stream_type'] === 'rtsp'): ?>
                 <div class="cam-placeholder cam-rtsp-trigger"
                      id="cam-rtsp-<?= $cam['id'] ?>"
-                     onclick="startRtspStream(this, <?= $cam['id'] ?>)">
+                     onclick="startRtspStream(this, <?= $cam['id'] ?>, <?= htmlspecialchars(json_encode($cam['name'])) ?>)">
                     <span class="cam-play-icon">▶</span>
                     <small>Voir en direct</small>
                 </div>
@@ -187,7 +187,92 @@ ob_start();
 .cam-rtsp-stop:hover {
     background: rgba(0,0,0,.8);
 }
+.cam-rtsp-expand {
+    position: absolute;
+    top: .4rem;
+    right: 3.5rem;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: .15rem .45rem;
+    cursor: pointer;
+    font-size: .75rem;
+    line-height: 1.4;
+    z-index: 5;
+}
+.cam-rtsp-expand:hover {
+    background: rgba(0,0,0,.8);
+}
+/* Fullscreen camera modal */
+#cam-fullscreen-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+#cam-fullscreen-modal.open {
+    display: flex;
+}
+#cam-fullscreen-modal .cam-fs-header {
+    width: 100%;
+    max-width: 90vw;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .5rem 0;
+    color: #fff;
+}
+#cam-fullscreen-modal .cam-fs-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+#cam-fullscreen-modal .cam-fs-close {
+    background: none;
+    border: 1px solid rgba(255,255,255,.4);
+    color: #fff;
+    border-radius: 4px;
+    padding: .25rem .6rem;
+    cursor: pointer;
+    font-size: .9rem;
+}
+#cam-fullscreen-modal .cam-fs-close:hover {
+    background: rgba(255,255,255,.15);
+}
+#cam-fullscreen-modal .cam-fs-body {
+    max-width: 90vw;
+    max-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#cam-fullscreen-modal .cam-fs-body img {
+    max-width: 90vw;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 6px;
+}
+#cam-fullscreen-modal .cam-fs-loading {
+    color: #fff;
+    font-size: 1rem;
+    padding: 2rem;
+}
 </style>
+
+<!-- ═══ CAMERA FULLSCREEN MODAL ═══════════════════════════════ -->
+<div id="cam-fullscreen-modal" onclick="closeCamFullscreen(event)">
+    <div class="cam-fs-header">
+        <h3 id="cam-fs-title">Caméra</h3>
+        <button class="cam-fs-close" onclick="closeCamFullscreen()">✕ Fermer</button>
+    </div>
+    <div class="cam-fs-body" id="cam-fs-body">
+        <div class="cam-fs-loading">⏳ Chargement du flux…</div>
+    </div>
+</div>
 
 <script>
 const BASE_URL = <?= json_encode(BASE_URL) ?>;

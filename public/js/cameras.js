@@ -118,7 +118,7 @@ async function deleteCamera(id) {
 // Étape 1 POST : enregistre le stream dans go2rtc (retourne JSON ok/error)
 // Étape 2 GET  : proxifie le flux MJPEG de go2rtc vers <img>
 
-async function startRtspStream(el, camId) {
+async function startRtspStream(el, camId, camName) {
     const preview = el.closest('.cam-preview');
     el.onclick = null;
     el.innerHTML = '<span>⏳</span><small>Connexion…</small>';
@@ -127,7 +127,7 @@ async function startRtspStream(el, camId) {
     const reg = await apiFetch(`${BASE_URL}/api/cameras/${camId}/go2rtc`, { method: 'POST', body: '{}' });
     if (!reg.ok) {
         el.innerHTML = `<span>⚠️</span><small>${reg.error || 'Erreur go2rtc'}</small>`;
-        el.onclick = () => startRtspStream(el, camId);
+        el.onclick = () => startRtspStream(el, camId, camName);
         return;
     }
 
@@ -139,10 +139,19 @@ async function startRtspStream(el, camId) {
         if (!el.parentNode) return;
         el.remove();
         preview.style.position = 'relative';
+
+        const expand = document.createElement('button');
+        expand.className = 'cam-rtsp-expand';
+        expand.title = 'Agrandir';
+        expand.textContent = '⛶';
+        expand.onclick = (e) => { e.stopPropagation(); openCamFullscreen(camId, camName || 'Caméra'); };
+
         const stop = document.createElement('button');
         stop.className = 'cam-rtsp-stop';
         stop.textContent = '■ Stop';
-        stop.onclick = () => stopRtspStream(img, stop, camId, preview);
+        stop.onclick = () => stopRtspStream(img, expand, stop, camId, camName, preview);
+
+        preview.appendChild(expand);
         preview.appendChild(stop);
     };
 
@@ -150,7 +159,7 @@ async function startRtspStream(el, camId) {
         clearTimeout(t);
         img.remove();
         el.innerHTML = '<span>⚠️</span><small>go2rtc ne joindre pas la caméra RTSP — vérifiez l\'URL et que la caméra est allumée</small>';
-        el.onclick = () => startRtspStream(el, camId);
+        el.onclick = () => startRtspStream(el, camId, camName);
     };
 
     img.onload = () => { clearTimeout(t); showStream(); };
@@ -160,16 +169,55 @@ async function startRtspStream(el, camId) {
     preview.prepend(img);
 }
 
-function stopRtspStream(img, stopBtn, camId, preview) {
+function stopRtspStream(img, expandBtn, stopBtn, camId, camName, preview) {
     img.src = '';
     img.remove();
+    expandBtn.remove();
     stopBtn.remove();
 
     const ph = document.createElement('div');
     ph.className = 'cam-placeholder cam-rtsp-trigger';
     ph.innerHTML = '<span class="cam-play-icon">▶</span><small>Voir en direct</small>';
-    ph.onclick = () => startRtspStream(ph, camId);
+    ph.onclick = () => startRtspStream(ph, camId, camName);
     preview.prepend(ph);
+}
+
+function openCamFullscreen(camId, camName) {
+    const modal = document.getElementById('cam-fullscreen-modal');
+    const body  = document.getElementById('cam-fs-body');
+    const title = document.getElementById('cam-fs-title');
+
+    title.textContent = camName;
+    body.innerHTML = '<div class="cam-fs-loading">⏳ Chargement du flux…</div>';
+    modal.classList.add('open');
+
+    const img = document.createElement('img');
+    img.alt = camName;
+
+    img.onerror = () => {
+        body.innerHTML = '<div class="cam-fs-loading">⚠️ Flux inaccessible</div>';
+    };
+    img.onload = () => {
+        body.innerHTML = '';
+        body.appendChild(img);
+    };
+    setTimeout(() => {
+        if (body.querySelector('.cam-fs-loading')) {
+            body.innerHTML = '';
+            body.appendChild(img);
+        }
+    }, 4000);
+
+    img.src = `${BASE_URL}/api/cameras/${camId}/go2rtc`;
+    modal._fsImg = img;
+}
+
+function closeCamFullscreen(e) {
+    if (e && e.target !== e.currentTarget) return;
+    const modal = document.getElementById('cam-fullscreen-modal');
+    if (modal._fsImg) { modal._fsImg.src = ''; modal._fsImg = null; }
+    document.getElementById('cam-fs-body').innerHTML = '';
+    modal.classList.remove('open');
 }
 
 // ── Helpers ───────────────────────────────────────────────────
