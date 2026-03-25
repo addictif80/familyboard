@@ -114,6 +114,63 @@ async function deleteCamera(id) {
     }
 }
 
+// ── RTSP live stream (FFmpeg MJPEG proxy) ────────────────────
+
+function startRtspStream(el, camId) {
+    const preview = el.closest('.cam-preview');
+
+    // Phase 1 : affiche "Connexion…" pendant le démarrage de FFmpeg (~2s)
+    el.onclick = null;
+    el.innerHTML = '<span>⏳</span><small>Connexion…</small>';
+
+    const img = document.createElement('img');
+    img.className = 'cam-img';
+    img.style.display = 'none';
+
+    img.onload = () => {
+        // Première frame reçue : montre l'image et retire le placeholder
+        img.style.display = '';
+        el.remove();
+
+        // Bouton "Arrêter" superposé
+        const wrap = img.closest('.cam-preview');
+        if (wrap) {
+            wrap.classList.add('cam-rtsp-live');
+            const stop = document.createElement('button');
+            stop.className = 'cam-rtsp-stop';
+            stop.title = 'Arrêter le flux';
+            stop.textContent = '■ Stop';
+            stop.onclick = () => stopRtspStream(img, stop, camId);
+            wrap.appendChild(stop);
+        }
+    };
+
+    img.onerror = () => {
+        img.remove();
+        el.innerHTML = '<span>⚠️</span><small>Flux inaccessible</small>';
+        el.onclick = () => startRtspStream(el, camId);
+    };
+
+    img.src = `${BASE_URL}/api/cameras/${camId}/stream`;
+    preview.prepend(img);
+}
+
+function stopRtspStream(img, stopBtn, camId) {
+    const preview = img.closest('.cam-preview');
+    img.src = ''; // coupe la connexion HTTP → PHP/FFmpeg se terminent
+    img.remove();
+    stopBtn.remove();
+    if (preview) preview.classList.remove('cam-rtsp-live');
+
+    // Restaure le placeholder "▶ Voir en direct"
+    const ph = document.createElement('div');
+    ph.className = 'cam-placeholder cam-rtsp-trigger';
+    ph.id = `cam-rtsp-${camId}`;
+    ph.innerHTML = '<span class="cam-play-icon">▶</span><small>Voir en direct</small>';
+    ph.onclick = () => startRtspStream(ph, camId);
+    if (preview) preview.prepend(ph);
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 
 function _esc(s) {

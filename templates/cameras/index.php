@@ -38,12 +38,17 @@ ob_start();
                     <video class="cam-hls" data-src="<?= htmlspecialchars($cam['stream_url']) ?>"
                            muted autoplay playsinline></video>
                 <?php endif; ?>
+            <?php elseif ($cam['stream_url'] && $cam['stream_type'] === 'rtsp'): ?>
+                <div class="cam-placeholder cam-rtsp-trigger"
+                     id="cam-rtsp-<?= $cam['id'] ?>"
+                     onclick="startRtspStream(this, <?= $cam['id'] ?>)">
+                    <span class="cam-play-icon">▶</span>
+                    <small>Voir en direct</small>
+                </div>
             <?php else: ?>
                 <div class="cam-placeholder">
                     <span>📷</span>
-                    <?php if ($cam['stream_url'] && $cam['stream_type'] === 'rtsp'): ?>
-                        <small>RTSP — lecture hors navigateur</small>
-                    <?php elseif ($cam['stream_url']): ?>
+                    <?php if ($cam['stream_url']): ?>
                         <small>Flux configuré</small>
                     <?php else: ?>
                         <small>Flux non configuré</small>
@@ -150,6 +155,42 @@ ob_start();
         </div>
     </div>
 </div>
+
+<style>
+.cam-rtsp-trigger {
+    cursor: pointer;
+    transition: background .15s;
+}
+.cam-rtsp-trigger:hover {
+    background: var(--bg-hover, rgba(0,0,0,.05));
+}
+.cam-rtsp-trigger .cam-play-icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: .25rem;
+    color: var(--primary);
+}
+.cam-rtsp-live {
+    position: relative;
+}
+.cam-rtsp-stop {
+    position: absolute;
+    top: .4rem;
+    right: .4rem;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: .15rem .45rem;
+    cursor: pointer;
+    font-size: .75rem;
+    line-height: 1.4;
+    z-index: 5;
+}
+.cam-rtsp-stop:hover {
+    background: rgba(0,0,0,.8);
+}
+</style>
 
 <script>
 const BASE_URL = <?= json_encode(BASE_URL) ?>;
