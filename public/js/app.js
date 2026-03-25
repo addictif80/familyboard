@@ -278,12 +278,14 @@ async function initPushSubscription() {
             _pushUpdateUI('inactive');
             return;
         }
-        // Re-sync endpoint with server in case it changed
-        const j = existing.toJSON();
-        await apiFetch(`${BASE_URL}/api/push/subscribe`, {
-            method: 'POST',
-            body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
-        });
+        // Re-sync endpoint with server (best-effort, don't block UI update)
+        try {
+            const j = existing.toJSON();
+            await apiFetch(`${BASE_URL}/api/push/subscribe`, {
+                method: 'POST',
+                body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
+            });
+        } catch (_) { /* re-sync is non-critical */ }
         _pushUpdateUI('active');
     } catch (e) { /* silent */ }
 }

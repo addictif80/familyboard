@@ -30,15 +30,26 @@
     <!-- Content -->
     <main class="admin-content">
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-success" style="margin-bottom:1rem">
-                <?= match(true) {
-                    $msg === 'blocked'        => 'Utilisateur bloqué.',
-                    $msg === 'unblocked'      => 'Utilisateur débloqué.',
-                    $msg === 'keys_generated' => 'Clés VAPID générées.',
-                    $msg === 'error'          => 'Erreur.',
-                    str_starts_with($msg, 'sent_') => 'Notification envoyée à ' . substr($msg, 5) . ' abonné(s).',
-                    default => ''
-                } ?>
+            <?php
+                preg_match('/^sent_(\d+)(?:_fail_(\d+))?$/', $msg, $pm);
+                $isAlert = !empty($pm) && ((int)($pm[2] ?? 0) > 0 || (int)($pm[1] ?? 0) === 0);
+            ?>
+            <div class="alert alert-<?= $isAlert ? 'danger' : 'success' ?>" style="margin-bottom:1rem">
+                <?php if (!empty($pm)): ?>
+                    <?php $ok = (int)$pm[1]; $fail = (int)($pm[2] ?? 0); ?>
+                    <?= $ok ?> notification(s) envoyée(s) avec succès<?= $fail ? ", <strong>{$fail} échec(s)</strong>" : '' ?>.
+                    <?php if ($fail && ($pushErr = ($_SESSION['push_last_error'] ?? ''))): unset($_SESSION['push_last_error']); ?>
+                        <br><code style="font-size:.78rem"><?= htmlspecialchars($pushErr) ?></code>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <?= match($msg) {
+                        'blocked'        => 'Utilisateur bloqué.',
+                        'unblocked'      => 'Utilisateur débloqué.',
+                        'keys_generated' => 'Clés VAPID générées.',
+                        'error'          => 'Erreur : titre et clés VAPID requis.',
+                        default          => ''
+                    } ?>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
 

@@ -215,16 +215,24 @@ class AdminController extends BaseController
         }
         $subs = Database::fetchAll($sql, $binds);
 
-        $ok = 0;
+        $ok = 0; $fail = 0; $lastErr = '';
         foreach ($subs as $sub) {
             try {
                 if (WebPush::send($sub['endpoint'], $sub['p256dh'], $sub['auth_key'], $vapid['public'], $vapid['private'], $payload)) {
                     $ok++;
+                } else {
+                    $fail++;
                 }
-            } catch (\Throwable) {}
+            } catch (\Throwable $e) {
+                $fail++;
+                $lastErr = $e->getMessage();
+            }
         }
 
-        $this->redirect('/admin?tab=push&msg=sent_' . $ok);
+        $msg = 'sent_' . $ok;
+        if ($fail > 0) $msg .= '_fail_' . $fail;
+        if ($lastErr)  $_SESSION['push_last_error'] = substr($lastErr, 0, 200);
+        $this->redirect('/admin?tab=push&msg=' . $msg);
     }
 
     // ── Support tickets ──────────────────────────────────────────

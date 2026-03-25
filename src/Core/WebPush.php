@@ -168,23 +168,31 @@ class WebPush
 
     private static function post(string $url, string $body, array $headers): bool
     {
-        $lines = [];
+        $curlHeaders = [];
         foreach ($headers as $k => $v) {
-            $lines[] = "$k: $v";
+            $curlHeaders[] = "$k: $v";
         }
-        $ctx = stream_context_create(['http' => [
-            'method'         => 'POST',
-            'header'         => implode("\r\n", $lines),
-            'content'        => $body,
-            'ignore_errors'  => true,
-            'timeout'        => 15,
-        ]]);
-        @file_get_contents($url, false, $ctx);
-        foreach ($http_response_header ?? [] as $h) {
-            if (preg_match('/HTTP\/\S+ (\d+)/', $h, $m)) {
-                return (int)$m[1] < 400;
-            }
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $body,
+            CURLOPT_HTTPHEADER     => $curlHeaders,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ]);
+
+        curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err    = curl_error($ch);
+        curl_close($ch);
+
+        if ($err) {
+            throw new \RuntimeException('WebPush curl error: ' . $err);
         }
-        return false;
+
+        return $status >= 200 && $status < 300;
     }
 }
