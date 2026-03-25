@@ -114,41 +114,46 @@ async function deleteCamera(id) {
     }
 }
 
-// ── RTSP live stream via go2rtc (WebRTC) ─────────────────────
+// ── RTSP live stream via go2rtc (proxy MJPEG côté PHP) ───────
+// Le navigateur ne contacte que PHP ; go2rtc peut rester sur 127.0.0.1.
 
-async function startRtspStream(el, camId) {
+function startRtspStream(el, camId) {
     const preview = el.closest('.cam-preview');
     el.onclick = null;
     el.innerHTML = '<span>⏳</span><small>Connexion…</small>';
 
-    const res = await apiFetch(`${BASE_URL}/api/cameras/${camId}/go2rtc`);
+    const img = document.createElement('img');
+    img.className = 'cam-img';
 
-    if (res.error) {
-        el.innerHTML = `<span>⚠️</span><small>${res.error}</small>`;
+    const showStream = () => {
+        if (!el.parentNode) return;
+        el.remove();
+        preview.style.position = 'relative';
+        const stop = document.createElement('button');
+        stop.className = 'cam-rtsp-stop';
+        stop.textContent = '■ Stop';
+        stop.onclick = () => stopRtspStream(img, stop, camId, preview);
+        preview.appendChild(stop);
+    };
+
+    img.onerror = () => {
+        clearTimeout(t);
+        img.remove();
+        el.innerHTML = '<span>⚠️</span><small>Flux inaccessible — vérifiez go2rtc et l\'URL RTSP</small>';
         el.onclick = () => startRtspStream(el, camId);
-        return;
-    }
+    };
 
-    const iframe = document.createElement('iframe');
-    iframe.src = res.player_url;
-    iframe.className = 'cam-go2rtc';
-    iframe.setAttribute('allowfullscreen', '');
-    iframe.setAttribute('allow', 'autoplay; fullscreen');
+    // img.onload ne se déclenche pas toujours pour multipart/x-mixed-replace
+    img.onload = () => { clearTimeout(t); showStream(); };
+    const t = setTimeout(showStream, 4000);
 
-    el.remove();
-    preview.style.position = 'relative';
-    preview.prepend(iframe);
-
-    const stop = document.createElement('button');
-    stop.className = 'cam-rtsp-stop';
-    stop.textContent = '■ Stop';
-    stop.onclick = () => stopRtspStream(iframe, stop, camId, preview);
-    preview.appendChild(stop);
+    img.src = `${BASE_URL}/api/cameras/${camId}/go2rtc`;
+    preview.prepend(img);
 }
 
-function stopRtspStream(iframe, stopBtn, camId, preview) {
-    iframe.src = '';
-    iframe.remove();
+function stopRtspStream(img, stopBtn, camId, preview) {
+    img.src = '';
+    img.remove();
     stopBtn.remove();
 
     const ph = document.createElement('div');

@@ -86,8 +86,7 @@ ob_start();
                        value="<?= htmlspecialchars($family['go2rtc_url'] ?? '') ?>"
                        placeholder="http://192.168.1.10:1984">
                 <small style="color:var(--text-muted)">
-                    ⚠️ Utilisez l'<strong>IP LAN du serveur</strong> (pas <code>127.0.0.1</code>) —
-                    cette URL doit être joignable à la fois par le serveur PHP et par les navigateurs clients.<br>
+                    Le flux passe par PHP — <code>http://127.0.0.1:1984</code> fonctionne si go2rtc tourne sur le même serveur.<br>
                     Démarrer avec Docker : <code>docker run -d --network=host alexxit/go2rtc</code>
                 </small>
             </div>

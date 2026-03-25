@@ -52,58 +52,87 @@ class CameraController extends BaseController
     }
 
     /**
-     * Enregistre la caméra dans go2rtc via son API REST et retourne l'URL du player.
-     * go2rtc gère la conversion RTSP → WebRTC côté serveur.
+     * Enregistre la caméra dans go2rtc puis proxifie son flux MJPEG vers le navigateur.
+     * Le navigateur ne contacte que PHP — go2rtc peut rester sur 127.0.0.1.
      */
-    public function go2rtcStart(array $params): void
+    public function go2rtcStream(array $params): void
     {
         $this->requireAuth();
-        $this->json(function () use ($params) {
-            $user = Session::user();
-            $id   = (int)$params['id'];
-            $cam  = Camera::getById($id);
+        session_write_close();
 
-            if (!$cam || $cam['family_id'] !== $user['family_id'] || !$cam['stream_url']) {
-                return ['error' => 'Caméra introuvable.'];
-            }
+        $user = Session::user();
+        $id   = (int)$params['id'];
+        $cam  = Camera::getById($id);
 
-            $family     = Family::findById($user['family_id']);
-            $go2rtcBase = rtrim($family['go2rtc_url'] ?? '', '/');
+        if (!$cam || $cam['family_id'] !== $user['family_id'] || !$cam['stream_url']) {
+            http_response_code(404); exit;
+        }
 
-            if (!$go2rtcBase) {
-                return ['error' => 'go2rtc non configuré — renseignez l\'URL dans Paramètres.'];
-            }
+        $family     = Family::findById($user['family_id']);
+        $go2rtcBase = rtrim($family['go2rtc_url'] ?? '', '/');
 
-            // Injecte les identifiants RTSP si absents de l'URL
-            $rtspUrl = $cam['stream_url'];
-            if (!empty($cam['username']) && !preg_match('#://[^@/]+@#', $rtspUrl)) {
-                $cu      = urlencode($cam['username']);
-                $cp      = $cam['password'] ? ':' . urlencode($cam['password']) : '';
-                $rtspUrl = preg_replace('#^(rtsp://)#i', "rtsp://{$cu}{$cp}@", $rtspUrl);
-            }
+        if (!$go2rtcBase) {
+            http_response_code(503);
+            header('Content-Type: text/plain');
+            echo 'go2rtc non configuré dans les Paramètres.';
+            exit;
+        }
 
-            $name = 'cam_' . $id;
+        // Injecte les identifiants RTSP si absents de l'URL
+        $rtspUrl = $cam['stream_url'];
+        if (!empty($cam['username']) && !preg_match('#://[^@/]+@#', $rtspUrl)) {
+            $cu      = urlencode($cam['username']);
+            $cp      = $cam['password'] ? ':' . urlencode($cam['password']) : '';
+            $rtspUrl = preg_replace('#^(rtsp://)#i', "rtsp://{$cu}{$cp}@", $rtspUrl);
+        }
 
-            // PUT /api/streams?name=cam_X&src=rtsp://... → enregistre le stream dans go2rtc
-            $ch = curl_init($go2rtcBase . '/api/streams?' . http_build_query(['name' => $name, 'src' => $rtspUrl]));
-            curl_setopt_array($ch, [
-                CURLOPT_CUSTOMREQUEST  => 'PUT',
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 5,
-                CURLOPT_CONNECTTIMEOUT => 3,
-            ]);
-            curl_exec($ch);
-            $cerr = curl_error($ch);
-            curl_close($ch);
+        $name = 'cam_' . $id;
 
-            if ($cerr) {
-                return ['error' => "Impossible de joindre go2rtc : $cerr"];
-            }
+        // 1. Enregistre (ou met à jour) le stream dans go2rtc
+        $reg = curl_init($go2rtcBase . '/api/streams?' . http_build_query(['name' => $name, 'src' => $rtspUrl]));
+        curl_setopt_array($reg, [
+            CURLOPT_CUSTOMREQUEST  => 'PUT',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 5,
+            CURLOPT_CONNECTTIMEOUT => 3,
+        ]);
+        curl_exec($reg);
+        $cerr = curl_error($reg);
+        curl_close($reg);
 
-            return [
-                'player_url' => $go2rtcBase . '/stream.html?src=' . urlencode($name),
-            ];
-        });
+        if ($cerr) {
+            http_response_code(503);
+            header('Content-Type: text/plain');
+            echo "Impossible de joindre go2rtc : $cerr";
+            exit;
+        }
+
+        // 2. Proxifie le flux MJPEG de go2rtc vers le navigateur
+        header('Cache-Control: no-cache, no-store');
+        header('X-Accel-Buffering: no');
+        while (ob_get_level() > 0) ob_end_flush();
+
+        $ch = curl_init($go2rtcBase . '/api/stream.mjpeg?' . http_build_query(['src' => $name]));
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_HEADERFUNCTION => static function ($c, $header) {
+                // Transmet uniquement le Content-Type (multipart/x-mixed-replace)
+                if (stripos($header, 'content-type:') === 0) {
+                    header(trim($header));
+                }
+                return strlen($header);
+            },
+            CURLOPT_WRITEFUNCTION  => static function ($c, $data) {
+                echo $data;
+                flush();
+                return strlen($data);
+            },
+            CURLOPT_TIMEOUT        => 300,
+            CURLOPT_CONNECTTIMEOUT => 10,
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+        exit;
     }
 
 }
