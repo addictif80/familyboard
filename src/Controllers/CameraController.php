@@ -99,7 +99,31 @@ class CameraController extends BaseController
                 return ['error' => "go2rtc inaccessible ({$go2rtcBase}) : $cerr"];
             }
             if ($code >= 400) {
-                return ['error' => "go2rtc a refusé l'enregistrement du stream (HTTP $code). Vérifiez les logs go2rtc."];
+                return ['error' => "go2rtc a refusé l'enregistrement (HTTP $code)."];
+            }
+
+            // Attend que go2rtc tente la connexion RTSP, puis vérifie l'état réel
+            usleep(2500000); // 2.5s
+
+            $check = curl_init($go2rtcBase . '/api/streams');
+            curl_setopt_array($check, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 3,
+                CURLOPT_CONNECTTIMEOUT => 2,
+            ]);
+            $resp  = curl_exec($check);
+            curl_close($check);
+
+            if ($resp) {
+                $all      = json_decode($resp, true) ?? [];
+                $stream   = $all[$name] ?? null;
+                $producers = $stream['producers'] ?? [];
+                foreach ($producers as $p) {
+                    if (($p['state'] ?? 'online') !== 'online') {
+                        $detail = $p['error'] ?? 'connexion échouée';
+                        return ['error' => "go2rtc → RTSP : $detail"];
+                    }
+                }
             }
 
             return ['ok' => true];
