@@ -40,6 +40,20 @@ ob_start();
     </div>
     <?php endif; ?>
 
+    <!-- Calendrier du projet -->
+    <div class="card" style="margin-top:1rem">
+        <div class="card-header">
+            <h3>📅 Calendrier du projet</h3>
+            <div style="display:flex;gap:.5rem;align-items:center">
+                <button onclick="projCalPrev()" class="btn btn-secondary btn-sm">‹</button>
+                <span id="proj-cal-label" style="font-weight:600;min-width:160px;text-align:center"></span>
+                <button onclick="projCalNext()" class="btn btn-secondary btn-sm">›</button>
+                <button onclick="projCalToday()" class="btn btn-secondary btn-sm">Aujourd'hui</button>
+            </div>
+        </div>
+        <div id="proj-calendar" style="padding:.5rem 0"></div>
+    </div>
+
     <div class="project-detail-grid">
         <!-- Tasks -->
         <div class="card">
@@ -190,14 +204,20 @@ ob_start();
                     </select>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Assigné à</label>
-                <select id="ptask-assigned">
-                    <option value="">— Personne —</option>
-                    <?php foreach ($members as $m): ?>
-                        <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Assigné à</label>
+                    <select id="ptask-assigned">
+                        <option value="">— Personne —</option>
+                        <?php foreach ($members as $m): ?>
+                            <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Échéance</label>
+                    <input type="date" id="ptask-due-date">
+                </div>
             </div>
         </div>
         <div class="modal-footer">

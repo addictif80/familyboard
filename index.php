@@ -141,6 +141,7 @@ $router->post('/api/custody/event/:id/delete', [CustodyController::class, 'delet
 // Projects
 $router->get('/projects', [ProjectController::class, 'index']);
 $router->get('/api/projects/calendar', [ProjectController::class, 'apiCalendar']);
+$router->get('/api/projects/:id/calendar', [ProjectController::class, 'apiProjectCalendar']);
 $router->get('/projects/:id', [ProjectController::class, 'show']);
 $router->post('/api/projects', [ProjectController::class, 'create']);
 $router->post('/api/projects/:id', [ProjectController::class, 'update']);

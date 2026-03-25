@@ -82,17 +82,62 @@ class Project
     public static function createTask(int $projectId, int $userId, array $data): int
     {
         return Database::insert(
-            'INSERT INTO project_tasks (project_id, user_id, assigned_to, title, description, status, priority) VALUES (?,?,?,?,?,?,?)',
-            [$projectId, $userId, $data['assigned_to'] ?? null, $data['title'], $data['description'] ?? null, $data['status'] ?? 'todo', $data['priority'] ?? 'medium']
+            'INSERT INTO project_tasks (project_id, user_id, assigned_to, title, description, status, priority, due_date) VALUES (?,?,?,?,?,?,?,?)',
+            [$projectId, $userId, $data['assigned_to'] ?? null, $data['title'], $data['description'] ?? null, $data['status'] ?? 'todo', $data['priority'] ?? 'medium', $data['due_date'] ?? null]
         );
     }
 
     public static function updateTask(int $id, array $data): void
     {
         Database::execute(
-            'UPDATE project_tasks SET assigned_to=?, title=?, description=?, status=?, priority=? WHERE id=?',
-            [$data['assigned_to'] ?? null, $data['title'], $data['description'] ?? null, $data['status'] ?? 'todo', $data['priority'] ?? 'medium', $id]
+            'UPDATE project_tasks SET assigned_to=?, title=?, description=?, status=?, priority=?, due_date=? WHERE id=?',
+            [$data['assigned_to'] ?? null, $data['title'], $data['description'] ?? null, $data['status'] ?? 'todo', $data['priority'] ?? 'medium', $data['due_date'] ?? null, $id]
         );
+    }
+
+    /** Retourne les tâches avec due_date + l'échéance du projet pour le calendrier interne. */
+    public static function getCalendarEvents(int $projectId, array $project): array
+    {
+        $events = [];
+        $tasks = Database::fetchAll(
+            'SELECT pt.*, a.name as assigned_name, a.color as assigned_color
+             FROM project_tasks pt
+             LEFT JOIN users a ON a.id=pt.assigned_to
+             WHERE pt.project_id=? AND pt.due_date IS NOT NULL
+             ORDER BY pt.due_date',
+            [$projectId]
+        );
+        foreach ($tasks as $t) {
+            $events[] = [
+                'id'      => 'task_' . $t['id'],
+                'title'   => $t['title'],
+                'start'   => $t['due_date'],
+                'allDay'  => true,
+                'color'   => match($t['status']) {
+                    'done'        => '#27AE60',
+                    'in_progress' => '#F39C12',
+                    default       => $project['color'] ?? '#4A90D9',
+                },
+                'extendedProps' => [
+                    'type'          => 'task',
+                    'task_id'       => (int)$t['id'],
+                    'status'        => $t['status'],
+                    'priority'      => $t['priority'],
+                    'assigned_name' => $t['assigned_name'],
+                ],
+            ];
+        }
+        if (!empty($project['deadline'])) {
+            $events[] = [
+                'id'     => 'deadline_' . $projectId,
+                'title'  => '🏁 Échéance',
+                'start'  => $project['deadline'],
+                'allDay' => true,
+                'color'  => '#E74C3C',
+                'extendedProps' => ['type' => 'deadline'],
+            ];
+        }
+        return $events;
     }
 
     public static function deleteTask(int $id): void

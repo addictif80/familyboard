@@ -17,6 +17,21 @@ class ProjectController extends BaseController
         require BASE_PATH . '/templates/projects/index.php';
     }
 
+    /** GET /api/projects/:id/calendar — calendrier interne d'un projet */
+    public function apiProjectCalendar(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user    = Session::user();
+            $id      = (int)$params['id'];
+            $project = Project::getById($id);
+            if (!$project || $project['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Non autorisé'];
+            }
+            return Project::getCalendarEvents($id, $project);
+        });
+    }
+
     /** GET /api/projects/calendar?start=YYYY-MM-DD&end=YYYY-MM-DD */
     public function apiCalendar(array $params): void
     {

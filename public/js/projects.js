@@ -67,6 +67,7 @@ function openTaskModal() {
     document.getElementById('ptask-status').value = 'todo';
     document.getElementById('ptask-priority').value = 'medium';
     document.getElementById('ptask-assigned').value = '';
+    document.getElementById('ptask-due-date').value = '';
     openModal('project-task-modal');
 }
 
@@ -79,6 +80,7 @@ function openEditProjectTask(task) {
     document.getElementById('ptask-status').value = task.status;
     document.getElementById('ptask-priority').value = task.priority;
     document.getElementById('ptask-assigned').value = task.assigned_to || '';
+    document.getElementById('ptask-due-date').value = task.due_date || '';
     openModal('project-task-modal');
 }
 
@@ -92,6 +94,7 @@ async function saveProjectTask() {
         status: document.getElementById('ptask-status').value,
         priority: document.getElementById('ptask-priority').value,
         assigned_to: document.getElementById('ptask-assigned').value || null,
+        due_date: document.getElementById('ptask-due-date').value || null,
     };
 
     const id = document.getElementById('ptask-id').value;
@@ -211,4 +214,106 @@ async function deleteMaterial(id) {
         const el = document.querySelector(`.material-item[data-id="${id}"]`);
         if (el) el.remove();
     }
+}
+
+// ── Calendrier du projet ───────────────────────────────────────
+
+let _projCalDate = new Date();
+let _projCalEvents = [];
+
+const _projIntlMonth = new Intl.DateTimeFormat('fr-FR', { month: 'long' });
+const _projIntlDay   = new Intl.DateTimeFormat('fr-FR', { weekday: 'short' });
+
+function _projFmtMonthYear(year, month) {
+    const d = new Date(year, month, 1);
+    const m = _projIntlMonth.format(d);
+    return m.charAt(0).toUpperCase() + m.slice(1) + ' ' + year;
+}
+
+function _projDayNames() {
+    const names = [];
+    for (let i = 1; i <= 7; i++) {
+        const d = new Date(2024, 0, i);
+        const s = _projIntlDay.format(d);
+        names.push(s.charAt(0).toUpperCase() + s.slice(1).replace('.', ''));
+    }
+    return names;
+}
+
+async function _loadProjCalEvents() {
+    try {
+        const data = await apiFetch(`${BASE_URL}/api/projects/${PROJECT_ID}/calendar`);
+        _projCalEvents = Array.isArray(data) ? data : [];
+    } catch (e) {
+        _projCalEvents = [];
+    }
+    _renderProjCal();
+}
+
+function _renderProjCal() {
+    const container = document.getElementById('proj-calendar');
+    if (!container) return;
+
+    const year  = _projCalDate.getFullYear();
+    const month = _projCalDate.getMonth();
+
+    document.getElementById('proj-cal-label').textContent = _projFmtMonthYear(year, month);
+
+    const firstDay = new Date(year, month, 1);
+    let startDow = firstDay.getDay();
+    if (startDow === 0) startDow = 7;
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - (startDow - 1));
+
+    const dayNames = _projDayNames();
+    let html = `<div class="cal-grid">${dayNames.map(d => `<div class="cal-dayname">${d}</div>`).join('')}`;
+
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    let d = new Date(startDate);
+    for (let i = 0; i < 42; i++) {
+        const isCurrentMonth = d.getMonth() === month;
+        const isToday = d.getTime() === today.getTime();
+        const dateStr = d.toISOString().slice(0, 10);
+
+        const dayEvents = _projCalEvents.filter(e => e.start === dateStr);
+
+        const dotsHtml = '<div class="cal-day-dots">' +
+            dayEvents.slice(0, 4).map(e =>
+                `<span class="cal-day-dot" style="background:${e.color || '#4A90D9'}"></span>`
+            ).join('') + '</div>';
+
+        let eventsHtml = '';
+        dayEvents.slice(0, 3).forEach(e => {
+            const label = e.title.length > 18 ? e.title.slice(0, 16) + '…' : e.title;
+            const taskId = e.extendedProps?.task_id;
+            const onclick = taskId ? `onclick="projCalTaskClick(${taskId})"` : '';
+            eventsHtml += `<div class="cal-event" style="background:${e.color || '#4A90D9'}" ${onclick} title="${e.title}">${label}</div>`;
+        });
+
+        html += `<div class="cal-day ${isCurrentMonth ? '' : 'cal-other-month'} ${isToday ? 'cal-today' : ''}">
+            <span class="cal-day-num">${d.getDate()}</span>
+            ${dotsHtml}
+            <div class="cal-events">${eventsHtml}</div>
+        </div>`;
+
+        d.setDate(d.getDate() + 1);
+    }
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function projCalPrev()  { _projCalDate.setMonth(_projCalDate.getMonth() - 1); _renderProjCal(); }
+function projCalNext()  { _projCalDate.setMonth(_projCalDate.getMonth() + 1); _renderProjCal(); }
+function projCalToday() { _projCalDate = new Date(); _renderProjCal(); }
+
+function projCalTaskClick(taskId) {
+    // find the task in the DOM and open the edit modal
+    const el = document.querySelector(`.project-task-item[data-id="${taskId}"]`);
+    if (el) el.querySelector('.task-body')?.click();
+}
+
+// Init on project detail page
+if (typeof PROJECT_ID !== 'undefined' && document.getElementById('proj-calendar')) {
+    _loadProjCalEvents();
 }
