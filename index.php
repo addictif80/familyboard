@@ -43,12 +43,31 @@ use App\Controllers\ProjectController;
 use App\Controllers\SettingsController;
 use App\Controllers\InvitationController;
 use App\Controllers\ContactController;
+use App\Controllers\AdminController;
+use App\Controllers\SupportController;
 use App\Controllers\WarrantyController;
 use App\Controllers\DocumentController;
 use App\Controllers\FamilyWallController;
 use App\Controllers\CameraController;
 
 Session::start();
+
+// ── IP block check (skip admin routes) ──────────────────────
+if (!str_starts_with(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '', (BASE_URL ?: '') . '/admin')) {
+    try {
+        $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
+        $clientIp = trim(explode(',', $clientIp)[0]);
+        if ($clientIp) {
+            $blockedIp = \App\Core\Database::fetch('SELECT reason FROM blocked_ips WHERE ip=? LIMIT 1', [$clientIp]);
+            if ($blockedIp) {
+                http_response_code(403);
+                $reason = $blockedIp['reason'] ?? '';
+                require BASE_PATH . '/templates/blocked.php';
+                exit;
+            }
+        }
+    } catch (\Throwable) {}
+}
 
 // Auto-apply any pending SQL migrations
 try {
@@ -156,6 +175,30 @@ $router->post('/api/projects/:id/material', [ProjectController::class, 'createMa
 $router->post('/api/projects/material/:id', [ProjectController::class, 'updateMaterial']);
 $router->post('/api/projects/material/:id/toggle', [ProjectController::class, 'toggleMaterial']);
 $router->post('/api/projects/material/:id/delete', [ProjectController::class, 'deleteMaterial']);
+
+// Admin
+$router->get('/admin/login', [AdminController::class, 'showLogin']);
+$router->post('/admin/login', [AdminController::class, 'login']);
+$router->get('/admin/logout', [AdminController::class, 'logout']);
+$router->get('/admin', [AdminController::class, 'index']);
+$router->post('/admin/users/:id/block', [AdminController::class, 'blockUser']);
+$router->post('/admin/users/:id/unblock', [AdminController::class, 'unblockUser']);
+$router->post('/admin/ips', [AdminController::class, 'addIp']);
+$router->post('/admin/ips/:id/delete', [AdminController::class, 'deleteIp']);
+$router->post('/admin/push/keys', [AdminController::class, 'generateVapidKeys']);
+$router->post('/admin/push/send', [AdminController::class, 'sendPush']);
+$router->get('/admin/tickets/:id', [AdminController::class, 'viewTicket']);
+$router->post('/admin/tickets/:id/reply', [AdminController::class, 'replyTicket']);
+$router->post('/admin/tickets/:id/close', [AdminController::class, 'closeTicket']);
+$router->post('/admin/tickets/:id/reopen', [AdminController::class, 'reopenTicket']);
+
+// Support (user-facing)
+$router->get('/support', [SupportController::class, 'index']);
+$router->post('/support', [SupportController::class, 'create']);
+$router->get('/support/:id', [SupportController::class, 'show']);
+$router->post('/support/:id/reply', [SupportController::class, 'reply']);
+$router->post('/api/push/subscribe', [SupportController::class, 'subscribePush']);
+$router->post('/api/push/unsubscribe', [SupportController::class, 'unsubscribePush']);
 
 // Contacts
 $router->get('/contacts', [ContactController::class, 'index']);

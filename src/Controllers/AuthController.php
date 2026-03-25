@@ -35,6 +35,13 @@ class AuthController
             exit;
         }
 
+        // Check if account is blocked
+        if (!empty($user['blocked_at'])) {
+            $reason = $user['blocked_reason'] ?? '';
+            require BASE_PATH . '/templates/blocked.php';
+            exit;
+        }
+
         Session::login($user);
         header('Location: ' . BASE_URL . '/');
         exit;

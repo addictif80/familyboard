@@ -32,3 +32,7 @@ define('ALLOWED_IMAGE_TYPES', ['image/jpeg', 'image/png', 'image/gif', 'image/we
 
 // Session
 define('SESSION_LIFETIME', 86400 * 30); // 30 days
+
+// Admin credentials (override in config.local.php)
+if (!defined('ADMIN_USER')) define('ADMIN_USER', getenv('ADMIN_USER') ?: 'admin');
+if (!defined('ADMIN_PASS')) define('ADMIN_PASS', getenv('ADMIN_PASS') ?: 'changeme');

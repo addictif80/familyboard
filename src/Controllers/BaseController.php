@@ -23,6 +23,13 @@ class BaseController
             header('Location: ' . BASE_URL . '/login');
             exit;
         }
+        // Check if account has been blocked while logged in
+        if (!empty($user['blocked_at'])) {
+            Session::destroy();
+            $reason = $user['blocked_reason'] ?? '';
+            require BASE_PATH . '/templates/blocked.php';
+            exit;
+        }
         Session::set('user', $user);
     }
 

@@ -228,3 +228,68 @@ document.querySelectorAll('.alert').forEach(el => {
 });
 
 // BASE_URL is set in layout.php
+
+// ── Web Push subscription ─────────────────────────────────────
+function urlBase64ToUint8Array(base64String) {
+    const pad = base64String.length % 4 === 0 ? '' : '===='.slice(base64String.length % 4);
+    const base64 = (base64String + pad).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function initPushSubscription() {
+    if (typeof VAPID_PUBLIC_KEY === 'undefined') return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (Notification.permission === 'denied') return;
+
+    try {
+        const sw = await navigator.serviceWorker.ready;
+        const existing = await sw.pushManager.getSubscription();
+
+        if (!existing && Notification.permission === 'default') {
+            // Don't auto-prompt; expose a button instead
+            const btn = document.getElementById('push-enable-btn');
+            if (btn) btn.style.display = 'flex';
+            return;
+        }
+        if (existing) {
+            // Re-register in case it changed
+            const j = existing.toJSON();
+            await apiFetch(`${BASE_URL}/api/push/subscribe`, {
+                method: 'POST',
+                body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
+            });
+        }
+    } catch (e) { /* silent */ }
+}
+
+async function enablePushNotifications() {
+    if (typeof VAPID_PUBLIC_KEY === 'undefined') {
+        Dialog.toast('Notifications push non configurées.', 'error');
+        return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+        Dialog.toast('Permission refusée.', 'error');
+        return;
+    }
+    try {
+        const sw  = await navigator.serviceWorker.ready;
+        const sub = await sw.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+        const j = sub.toJSON();
+        await apiFetch(`${BASE_URL}/api/push/subscribe`, {
+            method: 'POST',
+            body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
+        });
+        const btn = document.getElementById('push-enable-btn');
+        if (btn) btn.style.display = 'none';
+        Dialog.toast('Notifications activées !', 'success');
+    } catch (e) {
+        Dialog.toast('Erreur lors de l\'activation.', 'error');
+    }
+}
+
+window.addEventListener('load', initPushSubscription);
