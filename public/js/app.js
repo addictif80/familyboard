@@ -308,14 +308,24 @@ async function enablePushNotifications() {
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
         });
         const j = sub.toJSON();
-        await apiFetch(`${BASE_URL}/api/push/subscribe`, {
-            method: 'POST',
-            body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
-        });
+        let res;
+        try {
+            res = await apiFetch(`${BASE_URL}/api/push/subscribe`, {
+                method: 'POST',
+                body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
+            });
+        } catch (e) {
+            Dialog.toast('Erreur réseau lors de l\'enregistrement : ' + e.message, 'error');
+            return;
+        }
+        if (!res || !res.success) {
+            Dialog.toast('Erreur serveur : ' + (res?.error || JSON.stringify(res)), 'error');
+            return;
+        }
         _pushUpdateUI('active');
         Dialog.toast('Notifications activées !', 'success');
     } catch (e) {
-        Dialog.toast('Erreur lors de l\'activation.', 'error');
+        Dialog.toast('Erreur : ' + e.message, 'error');
     }
 }
 
