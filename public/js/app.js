@@ -326,6 +326,10 @@ async function enablePushNotifications() {
         console.log('[Push] VAPID key length (doit être 65) =', keyBytes.length);
         console.log('[Push] VAPID key[0] (doit être 4) =', keyBytes[0]);
 
+        // Unsubscribe any stale subscription (different VAPID key) before subscribing fresh
+        const existing = await sw.pushManager.getSubscription();
+        if (existing) await existing.unsubscribe();
+
         const sub = await sw.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: keyBytes,
