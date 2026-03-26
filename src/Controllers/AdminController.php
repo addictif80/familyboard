@@ -3,7 +3,6 @@ namespace App\Controllers;
 
 use App\Core\Database;
 use App\Core\Session;
-use App\Core\WebPush;
 use App\Models\AppSetting;
 use App\Models\SupportTicket;
 use App\Models\User;
@@ -125,13 +124,11 @@ class AdminController extends BaseController
             'users'       => (int)(Database::fetch('SELECT COUNT(*) c FROM users')['c'] ?? 0),
             'blocked'     => (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE blocked_at IS NOT NULL")['c'] ?? 0),
             'tickets'     => SupportTicket::countOpen(),
-            'push_subs'   => (int)(Database::fetch('SELECT COUNT(*) c FROM push_subscriptions')['c'] ?? 0),
         ];
         $families     = Database::fetchAll('SELECT f.*, COUNT(u.id) as member_count FROM families f LEFT JOIN users u ON u.family_id=f.id GROUP BY f.id ORDER BY f.created_at DESC');
         $users        = Database::fetchAll('SELECT u.*, f.name as family_name FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC');
         $blockedIps   = Database::fetchAll('SELECT * FROM blocked_ips ORDER BY created_at DESC');
         $tickets      = SupportTicket::getAll();
-        $vapidPublic  = AppSetting::get('vapid_public');
 
         require BASE_PATH . '/templates/admin/index.php';
     }
@@ -180,83 +177,6 @@ class AdminController extends BaseController
         $this->redirect('/admin?tab=ips');
     }
 
-    // ── Push notifications ───────────────────────────────────────
-
-    public function testPush(array $params): void
-    {
-        $this->requireSuperAdmin();
-        header('Content-Type: application/json; charset=utf-8');
-
-        $vapid = AppSetting::getVapidKeys();
-        if (!$vapid) { echo json_encode(['error' => 'Clés VAPID absentes']); exit; }
-
-        $sub = Database::fetch('SELECT * FROM push_subscriptions LIMIT 1');
-        if (!$sub) { echo json_encode(['error' => 'Aucun abonné en base']); exit; }
-
-        $payload = json_encode(['title' => 'Test FamilyBoard', 'body' => 'Ceci est un test.', 'url' => '/']);
-
-        try {
-            $result = WebPush::sendDebug($sub['endpoint'], $sub['p256dh'], $sub['auth_key'], $vapid['public'], $vapid['private'], $payload);
-            echo json_encode($result);
-        } catch (\Throwable $e) {
-            echo json_encode(['exception' => $e->getMessage()]);
-        }
-        exit;
-    }
-
-    public function generateVapidKeys(array $params): void
-    {
-        $this->requireSuperAdmin();
-        $keys = WebPush::generateVapidKeys();
-        AppSetting::set('vapid_public',  $keys['public']);
-        AppSetting::set('vapid_private', $keys['private']);
-        $this->redirect('/admin?tab=push&msg=keys_generated');
-    }
-
-    public function sendPush(array $params): void
-    {
-        $this->requireSuperAdmin();
-        $title    = trim($_POST['title'] ?? '');
-        $body     = trim($_POST['body']  ?? '');
-        $url      = trim($_POST['url']   ?? '/');
-        $familyId = (int)($_POST['family_id'] ?? 0);
-
-        $vapid = AppSetting::getVapidKeys();
-        if (!$vapid || !$title) {
-            $this->redirect('/admin?tab=push&msg=error');
-            return;
-        }
-
-        $payload = json_encode(['title' => $title, 'body' => $body, 'url' => $url]);
-
-        $sql = 'SELECT ps.* FROM push_subscriptions ps';
-        $binds = [];
-        if ($familyId > 0) {
-            $sql .= ' JOIN users u ON u.id=ps.user_id WHERE u.family_id=?';
-            $binds[] = $familyId;
-        }
-        $subs = Database::fetchAll($sql, $binds);
-
-        $ok = 0; $fail = 0; $lastErr = '';
-        foreach ($subs as $sub) {
-            try {
-                if (WebPush::send($sub['endpoint'], $sub['p256dh'], $sub['auth_key'], $vapid['public'], $vapid['private'], $payload)) {
-                    $ok++;
-                } else {
-                    $fail++;
-                }
-            } catch (\Throwable $e) {
-                $fail++;
-                $lastErr = $e->getMessage();
-            }
-        }
-
-        $msg = 'sent_' . $ok;
-        if ($fail > 0) $msg .= '_fail_' . $fail;
-        if ($lastErr)  $_SESSION['push_last_error'] = substr($lastErr, 0, 200);
-        $this->redirect('/admin?tab=push&msg=' . $msg);
-    }
-
     // ── Support tickets ──────────────────────────────────────────
 
     public function viewTicket(array $params): void
@@ -279,9 +199,6 @@ class AdminController extends BaseController
             SupportTicket::setStatus($id, 'in_progress');
             // Send push to ticket owner if subscribed
             $ticket = SupportTicket::getById($id);
-            if ($ticket) {
-                $this->notifyUser($ticket['user_id'], 'Nouvelle réponse de support', "Ticket : " . $ticket['subject'], BASE_URL . '/support/' . $id);
-            }
         }
         $this->redirect('/admin/tickets/' . $id);
     }
@@ -308,18 +225,5 @@ class AdminController extends BaseController
     {
         header('Location: ' . BASE_URL . $path);
         exit;
-    }
-
-    private function notifyUser(int $userId, string $title, string $body, string $url): void
-    {
-        $vapid = AppSetting::getVapidKeys();
-        if (!$vapid) return;
-        $payload = json_encode(['title' => $title, 'body' => $body, 'url' => $url]);
-        $subs = Database::fetchAll('SELECT * FROM push_subscriptions WHERE user_id=?', [$userId]);
-        foreach ($subs as $sub) {
-            try {
-                WebPush::send($sub['endpoint'], $sub['p256dh'], $sub['auth_key'], $vapid['public'], $vapid['private'], $payload);
-            } catch (\Throwable) {}
-        }
     }
 }

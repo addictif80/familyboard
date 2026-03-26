@@ -10,7 +10,8 @@ class ContactController extends BaseController
     {
         $this->requireAuth();
         $this->requireModule('contacts');
-        $user     = Session::user();
+        $user = Session::user();
+        Contact::seedEmergency($user['family_id'], $user['id']);
         $contacts = Contact::getByFamily($user['family_id']);
         require BASE_PATH . '/templates/contacts/index.php';
     }
@@ -35,6 +36,7 @@ class ContactController extends BaseController
             $id      = (int)$params['id'];
             $contact = Contact::getById($id);
             if (!$contact || $contact['family_id'] !== $user['family_id']) return ['success' => false, 'error' => 'Non autorisé'];
+            if ($contact['is_system']) return ['success' => false, 'error' => 'Ce contact système ne peut pas être modifié.'];
             Contact::update($id, $this->jsonInput());
             return ['success' => true, 'contact' => Contact::getById($id)];
         });
@@ -48,6 +50,7 @@ class ContactController extends BaseController
             $id      = (int)$params['id'];
             $contact = Contact::getById($id);
             if (!$contact || $contact['family_id'] !== $user['family_id']) return ['success' => false, 'error' => 'Non autorisé'];
+            if ($contact['is_system']) return ['success' => false, 'error' => 'Ce contact système ne peut pas être supprimé.'];
             // Delete avatar file if any
             if ($contact['avatar']) {
                 $path = BASE_PATH . $contact['avatar'];

@@ -147,10 +147,6 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 <span class="nav-icon">🎫</span>
                 <span class="nav-label">Support</span>
             </a>
-            <a href="<?= BASE_URL ?>/settings#push" id="push-enable-btn" class="nav-link push-cta-btn" style="display:none" title="Activer les notifications push">
-                <span class="nav-icon">🔔</span>
-                <span class="nav-label">Activer les notifs</span>
-            </a>
             <button id="pwa-install-btn" onclick="installPWA()" class="nav-link" style="display:none;background:none;border:none;width:100%;cursor:pointer;text-align:left" title="Installer l'application">
                 <span class="nav-icon">📲</span>
                 <span class="nav-label">Installer l'app</span>
@@ -218,7 +214,6 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
 <script>
 const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const APP_TIMEZONE = <?= json_encode(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Paris') ?>;
-<?php try { $vp = \App\Models\AppSetting::get('vapid_public'); if ($vp) echo 'const VAPID_PUBLIC_KEY = ' . json_encode($vp) . ';'; } catch(\Throwable){} ?>
 </script>
 <script src="<?= ASSETS_URL ?>/js/app.js?v=<?= APP_VERSION ?>"></script>
 <script>

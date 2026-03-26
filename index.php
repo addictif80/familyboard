@@ -186,9 +186,6 @@ $router->post('/admin/users/:id/block', [AdminController::class, 'blockUser']);
 $router->post('/admin/users/:id/unblock', [AdminController::class, 'unblockUser']);
 $router->post('/admin/ips', [AdminController::class, 'addIp']);
 $router->post('/admin/ips/:id/delete', [AdminController::class, 'deleteIp']);
-$router->get('/admin/push/test', [AdminController::class, 'testPush']);
-$router->post('/admin/push/keys', [AdminController::class, 'generateVapidKeys']);
-$router->post('/admin/push/send', [AdminController::class, 'sendPush']);
 $router->get('/admin/tickets/:id', [AdminController::class, 'viewTicket']);
 $router->post('/admin/tickets/:id/reply', [AdminController::class, 'replyTicket']);
 $router->post('/admin/tickets/:id/close', [AdminController::class, 'closeTicket']);
@@ -201,8 +198,6 @@ $router->get('/support', [SupportController::class, 'index']);
 $router->post('/support', [SupportController::class, 'create']);
 $router->get('/support/:id', [SupportController::class, 'show']);
 $router->post('/support/:id/reply', [SupportController::class, 'reply']);
-$router->post('/api/push/subscribe', [SupportController::class, 'subscribePush']);
-$router->post('/api/push/unsubscribe', [SupportController::class, 'unsubscribePush']);
 
 // Contacts
 $router->get('/contacts', [ContactController::class, 'index']);

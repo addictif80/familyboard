@@ -14,7 +14,7 @@
             <span>🔐 Admin</span>
         </div>
         <ul class="admin-nav">
-            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','ips'=>'🚫 IPs bloquées','push'=>'🔔 Notifications Push','tickets'=>'🎫 Tickets support'] as $t=>$label): ?>
+            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support'] as $t=>$label): ?>
             <li class="<?= $tab === $t ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
             </li>
@@ -30,26 +30,12 @@
     <!-- Content -->
     <main class="admin-content">
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <?php
-                preg_match('/^sent_(\d+)(?:_fail_(\d+))?$/', $msg, $pm);
-                $isAlert = !empty($pm) && ((int)($pm[2] ?? 0) > 0 || (int)($pm[1] ?? 0) === 0);
-            ?>
-            <div class="alert alert-<?= $isAlert ? 'danger' : 'success' ?>" style="margin-bottom:1rem">
-                <?php if (!empty($pm)): ?>
-                    <?php $ok = (int)$pm[1]; $fail = (int)($pm[2] ?? 0); ?>
-                    <?= $ok ?> notification(s) envoyée(s) avec succès<?= $fail ? ", <strong>{$fail} échec(s)</strong>" : '' ?>.
-                    <?php if ($fail && ($pushErr = ($_SESSION['push_last_error'] ?? ''))): unset($_SESSION['push_last_error']); ?>
-                        <br><code style="font-size:.78rem"><?= htmlspecialchars($pushErr) ?></code>
-                    <?php endif; ?>
-                <?php else: ?>
-                    <?= match($msg) {
-                        'blocked'        => 'Utilisateur bloqué.',
-                        'unblocked'      => 'Utilisateur débloqué.',
-                        'keys_generated' => 'Clés VAPID générées.',
-                        'error'          => 'Erreur : titre et clés VAPID requis.',
-                        default          => ''
-                    } ?>
-                <?php endif; ?>
+            <div class="alert alert-<?= in_array($msg, ['blocked','unblocked']) ? 'success' : 'info' ?>" style="margin-bottom:1rem">
+                <?= match($msg) {
+                    'blocked'   => 'Utilisateur bloqué.',
+                    'unblocked' => 'Utilisateur débloqué.',
+                    default     => ''
+                } ?>
             </div>
         <?php endif; ?>
 
@@ -60,7 +46,6 @@
             <div class="admin-stat-card"><div class="stat-val"><?= $stats['users'] ?></div><div class="stat-label">Utilisateurs</div></div>
             <div class="admin-stat-card <?= $stats['blocked'] ? 'stat-warn' : '' ?>"><div class="stat-val"><?= $stats['blocked'] ?></div><div class="stat-label">Comptes bloqués</div></div>
             <div class="admin-stat-card <?= $stats['tickets'] ? 'stat-warn' : '' ?>"><div class="stat-val"><?= $stats['tickets'] ?></div><div class="stat-label">Tickets ouverts</div></div>
-            <div class="admin-stat-card"><div class="stat-val"><?= $stats['push_subs'] ?></div><div class="stat-label">Abonnés Push</div></div>
         </div>
 
         <?php elseif ($tab === 'families'): ?>
@@ -147,65 +132,6 @@
         </table>
         <?php endif; ?>
 
-        <?php elseif ($tab === 'push'): ?>
-        <h2>Notifications Push</h2>
-        <div class="card" style="max-width:600px">
-            <div class="card-header"><h3>Clés VAPID</h3></div>
-            <div style="padding:1rem">
-                <?php if ($vapidPublic): ?>
-                    <p style="margin-bottom:.5rem"><strong>Clé publique :</strong></p>
-                    <code style="word-break:break-all;font-size:.75rem;background:var(--bg);padding:.4rem .6rem;border-radius:4px;display:block"><?= htmlspecialchars($vapidPublic) ?></code>
-                    <p style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem">⚠️ Regénérer invalide toutes les souscriptions existantes.</p>
-                <?php else: ?>
-                    <p style="color:var(--text-muted)">Aucune clé VAPID. Générez-en une pour activer les push.</p>
-                <?php endif; ?>
-                <form method="POST" action="<?= BASE_URL ?>/admin/push/keys" style="margin-top:.75rem">
-                    <button class="btn btn-secondary btn-sm"><?= $vapidPublic ? '🔄 Regénérer' : '✨ Générer les clés VAPID' ?></button>
-                </form>
-            </div>
-        </div>
-        <?php if ($vapidPublic): ?>
-        <div class="card" style="max-width:600px;margin-top:1rem">
-            <div class="card-header"><h3>🔬 Diagnostic</h3></div>
-            <div style="padding:1rem">
-                <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:.75rem">Envoie un push test au premier abonné et affiche la réponse brute du service push.</p>
-                <button class="btn btn-secondary btn-sm" onclick="testPushDebug(this)">Lancer le test</button>
-                <pre id="push-debug-result" style="display:none;margin-top:.75rem;font-size:.75rem;background:var(--bg);padding:.75rem;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all"></pre>
-            </div>
-        </div>
-        <div class="card" style="max-width:600px;margin-top:1rem">
-            <div class="card-header"><h3>Envoyer une notification</h3></div>
-            <div style="padding:1rem">
-                <form method="POST" action="<?= BASE_URL ?>/admin/push/send">
-                    <div class="form-group">
-                        <label>Titre *</label>
-                        <input type="text" name="title" required placeholder="Nouvelle annonce…">
-                    </div>
-                    <div class="form-group">
-                        <label>Message</label>
-                        <input type="text" name="body" placeholder="Contenu de la notification…">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>URL cible</label>
-                            <input type="text" name="url" value="/" placeholder="/">
-                        </div>
-                        <div class="form-group">
-                            <label>Destinataires</label>
-                            <select name="family_id">
-                                <option value="0">— Tous les utilisateurs —</option>
-                                <?php foreach ($families as $f): ?>
-                                    <option value="<?= $f['id'] ?>"><?= htmlspecialchars($f['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                    <button class="btn btn-primary">📤 Envoyer</button>
-                </form>
-            </div>
-        </div>
-        <?php endif; ?>
-
         <?php elseif ($tab === 'tickets'): ?>
         <h2>Tickets de support (<?= count(array_filter($tickets, fn($t) => $t['status'] !== 'closed')) ?> ouverts)</h2>
         <?php if (empty($tickets)): ?>
@@ -232,23 +158,6 @@
         <?php endif; ?>
     </main>
 </div>
-<script>
-async function testPushDebug(btn) {
-    btn.disabled = true; btn.textContent = '⏳ Test en cours…';
-    const pre = document.getElementById('push-debug-result');
-    try {
-        const r = await fetch('<?= BASE_URL ?>/admin/push/test');
-        const data = await r.json();
-        pre.textContent = JSON.stringify(data, null, 2);
-        pre.style.display = 'block';
-        pre.style.color = (data.http_status >= 200 && data.http_status < 300) ? 'var(--success,green)' : 'var(--danger,red)';
-    } catch(e) {
-        pre.textContent = 'Erreur réseau : ' + e.message;
-        pre.style.display = 'block';
-    }
-    btn.disabled = false; btn.textContent = 'Relancer le test';
-}
-</script>
 <script src="<?= ASSETS_URL ?>/js/admin.js?v=<?= APP_VERSION ?>"></script>
 </body>
 </html>

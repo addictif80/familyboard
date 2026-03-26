@@ -16,7 +16,30 @@ ob_start();
         </div>
     </div>
 
-    <?php if (empty($contacts)): ?>
+    <?php
+        $systemContacts  = array_values(array_filter($contacts, fn($c) => !empty($c['is_system'])));
+        $regularContacts = array_values(array_filter($contacts, fn($c) => empty($c['is_system'])));
+    ?>
+
+    <!-- Emergency numbers -->
+    <?php if (!empty($systemContacts)): ?>
+    <div class="contacts-emergency-section">
+        <div class="contacts-emergency-header">🚨 Numéros d'urgence</div>
+        <div class="contacts-emergency-grid">
+            <?php foreach ($systemContacts as $c): ?>
+            <a href="tel:<?= htmlspecialchars($c['phone']) ?>" class="emergency-card" style="--ec-color:<?= htmlspecialchars($c['color']) ?>">
+                <div class="emergency-number"><?= htmlspecialchars($c['phone']) ?></div>
+                <div class="emergency-label"><?= htmlspecialchars($c['first_name']) ?></div>
+                <?php if ($c['notes']): ?>
+                    <div class="emergency-note"><?= htmlspecialchars($c['notes']) ?></div>
+                <?php endif; ?>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if (empty($regularContacts)): ?>
         <div class="empty-state-full">
             <div style="font-size:3rem">📒</div>
             <p>Aucun contact pour le moment.</p>
@@ -24,7 +47,7 @@ ob_start();
         </div>
     <?php else: ?>
     <div class="contacts-grid" id="contacts-grid">
-        <?php foreach ($contacts as $c): ?>
+        <?php foreach ($regularContacts as $c): ?>
         <?php
             $fullName = trim($c['first_name'] . ' ' . $c['last_name']);
             $initial  = mb_strtoupper(mb_substr($c['first_name'], 0, 1));
@@ -52,6 +75,23 @@ ob_start();
     </div>
     <p id="contacts-empty-search" style="display:none;text-align:center;color:var(--text-muted);margin-top:2rem">Aucun résultat.</p>
     <?php endif; ?>
+
+<style>
+.contacts-emergency-section { margin-bottom: 1.5rem; }
+.contacts-emergency-header  { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: .6rem; }
+.contacts-emergency-grid    { display: flex; gap: .75rem; flex-wrap: wrap; }
+.emergency-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-decoration: none; border-radius: 12px; padding: .75rem 1.25rem;
+    background: color-mix(in srgb, var(--ec-color) 12%, white);
+    border: 2px solid var(--ec-color);
+    min-width: 90px; transition: transform .15s, box-shadow .15s;
+}
+.emergency-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px color-mix(in srgb, var(--ec-color) 30%, transparent); }
+.emergency-number { font-size: 1.6rem; font-weight: 800; color: var(--ec-color); line-height: 1; }
+.emergency-label  { font-size: .78rem; font-weight: 600; color: var(--ec-color); margin-top: .2rem; text-align: center; }
+.emergency-note   { font-size: .68rem; color: var(--text-muted); margin-top: .15rem; text-align: center; }
+</style>
 </div>
 
 <!-- View modal -->
@@ -138,8 +178,8 @@ ob_start();
 
 <script>
 const BASE_URL = <?= json_encode(BASE_URL) ?>;
-// Pass server-side contacts for initial JS state
-let contactsData = <?= json_encode(array_values($contacts)) ?>;
+// Pass server-side contacts for initial JS state (system contacts excluded — shown separately)
+let contactsData = <?= json_encode($regularContacts) ?>;
 </script>
 <?php
 $content = ob_get_clean();

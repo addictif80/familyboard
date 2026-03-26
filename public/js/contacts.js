@@ -57,11 +57,11 @@ function openViewModal(contact) {
         </div>
     `;
 
-    footer.innerHTML = `
-        <a href="${BASE_URL}/contacts/${contact.id}/vcard" class="btn btn-secondary btn-sm" title="Télécharger la fiche vCard">📲 vCard</a>
-        <button class="btn btn-secondary" onclick="closeModal('contact-view-modal');openContactModal(${JSON.stringify(contact).replace(/</g,'\\u003c')})">✏️ Modifier</button>
-        <button class="btn btn-danger"    onclick="closeModal('contact-view-modal');deleteContact(${contact.id})">🗑 Supprimer</button>
-    `;
+    footer.innerHTML = contact.is_system
+        ? `<a href="tel:${esc(contact.phone)}" class="btn btn-primary">📞 Appeler</a>`
+        : `<a href="${BASE_URL}/contacts/${contact.id}/vcard" class="btn btn-secondary btn-sm" title="Télécharger la fiche vCard">📲 vCard</a>
+           <button class="btn btn-secondary" onclick="closeModal('contact-view-modal');openContactModal(${JSON.stringify(contact).replace(/</g,'\\u003c')})">✏️ Modifier</button>
+           <button class="btn btn-danger"    onclick="closeModal('contact-view-modal');deleteContact(${contact.id})">🗑 Supprimer</button>`;
 
     openModal('contact-view-modal');
 }

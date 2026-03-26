@@ -19,11 +19,4 @@ class AppSetting
         );
     }
 
-    public static function getVapidKeys(): ?array
-    {
-        $pub  = self::get('vapid_public');
-        $priv = self::get('vapid_private');
-        if (!$pub || !$priv) return null;
-        return ['public' => $pub, 'private' => $priv];
-    }
 }

@@ -13,9 +13,33 @@ class Contact
     public static function getByFamily(int $familyId): array
     {
         return Database::fetchAll(
-            'SELECT * FROM contacts WHERE family_id=? ORDER BY last_name ASC, first_name ASC',
+            'SELECT * FROM contacts WHERE family_id=? ORDER BY is_system DESC, last_name ASC, first_name ASC',
             [$familyId]
         );
+    }
+
+    /** Seed emergency numbers for a family if not already present. */
+    public static function seedEmergency(int $familyId, int $userId): void
+    {
+        $existing = Database::fetch(
+            'SELECT id FROM contacts WHERE family_id=? AND is_system=1 LIMIT 1',
+            [$familyId]
+        );
+        if ($existing) return;
+
+        $numbers = [
+            ['first_name' => 'Police secours', 'phone' => '17',  'color' => '#2563EB', 'notes' => 'Police nationale'],
+            ['first_name' => 'Pompiers',        'phone' => '18',  'color' => '#DC2626', 'notes' => 'Sapeurs-pompiers'],
+            ['first_name' => 'SAMU',            'phone' => '15',  'color' => '#16A34A', 'notes' => 'Aide médicale urgente'],
+            ['first_name' => 'Urgences EU',     'phone' => '112', 'color' => '#EA580C', 'notes' => 'Numéro européen d\'urgence'],
+        ];
+        foreach ($numbers as $n) {
+            Database::execute(
+                'INSERT INTO contacts (family_id, user_id, first_name, last_name, phone, color, notes, is_system)
+                 VALUES (?,?,?,\'\',?,?,?,1)',
+                [$familyId, $userId, $n['first_name'], $n['phone'], $n['color'], $n['notes']]
+            );
+        }
     }
 
     public static function getById(int $id): ?array
