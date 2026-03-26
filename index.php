@@ -3,6 +3,16 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config/config.php';
 
+// Serve service worker from root so its scope covers '/' (not just '/public/')
+$reqPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '';
+if ($reqPath === (BASE_URL ?: '') . '/sw.js') {
+    header('Content-Type: application/javascript; charset=utf-8');
+    header('Service-Worker-Allowed: ' . (BASE_URL ?: '/'));
+    header('Cache-Control: no-cache');
+    readfile(__DIR__ . '/public/sw.js');
+    exit;
+}
+
 // Global exception handler — ensures a clean HTTP response even on fatal errors
 set_exception_handler(function (\Throwable $e) {
     if (!headers_sent()) {
