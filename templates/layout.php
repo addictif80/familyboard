@@ -223,9 +223,8 @@ const APP_TIMEZONE = <?= json_encode(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'E
 <script src="<?= ASSETS_URL ?>/js/app.js?v=<?= APP_VERSION ?>"></script>
 <script>
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register(
-        '<?= BASE_URL ?>/public/sw.js?v=<?= APP_VERSION ?>'
-    ));
+    // Register as early as possible so .ready resolves before initPushSubscription runs
+    navigator.serviceWorker.register('<?= BASE_URL ?>/public/sw.js?v=<?= APP_VERSION ?>');
 }
 // PWA install prompt
 let deferredPrompt;

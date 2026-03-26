@@ -237,32 +237,43 @@ function urlBase64ToUint8Array(base64String) {
     return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
+// ── Push helpers ────────────────────────────────────────────────────────────
+
+// Resolve navigator.serviceWorker.ready with a timeout
+function _swReady(ms = 8000) {
+    return Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Service worker timeout — rechargez la page.')), ms)
+        ),
+    ]);
+}
+
 // ── Push state: 'unsupported' | 'denied' | 'inactive' | 'active' | 'no_vapid'
 function _pushUpdateUI(state) {
-    // Sidebar button
-    const sideBtn = document.getElementById('push-enable-btn');
+    const sideBtn   = document.getElementById('push-enable-btn');
     if (sideBtn) sideBtn.style.display = state === 'inactive' ? 'flex' : 'none';
 
-    // Settings page widgets (only present on /settings)
     const statusEl  = document.getElementById('push-status-text');
     const enableBtn = document.getElementById('push-settings-enable');
     const disableBtn= document.getElementById('push-settings-disable');
     const deniedMsg = document.getElementById('push-denied-msg');
     if (!statusEl) return;
 
-    statusEl.className = 'push-status-badge push-' + state;
     const labels = {
         active:      '🔔 Activées',
         inactive:    '🔕 Désactivées',
         denied:      '🚫 Bloquées par le navigateur',
-        unsupported: '⚠️ Non supportées',
+        unsupported: '⚠️ Non supportées sur cet appareil',
         no_vapid:    '⚙️ Non configurées (admin)',
     };
+    statusEl.className   = 'push-status-badge push-' + state;
     statusEl.textContent = labels[state] || state;
 
-    if (enableBtn)  enableBtn.style.display  = state === 'inactive' ? 'inline-flex' : 'none';
-    if (disableBtn) disableBtn.style.display  = state === 'active'  ? 'inline-flex' : 'none';
-    if (deniedMsg)  deniedMsg.style.display   = state === 'denied'  ? 'block'       : 'none';
+    if (enableBtn)  enableBtn.disabled      = false;
+    if (enableBtn)  enableBtn.style.display  = (state === 'inactive') ? 'inline-flex' : 'none';
+    if (disableBtn) disableBtn.style.display = (state === 'active')   ? 'inline-flex' : 'none';
+    if (deniedMsg)  deniedMsg.style.display  = (state === 'denied')   ? 'block'       : 'none';
 }
 
 async function initPushSubscription() {
@@ -271,28 +282,33 @@ async function initPushSubscription() {
     if (Notification.permission === 'denied') { _pushUpdateUI('denied'); return; }
 
     try {
-        const sw = await navigator.serviceWorker.ready;
+        const sw       = await _swReady();
         const existing = await sw.pushManager.getSubscription();
 
-        if (!existing) {
-            _pushUpdateUI('inactive');
-            return;
-        }
-        // Re-sync endpoint with server (best-effort, don't block UI update)
+        if (!existing) { _pushUpdateUI('inactive'); return; }
+
+        // Re-sync with server (best-effort — don't block UI)
         try {
             const j = existing.toJSON();
             await apiFetch(`${BASE_URL}/api/push/subscribe`, {
                 method: 'POST',
                 body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
             });
-        } catch (_) { /* re-sync is non-critical */ }
+        } catch (_) {}
         _pushUpdateUI('active');
-    } catch (e) { /* silent */ }
+    } catch (e) {
+        // SW timed out or other error → fall back to inactive so button stays usable
+        _pushUpdateUI('inactive');
+    }
 }
 
 async function enablePushNotifications() {
+    const enableBtn = document.getElementById('push-settings-enable');
+    if (enableBtn) enableBtn.disabled = true;
+
     if (typeof VAPID_PUBLIC_KEY === 'undefined') {
         Dialog.toast('Notifications push non configurées par l\'administrateur.', 'error');
+        if (enableBtn) enableBtn.disabled = false;
         return;
     }
     const perm = await Notification.requestPermission();
@@ -302,7 +318,7 @@ async function enablePushNotifications() {
         return;
     }
     try {
-        const sw  = await navigator.serviceWorker.ready;
+        const sw  = await _swReady();
         const sub = await sw.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
@@ -315,23 +331,26 @@ async function enablePushNotifications() {
                 body: JSON.stringify({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }),
             });
         } catch (e) {
-            Dialog.toast('Erreur réseau lors de l\'enregistrement : ' + e.message, 'error');
+            Dialog.toast('Erreur réseau : ' + e.message, 'error');
+            if (enableBtn) enableBtn.disabled = false;
             return;
         }
         if (!res || !res.success) {
             Dialog.toast('Erreur serveur : ' + (res?.error || JSON.stringify(res)), 'error');
+            if (enableBtn) enableBtn.disabled = false;
             return;
         }
         _pushUpdateUI('active');
         Dialog.toast('Notifications activées !', 'success');
     } catch (e) {
         Dialog.toast('Erreur : ' + e.message, 'error');
+        if (enableBtn) enableBtn.disabled = false;
     }
 }
 
 async function disablePushNotifications() {
     try {
-        const sw  = await navigator.serviceWorker.ready;
+        const sw  = await _swReady();
         const sub = await sw.pushManager.getSubscription();
         if (sub) {
             await apiFetch(`${BASE_URL}/api/push/unsubscribe`, {
@@ -343,7 +362,7 @@ async function disablePushNotifications() {
         _pushUpdateUI('inactive');
         Dialog.toast('Notifications désactivées.', 'info');
     } catch (e) {
-        Dialog.toast('Erreur lors de la désactivation.', 'error');
+        Dialog.toast('Erreur : ' + e.message, 'error');
     }
 }
 
