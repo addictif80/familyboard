@@ -28,6 +28,58 @@ class WebPush
         ];
     }
 
+    // ── Debug: send + return full details ──────────────────────
+
+    public static function sendDebug(
+        string $endpoint, string $p256dh, string $authKey,
+        string $vapidPublicB64u, string $vapidPrivatePem, string $payload
+    ): array {
+        $parsed   = parse_url($endpoint);
+        $audience = $parsed['scheme'] . '://' . $parsed['host'];
+        $jwt      = self::vapidJwt($audience, $vapidPrivatePem);
+
+        $headers = [
+            'TTL'           => '86400',
+            'Authorization' => 'vapid t=' . $jwt . ',k=' . $vapidPublicB64u,
+            'Content-Type'     => 'application/octet-stream',
+            'Content-Encoding' => 'aes128gcm',
+        ];
+
+        $body = self::encrypt($payload, $p256dh, $authKey);
+        $headers['Content-Length'] = (string)strlen($body);
+
+        $curlHeaders = [];
+        foreach ($headers as $k => $v) $curlHeaders[] = "$k: $v";
+
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $body,
+            CURLOPT_HTTPHEADER     => $curlHeaders,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_HEADER         => true,
+        ]);
+        $raw    = curl_exec($ch);
+        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err    = curl_error($ch);
+        $hsize  = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        curl_close($ch);
+
+        return [
+            'endpoint_host'  => $audience,
+            'http_status'    => $status,
+            'curl_error'     => $err ?: null,
+            'response_headers' => $raw ? substr($raw, 0, $hsize) : null,
+            'response_body'  => $raw ? trim(substr($raw, $hsize)) : null,
+            'payload_bytes'  => strlen($body),
+            'vapid_pub_len'  => strlen($vapidPublicB64u),
+            'p256dh_len'     => strlen($p256dh),
+        ];
+    }
+
     // ── Send one push notification ──────────────────────────────
 
     public static function send(

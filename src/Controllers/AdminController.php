@@ -182,6 +182,28 @@ class AdminController extends BaseController
 
     // ── Push notifications ───────────────────────────────────────
 
+    public function testPush(array $params): void
+    {
+        $this->requireSuperAdmin();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $vapid = AppSetting::getVapidKeys();
+        if (!$vapid) { echo json_encode(['error' => 'Clés VAPID absentes']); exit; }
+
+        $sub = Database::fetch('SELECT * FROM push_subscriptions LIMIT 1');
+        if (!$sub) { echo json_encode(['error' => 'Aucun abonné en base']); exit; }
+
+        $payload = json_encode(['title' => 'Test FamilyBoard', 'body' => 'Ceci est un test.', 'url' => '/']);
+
+        try {
+            $result = WebPush::sendDebug($sub['endpoint'], $sub['p256dh'], $sub['auth_key'], $vapid['public'], $vapid['private'], $payload);
+            echo json_encode($result);
+        } catch (\Throwable $e) {
+            echo json_encode(['exception' => $e->getMessage()]);
+        }
+        exit;
+    }
+
     public function generateVapidKeys(array $params): void
     {
         $this->requireSuperAdmin();

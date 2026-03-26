@@ -185,6 +185,7 @@ $router->post('/admin/users/:id/block', [AdminController::class, 'blockUser']);
 $router->post('/admin/users/:id/unblock', [AdminController::class, 'unblockUser']);
 $router->post('/admin/ips', [AdminController::class, 'addIp']);
 $router->post('/admin/ips/:id/delete', [AdminController::class, 'deleteIp']);
+$router->get('/admin/push/test', [AdminController::class, 'testPush']);
 $router->post('/admin/push/keys', [AdminController::class, 'generateVapidKeys']);
 $router->post('/admin/push/send', [AdminController::class, 'sendPush']);
 $router->get('/admin/tickets/:id', [AdminController::class, 'viewTicket']);

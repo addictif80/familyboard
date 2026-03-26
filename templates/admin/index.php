@@ -164,6 +164,16 @@
                 </form>
             </div>
         </div>
+        <?php if ($vapidPublic && $stats['push_subs'] > 0): ?>
+        <div class="card" style="max-width:600px;margin-top:1rem">
+            <div class="card-header"><h3>🔬 Diagnostic</h3></div>
+            <div style="padding:1rem">
+                <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:.75rem">Envoie un push test au premier abonné et affiche la réponse brute du service push.</p>
+                <button class="btn btn-secondary btn-sm" onclick="testPushDebug(this)">Lancer le test</button>
+                <pre id="push-debug-result" style="display:none;margin-top:.75rem;font-size:.75rem;background:var(--bg);padding:.75rem;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all"></pre>
+            </div>
+        </div>
+        <?php endif; ?>
         <?php if ($vapidPublic): ?>
         <div class="card" style="max-width:600px;margin-top:1rem">
             <div class="card-header"><h3>Envoyer une notification</h3></div>
@@ -224,6 +234,23 @@
         <?php endif; ?>
     </main>
 </div>
+<script>
+async function testPushDebug(btn) {
+    btn.disabled = true; btn.textContent = '⏳ Test en cours…';
+    const pre = document.getElementById('push-debug-result');
+    try {
+        const r = await fetch('<?= BASE_URL ?>/admin/push/test');
+        const data = await r.json();
+        pre.textContent = JSON.stringify(data, null, 2);
+        pre.style.display = 'block';
+        pre.style.color = (data.http_status >= 200 && data.http_status < 300) ? 'var(--success,green)' : 'var(--danger,red)';
+    } catch(e) {
+        pre.textContent = 'Erreur réseau : ' + e.message;
+        pre.style.display = 'block';
+    }
+    btn.disabled = false; btn.textContent = 'Relancer le test';
+}
+</script>
 <script src="<?= ASSETS_URL ?>/js/admin.js?v=<?= APP_VERSION ?>"></script>
 </body>
 </html>
