@@ -319,9 +319,16 @@ async function enablePushNotifications() {
     }
     try {
         const sw  = await _swReady();
+
+        // Debug info — visible dans la console F12
+        const keyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+        console.log('[Push] Notification.permission =', Notification.permission);
+        console.log('[Push] VAPID key length (doit être 65) =', keyBytes.length);
+        console.log('[Push] VAPID key[0] (doit être 4) =', keyBytes[0]);
+
         const sub = await sw.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+            applicationServerKey: keyBytes,
         });
         const j = sub.toJSON();
         let res;
@@ -343,7 +350,8 @@ async function enablePushNotifications() {
         _pushUpdateUI('active');
         Dialog.toast('Notifications activées !', 'success');
     } catch (e) {
-        Dialog.toast('Erreur : ' + e.message, 'error');
+        console.error('[Push] subscribe error:', e.name, e.message, e);
+        Dialog.toast('Erreur (' + e.name + ') : ' + e.message, 'error');
         if (enableBtn) enableBtn.disabled = false;
     }
 }
