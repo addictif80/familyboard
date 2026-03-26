@@ -184,13 +184,16 @@ class WebPush
             CURLOPT_SSL_VERIFYHOST => 2,
         ]);
 
-        curl_exec($ch);
-        $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err    = curl_error($ch);
+        $responseBody = curl_exec($ch);
+        $status       = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err          = curl_error($ch);
         curl_close($ch);
 
         if ($err) {
-            throw new \RuntimeException('WebPush curl error: ' . $err);
+            throw new \RuntimeException("curl: $err");
+        }
+        if ($status >= 400) {
+            throw new \RuntimeException("HTTP $status: " . substr($responseBody, 0, 300));
         }
 
         return $status >= 200 && $status < 300;
