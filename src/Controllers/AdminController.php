@@ -34,16 +34,16 @@ class AdminController extends BaseController
         $user = trim($_POST['username'] ?? '');
         $pass = $_POST['password'] ?? '';
 
-        // Credentials stored in app_settings take priority over config constants
+        // Each credential checked independently against db value or config fallback
         $storedUser = AppSetting::get('admin_username');
         $storedHash = AppSetting::get('admin_password_hash');
 
-        $ok = false;
-        if ($storedUser !== null && $storedHash !== null) {
-            $ok = hash_equals($storedUser, $user) && password_verify($pass, $storedHash);
-        } else {
-            $ok = hash_equals(ADMIN_USER, $user) && hash_equals(ADMIN_PASS, $pass);
-        }
+        $expectedUser = $storedUser ?? ADMIN_USER;
+        $validUser    = hash_equals($expectedUser, $user);
+        $validPass    = $storedHash !== null
+            ? password_verify($pass, $storedHash)
+            : hash_equals(ADMIN_PASS, $pass);
+        $ok = $validUser && $validPass;
 
         if ($ok) {
             $_SESSION['admin_logged_in'] = true;
