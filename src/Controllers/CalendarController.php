@@ -71,6 +71,40 @@ class CalendarController extends BaseController
                 }
             }
 
+            // Birthdays from contacts directory
+            $contactsWithBirthday = \App\Core\Database::fetchAll(
+                'SELECT id, first_name, last_name, birthday, color FROM contacts
+                  WHERE family_id=? AND birthday IS NOT NULL AND birthday != \'\' AND is_system=0',
+                [$user['family_id']]
+            );
+            if (!empty($contactsWithBirthday)) {
+                $startYear = (int)substr($start, 0, 4);
+                $endYear   = (int)substr($end,   0, 4);
+                foreach ($contactsWithBirthday as $c) {
+                    [$bYear, $bMonth, $bDay] = explode('-', $c['birthday']);
+                    for ($yr = $startYear; $yr <= $endYear; $yr++) {
+                        if ($bMonth === '02' && $bDay === '29' && !checkdate(2, 29, $yr)) continue;
+                        $bDate = sprintf('%04d-%s-%s', $yr, $bMonth, $bDay);
+                        if ($bDate < $start || $bDate > $end) continue;
+                        $age  = $yr - (int)$bYear;
+                        $name = trim($c['first_name'] . ' ' . $c['last_name']);
+                        $formatted[] = [
+                            'id'    => 'birthday_' . $c['id'] . '_' . $yr,
+                            'title' => '🎂 ' . $name . ($age > 0 ? ' (' . $age . ' ans)' : ''),
+                            'start' => $bDate,
+                            'end'   => $bDate,
+                            'allDay'=> true,
+                            'color' => $c['color'] ?: '#E91E63',
+                            'extendedProps' => [
+                                'type' => 'birthday',
+                                'name' => $name,
+                                'age'  => $age,
+                            ],
+                        ];
+                    }
+                }
+            }
+
             // Optionally include project deadlines
             if (!empty($_GET['projects'])) {
                 $deadlines = \App\Models\Project::getDeadlines($user['family_id'], $start, $end);

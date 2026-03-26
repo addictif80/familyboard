@@ -98,15 +98,18 @@ function renderCalendar() {
             <div class="cal-events">`;
 
         dayEvents.slice(0, 3).forEach(e => {
-            const isCustody = e.extendedProps?.type === 'custody';
-            const isProject = e.extendedProps?.type === 'project';
+            const isCustody  = e.extendedProps?.type === 'custody';
+            const isProject  = e.extendedProps?.type === 'project';
+            const isBirthday = e.extendedProps?.type === 'birthday';
             const onClick = isCustody
                 ? `window.location='${BASE_URL}/custody'`
                 : isProject
                     ? `window.location='${BASE_URL}/projects/${e.extendedProps.project_id}'`
-                    : `openEventDetails(${JSON.stringify(e.id)})`;
-            const label = isCustody ? '👶 ' : isProject ? '📋 ' : '';
-            const suffix = isCustody ? ' (Garde alternée)' : isProject ? ' (Projet)' : '';
+                    : isBirthday
+                        ? `window.location='${BASE_URL}/contacts'`
+                        : `openEventDetails(${JSON.stringify(e.id)})`;
+            const label  = isCustody ? '👶 ' : isProject ? '📋 ' : '';
+            const suffix = isCustody ? ' (Garde alternée)' : isProject ? ' (Projet)' : isBirthday ? ' (Anniversaire)' : '';
             html += `<div class="cal-event${isCustody ? ' cal-event-custody' : ''}"
                           style="background:${e.color || '#4A90D9'}"
                           onclick="event.stopPropagation();${onClick}"
@@ -163,14 +166,17 @@ function renderMobileAgenda(dateStr) {
         inner += `<p class="cal-agenda-empty">Aucun événement ce jour.</p>`;
     } else {
         dayEvents.forEach(e => {
-            const isCustody = e.extendedProps?.type === 'custody';
-            const isProject = e.extendedProps?.type === 'project';
+            const isCustody  = e.extendedProps?.type === 'custody';
+            const isProject  = e.extendedProps?.type === 'project';
+            const isBirthday = e.extendedProps?.type === 'birthday';
             const timeStr = e.start && e.start.length > 10 ? fmtEventTime(e.start) : 'Toute la journée';
             const onClick = isCustody
                 ? `window.location='${BASE_URL}/custody'`
                 : isProject
                     ? `window.location='${BASE_URL}/projects/${e.extendedProps.project_id}'`
-                    : `openEventDetails(${JSON.stringify(e.id)})`;
+                    : isBirthday
+                        ? `window.location='${BASE_URL}/contacts'`
+                        : `openEventDetails(${JSON.stringify(e.id)})`;
             const label = isCustody ? '👶 ' : isProject ? '📋 ' : '';
             inner += `<div class="cal-agenda-event" onclick="${onClick}" style="cursor:pointer">
                 <span class="cal-agenda-dot" style="background:${e.color || '#4A90D9'}"></span>
