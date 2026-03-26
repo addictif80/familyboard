@@ -328,7 +328,12 @@ async function enablePushNotifications() {
 
         // Unsubscribe any stale subscription (different VAPID key) before subscribing fresh
         const existing = await sw.pushManager.getSubscription();
-        if (existing) await existing.unsubscribe();
+        if (existing) {
+            const ok = await existing.unsubscribe();
+            console.log('[Push] Ancienne souscription supprimée :', ok, existing.endpoint);
+        } else {
+            console.log('[Push] Aucune souscription existante.');
+        }
 
         const sub = await sw.pushManager.subscribe({
             userVisibleOnly: true,
