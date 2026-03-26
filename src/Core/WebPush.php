@@ -16,10 +16,12 @@ class WebPush
             'private_key_type' => OPENSSL_KEYTYPE_EC,
         ]);
         $details = openssl_pkey_get_details($key);
-        // Uncompressed public key: 04 || x || y
-        $pub = "\x04"
-             . str_pad($details['ec']['x'], 32, "\x00", STR_PAD_LEFT)
-             . str_pad($details['ec']['y'], 32, "\x00", STR_PAD_LEFT);
+        // Extract uncompressed public key (04 || x || y, 65 bytes) from DER-encoded
+        // SubjectPublicKeyInfo — guaranteed correct regardless of OpenSSL version.
+        $derPub = base64_decode(str_replace(
+            ['-----BEGIN PUBLIC KEY-----', '-----END PUBLIC KEY-----', "\n"], '', $details['key']
+        ));
+        $pub = substr($derPub, -65);
         // Export full PEM for storage
         openssl_pkey_export($key, $privPem);
         return [
@@ -137,9 +139,10 @@ class WebPush
         // Ephemeral server key
         $srvKey  = openssl_pkey_new(['curve_name' => 'prime256v1', 'private_key_type' => OPENSSL_KEYTYPE_EC]);
         $det     = openssl_pkey_get_details($srvKey);
-        $srvPub  = "\x04"
-                 . str_pad($det['ec']['x'], 32, "\x00", STR_PAD_LEFT)
-                 . str_pad($det['ec']['y'], 32, "\x00", STR_PAD_LEFT);
+        $derSrv  = base64_decode(str_replace(
+            ['-----BEGIN PUBLIC KEY-----', '-----END PUBLIC KEY-----', "\n"], '', $det['key']
+        ));
+        $srvPub  = substr($derSrv, -65);
 
         // Import UA public key
         $uaPubKey      = openssl_pkey_get_public(self::rawPubToPem($uaPub));
