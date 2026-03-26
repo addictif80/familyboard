@@ -7,14 +7,13 @@ const VERSION = new URL(location.href).searchParams.get('v') || 'dev';
 const CACHE   = `familyboard-${VERSION}`;
 
 self.addEventListener('install', e => {
-    // Pre-cache core assets (with versioned URLs the browser already has)
+    // skipWaiting unconditionally — cache pre-population is best-effort only
+    self.skipWaiting();
     e.waitUntil(
-        caches.open(CACHE)
-            .then(c => c.addAll([
-                new URL(`/public/css/app.css?v=${VERSION}`, location).href,
-                new URL(`/public/js/app.js?v=${VERSION}`,  location).href,
-            ]))
-            .then(() => self.skipWaiting())
+        caches.open(CACHE).then(c => c.addAll([
+            new URL(`/public/css/app.css?v=${VERSION}`, location).href,
+            new URL(`/public/js/app.js?v=${VERSION}`,  location).href,
+        ])).catch(() => { /* ignore cache errors, SW must activate regardless */ })
     );
 });
 
