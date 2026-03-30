@@ -22,11 +22,48 @@ class SchoolHoliday
                 'angers','laval','saint-malo','cherbourg','le havre','evreux'],
     ];
 
+    /**
+     * Official French school holidays 2024-2025 and 2025-2026.
+     * Used as fallback when the government API is unreachable.
+     * Format: zone → [ [description, start_date, end_date], ... ]
+     */
+    private const FALLBACK = [
+        'A' => [
+            ['Vacances de la Toussaint',  '2024-10-19', '2024-11-03'],
+            ['Vacances de Noël',          '2024-12-21', '2025-01-05'],
+            ["Vacances d'hiver",          '2025-02-22', '2025-03-09'],
+            ['Vacances de printemps',     '2025-04-19', '2025-05-04'],
+            ['Vacances de la Toussaint',  '2025-10-18', '2025-11-02'],
+            ['Vacances de Noël',          '2025-12-20', '2026-01-04'],
+            ["Vacances d'hiver",          '2026-02-14', '2026-03-01'],
+            ['Vacances de printemps',     '2026-04-04', '2026-04-19'],
+        ],
+        'B' => [
+            ['Vacances de la Toussaint',  '2024-10-19', '2024-11-03'],
+            ['Vacances de Noël',          '2024-12-21', '2025-01-05'],
+            ["Vacances d'hiver",          '2025-02-08', '2025-02-23'],
+            ['Vacances de printemps',     '2025-04-05', '2025-04-20'],
+            ['Vacances de la Toussaint',  '2025-10-18', '2025-11-02'],
+            ['Vacances de Noël',          '2025-12-20', '2026-01-04'],
+            ["Vacances d'hiver",          '2026-02-07', '2026-02-22'],
+            ['Vacances de printemps',     '2026-04-11', '2026-04-26'],
+        ],
+        'C' => [
+            ['Vacances de la Toussaint',  '2024-10-19', '2024-11-03'],
+            ['Vacances de Noël',          '2024-12-21', '2025-01-05'],
+            ["Vacances d'hiver",          '2025-02-15', '2025-03-02'],
+            ['Vacances de printemps',     '2025-04-12', '2025-04-27'],
+            ['Vacances de la Toussaint',  '2025-10-18', '2025-11-02'],
+            ['Vacances de Noël',          '2025-12-20', '2026-01-04'],
+            ["Vacances d'hiver",          '2026-02-21', '2026-03-08'],
+            ['Vacances de printemps',     '2026-04-18', '2026-05-03'],
+        ],
+    ];
+
     /** Attempt to detect school zone from a free-form city name. */
     public static function detectZone(string $city): ?string
     {
         $city = strtolower(self::stripAccents($city));
-        // Remove common suffixes/prefixes for better matching
         $city = preg_replace('/\s+/', '-', trim($city));
         foreach (self::ZONE_MAP as $zone => $keywords) {
             foreach ($keywords as $kw) {
@@ -37,24 +74,35 @@ class SchoolHoliday
     }
 
     /**
-     * Return cached school holidays for a zone within the date range.
-     * Refreshes the cache automatically if stale (> 30 days) or empty.
+     * Return school holidays for a zone within the date range.
+     * Tries DB cache first (refreshed from API if stale), falls back to hardcoded data.
      */
     public static function getByZone(string $zone, string $start, string $end): array
     {
         if (!in_array($zone, ['A', 'B', 'C'], true)) return [];
-        if (self::isCacheStale($zone)) {
-            self::refreshCache($zone);
+
+        try {
+            if (self::isCacheStale($zone)) {
+                self::refreshCache($zone);
+            }
+            $rows = Database::fetchAll(
+                'SELECT description, start_date, end_date FROM school_holidays
+                  WHERE zone = ? AND end_date >= ? AND start_date <= ?
+                  ORDER BY start_date',
+                [$zone, $start, $end]
+            );
+            // If DB is still empty after refresh attempt, use hardcoded fallback
+            if (empty($rows)) {
+                return self::getFallback($zone, $start, $end);
+            }
+            return $rows;
+        } catch (\Throwable) {
+            // Table may not exist yet — use hardcoded fallback
+            return self::getFallback($zone, $start, $end);
         }
-        return Database::fetchAll(
-            'SELECT description, start_date, end_date FROM school_holidays
-              WHERE zone = ? AND end_date >= ? AND start_date <= ?
-              ORDER BY start_date',
-            [$zone, $start, $end]
-        );
     }
 
-    /** Force-refresh the cache for a given zone (called from admin or auto-refresh). */
+    /** Force-refresh the cache from the government API. */
     public static function refreshCache(string $zone): void
     {
         try {
@@ -90,8 +138,19 @@ class SchoolHoliday
                 );
             }
         } catch (\Throwable) {
-            // Graceful degradation — keep stale cache
+            // Graceful degradation — keep stale cache or fall back to hardcoded data
         }
+    }
+
+    private static function getFallback(string $zone, string $start, string $end): array
+    {
+        $result = [];
+        foreach (self::FALLBACK[$zone] ?? [] as [$desc, $s, $e]) {
+            if ($e >= $start && $s <= $end) {
+                $result[] = ['description' => $desc, 'start_date' => $s, 'end_date' => $e];
+            }
+        }
+        return $result;
     }
 
     private static function isCacheStale(string $zone): bool
