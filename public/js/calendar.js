@@ -101,19 +101,26 @@ function renderCalendar() {
             const isCustody  = e.extendedProps?.type === 'custody';
             const isProject  = e.extendedProps?.type === 'project';
             const isBirthday = e.extendedProps?.type === 'birthday';
+            const isVacation = e.extendedProps?.type === 'vacation';
+            const isSchool   = e.extendedProps?.type === 'school_holiday';
             const onClick = isCustody
                 ? `window.location='${BASE_URL}/custody'`
                 : isProject
                     ? `window.location='${BASE_URL}/projects/${e.extendedProps.project_id}'`
                     : isBirthday
                         ? `window.location='${BASE_URL}/contacts'`
-                        : `openEventDetails(${JSON.stringify(e.id)})`;
+                        : isVacation
+                            ? `deleteVacationPrompt(${e.extendedProps.vacation_id})`
+                            : isSchool
+                                ? ''
+                                : `openEventDetails(${JSON.stringify(e.id)})`;
             const label  = isCustody ? '👶 ' : isProject ? '📋 ' : '';
-            const suffix = isCustody ? ' (Garde alternée)' : isProject ? ' (Projet)' : isBirthday ? ' (Anniversaire)' : '';
+            const suffix = isCustody ? ' (Garde alternée)' : isProject ? ' (Projet)' : isBirthday ? ' (Anniversaire)' : isVacation ? ' — cliquer pour supprimer' : '';
             html += `<div class="cal-event${isCustody ? ' cal-event-custody' : ''}"
-                          style="background:${e.color || '#4A90D9'}"
+                          style="background:${e.color || '#4A90D9'};${isSchool ? 'opacity:.85' : ''}"
                           onclick="event.stopPropagation();${onClick}"
-                          title="${escapeHtml(e.title)}${suffix}">
+                          title="${escapeHtml(e.title)}${suffix}"
+                          ${isSchool ? '' : 'style="cursor:pointer"'}>
                 ${label}${escapeHtml(e.title)}
             </div>`;
         });
@@ -169,6 +176,8 @@ function renderMobileAgenda(dateStr) {
             const isCustody  = e.extendedProps?.type === 'custody';
             const isProject  = e.extendedProps?.type === 'project';
             const isBirthday = e.extendedProps?.type === 'birthday';
+            const isVacation = e.extendedProps?.type === 'vacation';
+            const isSchool   = e.extendedProps?.type === 'school_holiday';
             const timeStr = e.start && e.start.length > 10 ? fmtEventTime(e.start) : 'Toute la journée';
             const onClick = isCustody
                 ? `window.location='${BASE_URL}/custody'`
@@ -176,7 +185,9 @@ function renderMobileAgenda(dateStr) {
                     ? `window.location='${BASE_URL}/projects/${e.extendedProps.project_id}'`
                     : isBirthday
                         ? `window.location='${BASE_URL}/contacts'`
-                        : `openEventDetails(${JSON.stringify(e.id)})`;
+                        : isVacation
+                            ? `deleteVacationPrompt(${e.extendedProps.vacation_id})`
+                            : isSchool ? '' : `openEventDetails(${JSON.stringify(e.id)})`;
             const label = isCustody ? '👶 ' : isProject ? '📋 ' : '';
             inner += `<div class="cal-agenda-event" onclick="${onClick}" style="cursor:pointer">
                 <span class="cal-agenda-dot" style="background:${e.color || '#4A90D9'}"></span>
@@ -197,12 +208,12 @@ function loadEvents() {
     const month = currentDate.getMonth();
     const start = `${year}-${String(month+1).padStart(2,'0')}-01`;
     const end = `${year}-${String(month+1).padStart(2,'0')}-${new Date(year, month+1, 0).getDate()}`;
-    const custodyToggle = document.getElementById('custody-toggle');
-    const custody = custodyToggle && custodyToggle.checked ? 1 : 0;
-    const projectsToggle = document.getElementById('projects-toggle');
-    const projects = projectsToggle && projectsToggle.checked ? 1 : 0;
+    const custody   = document.getElementById('custody-toggle')?.checked ? 1 : 0;
+    const projects  = document.getElementById('projects-toggle')?.checked ? 1 : 0;
+    const vacations = document.getElementById('vacations-toggle')?.checked ? 1 : 0;
+    const school    = document.getElementById('school-toggle')?.checked ? 1 : 0;
 
-    fetch(`${BASE_URL}/api/calendar/events?start=${start}&end=${end}&custody=${custody}&projects=${projects}`)
+    fetch(`${BASE_URL}/api/calendar/events?start=${start}&end=${end}&custody=${custody}&projects=${projects}&vacations=${vacations}&school=${school}`)
         .then(r => r.json())
         .then(data => {
             events = data;
@@ -345,6 +356,42 @@ function filterCalendar() {
 
 function formatDateISO(d) {
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// ── Vacations ────────────────────────────────────────────────
+
+function openVacationModal(dateStr) {
+    const today = dateStr || formatDateISO(new Date());
+    document.getElementById('vac-title').value = 'Congé';
+    document.getElementById('vac-start').value = today;
+    document.getElementById('vac-end').value   = today;
+    openModal('vacation-modal');
+}
+
+async function saveVacation() {
+    const title = document.getElementById('vac-title').value.trim() || 'Congé';
+    const start = document.getElementById('vac-start').value;
+    const end   = document.getElementById('vac-end').value;
+    if (!start || !end) { Dialog.toast('Dates requises.', 'error'); return; }
+    if (end < start)    { Dialog.toast('La fin doit être après le début.', 'error'); return; }
+
+    const result = await apiFetch(`${BASE_URL}/api/calendar/vacations`, {
+        method: 'POST',
+        body: JSON.stringify({ title, start_date: start, end_date: end }),
+    });
+    if (result?.success) {
+        closeModal('vacation-modal');
+        loadEvents();
+    } else {
+        Dialog.toast('Erreur : ' + (result?.error || 'inconnue'), 'error');
+    }
+}
+
+async function deleteVacationPrompt(id) {
+    if (!await Dialog.confirm('Supprimer ce congé ?')) return;
+    const result = await apiFetch(`${BASE_URL}/api/calendar/vacations/${id}/delete`, { method: 'POST' });
+    if (result?.success) loadEvents();
+    else Dialog.toast('Erreur lors de la suppression.', 'error');
 }
 
 // Init

@@ -26,8 +26,21 @@ ob_start();
                 📋 Projets
             </label>
             <?php endif; ?>
+            <label class="member-filter" style="--color:#0EA5E9">
+                <input type="checkbox" id="vacations-toggle" checked onchange="loadEvents()">
+                🏖 Congés
+            </label>
+            <?php if (!empty($schoolZone)): ?>
+            <label class="member-filter" style="--color:#7C3AED">
+                <input type="checkbox" id="school-toggle" checked onchange="loadEvents()">
+                🎓 Vacances scolaires
+            </label>
+            <?php endif; ?>
+            <button class="btn btn-secondary btn-sm" onclick="openVacationModal()">
+                + Congé
+            </button>
             <button class="btn btn-secondary btn-sm" onclick="openCalDAVModal()">
-                🔗 Ajouter CalDAV
+                🔗 CalDAV
             </button>
             <button class="btn btn-primary btn-sm" onclick="openEventModal()">
                 + Événement
@@ -110,6 +123,36 @@ ob_start();
             <button class="btn btn-secondary" onclick="closeModal('event-modal')">Annuler</button>
             <button class="btn btn-danger" id="event-delete-btn" style="display:none" onclick="deleteEvent()">Supprimer</button>
             <button class="btn btn-primary" onclick="saveEvent()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Vacation Modal -->
+<div class="modal-overlay" id="vacation-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>🏖 Ajouter un congé</h3>
+            <button onclick="closeModal('vacation-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Intitulé</label>
+                <input type="text" id="vac-title" placeholder="Congé, vacances, RTT…" value="Congé">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Début *</label>
+                    <input type="date" id="vac-start">
+                </div>
+                <div class="form-group">
+                    <label>Fin *</label>
+                    <input type="date" id="vac-end">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('vacation-modal')">Annuler</button>
+            <button class="btn btn-primary" onclick="saveVacation()">Enregistrer</button>
         </div>
     </div>
 </div>

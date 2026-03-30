@@ -4,7 +4,10 @@ namespace App\Controllers;
 use App\Core\Session;
 use App\Models\Event;
 use App\Models\CalDAVSource;
+use App\Models\Family;
 use App\Models\User;
+use App\Models\Vacation;
+use App\Models\SchoolHoliday;
 use App\Models\Notification;
 
 class CalendarController extends BaseController
@@ -23,6 +26,8 @@ class CalendarController extends BaseController
         }
         $custodySchedules = \App\Models\Custody::getSchedules($familyId);
         $hasProjects = !empty(\App\Models\Project::getByFamily($familyId));
+        $family = Family::findById($familyId);
+        $schoolZone = $family['school_zone'] ?? null;
         require BASE_PATH . '/templates/calendar/index.php';
     }
 
@@ -68,6 +73,46 @@ class CalendarController extends BaseController
                             'is_recurring' => !empty($e['is_recurring']),
                         ],
                     ];
+                }
+            }
+
+            // Personal vacations
+            if (!empty($_GET['vacations'])) {
+                $vacations = Vacation::getByFamily($user['family_id'], $start, $end);
+                foreach ($vacations as $v) {
+                    $formatted[] = [
+                        'id'    => 'vacation_' . $v['id'],
+                        'title' => '🏖 ' . $v['title'] . ' — ' . $v['user_name'],
+                        'start' => $v['start_date'],
+                        'end'   => date('Y-m-d', strtotime($v['end_date'] . ' +1 day')),
+                        'allDay'=> true,
+                        'color' => $v['user_color'],
+                        'extendedProps' => [
+                            'type'        => 'vacation',
+                            'vacation_id' => (int)$v['id'],
+                            'user_id'     => (int)$v['user_id'],
+                        ],
+                    ];
+                }
+            }
+
+            // School holidays (if family has a configured zone)
+            if (!empty($_GET['school'])) {
+                $family     = Family::findById($user['family_id']);
+                $schoolZone = $family['school_zone'] ?? null;
+                if ($schoolZone) {
+                    $holidays = SchoolHoliday::getByZone($schoolZone, $start, $end);
+                    foreach ($holidays as $h) {
+                        $formatted[] = [
+                            'id'    => 'school_' . md5($h['zone'] . $h['start_date']),
+                            'title' => '🎓 ' . $h['description'],
+                            'start' => $h['start_date'],
+                            'end'   => date('Y-m-d', strtotime($h['end_date'] . ' +1 day')),
+                            'allDay'=> true,
+                            'color' => '#7C3AED',
+                            'extendedProps' => ['type' => 'school_holiday'],
+                        ];
+                    }
                 }
             }
 
@@ -170,6 +215,44 @@ class CalendarController extends BaseController
                 return ['success' => false, 'error' => 'Non autorisé'];
             }
             Event::delete($id);
+            return ['success' => true];
+        });
+    }
+
+    // ── Vacations ────────────────────────────────────────────────
+
+    public function createVacation(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            if (empty($data['start_date']) || empty($data['end_date'])) {
+                return ['success' => false, 'error' => 'Dates requises'];
+            }
+            if ($data['start_date'] > $data['end_date']) {
+                return ['success' => false, 'error' => 'La date de fin doit être après la date de début'];
+            }
+            $id = Vacation::create($user['family_id'], $user['id'], $data);
+            return ['success' => true, 'id' => $id];
+        });
+    }
+
+    public function deleteVacation(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user     = Session::user();
+            $id       = (int)$params['id'];
+            $vacation = Vacation::getById($id);
+            if (!$vacation || $vacation['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Non autorisé'];
+            }
+            // Only the owner can delete their vacation
+            if ($vacation['user_id'] !== $user['id']) {
+                return ['success' => false, 'error' => 'Vous ne pouvez supprimer que vos propres congés'];
+            }
+            Vacation::delete($id);
             return ['success' => true];
         });
     }

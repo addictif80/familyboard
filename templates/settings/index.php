@@ -81,6 +81,29 @@ ob_start();
                 <small style="color:var(--text-muted)">Affiché dans le bandeau de l'écran mural. Laisser vide pour utiliser la géolocalisation du navigateur.</small>
             </div>
             <div class="form-group">
+                <label>🎓 Zone scolaire (vacances scolaires sur le calendrier)</label>
+                <?php
+                    $currentZone = $family['school_zone'] ?? '';
+                    // Suggest a zone from weather_city if none set
+                    $suggestedZone = '';
+                    if (!$currentZone && !empty($family['weather_city'])) {
+                        $suggestedZone = \App\Models\SchoolHoliday::detectZone($family['weather_city']);
+                    }
+                ?>
+                <select name="school_zone">
+                    <option value="">— Désactivé —</option>
+                    <option value="A" <?= $currentZone === 'A' ? 'selected' : '' ?>>Zone A</option>
+                    <option value="B" <?= $currentZone === 'B' ? 'selected' : '' ?>>Zone B</option>
+                    <option value="C" <?= $currentZone === 'C' ? 'selected' : '' ?>>Zone C</option>
+                </select>
+                <small style="color:var(--text-muted)">
+                    <?php if ($suggestedZone): ?>
+                        Zone détectée d'après votre ville : <strong>Zone <?= htmlspecialchars($suggestedZone) ?></strong>.
+                    <?php endif; ?>
+                    Zone A : Lyon, Bordeaux, Grenoble… · Zone B : Marseille, Nantes, Lille… · Zone C : Paris, Toulouse, Montpellier…
+                </small>
+            </div>
+            <div class="form-group">
                 <label>🎥 URL go2rtc (lecture RTSP en direct)</label>
                 <input type="url" name="go2rtc_url"
                        value="<?= htmlspecialchars($family['go2rtc_url'] ?? '') ?>"

@@ -106,6 +106,8 @@ $router->get('/api/calendar/events', [CalendarController::class, 'apiEvents']);
 $router->post('/api/calendar/events', [CalendarController::class, 'create']);
 $router->post('/api/calendar/events/:id', [CalendarController::class, 'update']);
 $router->post('/api/calendar/events/:id/delete', [CalendarController::class, 'delete']);
+$router->post('/api/calendar/vacations', [CalendarController::class, 'createVacation']);
+$router->post('/api/calendar/vacations/:id/delete', [CalendarController::class, 'deleteVacation']);
 $router->post('/api/calendar/caldav', [CalendarController::class, 'addCalDAV']);
 $router->post('/api/calendar/caldav/:id/sync', [CalendarController::class, 'syncCalDAV']);
 $router->post('/api/calendar/caldav/:id/delete', [CalendarController::class, 'deleteCalDAV']);
