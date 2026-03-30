@@ -301,7 +301,7 @@ ob_start();
                 <tbody>
                 <?php foreach ($emailLogs as $log): ?>
                     <tr style="border-bottom:1px solid var(--border)">
-                        <td style="padding:.4rem .6rem;color:var(--text-muted)"><?= date('d/m H:i', strtotime($log['created_at'])) ?></td>
+                        <td style="padding:.4rem .6rem;color:var(--text-muted)"><?= \App\Core\DateHelper::fromUtc($log['created_at'], 'd/m H:i') ?></td>
                         <td style="padding:.4rem .6rem"><?= htmlspecialchars($log['to_email']) ?></td>
                         <td style="padding:.4rem .6rem"><?= htmlspecialchars(mb_substr($log['subject'], 0, 50)) ?><?= strlen($log['subject']) > 50 ? '…' : '' ?></td>
                         <td style="padding:.4rem .6rem"><span class="badge"><?= htmlspecialchars($log['type']) ?></span></td>

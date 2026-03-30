@@ -78,7 +78,7 @@ ob_start();
                         <div>
                             <strong><?= htmlspecialchars($post['user_name']) ?></strong>
                             <p><?= htmlspecialchars(mb_substr($post['content'], 0, 80)) ?><?= mb_strlen($post['content']) > 80 ? '…' : '' ?></p>
-                            <small><?= date('d/m à H:i', strtotime($post['created_at'])) ?></small>
+                            <small><?= \App\Core\DateHelper::fromUtc($post['created_at'], 'd/m \à H:i') ?></small>
                         </div>
                     </li>
                 <?php endforeach; ?>

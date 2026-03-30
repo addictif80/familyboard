@@ -30,7 +30,7 @@ ob_start();
                     <?= match($t['status']) { 'open'=>'🆕 Ouvert','in_progress'=>'💬 En cours','closed'=>'✅ Fermé',default=>$t['status'] } ?>
                 </span></td>
                 <td><?= $t['msg_count'] ?></td>
-                <td><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
+                <td><?= \App\Core\DateHelper::fromUtc($t['updated_at'], 'd/m/Y H:i') ?></td>
                 <td><a href="<?= BASE_URL ?>/support/<?= $t['id'] ?>" class="btn btn-secondary btn-sm">Voir</a></td>
             </tr>
             <?php endforeach; ?>

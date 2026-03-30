@@ -60,7 +60,7 @@ ob_start();
                 <span><?= htmlspecialchars($source['name']) ?></span>
                 <small><?= htmlspecialchars($source['user_name']) ?></small>
                 <?php if ($source['last_sync']): ?>
-                    <small>Sync: <?= date('d/m H:i', strtotime($source['last_sync'])) ?></small>
+                    <small>Sync: <?= \App\Core\DateHelper::fromUtc($source['last_sync'], 'd/m H:i') ?></small>
                 <?php endif; ?>
                 <button class="btn-icon-sm" onclick="syncCalDAV(<?= $source['id'] ?>)">🔄</button>
                 <button class="btn-icon-sm" onclick="deleteCalDAV(<?= $source['id'] ?>)">🗑</button>

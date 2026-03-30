@@ -58,7 +58,7 @@
                 <td><?= $f['id'] ?></td>
                 <td><strong><?= htmlspecialchars($f['name']) ?></strong></td>
                 <td><?= $f['member_count'] ?></td>
-                <td><?= date('d/m/Y', strtotime($f['created_at'])) ?></td>
+                <td><?= \App\Core\DateHelper::fromUtc($f['created_at'], 'd/m/Y') ?></td>
                 <td><a href="<?= BASE_URL ?>/admin?tab=users&family=<?= $f['id'] ?>" class="btn btn-secondary btn-sm">Voir membres</a></td>
             </tr>
             <?php endforeach; ?>
@@ -120,7 +120,7 @@
             <tr>
                 <td><code><?= htmlspecialchars($ip['ip']) ?></code></td>
                 <td><?= htmlspecialchars($ip['reason'] ?? '—') ?></td>
-                <td><?= date('d/m/Y H:i', strtotime($ip['created_at'])) ?></td>
+                <td><?= \App\Core\DateHelper::fromUtc($ip['created_at'], 'd/m/Y H:i') ?></td>
                 <td>
                     <form method="POST" action="<?= BASE_URL ?>/admin/ips/<?= $ip['id'] ?>/delete">
                         <button class="btn btn-secondary btn-sm">Débloquer</button>
@@ -147,7 +147,7 @@
                 <td><?= htmlspecialchars($t['user_name']) ?></td>
                 <td><?= htmlspecialchars($t['family_name']) ?></td>
                 <td><span class="badge badge-<?= $t['status'] === 'closed' ? 'ok' : ($t['status'] === 'in_progress' ? 'warn' : 'new') ?>"><?= match($t['status']) { 'open'=>'🆕 Ouvert','in_progress'=>'💬 En cours','closed'=>'✅ Fermé',default=>$t['status'] } ?></span></td>
-                <td><?= date('d/m/Y H:i', strtotime($t['updated_at'])) ?></td>
+                <td><?= \App\Core\DateHelper::fromUtc($t['updated_at'], 'd/m/Y H:i') ?></td>
                 <td><a href="<?= BASE_URL ?>/admin/tickets/<?= $t['id'] ?>" class="btn btn-secondary btn-sm">Voir</a></td>
             </tr>
             <?php endforeach; ?>

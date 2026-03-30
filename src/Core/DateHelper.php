@@ -95,6 +95,39 @@ class DateHelper
     }
 
     /**
+     * Format a datetime that is stored in UTC in the database,
+     * converting it to the family's timezone (APP_TIMEZONE constant).
+     * Use this for `created_at`, `updated_at`, `last_sync` columns.
+     *
+     * Example: DateHelper::fromUtc('2026-03-27 15:55:00', 'd/m/Y à H:i')
+     *          → '27/03/2026 à 17:55' (for Europe/Paris UTC+2)
+     */
+    public static function fromUtc(string $datetime, string $fmt = 'd/m/Y à H:i'): string
+    {
+        try {
+            $tz = defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Paris';
+            $dt = new \DateTime($datetime, new \DateTimeZone('UTC'));
+            $dt->setTimezone(new \DateTimeZone($tz));
+        } catch (\Exception) {
+            return '';
+        }
+        $n = (int)$dt->format('n');
+        $w = (int)$dt->format('w');
+
+        $replace = [];
+        if (str_contains($fmt, 'F')) $replace[$dt->format('F')] = self::$months[$n];
+        if (str_contains($fmt, 'M')) $replace[$dt->format('M')] = self::$monthsShort[$n];
+        if (str_contains($fmt, 'l')) $replace[$dt->format('l')] = self::$days[$w];
+        if (str_contains($fmt, 'D')) $replace[$dt->format('D')] = self::$daysShort[$w];
+
+        $result = $dt->format($fmt);
+        foreach ($replace as $en => $fr) {
+            $result = str_replace($en, $fr, $result);
+        }
+        return $result;
+    }
+
+    /**
      * Popular timezones list for the selector, grouped by region.
      */
     public static function timezoneList(): array

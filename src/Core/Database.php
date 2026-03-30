@@ -21,6 +21,9 @@ class Database
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false,
                 ]);
+                // Force MySQL session timezone to UTC so CURRENT_TIMESTAMP and
+                // NOW() always store UTC, regardless of the MySQL server config.
+                self::$instance->exec("SET time_zone = '+00:00'");
             } catch (PDOException $e) {
                 die(json_encode(['error' => 'Database connection failed']));
             }

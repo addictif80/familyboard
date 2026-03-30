@@ -1,4 +1,15 @@
 Options -Indexes
+
+# Increase PHP upload limits (mod_php / Apache)
+<IfModule mod_php.c>
+    php_value upload_max_filesize 20M
+    php_value post_max_size 25M
+</IfModule>
+<IfModule mod_php8.c>
+    php_value upload_max_filesize 20M
+    php_value post_max_size 25M
+</IfModule>
+
 RewriteEngine On
 
 # Force HTTPS - NE PAS ACTIVER si vous utilisez un reverse proxy (Nginx Proxy Manager, Traefik...)

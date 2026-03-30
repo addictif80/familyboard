@@ -27,7 +27,14 @@ class WallController extends BaseController
         $this->requireAuth();
         $user = Session::user();
         $content = trim($_POST['content'] ?? '');
+        $imageAttempted = !empty($_FILES['image']['name']);
         $imagePath = $this->uploadImage('image');
+
+        if ($imageAttempted && !$imagePath) {
+            Session::flash('error', 'L\'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement).');
+            header('Location: ' . BASE_URL . '/wall');
+            exit;
+        }
 
         if (!$content && !$imagePath) {
             Session::flash('error', 'Le post ne peut pas être vide.');

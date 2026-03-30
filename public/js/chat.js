@@ -56,8 +56,10 @@ function appendMessage(msg, own) {
 }
 
 function formatMsgTime(datetime) {
-    const d = new Date(datetime);
-    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    // DB stores UTC; append 'Z' so the browser parses it as UTC, then display in family TZ
+    const iso = datetime.includes('T') ? datetime : datetime.replace(' ', 'T') + 'Z';
+    const d = new Date(iso);
+    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIMEZONE });
 }
 
 async function deleteMessage(id) {

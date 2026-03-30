@@ -22,7 +22,7 @@ ob_start();
                         <div class="message-author" style="color:<?= htmlspecialchars($msg['user_color']) ?>"><?= htmlspecialchars($msg['user_name']) ?></div>
                     <?php endif; ?>
                     <div class="message-text"><?= nl2br(htmlspecialchars($msg['content'])) ?></div>
-                    <div class="message-time"><?= date('H:i', strtotime($msg['created_at'])) ?></div>
+                    <div class="message-time"><?= \App\Core\DateHelper::fromUtc($msg['created_at'], 'H:i') ?></div>
                 </div>
                 <?php if ($isOwn || $user['role'] === 'admin'): ?>
                     <button class="msg-delete-btn" onclick="deleteMessage(<?= $msg['id'] ?>)" title="Supprimer">✕</button>

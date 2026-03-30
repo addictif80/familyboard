@@ -36,7 +36,7 @@
         <p style="color:var(--text-muted);font-size:.85rem">
             Famille : <strong><?= htmlspecialchars($ticket['family_name']) ?></strong> ·
             Utilisateur : <strong><?= htmlspecialchars($ticket['user_name']) ?></strong> ·
-            Créé le <?= date('d/m/Y à H:i', strtotime($ticket['created_at'])) ?>
+            Créé le <?= \App\Core\DateHelper::fromUtc($ticket['created_at'], 'd/m/Y \\à H:i') ?>
         </p>
 
         <div class="support-thread" style="margin:1.5rem 0">
@@ -48,7 +48,7 @@
                     <?php else: ?>
                         <span class="msg-author" style="color:<?= htmlspecialchars($msg['user_color'] ?? '#4A90D9') ?>"><?= htmlspecialchars($msg['user_name'] ?? 'Utilisateur') ?></span>
                     <?php endif; ?>
-                    <span class="msg-time"><?= date('d/m/Y H:i', strtotime($msg['created_at'])) ?></span>
+                    <span class="msg-time"><?= \App\Core\DateHelper::fromUtc($msg['created_at'], 'd/m/Y H:i') ?></span>
                 </div>
                 <div class="msg-body"><?= nl2br(htmlspecialchars($msg['message'])) ?></div>
             </div>
