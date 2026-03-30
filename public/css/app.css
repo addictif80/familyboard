@@ -421,7 +421,7 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .calendar-container { }
 .calendar-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .calendar-filters { display: flex; gap: .5rem; flex-wrap: wrap; }
-.calendar-actions { display: flex; gap: .5rem; }
+.calendar-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
 .member-filter { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; font-size: .8rem; padding: .3rem .7rem; border-radius: 20px; background: var(--bg); border: 2px solid var(--color, var(--border)); color: var(--text); transition: background .15s, color .15s, border-color .15s; }
 .member-filter:has(input:checked) { background: var(--color, var(--primary)); border-color: var(--color, var(--primary)); color: #fff; }
 .member-filter input { display: none; }
@@ -823,15 +823,35 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
   .main-content { margin-left: 0; }
   .mobile-menu-btn { display: block; }
   .sidebar-toggle { display: block; }
+  .content-area { padding: 1rem; }
+
   .dashboard-grid { grid-template-columns: 1fr; }
   .budget-main-grid { grid-template-columns: 1fr; }
   .project-detail-grid { grid-template-columns: 1fr; }
-  .budget-summary { grid-template-columns: 1fr; }
+  .budget-summary { grid-template-columns: repeat(2, 1fr); }
   .tasks-container { flex-direction: column; }
   .tasks-sidebar { width: 100%; }
   .form-row { flex-direction: column; }
   .modal { margin: 0; border-radius: var(--radius) var(--radius) 0 0; position: fixed; bottom: 0; left: 0; right: 0; max-height: 92vh; }
   .modal-overlay { align-items: flex-end; padding: 0; }
+
+  /* Page headers */
+  .content-header { flex-wrap: wrap; gap: .5rem; }
+
+  /* Calendar toolbar */
+  .calendar-toolbar { flex-direction: column; align-items: flex-start; }
+  #calendar { min-height: 280px; }
+
+  /* Project detail header */
+  .project-detail-header { flex-wrap: wrap; }
+  .project-actions { width: 100%; justify-content: flex-end; flex-shrink: unset; }
+
+  /* Notifications panel */
+  .notifications-panel { width: calc(100vw - 2rem); right: 1rem; left: auto; }
+
+  /* Material items: hide qty/price columns, keep check/name/total/actions */
+  .material-item { grid-template-columns: 24px 1fr auto auto; }
+  .mat-qty, .mat-price { display: none; }
 
   /* Calendar: compact grid on mobile */
   .cal-day { min-height: 44px; padding: .25rem .2rem; }
@@ -944,4 +964,19 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
   .admin-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
   .admin-content { padding: 1rem; }
   .support-msg { max-width: 95%; }
+}
+
+/* ---- Extra-small screens (phones < 480px) ---- */
+@media (max-width: 480px) {
+  .content-area { padding: .75rem; }
+  .budget-summary { grid-template-columns: 1fr; }
+  .card { padding: 1rem; }
+  .cal-nav { padding: .65rem .5rem; gap: .25rem; }
+  .cal-nav h3 { font-size: .85rem; }
+  .quick-links { grid-template-columns: repeat(2, 1fr); }
+  .contacts-grid { grid-template-columns: 1fr; }
+  .card-welcome h2 { font-size: 1.1rem; }
+  .budget-nav h3 { font-size: .95rem; }
+  .modal { max-height: 96vh; }
+  .topbar { padding: 0 .75rem; }
 }
