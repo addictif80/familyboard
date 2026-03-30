@@ -337,6 +337,17 @@ ob_start();
 </style>
 
 <script>
+// Prevent double-submission on all settings forms
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.settings-container form').forEach(form => {
+        form.addEventListener('submit', e => {
+            const btn = form.querySelector('button[type="submit"]');
+            if (!btn || btn.disabled) { e.preventDefault(); return; }
+            btn.disabled = true;
+            btn.textContent = 'Enregistrement…';
+        });
+    });
+});
 function copyCode(code) {
     navigator.clipboard.writeText(code).then(() => Dialog.toast('Code copié !'));
 }

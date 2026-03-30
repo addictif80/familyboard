@@ -30,6 +30,13 @@ define('UPLOAD_DIR', BASE_PATH . '/public/uploads/');
 define('UPLOAD_MAX_SIZE', 10 * 1024 * 1024); // 10MB
 define('ALLOWED_IMAGE_TYPES', ['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
+// Ensure uploads directory exists and is writable by the web server
+if (!is_dir(UPLOAD_DIR)) {
+    @mkdir(UPLOAD_DIR, 0777, true);
+} elseif (!is_writable(UPLOAD_DIR)) {
+    @chmod(UPLOAD_DIR, 0777);
+}
+
 // Session
 define('SESSION_LIFETIME', 86400 * 30); // 30 days
 

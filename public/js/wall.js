@@ -91,3 +91,15 @@ async function loadMorePosts() {
     wallLoading = false;
     btn.textContent = 'Charger plus';
 }
+
+// Prevent double-submission on the post form (double-tap on mobile)
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('post-form');
+    if (!form) return;
+    form.addEventListener('submit', e => {
+        const btn = form.querySelector('button[type="submit"]');
+        if (!btn || btn.disabled) { e.preventDefault(); return; }
+        btn.disabled = true;
+        btn.textContent = 'Publication…';
+    });
+});
