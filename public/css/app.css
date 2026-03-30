@@ -422,7 +422,8 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .calendar-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .calendar-filters { display: flex; gap: .5rem; flex-wrap: wrap; }
 .calendar-actions { display: flex; gap: .5rem; }
-.member-filter { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; font-size: .8rem; padding: .3rem .7rem; border-radius: 20px; background: var(--bg); border: 2px solid var(--color, var(--border)); transition: all .15s; }
+.member-filter { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; font-size: .8rem; padding: .3rem .7rem; border-radius: 20px; background: var(--bg); border: 2px solid var(--color, var(--border)); color: var(--text); transition: background .15s, color .15s, border-color .15s; }
+.member-filter:has(input:checked) { background: var(--color, var(--primary)); border-color: var(--color, var(--primary)); color: #fff; }
 .member-filter input { display: none; }
 .caldav-list { }
 .caldav-item { display: flex; align-items: center; gap: .5rem; padding: .4rem 0; border-bottom: 1px solid var(--border); }
