@@ -1,4 +1,4 @@
-<div class="post-card" data-post-id="<?= $post['id'] ?>">
+<div class="post-card" id="post-<?= $post['id'] ?>" data-post-id="<?= $post['id'] ?>">
     <div class="post-header">
         <div class="user-avatar" style="background:<?= htmlspecialchars($post['user_color']) ?>">
             <?php if ($post['user_avatar']): ?>

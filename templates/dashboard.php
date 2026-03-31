@@ -75,11 +75,17 @@ ob_start();
                         <div class="user-avatar-sm" style="background:<?= htmlspecialchars($post['user_color']) ?>">
                             <?= mb_substr($post['user_name'], 0, 1) ?>
                         </div>
-                        <div>
+                        <div style="flex:1;min-width:0">
                             <strong><?= htmlspecialchars($post['user_name']) ?></strong>
-                            <p><?= htmlspecialchars(mb_substr($post['content'], 0, 80)) ?><?= mb_strlen($post['content']) > 80 ? '…' : '' ?></p>
+                            <?php $plain = mb_substr(strip_tags($post['content']), 0, 100); ?>
+                            <?php if ($plain): ?>
+                                <p><?= htmlspecialchars($plain) ?><?= mb_strlen(strip_tags($post['content'])) > 100 ? '…' : '' ?></p>
+                            <?php elseif ($post['image_path']): ?>
+                                <p style="color:var(--text-muted);font-style:italic">📷 Photo</p>
+                            <?php endif; ?>
                             <small><?= \App\Core\DateHelper::fromUtc($post['created_at'], 'd/m \à H:i') ?></small>
                         </div>
+                        <a href="<?= BASE_URL ?>/wall#post-<?= $post['id'] ?>" class="btn-text" style="flex-shrink:0;align-self:center">Lire</a>
                     </li>
                 <?php endforeach; ?>
             </ul>
