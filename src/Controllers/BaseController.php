@@ -100,6 +100,20 @@ class BaseController
             || !empty($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json');
     }
 
+    /**
+     * Strip HTML to a safe subset (bold, italic, lists, links…).
+     * Removes event handlers and javascript: hrefs.
+     */
+    protected function sanitizeHtml(string $html): string
+    {
+        $allowed = '<p><br><strong><b><em><i><u><s><h2><h3><ul><ol><li><blockquote><a><span><pre><code>';
+        $html = strip_tags($html, $allowed);
+        // Remove event-handler attributes and javascript: hrefs
+        $html = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $html);
+        $html = preg_replace('/href\s*=\s*["\']?\s*javascript:[^"\'>\s]*/i', 'href="#"', $html);
+        return $html;
+    }
+
     protected function uploadImage(string $field): ?string
     {
         if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) return null;

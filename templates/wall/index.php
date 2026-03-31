@@ -1,6 +1,7 @@
 <?php
 $pageTitle = 'Mur familial';
-$extraJs = ['wall.js'];
+$extraCss = ['quill.snow.css'];
+$extraJs  = ['quill.min.js', 'wall.js'];
 ob_start();
 ?>
 <div class="wall-container">
@@ -15,7 +16,10 @@ ob_start();
                         <?= mb_substr($user['name'], 0, 1) ?>
                     <?php endif; ?>
                 </div>
-                <textarea name="content" placeholder="Partagez quelque chose avec votre famille…" rows="2" id="post-content"></textarea>
+                <div class="post-quill-wrap">
+                    <div id="post-quill-editor"></div>
+                    <input type="hidden" name="content" id="post-content-hidden">
+                </div>
             </div>
             <div class="post-image-preview" id="image-preview" style="display:none">
                 <img id="preview-img" src="" alt="">
@@ -45,6 +49,24 @@ ob_start();
 
     <div class="load-more-container" id="load-more-container">
         <button class="btn btn-secondary" onclick="loadMorePosts()" id="load-more-btn">Charger plus</button>
+    </div>
+</div>
+
+<!-- Edit post modal -->
+<div class="modal-overlay" id="edit-post-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>✏️ Modifier la publication</h3>
+            <button onclick="closeModal('edit-post-modal')">✕</button>
+        </div>
+        <div class="modal-body" style="padding-bottom:.5rem">
+            <input type="hidden" id="edit-post-id">
+            <div id="edit-quill-editor"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('edit-post-modal')">Annuler</button>
+            <button class="btn btn-primary" id="edit-save-btn" onclick="saveEditPost()">Enregistrer</button>
+        </div>
     </div>
 </div>
 <?php

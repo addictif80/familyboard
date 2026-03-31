@@ -34,6 +34,11 @@ class Post
         );
     }
 
+    public static function update(int $id, string $content): void
+    {
+        Database::execute('UPDATE posts SET content=? WHERE id=?', [$content, $id]);
+    }
+
     public static function delete(int $id): void
     {
         Database::execute('DELETE FROM posts WHERE id=?', [$id]);

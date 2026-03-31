@@ -116,6 +116,7 @@ $router->post('/api/calendar/caldav/:id/delete', [CalendarController::class, 'de
 $router->get('/wall', [WallController::class, 'index']);
 $router->post('/wall', [WallController::class, 'create']);
 $router->post('/wall/:id/delete', [WallController::class, 'delete']);
+$router->post('/api/wall/:id/update', [WallController::class, 'update']);
 $router->post('/api/wall/:id/comment', [WallController::class, 'addComment']);
 $router->post('/api/wall/:id/react', [WallController::class, 'toggleReaction']);
 $router->get('/api/wall/more', [WallController::class, 'loadMore']);

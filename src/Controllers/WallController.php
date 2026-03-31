@@ -26,7 +26,7 @@ class WallController extends BaseController
     {
         $this->requireAuth();
         $user = Session::user();
-        $content = trim($_POST['content'] ?? '');
+        $content = $this->sanitizeHtml(trim($_POST['content'] ?? ''));
         $imageAttempted = !empty($_FILES['image']['name']);
         $imagePath = $this->uploadImage('image');
 
@@ -74,6 +74,32 @@ class WallController extends BaseController
         }
         header('Location: ' . BASE_URL . '/wall');
         exit;
+    }
+
+    public function update(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id = (int)$params['id'];
+            $post = Post::getById($id);
+
+            if (!$post || $post['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Post introuvable.'];
+            }
+            if ($post['user_id'] !== $user['id'] && $user['role'] !== 'admin') {
+                return ['success' => false, 'error' => 'Non autorisé.'];
+            }
+
+            $content = $this->sanitizeHtml(trim($this->jsonInput()['content'] ?? ''));
+            // Quill empty editor outputs '<p><br></p>'
+            if (!$content || $content === '<p><br></p>') {
+                return ['success' => false, 'error' => 'Le contenu ne peut pas être vide.'];
+            }
+
+            Post::update($id, $content);
+            return ['success' => true, 'content' => $content];
+        });
     }
 
     public function addComment(array $params): void

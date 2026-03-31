@@ -13,6 +13,11 @@
     <link rel="apple-touch-icon" href="<?= BASE_URL ?>/public/icons/icon-192.png">
     <!-- Styles -->
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css?v=<?= APP_VERSION ?>">
+    <?php if (isset($extraCss)): ?>
+        <?php foreach ((array)$extraCss as $css): ?>
+            <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/<?= $css ?>?v=<?= APP_VERSION ?>">
+        <?php endforeach; ?>
+    <?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
 </head>

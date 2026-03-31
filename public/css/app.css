@@ -388,8 +388,15 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .wall-container { max-width: 680px; margin: 0 auto; }
 .post-form-card { margin-bottom: 1rem; }
 .post-input-row { display: flex; gap: .75rem; align-items: flex-start; }
-.post-input-row textarea { flex: 1; resize: none; border-radius: 20px; padding: .6rem 1rem; background: var(--bg); border: none; }
-.post-input-row textarea:focus { box-shadow: none; background: #fff; border: 1px solid var(--primary); }
+.post-quill-wrap { flex: 1; min-width: 0; }
+/* Quill editor in post form */
+.post-quill-wrap .ql-container { border-radius: 0 0 12px 12px; background: var(--bg); border-color: transparent; min-height: 64px; font-size: .9rem; font-family: inherit; }
+.post-quill-wrap .ql-toolbar { border-radius: 12px 12px 0 0; background: var(--bg); border-color: transparent; border-bottom-color: var(--border); }
+.post-quill-wrap .ql-container:focus-within { background: #fff; }
+.post-quill-wrap .ql-editor.ql-blank::before { color: var(--text-muted); font-style: normal; font-size: .875rem; }
+/* Quill editor in edit modal */
+#edit-quill-editor .ql-container { min-height: 120px; border-radius: 0 0 8px 8px; font-family: inherit; font-size: .9rem; }
+#edit-quill-editor .ql-toolbar { border-radius: 8px 8px 0 0; }
 .post-actions { display: flex; justify-content: space-between; align-items: center; margin-top: .75rem; }
 .post-image-preview { position: relative; margin-top: .5rem; }
 .post-image-preview img { border-radius: 8px; max-height: 200px; }
@@ -399,8 +406,17 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .post-meta { flex: 1; }
 .post-meta strong { display: block; font-size: .875rem; }
 .post-date { font-size: .75rem; color: var(--text-muted); }
-.post-delete { margin-left: auto; }
+.post-actions-btns { display: flex; align-items: center; gap: .15rem; margin-left: auto; }
+.post-actions-btns form { margin: 0; }
+/* Quill-rendered content in posts */
 .post-content { margin-bottom: .75rem; line-height: 1.6; }
+.post-content.ql-content p { margin: 0 0 .35rem; }
+.post-content.ql-content p:last-child { margin-bottom: 0; }
+.post-content.ql-content ul, .post-content.ql-content ol { padding-left: 1.5rem; margin: .35rem 0; }
+.post-content.ql-content blockquote { border-left: 3px solid var(--border); padding-left: .75rem; color: var(--text-muted); margin: .35rem 0; }
+.post-content.ql-content h2 { font-size: 1.1rem; font-weight: 700; margin: .5rem 0 .25rem; }
+.post-content.ql-content h3 { font-size: 1rem; font-weight: 600; margin: .4rem 0 .2rem; }
+.post-content.ql-content a { color: var(--primary); text-decoration: underline; }
 .post-image { border-radius: 10px; overflow: hidden; margin-bottom: .75rem; cursor: zoom-in; }
 .post-footer { display: flex; gap: .75rem; padding-top: .5rem; border-top: 1px solid var(--border); }
 .reaction-btn { background: none; border: none; cursor: pointer; font-size: .875rem; padding: .3rem .6rem; border-radius: 20px; transition: all .15s; }

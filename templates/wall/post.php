@@ -12,14 +12,24 @@
             <span class="post-date"><?= \App\Core\DateHelper::fromUtc($post['created_at'], 'd/m/Y \à H:i') ?></span>
         </div>
         <?php if ($post['user_id'] === $user['id'] || $user['role'] === 'admin'): ?>
-            <form method="POST" action="<?= BASE_URL ?>/wall/<?= $post['id'] ?>/delete" class="post-delete" onsubmit="return confirmSubmit(this,'Supprimer ce post ?')">
-                <button type="submit" class="btn-icon-sm">🗑</button>
-            </form>
+            <div class="post-actions-btns">
+                <button class="btn-icon-sm" title="Modifier"
+                    onclick="openEditPost(<?= htmlspecialchars(json_encode(['id' => $post['id'], 'content' => $post['content']])) ?>)">✏️</button>
+                <form method="POST" action="<?= BASE_URL ?>/wall/<?= $post['id'] ?>/delete" class="post-delete" onsubmit="return confirmSubmit(this,'Supprimer ce post ?')">
+                    <button type="submit" class="btn-icon-sm">🗑</button>
+                </form>
+            </div>
         <?php endif; ?>
     </div>
 
     <?php if ($post['content']): ?>
-        <div class="post-content"><?= nl2br(htmlspecialchars($post['content'])) ?></div>
+        <div class="post-content ql-content">
+            <?php if (str_starts_with(ltrim($post['content']), '<')): ?>
+                <?= $post['content'] ?>
+            <?php else: ?>
+                <?= nl2br(htmlspecialchars($post['content'])) ?>
+            <?php endif; ?>
+        </div>
     <?php endif; ?>
 
     <?php if ($post['image_path']): ?>
