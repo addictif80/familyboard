@@ -44,14 +44,20 @@ class Family
     {
         $schoolZone = isset($settings['school_zone']) ? (trim($settings['school_zone']) ?: null) : null;
         if ($schoolZone !== null && !in_array($schoolZone, ['A', 'B', 'C'], true)) $schoolZone = null;
+
+        $allowedIntervals = [15, 30, 60, 120, 360, 720, 1440];
+        $syncInterval = isset($settings['caldav_sync_interval']) ? (int)$settings['caldav_sync_interval'] : 0;
+        $syncInterval = in_array($syncInterval, $allowedIntervals, true) ? $syncInterval : null;
+
         Database::execute(
-            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, go2rtc_url=?, school_zone=? WHERE id=?',
+            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, go2rtc_url=?, school_zone=?, caldav_sync_interval=? WHERE id=?',
             [
                 $name,
                 $settings['timezone'] ?: null,
                 isset($settings['weather_city']) ? (trim($settings['weather_city']) ?: null) : null,
                 isset($settings['go2rtc_url'])   ? (trim($settings['go2rtc_url'])   ?: null) : null,
                 $schoolZone,
+                $syncInterval,
                 $id,
             ]
         );
