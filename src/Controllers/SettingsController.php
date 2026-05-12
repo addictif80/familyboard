@@ -54,10 +54,11 @@ class SettingsController extends BaseController
         $tz   = $_POST['timezone'] ?? '';
         if (!$tz || !in_array($tz, \DateTimeZone::listIdentifiers())) $tz = null;
         if ($name) Family::update($user['family_id'], $name, [
-            'timezone'     => $tz,
-            'weather_city' => trim($_POST['weather_city'] ?? ''),
-            'go2rtc_url'   => trim($_POST['go2rtc_url']   ?? ''),
-            'school_zone'  => trim($_POST['school_zone']  ?? ''),
+            'timezone'             => $tz,
+            'weather_city'         => trim($_POST['weather_city']         ?? ''),
+            'go2rtc_url'           => trim($_POST['go2rtc_url']           ?? ''),
+            'school_zone'          => trim($_POST['school_zone']          ?? ''),
+            'caldav_sync_interval' => trim($_POST['caldav_sync_interval'] ?? ''),
         ]);
         Session::flash('success', 'Famille mise à jour.');
         header('Location: ' . BASE_URL . '/settings');

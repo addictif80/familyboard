@@ -113,6 +113,24 @@ ob_start();
                     Démarrer avec Docker : <code>docker run -d --network=host alexxit/go2rtc</code>
                 </small>
             </div>
+            <div class="form-group">
+                <label>🔄 Synchronisation automatique des calendriers CalDAV</label>
+                <?php $currentInterval = (int)($family['caldav_sync_interval'] ?? 0); ?>
+                <select name="caldav_sync_interval">
+                    <option value="0"    <?= $currentInterval === 0    ? 'selected' : '' ?>>— Désactivée —</option>
+                    <option value="15"   <?= $currentInterval === 15   ? 'selected' : '' ?>>Toutes les 15 minutes</option>
+                    <option value="30"   <?= $currentInterval === 30   ? 'selected' : '' ?>>Toutes les 30 minutes</option>
+                    <option value="60"   <?= $currentInterval === 60   ? 'selected' : '' ?>>Toutes les heures</option>
+                    <option value="120"  <?= $currentInterval === 120  ? 'selected' : '' ?>>Toutes les 2 heures</option>
+                    <option value="360"  <?= $currentInterval === 360  ? 'selected' : '' ?>>Toutes les 6 heures</option>
+                    <option value="720"  <?= $currentInterval === 720  ? 'selected' : '' ?>>Toutes les 12 heures</option>
+                    <option value="1440" <?= $currentInterval === 1440 ? 'selected' : '' ?>>Une fois par jour</option>
+                </select>
+                <small style="color:var(--text-muted)">
+                    Fréquence à laquelle le cron synchronise automatiquement tous les calendriers CalDAV de la famille.<br>
+                    Nécessite que le script <code>cron.php</code> soit planifié (ex. toutes les minutes : <code>* * * * * php /chemin/familyboard/cron.php</code>).
+                </small>
+            </div>
             <button type="submit" class="btn btn-primary">Enregistrer</button>
         </form>
         <div class="invite-section" style="margin-top:1rem">

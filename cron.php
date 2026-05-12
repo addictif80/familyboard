@@ -27,8 +27,12 @@ use App\Models\TaskList;
 use App\Models\EmailTemplate;
 use App\Models\EmailLog;
 use App\Models\SmtpSettings;
+use App\Models\CalDAVSource;
 
 $appUrl = (getenv('APP_URL') ?: 'https://board.abhd.fr') . BASE_URL;
+
+// Auto-sync CalDAV sources for families that have configured an interval
+syncCalDAVSources();
 
 // Get all families that have SMTP configured
 $families = Database::fetchAll(
@@ -50,6 +54,57 @@ foreach ($families as $family) {
 }
 
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;
+
+// ──────────────────────────────────────────────────────────────────────────
+// CalDAV auto-sync: synchronise les sources dont last_sync est dépassé
+// ──────────────────────────────────────────────────────────────────────────
+function syncCalDAVSources(): void
+{
+    $families = Database::fetchAll(
+        'SELECT * FROM families WHERE caldav_sync_interval IS NOT NULL AND caldav_sync_interval > 0'
+    );
+
+    foreach ($families as $family) {
+        $familyId = (int)$family['id'];
+        $interval = (int)$family['caldav_sync_interval'];
+
+        // Find an admin user for this family (needed to create events)
+        $admin = Database::fetch(
+            'SELECT id FROM users WHERE family_id=? AND role="admin" LIMIT 1',
+            [$familyId]
+        );
+        if (!$admin) continue;
+        $userId = (int)$admin['id'];
+
+        // Sources due for sync: never synced, or synced more than $interval minutes ago
+        $sources = Database::fetchAll(
+            'SELECT * FROM caldav_sources
+             WHERE family_id=?
+               AND (last_sync IS NULL OR last_sync <= DATE_SUB(NOW(), INTERVAL ? MINUTE))',
+            [$familyId, $interval]
+        );
+
+        foreach ($sources as $source) {
+            $events = CalDAVSource::fetchEvents($source);
+            if (empty($events)) {
+                CalDAVSource::updateSyncTime($source['id']);
+                echo "  [CalDAV] Source #{$source['id']} ({$source['name']}): fetch vide, last_sync mis à jour." . PHP_EOL;
+                continue;
+            }
+
+            Event::deleteBySource($source['id']);
+            $count = 0;
+            foreach ($events as $e) {
+                if ($e['start_datetime'] && $e['end_datetime']) {
+                    Event::createFromCalDAV($familyId, $userId, $source['id'], array_merge($e, ['color' => $source['color']]));
+                    $count++;
+                }
+            }
+            CalDAVSource::updateSyncTime($source['id']);
+            echo "  [CalDAV] Source #{$source['id']} ({$source['name']}): {$count} événement(s) synchronisé(s)." . PHP_EOL;
+        }
+    }
+}
 
 // ──────────────────────────────────────────────────────────────────────────
 // Event reminders: events starting in next 24h, not yet reminded

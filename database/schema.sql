@@ -25,8 +25,9 @@ CREATE TABLE IF NOT EXISTS families (
     weather_city     VARCHAR(100)  NULL DEFAULT NULL,
     go2rtc_url       VARCHAR(255)  NULL DEFAULT NULL,
     strix_url        VARCHAR(255)  NULL DEFAULT NULL,
-    disabled_modules JSON          NULL DEFAULT NULL,
-    created_at       DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    disabled_modules        JSON          NULL DEFAULT NULL,
+    caldav_sync_interval    SMALLINT      NULL DEFAULT NULL,
+    created_at              DATETIME      DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_invite (invite_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -472,7 +473,8 @@ ALTER TABLE families ADD COLUMN IF NOT EXISTS timezone         VARCHAR(50)  NOT 
 ALTER TABLE families ADD COLUMN IF NOT EXISTS weather_city     VARCHAR(100) NULL DEFAULT NULL;
 ALTER TABLE families ADD COLUMN IF NOT EXISTS strix_url        VARCHAR(255) NULL DEFAULT NULL;
 ALTER TABLE families ADD COLUMN IF NOT EXISTS go2rtc_url       VARCHAR(255) NULL DEFAULT NULL;
-ALTER TABLE families ADD COLUMN IF NOT EXISTS disabled_modules JSON         NULL DEFAULT NULL;
+ALTER TABLE families ADD COLUMN IF NOT EXISTS disabled_modules     JSON     NULL DEFAULT NULL;
+ALTER TABLE families ADD COLUMN IF NOT EXISTS caldav_sync_interval SMALLINT NULL DEFAULT NULL;
 
 ALTER TABLE custody_schedules ADD COLUMN IF NOT EXISTS recurrence_type          ENUM('none','every_other_day','every_other_week','every_2weeks','every_month') NOT NULL DEFAULT 'none';
 ALTER TABLE custody_schedules ADD COLUMN IF NOT EXISTS recurrence_start         DATE         NULL DEFAULT NULL;
