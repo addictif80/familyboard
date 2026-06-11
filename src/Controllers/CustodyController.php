@@ -145,4 +145,68 @@ class CustodyController extends BaseController
             return ['success' => true];
         });
     }
+
+    public function applyProposal(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user  = Session::user();
+            $data  = $this->jsonInput();
+            $scheduleId = (int)($data['schedule_id'] ?? 0);
+            $days  = $data['days'] ?? [];
+
+            $schedule = Custody::getScheduleById($scheduleId);
+            if (!$schedule || $schedule['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Planning introuvable'];
+            }
+
+            if (empty($days)) return ['success' => true, 'created' => 0];
+
+            // Group consecutive days with the same parent into blocks
+            usort($days, fn($a, $b) => strcmp($a['date'], $b['date']));
+
+            $blocks  = [];
+            $current = null;
+
+            foreach ($days as $day) {
+                if (!isset($day['parent_user_id']) || !$day['parent_user_id']) continue;
+                if (
+                    $current &&
+                    $current['parent_user_id'] === (int)$day['parent_user_id'] &&
+                    date('Y-m-d', strtotime($current['end_date'] . ' +1 day')) === $day['date']
+                ) {
+                    $current['end_date'] = $day['date'];
+                    $blocks[count($blocks) - 1] = $current;
+                } else {
+                    $current = [
+                        'parent_user_id' => (int)$day['parent_user_id'],
+                        'start_date'     => $day['date'],
+                        'end_date'       => $day['date'],
+                    ];
+                    $blocks[] = $current;
+                }
+            }
+
+            $created = 0;
+            foreach ($blocks as $block) {
+                Custody::createEvent($scheduleId, $block['parent_user_id'], [
+                    'start_date'     => $block['start_date'],
+                    'end_date'       => $block['end_date'],
+                    'arrival_time'   => null,
+                    'departure_time' => null,
+                    'notes'          => 'Proposition de garde',
+                ]);
+                $created++;
+            }
+
+            Notification::notifyFamily(
+                $user['family_id'], $user['id'], 'custody',
+                'Proposition de garde appliquée',
+                'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.',
+                BASE_URL . '/custody'
+            );
+
+            return ['success' => true, 'created' => $created];
+        });
+    }
 }
