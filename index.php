@@ -161,6 +161,7 @@ $router->post('/api/custody/schedule/:id/delete', [CustodyController::class, 'de
 $router->post('/api/custody/event', [CustodyController::class, 'createEvent']);
 $router->post('/api/custody/event/:id', [CustodyController::class, 'updateEvent']);
 $router->post('/api/custody/event/:id/delete', [CustodyController::class, 'deleteEvent']);
+$router->post('/api/custody/proposal/apply', [CustodyController::class, 'applyProposal']);
 
 // Projects
 $router->get('/projects', [ProjectController::class, 'index']);

@@ -121,7 +121,13 @@ class Custody
         $p2ok = $schedule['recurrence_parent2_id'] || !empty($schedule['recurrence_parent2_label']);
         if (!$p1ok || !$p2ok) return [];
 
-        $periodDays = match($schedule['recurrence_type']) {
+        $recType = $schedule['recurrence_type'];
+
+        if (in_array($recType, ['weekends_every_2', 'weekends_monthly'], true)) {
+            return self::generateWeekendEvents($schedule, $rangeStart, $rangeEnd);
+        }
+
+        $periodDays = match($recType) {
             'every_other_day'  => 1,
             'every_other_week' => 7,
             'every_2weeks'     => 14,
@@ -147,15 +153,12 @@ class Custody
             ],
         ];
 
-        // If recurrence hasn't started yet in this range, nothing to show
         if ($recStart > $rangeTo) return [];
 
         $events = [];
 
-        // Start from recStart; jump ahead efficiently if rangeFrom is well after recStart
         $current = clone $recStart;
         if ($rangeFrom > $recStart) {
-            // diff->days is always positive (absolute) and safe here since rangeFrom > recStart
             $diff = (int)$recStart->diff($rangeFrom)->days;
             $skip = max(0, (int)floor($diff / $periodDays) - 1);
             if ($skip > 0) {
@@ -170,15 +173,13 @@ class Custody
             $iterations++;
             $periodEnd = clone $current;
             $periodEnd->modify("+{$periodDays} days");
-            $periodEnd->modify('-1 day'); // inclusive end
+            $periodEnd->modify('-1 day');
 
-            // Which parent has this period?
             $totalDays = (int)$recStart->diff($current)->days;
             $periodIndex = (int)floor($totalDays / $periodDays);
             $parentKey = ($periodIndex % 2 === 0) ? 1 : 2;
             $parent = $parents[$parentKey];
 
-            // Only add if period overlaps the requested range
             if ($periodEnd >= $rangeFrom && $current <= $rangeTo) {
                 $events[] = [
                     'id'             => 'r_' . $schedule['id'] . '_' . $current->format('Ymd'),
@@ -198,6 +199,103 @@ class Custody
             }
 
             $current->modify("+{$periodDays} days");
+        }
+
+        return $events;
+    }
+
+    /**
+     * Generate weekend-only recurring custody events.
+     * weekends_every_2: alternating weekends (Sat+Sun) between parents
+     * weekends_monthly: one weekend per month, alternating between parents
+     */
+    private static function generateWeekendEvents(array $schedule, string $rangeStart, string $rangeEnd): array
+    {
+        $recType   = $schedule['recurrence_type'];
+        $recStart  = new \DateTime($schedule['recurrence_start']);
+        $rangeFrom = new \DateTime($rangeStart);
+        $rangeTo   = new \DateTime($rangeEnd);
+
+        if ($recStart > $rangeTo) return [];
+
+        $parents = [
+            1 => [
+                'id'    => $schedule['recurrence_parent1_id'],
+                'name'  => $schedule['recurrence_parent1_label'] ?: ($schedule['parent1_name'] ?? 'Parent 1'),
+                'color' => $schedule['recurrence_parent1_color'] ?: ($schedule['parent1_color'] ?? '#4A90D9'),
+            ],
+            2 => [
+                'id'    => $schedule['recurrence_parent2_id'],
+                'name'  => $schedule['recurrence_parent2_label'] ?: ($schedule['parent2_name'] ?? 'Parent 2'),
+                'color' => $schedule['recurrence_parent2_color'] ?: ($schedule['parent2_color'] ?? '#E74C3C'),
+            ],
+        ];
+
+        // Advance recStart to the first Saturday on or after it
+        $firstSat = clone $recStart;
+        $dow = (int)$firstSat->format('N'); // 1=Mon ... 6=Sat ... 7=Sun
+        if ($dow !== 6) {
+            $firstSat->modify('next saturday');
+        }
+
+        $events       = [];
+        $weekendIndex = 0; // counts all weekends since firstSat
+        $monthsSeen   = []; // for weekends_monthly: track distinct months
+
+        // Collect all relevant Saturdays from firstSat to rangeTo
+        $current = clone $firstSat;
+
+        while ($current <= $rangeTo) {
+            $sat = clone $current;
+            $sun = clone $current;
+            $sun->modify('+1 day');
+
+            // Determine which parent gets this weekend
+            if ($recType === 'weekends_every_2') {
+                // Alternate every weekend: even index = P1, odd = P2
+                $parentKey = ($weekendIndex % 2 === 0) ? 1 : 2;
+            } else {
+                // weekends_monthly: take only the 1st Saturday of each month, alternating P1/P2
+                $monthKey = (int)$current->format('Ym'); // e.g. 202407
+
+                if (!isset($monthsSeen[$monthKey])) {
+                    $monthsSeen[$monthKey] = count($monthsSeen);
+                }
+                $monthIndex = $monthsSeen[$monthKey];
+
+                // Only emit the FIRST weekend of the month (day <= 7)
+                $dayOfMonth = (int)$current->format('j');
+                if ($dayOfMonth > 7) {
+                    $current->modify('next saturday');
+                    $weekendIndex++;
+                    continue;
+                }
+                $parentKey = ($monthIndex % 2 === 0) ? 1 : 2;
+            }
+
+            $parent = $parents[$parentKey];
+
+            // Check overlap with range
+            if ($sun >= $rangeFrom && $sat <= $rangeTo) {
+                $events[] = [
+                    'id'             => 'r_' . $schedule['id'] . '_' . $sat->format('Ymd'),
+                    'schedule_id'    => $schedule['id'],
+                    'child_name'     => $schedule['child_name'],
+                    'schedule_color' => $schedule['color'],
+                    'parent_user_id' => $parent['id'],
+                    'parent_name'    => $parent['name'],
+                    'parent_color'   => $parent['color'],
+                    'start_date'     => $sat->format('Y-m-d'),
+                    'end_date'       => $sun->format('Y-m-d'),
+                    'arrival_time'   => null,
+                    'departure_time' => null,
+                    'notes'          => null,
+                    'is_recurring'   => true,
+                ];
+            }
+
+            $current->modify('next saturday');
+            $weekendIndex++;
         }
 
         return $events;
