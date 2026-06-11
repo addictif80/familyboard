@@ -95,6 +95,28 @@ ob_start();
         <div class="modal-body">
             <input type="hidden" id="cam-id">
 
+            <!-- Brand preset selector -->
+            <div class="form-group">
+                <label>Marque (aide à la configuration)</label>
+                <select id="cam-brand-preset" onchange="applyBrandPreset(this.value)">
+                    <option value="">— Choisir pour pré-remplir l'URL RTSP —</option>
+                    <optgroup label="Caméras populaires">
+                        <option value="tapo">TP-Link Tapo (C100, C200, C310, C320…)</option>
+                        <option value="hikvision">Hikvision</option>
+                        <option value="dahua">Dahua</option>
+                        <option value="reolink">Reolink</option>
+                        <option value="axis">Axis</option>
+                        <option value="amcrest">Amcrest / Foscam</option>
+                        <option value="uniview">Uniview (UNV)</option>
+                        <option value="ezviz">EZVIZ (Hikvision OEM)</option>
+                        <option value="annke">ANNKE / Ctronics</option>
+                        <option value="onvif">Générique ONVIF</option>
+                    </optgroup>
+                    <option value="manual">Saisie manuelle</option>
+                </select>
+            </div>
+            <div id="cam-brand-help" class="cam-brand-help" style="display:none"></div>
+
             <div class="form-row">
                 <div class="form-group flex-2">
                     <label>Nom *</label>
@@ -108,28 +130,29 @@ ob_start();
 
             <div class="form-group">
                 <label>Adresse IP / hôte *</label>
-                <input type="text" id="cam-host" placeholder="192.168.1.100 ou camera.local">
+                <input type="text" id="cam-host" placeholder="192.168.1.100 ou camera.local" oninput="rebuildRtspUrl()">
             </div>
 
             <div class="form-row">
                 <div class="form-group">
                     <label>Identifiant</label>
-                    <input type="text" id="cam-user" placeholder="admin" autocomplete="off">
+                    <input type="text" id="cam-user" placeholder="admin" autocomplete="off" oninput="rebuildRtspUrl()">
                 </div>
                 <div class="form-group">
                     <label>Mot de passe</label>
-                    <input type="password" id="cam-pass" placeholder="••••••••" autocomplete="new-password">
+                    <input type="password" id="cam-pass" placeholder="••••••••" autocomplete="new-password" oninput="rebuildRtspUrl()">
                 </div>
             </div>
 
             <div class="form-group">
                 <label>Modèle (optionnel)</label>
-                <input type="text" id="cam-model" placeholder="Hikvision DS-2CD…, Reolink…">
+                <input type="text" id="cam-model" placeholder="Tapo C200, Hikvision DS-2CD…">
             </div>
 
             <div class="form-group">
                 <label>URL du flux</label>
-                <input type="url" id="cam-stream-url" placeholder="http://192.168.1.100/video.cgi ou rtsp://…">
+                <input type="url" id="cam-stream-url" placeholder="rtsp://192.168.1.100:554/stream1 ou http://…/video.cgi">
+                <small class="field-hint" id="cam-url-hint" style="display:none"></small>
             </div>
 
             <div class="form-group">
@@ -139,7 +162,7 @@ ob_start();
                     <option value="mjpeg">MJPEG (lecture directe dans le navigateur)</option>
                     <option value="snapshot">Snapshot JPEG (rafraîchi toutes les 5 s)</option>
                     <option value="hls">HLS (lecture via player intégré)</option>
-                    <option value="rtsp">RTSP (URL uniquement, lecture externe)</option>
+                    <option value="rtsp">RTSP (via go2rtc — recommandé pour caméras IP)</option>
                 </select>
             </div>
 
@@ -156,6 +179,27 @@ ob_start();
 </div>
 
 <style>
+.cam-brand-help {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: .65rem .9rem;
+    font-size: .8rem;
+    color: #0c4a6e;
+    margin-bottom: .75rem;
+    line-height: 1.55;
+}
+.cam-brand-help strong { color: #0369a1; }
+.cam-brand-help a { color: #0369a1; }
+.cam-brand-help .cam-help-warn {
+    background: #fef9c3;
+    border: 1px solid #fde047;
+    border-radius: 5px;
+    padding: .3rem .6rem;
+    margin-top: .4rem;
+    color: #713f12;
+    font-size: .78rem;
+}
 .cam-rtsp-trigger {
     cursor: pointer;
     transition: background .15s;

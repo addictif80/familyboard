@@ -46,12 +46,171 @@ function camImgError(img) {
     wrap.prepend(ph);
 }
 
+// ── Brand presets ─────────────────────────────────────────────
+
+const CAM_PRESETS = {
+    tapo: {
+        label: 'TP-Link Tapo',
+        streamType: 'rtsp',
+        // {user}/{pass}/{ip} are replaced dynamically
+        rtspTemplate: 'rtsp://{user}:{pass}@{ip}:554/stream1',
+        subTemplate:  'rtsp://{user}:{pass}@{ip}:554/stream2',
+        help: `<strong>TP-Link Tapo</strong> — Pour activer le flux RTSP :<br>
+1. Ouvrez l'app Tapo → sélectionnez la caméra<br>
+2. ⚙️ Paramètres → Avancé → <strong>Services tiers</strong><br>
+3. Activez <strong>RTSP</strong> et notez les identifiants (souvent différents du compte Tapo)<br>
+Port par défaut : <strong>554</strong> &nbsp;|&nbsp; Flux principal : <code>/stream1</code> &nbsp;|&nbsp; Flux secondaire : <code>/stream2</code>
+<div class="cam-help-warn">⚠️ Les identifiants RTSP Tapo sont définis dans l'app, pas votre compte TP-Link.</div>`,
+    },
+    hikvision: {
+        label: 'Hikvision',
+        streamType: 'rtsp',
+        rtspTemplate: 'rtsp://{user}:{pass}@{ip}:554/Streaming/Channels/101',
+        subTemplate:  'rtsp://{user}:{pass}@{ip}:554/Streaming/Channels/102',
+        help: `<strong>Hikvision</strong> — RTSP activé par défaut.<br>
+Canal 1 flux principal : <code>/Streaming/Channels/101</code><br>
+Canal 1 flux secondaire : <code>/Streaming/Channels/102</code><br>
+Port par défaut : <strong>554</strong>`,
+    },
+    dahua: {
+        label: 'Dahua',
+        streamType: 'rtsp',
+        rtspTemplate: 'rtsp://{user}:{pass}@{ip}:554/cam/realmonitor?channel=1&subtype=0',
+        subTemplate:  'rtsp://{user}:{pass}@{ip}:554/cam/realmonitor?channel=1&subtype=1',
+        help: `<strong>Dahua</strong> — RTSP activé par défaut.<br>
+Flux principal : <code>subtype=0</code> &nbsp;|&nbsp; Flux secondaire : <code>subtype=1</code><br>
+Port par défaut : <strong>554</strong>`,
+    },
+    reolink: {
+        label: 'Reolink',
+        streamType: 'rtsp',
+        rtspTemplate: 'rtsp://{user}:{pass}@{ip}:554/h264Preview_01_main',
+        subTemplate:  'rtsp://{user}:{pass}@{ip}:554/h264Preview_01_sub',
+        help: `<strong>Reolink</strong> — Activez le RTSP dans l'interface web de la caméra → Réseau → Avancé → Port RTSP.<br>
+Flux principal : <code>/h264Preview_01_main</code><br>
+Port par défaut : <strong>554</strong>`,
+    },
+    axis: {
+        label: 'Axis',
+        streamType: 'rtsp',
+        rtspTemplate: 'rtsp://{user}:{pass}@{ip}:554/axis-media/media.amp',
+        subTemplate:  'rtsp://{user}:{pass}@{ip}:554/axis-media/media.amp?videocodec=h264&resolution=640x480',
+        help: `<strong>Axis</strong> — RTSP activé par défaut.<br>
+URL principale : <code>/axis-media/media.amp</code><br>
+Port par défaut : <strong>554</strong>`,
+    },
+    amcrest: {
+        label: 'Amcrest / Foscam',
+        streamType: 'rtsp',
+        rtspTemplate: 'rtsp://{user}:{pass}@{ip}:554/cam/realmonitor?channel=1&subtype=0',
+        subTemplate:  'rtsp://{user}:{pass}@{ip}:554/cam/realmonitor?channel=1&subtype=1',
+        help: `<strong>Amcrest / Foscam</strong> — Format similaire à Dahua (même OEM pour certains modèles).<br>
+Activez le RTSP dans l'interface web → Réglages réseau → Protocoles.<br>
+Port par défaut : <strong>554</strong>`,
+    },
+    uniview: {
+        label: 'Uniview (UNV)',
+        streamType: 'rtsp',
+        rtspTemplate: 'rtsp://{user}:{pass}@{ip}:554/media/video1',
+        subTemplate:  'rtsp://{user}:{pass}@{ip}:554/media/video2',
+        help: `<strong>Uniview</strong> — RTSP activé par défaut.<br>
+Flux principal : <code>/media/video1</code><br>
+Port par défaut : <strong>554</strong>`,
+    },
+    ezviz: {
+        label: 'EZVIZ (Hikvision OEM)',
+        streamType: 'rtsp',
+        rtspTemplate: 'rtsp://{user}:{pass}@{ip}:554/Streaming/Channels/101',
+        subTemplate:  'rtsp://{user}:{pass}@{ip}:554/Streaming/Channels/102',
+        help: `<strong>EZVIZ</strong> — Basé sur Hikvision, même format d'URL RTSP.<br>
+Activez le RTSP dans l'app EZVIZ → Paramètres → Accès LAN RTSP.<br>
+Port par défaut : <strong>554</strong>
+<div class="cam-help-warn">⚠️ Les identifiants RTSP sont les identifiants de vérification de la caméra, pas votre compte EZVIZ.</div>`,
+    },
+    annke: {
+        label: 'ANNKE / Ctronics',
+        streamType: 'rtsp',
+        rtspTemplate: 'rtsp://{user}:{pass}@{ip}:554/Streaming/Channels/101',
+        subTemplate:  'rtsp://{user}:{pass}@{ip}:554/Streaming/Channels/102',
+        help: `<strong>ANNKE / Ctronics</strong> — Basé sur Hikvision pour la plupart des modèles.<br>
+Format Hikvision standard. Port par défaut : <strong>554</strong>`,
+    },
+    onvif: {
+        label: 'Générique ONVIF',
+        streamType: 'rtsp',
+        rtspTemplate: 'rtsp://{user}:{pass}@{ip}:554/onvif1',
+        subTemplate:  null,
+        help: `<strong>Générique ONVIF</strong> — La plupart des caméras IP supportent ONVIF.<br>
+L'URL RTSP exacte varie selon le modèle. Essayez :<br>
+<code>/onvif1</code>, <code>/stream1</code>, <code>/live/ch0</code>, <code>/h264</code><br>
+Utilisez un outil comme <strong>ONVIF Device Manager</strong> (Windows, gratuit) pour découvrir l'URL exacte automatiquement.`,
+    },
+    manual: {
+        label: 'Saisie manuelle',
+        streamType: null,
+        rtspTemplate: null,
+        help: null,
+    },
+};
+
+let _currentPreset = null;
+
+function applyBrandPreset(brand) {
+    const preset = CAM_PRESETS[brand];
+    const helpBox = document.getElementById('cam-brand-help');
+    const urlHint = document.getElementById('cam-url-hint');
+
+    if (!preset || !preset.rtspTemplate) {
+        helpBox.style.display = 'none';
+        urlHint.style.display = 'none';
+        _currentPreset = null;
+        return;
+    }
+
+    _currentPreset = preset;
+
+    // Show help
+    helpBox.innerHTML = preset.help;
+    helpBox.style.display = 'block';
+
+    // Set stream type
+    if (preset.streamType) {
+        document.getElementById('cam-stream-type').value = preset.streamType;
+    }
+
+    // Show URL template hint
+    if (preset.subTemplate) {
+        urlHint.textContent = `Flux secondaire (qualité réduite) : ${preset.subTemplate.replace('{user}', 'user').replace('{pass}', 'pass').replace('{ip}', 'IP')}`;
+        urlHint.style.display = 'block';
+    } else {
+        urlHint.style.display = 'none';
+    }
+
+    rebuildRtspUrl();
+}
+
+function rebuildRtspUrl() {
+    if (!_currentPreset || !_currentPreset.rtspTemplate) return;
+    const ip   = document.getElementById('cam-host').value.trim();
+    const user = document.getElementById('cam-user').value.trim();
+    const pass = document.getElementById('cam-pass').value;
+    if (!ip) return;
+
+    const url = _currentPreset.rtspTemplate
+        .replace('{ip}',   ip)
+        .replace('{user}', encodeURIComponent(user || 'admin'))
+        .replace('{pass}', encodeURIComponent(pass || ''));
+
+    document.getElementById('cam-stream-url').value = url;
+}
+
 // ── Camera CRUD ───────────────────────────────────────────────
 
 let _editCamId = null;
 
 function openCameraModal() {
     _editCamId = null;
+    _currentPreset = null;
     document.getElementById('cam-modal-title').textContent = 'Nouvelle caméra';
     document.getElementById('cam-id').value = '';
     document.getElementById('cam-name').value = '';
@@ -63,11 +222,18 @@ function openCameraModal() {
     document.getElementById('cam-stream-type').value = 'other';
     document.getElementById('cam-notes').value = '';
     document.getElementById('cam-order').value = '0';
+    document.getElementById('cam-brand-preset').value = '';
+    document.getElementById('cam-brand-help').style.display = 'none';
+    document.getElementById('cam-url-hint').style.display = 'none';
     openModal('camera-modal');
 }
 
 function openEditCameraModal(cam) {
     _editCamId = cam.id;
+    _currentPreset = null;
+    document.getElementById('cam-brand-preset').value = '';
+    document.getElementById('cam-brand-help').style.display = 'none';
+    document.getElementById('cam-url-hint').style.display = 'none';
     document.getElementById('cam-modal-title').textContent = 'Modifier la caméra';
     document.getElementById('cam-id').value = cam.id;
     document.getElementById('cam-name').value = cam.name;
