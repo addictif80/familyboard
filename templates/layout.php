@@ -145,6 +145,14 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 </a>
             </li>
             <?php endif; ?>
+            <?php if (!in_array('baby', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/baby') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/baby" class="nav-link">
+                    <span class="nav-icon">🍼</span>
+                    <span class="nav-label">Bébé</span>
+                </a>
+            </li>
+            <?php endif; ?>
         </ul>
 
         <div class="sidebar-footer">

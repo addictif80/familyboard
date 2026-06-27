@@ -50,6 +50,7 @@ use App\Controllers\WarrantyController;
 use App\Controllers\DocumentController;
 use App\Controllers\FamilyWallController;
 use App\Controllers\CameraController;
+use App\Controllers\BabyController;
 
 Session::start();
 
@@ -256,6 +257,30 @@ $router->post('/api/documents/ocr', [DocumentController::class, 'ocr']);
 $router->get('/api/documents/search', [DocumentController::class, 'search']);
 $router->post('/api/documents/:id', [DocumentController::class, 'update']);
 $router->post('/api/documents/:id/delete', [DocumentController::class, 'delete']);
+
+// Baby
+$router->get('/baby', [BabyController::class, 'index']);
+$router->post('/api/baby', [BabyController::class, 'createBaby']);
+$router->post('/api/baby/:id', [BabyController::class, 'updateBaby']);
+$router->post('/api/baby/:id/avatar', [BabyController::class, 'uploadBabyAvatar']);
+$router->post('/api/baby/:id/delete', [BabyController::class, 'deleteBaby']);
+$router->get('/api/baby/:baby_id/pregnancy', [BabyController::class, 'getPregnancy']);
+$router->post('/api/baby/:baby_id/pregnancy', [BabyController::class, 'upsertPregnancy']);
+$router->post('/api/baby/pregnancy/:pregnancy_id/consultations', [BabyController::class, 'createPregnancyConsultation']);
+$router->post('/api/baby/pregnancy-consultations/:id/delete', [BabyController::class, 'deletePregnancyConsultation']);
+$router->post('/api/baby/pregnancy-images/:id/delete', [BabyController::class, 'deletePregnancyImage']);
+$router->get('/api/baby/:baby_id/events', [BabyController::class, 'apiEvents']);
+$router->post('/api/baby/:baby_id/events', [BabyController::class, 'createEvent']);
+$router->post('/api/baby/:baby_id/events/:id', [BabyController::class, 'updateEvent']);
+$router->post('/api/baby/:baby_id/events/:id/delete', [BabyController::class, 'deleteEvent']);
+$router->post('/api/baby/:baby_id/sleeps', [BabyController::class, 'createSleep']);
+$router->post('/api/baby/:baby_id/sleeps/:id', [BabyController::class, 'updateSleep']);
+$router->post('/api/baby/:baby_id/sleeps/:id/end', [BabyController::class, 'endSleep']);
+$router->post('/api/baby/:baby_id/sleeps/:id/delete', [BabyController::class, 'deleteSleep']);
+$router->get('/api/baby/:baby_id/consultations', [BabyController::class, 'apiConsultations']);
+$router->post('/api/baby/:baby_id/consultations', [BabyController::class, 'createConsultation']);
+$router->post('/api/baby/:baby_id/consultations/:id', [BabyController::class, 'updateConsultation']);
+$router->post('/api/baby/:baby_id/consultations/:id/delete', [BabyController::class, 'deleteConsultation']);
 
 // Family Wall (écran mural)
 $router->get('/family-wall', [FamilyWallController::class, 'index']);
