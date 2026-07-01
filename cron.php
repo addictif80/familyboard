@@ -48,6 +48,7 @@ foreach ($families as $family) {
     date_default_timezone_set($tz);
 
     sendEventReminders($familyId, $members, $appUrl);
+    sendTomorrowEventDigest($familyId, $members, $appUrl);
     sendTaskReminders($familyId, $members, $appUrl);
     sendShoppingReminders($familyId, $members, $appUrl);
     sendRecurringAlerts($familyId, $appUrl);
@@ -316,5 +317,64 @@ function sendShoppingReminders(int $familyId, array $members, string $appUrl): v
 
             echo "  → Shopping reminder sent to {$member['email']} for list #{$list['id']}" . PHP_EOL;
         }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// J-1 digest: one email per member listing all events tomorrow
+// ──────────────────────────────────────────────────────────────────────────
+function sendTomorrowEventDigest(int $familyId, array $members, string $appUrl): void
+{
+    $tomorrow = date('Y-m-d', strtotime('+1 day'));
+
+    $events = Database::fetchAll(
+        'SELECT e.*, u.name as user_name FROM events e JOIN users u ON u.id=e.user_id
+         WHERE e.family_id=?
+           AND DATE(e.start_datetime) = ?
+         ORDER BY e.start_datetime ASC',
+        [$familyId, $tomorrow]
+    );
+
+    if (empty($events)) return;
+
+    foreach ($members as $member) {
+        if (empty($member['email'])) continue;
+
+        // Deduplicate: one digest per member per day
+        $alreadySent = Database::fetch(
+            'SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=?
+             AND DATE(created_at) = CURDATE()',
+            [$familyId, 'event_tomorrow_digest', $member['email']]
+        );
+        if ($alreadySent) continue;
+
+        $rows = '';
+        foreach ($events as $e) {
+            $time = $e['is_all_day']
+                ? 'Toute la journée'
+                : date('H\hi', strtotime($e['start_datetime']));
+            $rows .= '<tr><td style="padding:.3rem .6rem;font-weight:600">' . htmlspecialchars($e['title']) . '</td>'
+                   . '<td style="padding:.3rem .6rem;color:#666">' . $time . '</td>'
+                   . '<td style="padding:.3rem .6rem;color:#666">' . htmlspecialchars($e['user_name']) . '</td></tr>';
+        }
+
+        $body = '<!DOCTYPE html><html><body style="font-family:sans-serif;color:#222">'
+              . '<h2>📅 Événements du ' . DateHelper::format($tomorrow, 'd/m/Y') . '</h2>'
+              . '<p>Bonjour ' . htmlspecialchars($member['name']) . ',</p>'
+              . '<p>Voici les événements prévus demain :</p>'
+              . '<table style="border-collapse:collapse;width:100%"><thead><tr>'
+              . '<th style="text-align:left;padding:.3rem .6rem;border-bottom:2px solid #eee">Titre</th>'
+              . '<th style="text-align:left;padding:.3rem .6rem;border-bottom:2px solid #eee">Heure</th>'
+              . '<th style="text-align:left;padding:.3rem .6rem;border-bottom:2px solid #eee">Ajouté par</th>'
+              . '</tr></thead><tbody>' . $rows . '</tbody></table>'
+              . '<p style="margin-top:1.5rem"><a href="' . $appUrl . '/calendar" style="color:#4f6ef7">Voir le calendrier</a></p>'
+              . '</body></html>';
+
+        $subject = '📅 ' . count($events) . ' événement' . (count($events) > 1 ? 's' : '') . ' demain';
+
+        Mail::send($familyId, $member['email'], $member['name'],
+            $subject, $body, 'event_tomorrow_digest');
+
+        echo "  → Tomorrow digest sent to {$member['email']} (" . count($events) . " events)" . PHP_EOL;
     }
 }
