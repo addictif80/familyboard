@@ -78,11 +78,11 @@ const BabyApp = (() => {
     // ── Modal helpers ─────────────────────────────────────────
 
     function openModal(id) {
-        document.getElementById(id).classList.remove('hidden');
+        document.getElementById(id).style.display = 'flex';
     }
 
     function closeModal(id) {
-        document.getElementById(id).classList.add('hidden');
+        document.getElementById(id).style.display = 'none';
     }
 
     // ── Baby selection ────────────────────────────────────────
@@ -95,19 +95,19 @@ const BabyApp = (() => {
 
         if (!state.babyId) {
             if (document.querySelector('#baby-select option:not([value=""])')) {
-                emptyEl.classList.add('hidden');
+                emptyEl.style.display = 'none';
                 hintEl.style.display = '';
             } else {
-                emptyEl.classList.remove('hidden');
+                emptyEl.style.display = '';
                 hintEl.style.display = 'none';
             }
-            dash.classList.add('hidden');
+            dash.style.display = 'none';
             return;
         }
 
-        emptyEl.classList.add('hidden');
+        emptyEl.style.display = 'none';
         hintEl.style.display = 'none';
-        dash.classList.remove('hidden');
+        dash.style.display = '';
 
         const sel = document.getElementById('baby-select');
         const opt = sel.querySelector(`option[value="${state.babyId}"]`);
@@ -141,11 +141,11 @@ const BabyApp = (() => {
         const ph  = document.getElementById('baby-avatar-placeholder');
         if (path) {
             img.src = BASE_URL + path;
-            img.classList.remove('hidden');
-            ph.classList.add('hidden');
+            img.style.display = '';
+            ph.style.display = 'none';
         } else {
-            img.classList.add('hidden');
-            ph.classList.remove('hidden');
+            img.style.display = 'none';
+            ph.style.display = '';
         }
     }
 
@@ -222,7 +222,7 @@ const BabyApp = (() => {
         opt.textContent = baby.name;
         opt.dataset.baby = JSON.stringify(baby);
         sel.appendChild(opt);
-        document.getElementById('baby-empty').classList.add('hidden');
+        document.getElementById('baby-empty').style.display = 'none';
     }
 
     function updateBabyInSelect(baby) {
@@ -235,7 +235,7 @@ const BabyApp = (() => {
         if (opt) opt.remove();
         const sel = document.getElementById('baby-select');
         if (!sel.querySelector('option[value]:not([value=""])')) {
-            document.getElementById('baby-empty').classList.remove('hidden');
+            document.getElementById('baby-empty').style.display = '';
         }
     }
 
@@ -262,8 +262,8 @@ const BabyApp = (() => {
     function switchTab(tab, btn) {
         document.querySelectorAll('.baby-tab').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        document.querySelectorAll('.baby-tab-content').forEach(t => t.classList.add('hidden'));
-        document.getElementById('tab-' + tab).classList.remove('hidden');
+        document.querySelectorAll('.baby-tab-content').forEach(t => t.style.display = 'none');
+        document.getElementById('tab-' + tab).style.display = '';
 
         if (tab === 'pregnancy') loadPregnancy();
         if (tab === 'birth') renderBirthTab();
