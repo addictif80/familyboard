@@ -1,7 +1,6 @@
 <?php
 namespace App\Controllers;
 
-use App\Core\BaseController;
 use App\Core\Database;
 use App\Models\Event;
 use App\Models\Post;
@@ -11,7 +10,7 @@ use App\Models\Baby;
 use App\Models\Family;
 use App\Core\Session;
 
-class DashboardController extends BaseController
+class DashboardController extends \App\Controllers\BaseController
 {
     public const AVAILABLE_WIDGETS = [
         'calendar'  => ['label' => 'Calendrier',       'icon' => '📅'],
