@@ -18,22 +18,22 @@ ob_start();
     </div>
 
     <!-- No baby selected placeholder -->
-    <div id="baby-empty" class="baby-empty <?= !empty($babies) ? 'hidden' : '' ?>">
+    <div id="baby-empty" class="baby-empty" <?= !empty($babies) ? 'style="display:none"' : '' ?>>
         <div class="empty-icon">👶</div>
         <p>Ajoutez votre premier bébé pour commencer le suivi.</p>
         <button class="btn btn-primary" onclick="BabyApp.openAddBaby()">Ajouter un bébé</button>
     </div>
-    <div id="baby-select-hint" class="baby-empty <?= empty($babies) ? 'hidden' : '' ?>" style="display:none">
+    <div id="baby-select-hint" class="baby-empty" style="display:none">
         <p>Sélectionnez un bébé dans la liste ci-dessus.</p>
     </div>
 
     <!-- Baby dashboard (shown when a baby is selected) -->
-    <div id="baby-dashboard" class="hidden">
+    <div id="baby-dashboard" style="display:none">
 
         <!-- Baby info bar -->
         <div class="baby-info-bar">
             <div class="baby-avatar-wrap" onclick="BabyApp.uploadAvatar()">
-                <img id="baby-avatar-img" src="" alt="" class="baby-avatar hidden">
+                <img id="baby-avatar-img" src="" alt="" class="baby-avatar" style="display:none">
                 <span id="baby-avatar-placeholder" class="baby-avatar-placeholder">👶</span>
                 <span class="baby-avatar-edit">✏️</span>
                 <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="BabyApp.doUploadAvatar(this)">
@@ -82,7 +82,7 @@ ob_start();
         </div>
 
         <!-- TAB: Pregnancy -->
-        <div id="tab-pregnancy" class="baby-tab-content hidden">
+        <div id="tab-pregnancy" class="baby-tab-content" style="display:none">
             <div class="section-header">
                 <h3>Grossesse</h3>
                 <button class="btn btn-primary btn-sm" onclick="BabyApp.openPregnancyForm()">✏️ Modifier</button>
@@ -100,7 +100,7 @@ ob_start();
         </div>
 
         <!-- TAB: Birth -->
-        <div id="tab-birth" class="baby-tab-content hidden">
+        <div id="tab-birth" class="baby-tab-content" style="display:none">
             <div class="section-header">
                 <h3>Informations de naissance</h3>
                 <button class="btn btn-primary btn-sm" onclick="BabyApp.openBirthForm()">✏️ Modifier</button>
@@ -111,7 +111,7 @@ ob_start();
         </div>
 
         <!-- TAB: Consultations -->
-        <div id="tab-consultations" class="baby-tab-content hidden">
+        <div id="tab-consultations" class="baby-tab-content" style="display:none">
             <div class="section-header">
                 <h3>Consultations médicales</h3>
                 <button class="btn btn-primary btn-sm" onclick="BabyApp.openConsultationForm()">+ Ajouter</button>
@@ -125,7 +125,7 @@ ob_start();
 <!-- ── Modals ────────────────────────────────────────────────── -->
 
 <!-- Add / Edit Baby -->
-<div id="modal-baby" class="modal-overlay hidden">
+<div id="modal-baby" class="modal-overlay" style="display:none">
     <div class="modal">
         <div class="modal-header">
             <h3 id="modal-baby-title">Nouveau bébé</h3>
@@ -147,7 +147,7 @@ ob_start();
 </div>
 
 <!-- Birth form -->
-<div id="modal-birth" class="modal-overlay hidden">
+<div id="modal-birth" class="modal-overlay" style="display:none">
     <div class="modal">
         <div class="modal-header">
             <h3>Informations de naissance</h3>
@@ -189,7 +189,7 @@ ob_start();
 </div>
 
 <!-- Pregnancy form -->
-<div id="modal-pregnancy" class="modal-overlay hidden">
+<div id="modal-pregnancy" class="modal-overlay" style="display:none">
     <div class="modal">
         <div class="modal-header">
             <h3>Informations de grossesse</h3>
@@ -220,7 +220,7 @@ ob_start();
 </div>
 
 <!-- Pregnancy consultation form -->
-<div id="modal-preg-consult" class="modal-overlay hidden">
+<div id="modal-preg-consult" class="modal-overlay" style="display:none">
     <div class="modal modal-wide">
         <div class="modal-header">
             <h3>Consultation prénatale</h3>
@@ -258,7 +258,7 @@ ob_start();
 </div>
 
 <!-- Baby event form -->
-<div id="modal-event" class="modal-overlay hidden">
+<div id="modal-event" class="modal-overlay" style="display:none">
     <div class="modal">
         <div class="modal-header">
             <h3 id="modal-event-title">Ajouter un événement</h3>
@@ -298,7 +298,7 @@ ob_start();
 </div>
 
 <!-- Sleep form -->
-<div id="modal-sleep" class="modal-overlay hidden">
+<div id="modal-sleep" class="modal-overlay" style="display:none">
     <div class="modal">
         <div class="modal-header">
             <h3 id="modal-sleep-title">Sommeil</h3>
@@ -330,7 +330,7 @@ ob_start();
 </div>
 
 <!-- Post-birth consultation form -->
-<div id="modal-consult" class="modal-overlay hidden">
+<div id="modal-consult" class="modal-overlay" style="display:none">
     <div class="modal">
         <div class="modal-header">
             <h3 id="modal-consult-title">Consultation médicale</h3>
@@ -362,7 +362,7 @@ ob_start();
 </div>
 
 <!-- Image lightbox -->
-<div id="modal-lightbox" class="modal-overlay hidden" onclick="BabyApp.closeModal('modal-lightbox')">
+<div id="modal-lightbox" class="modal-overlay" style="display:none" onclick="BabyApp.closeModal('modal-lightbox')">
     <div class="lightbox-wrap">
         <img id="lightbox-img" src="" alt="" class="lightbox-img">
     </div>
