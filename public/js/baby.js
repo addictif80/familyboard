@@ -559,11 +559,14 @@ var BabyApp = (() => {
     function calcDueDate() {
         const lmp = document.getElementById('preg-lmp').value;
         const due = document.getElementById('preg-due');
-        if (lmp && !due.value) {
-            const d = new Date(lmp + 'T00:00:00');
-            d.setDate(d.getDate() + 280);
-            due.value = d.toISOString().slice(0, 10);
-        }
+        if (!lmp) return;
+        // Use Date(y, m, d) to avoid timezone/ISO parsing issues
+        const [y, m, d] = lmp.split('-').map(Number);
+        const dt = new Date(y, m - 1, d + 280);
+        const year  = dt.getFullYear();
+        const month = String(dt.getMonth() + 1).padStart(2, '0');
+        const day   = String(dt.getDate()).padStart(2, '0');
+        due.value = `${year}-${month}-${day}`;
     }
 
     function savePregnancy(e) {
