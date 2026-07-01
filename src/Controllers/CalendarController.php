@@ -19,16 +19,39 @@ class CalendarController extends BaseController
         $user = Session::user();
         $familyId = $user['family_id'];
         $members = User::getByFamily($familyId);
+        $family = Family::findById($familyId);
+        $schoolZone = $family['school_zone'] ?? null;
+
         try {
+            $caldavSources = CalDAVSource::getByFamily($familyId);
+            $this->autoSyncCalDAV($caldavSources, $family, $familyId, $user['id']);
+            // Reload sources after potential sync so last_sync timestamps are fresh
             $caldavSources = CalDAVSource::getByFamily($familyId);
         } catch (\Exception $e) {
             $caldavSources = [];
         }
+
         $custodySchedules = \App\Models\Custody::getSchedules($familyId);
         $hasProjects = !empty(\App\Models\Project::getByFamily($familyId));
-        $family = Family::findById($familyId);
-        $schoolZone = $family['school_zone'] ?? null;
         require BASE_PATH . '/templates/calendar/index.php';
+    }
+
+    private function autoSyncCalDAV(array $sources, array $family, int $familyId, int $userId): void
+    {
+        $interval = (int)($family['caldav_sync_interval'] ?? 0);
+        if ($interval <= 0 || empty($sources)) return;
+
+        foreach ($sources as $source) {
+            $lastSync = $source['last_sync'];
+            $due = !$lastSync || (time() - strtotime($lastSync)) >= $interval * 60;
+            if ($due) {
+                try {
+                    $this->doCalDAVSync($source, $familyId, $userId);
+                } catch (\Exception $e) {
+                    // Skip failing source silently — don't block calendar load
+                }
+            }
+        }
     }
 
     public function apiEvents(array $params): void
