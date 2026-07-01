@@ -1,5 +1,5 @@
 /* Baby module */
-const BabyApp = (() => {
+var BabyApp = (() => {
     let state = {
         babyId: null,
         baby: null,
