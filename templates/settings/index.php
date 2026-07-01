@@ -74,11 +74,14 @@ ob_start();
                 </small>
             </div>
             <div class="form-group">
-                <label>📺 Ville pour la météo (écran mural)</label>
-                <input type="text" name="weather_city"
-                       value="<?= htmlspecialchars($family['weather_city'] ?? '') ?>"
-                       placeholder="Paris, Lyon, Bordeaux…">
-                <small style="color:var(--text-muted)">Affiché dans le bandeau de l'écran mural. Laisser vide pour utiliser la géolocalisation du navigateur.</small>
+                <label>📺 Ville pour la météo</label>
+                <div class="city-autocomplete" id="city-ac-wrap">
+                    <input type="text" name="weather_city" id="city-ac-input" autocomplete="off"
+                           value="<?= htmlspecialchars($family['weather_city'] ?? '') ?>"
+                           placeholder="Tapez une ville…">
+                    <ul class="city-ac-dropdown" id="city-ac-list" style="display:none"></ul>
+                </div>
+                <small style="color:var(--text-muted)">Affiché dans le bandeau du tableau de bord.</small>
             </div>
             <div class="form-group">
                 <label>🎓 Zone scolaire (vacances scolaires sur le calendrier)</label>
@@ -441,6 +444,83 @@ async function resetTemplate(type) {
     const r = await apiFetch(BASE_URL + '/api/settings/email-template/' + type + '/reset', { method: 'POST', body: '{}' });
     if (r.success) location.reload();
 }
+
+// ── City autocomplete ──────────────────────────────────────────
+(function () {
+    const input = document.getElementById('city-ac-input');
+    const list  = document.getElementById('city-ac-list');
+    if (!input) return;
+
+    let timer = null;
+    let activeIdx = -1;
+
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        const q = input.value.trim();
+        if (q.length < 2) { hide(); return; }
+        timer = setTimeout(() => fetchCities(q), 280);
+    });
+
+    input.addEventListener('keydown', e => {
+        const items = list.querySelectorAll('li');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); setActive(activeIdx + 1, items); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(activeIdx - 1, items); }
+        else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); items[activeIdx].click(); }
+        else if (e.key === 'Escape') { hide(); }
+    });
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#city-ac-wrap')) hide();
+    });
+
+    async function fetchCities(q) {
+        try {
+            const url = 'https://geocoding-api.open-meteo.com/v1/search?name=' +
+                encodeURIComponent(q) + '&count=6&language=fr&format=json';
+            const res  = await fetch(url);
+            const data = await res.json();
+            render(data.results || []);
+        } catch (_) { hide(); }
+    }
+
+    function render(results) {
+        if (!results.length) { hide(); return; }
+        activeIdx = -1;
+        list.innerHTML = '';
+        results.forEach(r => {
+            const parts = [r.name];
+            if (r.admin1) parts.push(r.admin1);
+            if (r.country) parts.push(r.country);
+            const label = parts.join(', ');
+            const li = document.createElement('li');
+            li.className = 'city-ac-item';
+            li.innerHTML = '<span class="city-ac-name">' + esc(r.name) + '</span>' +
+                           '<span class="city-ac-sub">' + esc(parts.slice(1).join(', ')) + '</span>';
+            li.addEventListener('mousedown', e => { e.preventDefault(); select(r.name); });
+            list.appendChild(li);
+        });
+        list.style.display = 'block';
+    }
+
+    function select(name) {
+        input.value = name;
+        hide();
+    }
+
+    function setActive(idx, items) {
+        items.forEach(i => i.classList.remove('active'));
+        activeIdx = Math.max(0, Math.min(idx, items.length - 1));
+        items[activeIdx].classList.add('active');
+        input.value = items[activeIdx].querySelector('.city-ac-name').textContent;
+    }
+
+    function hide() { list.style.display = 'none'; activeIdx = -1; }
+
+    function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+})();
 </script>
 <?php
 $content = ob_get_clean();
