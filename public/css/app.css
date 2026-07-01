@@ -1101,3 +1101,57 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 }
 
 
+
+/* ── Dashboard hero / weather ────────────────────────────────── */
+.dashboard-hero { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+.hero-identity { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; }
+.hero-greeting { display: flex; flex-direction: column; }
+.hero-name { font-size: 1.15rem; font-weight: 700; }
+.hero-date { font-size: .88rem; color: var(--text-muted); }
+.hero-weather { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .95rem; }
+.weather-icon { font-size: 1.5rem; }
+.weather-temp { font-weight: 700; font-size: 1.2rem; }
+.weather-feels, .weather-wind, .weather-city { font-size: .82rem; color: var(--text-muted); }
+.hero-alert { margin-top: .6rem; padding: .5rem .75rem; border-radius: 6px; background: #fff3cd; color: #856404; font-size: .88rem; font-weight: 600; border-left: 4px solid #ffc107; }
+
+/* ── Widget toolbar ──────────────────────────────────────────── */
+.widget-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; }
+.widget-toolbar-title { font-weight: 600; font-size: .95rem; }
+
+/* ── Widget grid ─────────────────────────────────────────────── */
+.widget-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+.widget-card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.25rem; position: relative; transition: opacity .2s; }
+.widget-card.widget-hidden { display: none; }
+.widget-card.dragging { opacity: .5; }
+.widget-card.drag-over { outline: 2px dashed var(--primary); outline-offset: 2px; }
+.widget-drag-handle { position: absolute; top: .5rem; right: .75rem; font-size: 1.2rem; cursor: grab; color: var(--text-muted); user-select: none; line-height: 1; }
+.widget-drag-handle:active { cursor: grabbing; }
+.widget-body { padding-right: 1.25rem; }
+
+/* ── Task widget ─────────────────────────────────────────────── */
+.task-widget-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .4rem; }
+.task-widget-item { display: flex; align-items: baseline; gap: .5rem; font-size: .9rem; }
+.task-widget-check { color: var(--text-muted); }
+.task-widget-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-widget-list-name { font-size: .75rem; color: var(--text-muted); flex-shrink: 0; }
+
+/* ── Baby widget ─────────────────────────────────────────────── */
+.baby-widget-name { font-weight: 600; margin-bottom: .5rem; }
+.baby-widget-stats { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .9rem; }
+
+/* ── Widget manager modal ────────────────────────────────────── */
+.widget-manager-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .5rem; }
+.widget-manager-item { display: flex; align-items: center; gap: .75rem; padding: .6rem .75rem; background: var(--bg); border-radius: 8px; }
+.widget-manager-icon { font-size: 1.2rem; }
+.widget-manager-label { flex: 1; font-size: .95rem; }
+.toggle-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: #ccc; border-radius: 24px; cursor: pointer; transition: background .2s; }
+.toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform .2s; }
+.toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+@media (max-width: 600px) {
+  .widget-grid { grid-template-columns: 1fr; }
+  .hero-identity { flex-direction: column; align-items: flex-start; }
+}

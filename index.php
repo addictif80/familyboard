@@ -100,6 +100,7 @@ $router->get('/logout', [AuthController::class, 'logout']);
 
 // Dashboard
 $router->get('/', [DashboardController::class, 'index']);
+$router->post('/api/dashboard/widgets', [DashboardController::class, 'saveWidgets']);
 
 // Calendar
 $router->get('/calendar', [CalendarController::class, 'index']);
