@@ -83,7 +83,9 @@ class Baby
         $notes = $data['notes'] ?: null;
 
         if ($lmp && !$due) {
-            $due = date('Y-m-d', strtotime($lmp . ' +280 days'));
+            $dt = new \DateTime($lmp);
+            $dt->modify('+280 days');
+            $due = $dt->format('Y-m-d');
         }
 
         if ($existing) {
