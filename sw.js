@@ -58,3 +58,31 @@ self.addEventListener('fetch', e => {
     );
 });
 
+// Web Push notifications
+self.addEventListener('push', e => {
+    let data = {};
+    try { data = e.data ? e.data.json() : {}; } catch { data = { title: 'FamilyBoard', body: e.data ? e.data.text() : '' }; }
+
+    const title = data.title || 'FamilyBoard';
+    const options = {
+        body: data.body || '',
+        icon: '/public/icons/icon-192.png',
+        badge: '/public/icons/icon-192.png',
+        data: { url: data.url || '/' },
+    };
+    e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', e => {
+    e.notification.close();
+    const url = e.notification.data && e.notification.data.url ? e.notification.data.url : '/';
+    e.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+            for (const client of clientList) {
+                if (client.url.includes(url) && 'focus' in client) return client.focus();
+            }
+            if (clients.openWindow) return clients.openWindow(url);
+        })
+    );
+});
+

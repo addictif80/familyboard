@@ -163,6 +163,19 @@ ob_start();
         </div>
     </div>
 
+    <!-- Push notifications -->
+    <div class="card settings-section">
+        <h3>🔔 Notifications push</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Recevez une notification directement sur cet appareil (ordinateur ou mobile) dès qu'un événement
+            vous concerne, même quand l'application est fermée.
+        </p>
+        <button type="button" class="btn btn-primary" id="push-toggle-btn" onclick="togglePushNotifications()">
+            Activer les notifications push
+        </button>
+        <p id="push-status" style="color:var(--text-muted);font-size:.8rem;margin-top:.5rem"></p>
+    </div>
+
     <!-- Modules (admin only) -->
     <?php if ($user['role'] === 'admin'): ?>
     <?php $_disabledMods = \App\Models\Family::getDisabledModules($family ?? []); ?>

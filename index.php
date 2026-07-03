@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 
 // Global exception handler — ensures a clean HTTP response even on fatal errors
@@ -51,6 +52,7 @@ use App\Controllers\DocumentController;
 use App\Controllers\FamilyWallController;
 use App\Controllers\CameraController;
 use App\Controllers\BabyController;
+use App\Controllers\PushController;
 
 Session::start();
 
@@ -76,6 +78,16 @@ try {
     \App\Core\Database::autoMigrate(BASE_PATH . '/database');
 } catch (\Throwable $e) {
     error_log('Migration error: ' . $e->getMessage());
+}
+
+// Restore a persistent login (PWA) from the remember-me cookie if the PHP
+// session has expired or been cleared.
+if (!Session::isLoggedIn()) {
+    try {
+        \App\Core\RememberMe::attempt();
+    } catch (\Throwable $e) {
+        error_log('RememberMe error: ' . $e->getMessage());
+    }
 }
 
 // Apply family timezone as early as possible (graceful fallback if migration not yet applied)
@@ -239,6 +251,11 @@ $router->post('/api/settings/email-template/:type/reset', [SettingsController::c
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
 $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
+
+// Push notifications
+$router->get('/api/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);
+$router->post('/api/push/subscribe', [PushController::class, 'subscribe']);
+$router->post('/api/push/unsubscribe', [PushController::class, 'unsubscribe']);
 
 // Warranties
 $router->get('/warranties', [WarrantyController::class, 'index']);

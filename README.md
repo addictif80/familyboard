@@ -73,14 +73,22 @@ mysql -u root -p familyboard < database/schema.sql
 > instructions utilisent `IF NOT EXISTS` — elles sont sans effet si la
 > structure existe déjà.
 
-### 5. Permissions
+### 5. Installer les dépendances PHP
+
+```bash
+composer install --no-dev
+```
+
+Requis pour les notifications push (bibliothèque `minishlink/web-push`).
+
+### 6. Permissions
 
 ```bash
 chmod 755 public/uploads/
 chmod 755 storage/
 ```
 
-### 6. Configuration Apache
+### 7. Configuration Apache
 
 ```apache
 <VirtualHost *:80>
