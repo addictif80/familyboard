@@ -36,4 +36,14 @@ class SitterLink
             [$token]
         );
     }
+
+    /** The most recent currently-active sitter link for a family, or null. */
+    public static function getActiveForFamily(int $familyId): ?array
+    {
+        return Database::fetch(
+            'SELECT * FROM sitter_links WHERE family_id=? AND revoked_at IS NULL AND expires_at > NOW()
+             ORDER BY created_at DESC LIMIT 1',
+            [$familyId]
+        );
+    }
 }

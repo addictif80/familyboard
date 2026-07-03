@@ -58,6 +58,7 @@ use App\Controllers\EmergencyController;
 use App\Controllers\CommLogController;
 use App\Controllers\MealController;
 use App\Controllers\SitterController;
+use App\Controllers\KioskController;
 
 Session::start();
 
@@ -340,6 +341,14 @@ $router->post('/api/meals/plan/clear', [MealController::class, 'clearMeal']);
 $router->post('/api/sitter/links', [SitterController::class, 'create']);
 $router->post('/api/sitter/links/:id/revoke', [SitterController::class, 'revoke']);
 $router->get('/sitter/:token', [SitterController::class, 'view']);
+
+// Mode kiosque (écran mural)
+$router->post('/api/kiosk/links', [KioskController::class, 'create']);
+$router->post('/api/kiosk/links/:id/revoke', [KioskController::class, 'revoke']);
+$router->get('/kiosk/:token', [KioskController::class, 'view']);
+$router->get('/kiosk/:token/data', [KioskController::class, 'data']);
+$router->post('/kiosk/:token/tasks', [KioskController::class, 'createTask']);
+$router->post('/kiosk/:token/tasks/:id/toggle', [KioskController::class, 'toggleTask']);
 
 // Invitations
 $router->get('/invite/:token', [InvitationController::class, 'show']);

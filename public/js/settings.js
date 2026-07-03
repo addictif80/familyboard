@@ -91,3 +91,52 @@ async function revokeSitterLink(id) {
     const r = await apiFetch(BASE_URL + '/api/sitter/links/' + id + '/revoke', { method: 'POST' });
     if (r.success) window.location.reload();
 }
+
+// ---- Écran mural (mode kiosque) ----
+async function createKioskLink() {
+    const labelInput = document.getElementById('kiosk-label');
+    const label = labelInput.value.trim();
+    const r = await apiFetch(BASE_URL + '/api/kiosk/links', {
+        method: 'POST',
+        body: JSON.stringify({ label }),
+    });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+        return;
+    }
+
+    // Stays on screen (no auto-dismiss / no reload) so there's time to copy the link.
+    document.getElementById('kiosk-new-link').innerHTML = `
+        <div class="alert alert-success">
+            <div style="margin-bottom:.5rem">Accès créé pour « ${escapeHtml(r.link.label)} » — ouvrez ce lien sur la tablette :</div>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <input type="text" readonly value="${escapeHtml(r.link.url)}"
+                       style="flex:1;min-width:200px" onclick="this.select()">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="copyCode('${r.link.url.replace(/'/g, "\\'")}')">📋 Copier</button>
+                <a href="${escapeHtml(r.link.url)}" target="_blank" class="btn btn-secondary btn-sm">Ouvrir</a>
+            </div>
+        </div>`;
+    labelInput.value = '';
+
+    const list = document.getElementById('kiosk-links-list');
+    const empty = list.querySelector('p');
+    if (empty) empty.remove();
+    const div = document.createElement('div');
+    div.className = 'member-item';
+    div.dataset.kioskId = r.link.id;
+    div.innerHTML = `
+        <div class="member-info">
+            <strong>${escapeHtml(r.link.label)}</strong>
+            <small>✅ Actif · créé le ${new Date(r.link.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('fr-FR')}</small>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="revokeKioskLink(${r.link.id})">Révoquer</button>
+    `;
+    list.prepend(div);
+}
+
+async function revokeKioskLink(id) {
+    const ok = await Dialog.confirm('Révoquer cet accès écran mural ? La tablette ne pourra plus afficher les données de la famille.');
+    if (!ok) return;
+    const r = await apiFetch(BASE_URL + '/api/kiosk/links/' + id + '/revoke', { method: 'POST' });
+    if (r.success) window.location.reload();
+}
