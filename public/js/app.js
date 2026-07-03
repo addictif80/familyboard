@@ -179,10 +179,11 @@ function markAllRead() {
 // Add notification styles
 const style = document.createElement('style');
 style.textContent = `
-.notif-item { padding: .75rem 1rem; cursor: pointer; border-bottom: 1px solid var(--border); font-size: .8rem; }
+.notif-item { padding: .75rem 1rem; cursor: pointer; border-bottom: 1px solid var(--border); font-size: .8rem; border-left: 3px solid transparent; transition: background .15s; }
 .notif-item:hover { background: var(--bg); }
-.notif-unread { background: rgba(74,144,217,.06); }
-.notif-title { font-weight: 600; margin-bottom: .15rem; }
+.notif-unread { background: color-mix(in srgb, var(--primary) 8%, var(--card-bg)); border-left-color: var(--accent); }
+.notif-title { font-weight: 600; margin-bottom: .15rem; display: flex; align-items: center; gap: .4rem; }
+.notif-unread .notif-title::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 .notif-msg { color: var(--text-muted); }
 .notif-time { color: var(--text-muted); font-size: .7rem; margin-top: .2rem; }
 `;
