@@ -173,7 +173,7 @@ ob_start();
         <button type="button" class="btn btn-primary" id="push-toggle-btn" onclick="togglePushNotifications()">
             Activer les notifications push
         </button>
-        <p id="push-status" style="color:var(--text-muted);font-size:.8rem;margin-top:.5rem"></p>
+        <p id="push-status" class="push-status" style="font-size:.8rem;margin-top:.5rem"></p>
     </div>
 
     <!-- Modules (admin only) -->

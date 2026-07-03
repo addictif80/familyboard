@@ -151,12 +151,16 @@ function loadNotifications() {
             if (badge) badge.textContent = data.unread || '';
             if (!data.unread) document.getElementById('notif-badge')?.remove();
 
-            if (!data.notifications.length) {
+            // Only show unread notifications — once read (or after "Tout lire"),
+            // they disappear from the panel. They stay marked read in the DB.
+            const unread = data.notifications.filter(n => !n.is_read);
+
+            if (!unread.length) {
                 list.innerHTML = '<p style="padding:.75rem 1rem;color:var(--text-muted);font-size:.8rem">Aucune notification.</p>';
                 return;
             }
-            list.innerHTML = data.notifications.map(n => `
-                <div class="notif-item ${n.is_read ? '' : 'notif-unread'}" onclick="readNotif(${n.id}, '${n.link || '#'}')">
+            list.innerHTML = unread.map(n => `
+                <div class="notif-item notif-unread" onclick="readNotif(${n.id}, '${n.link || '#'}')">
                     <div class="notif-title">${escapeHtml(n.title)}</div>
                     <div class="notif-msg">${escapeHtml(n.message)}</div>
                     <div class="notif-time">${formatTime(n.created_at)}</div>
@@ -179,10 +183,11 @@ function markAllRead() {
 // Add notification styles
 const style = document.createElement('style');
 style.textContent = `
-.notif-item { padding: .75rem 1rem; cursor: pointer; border-bottom: 1px solid var(--border); font-size: .8rem; }
+.notif-item { padding: .75rem 1rem; cursor: pointer; border-bottom: 1px solid var(--border); font-size: .8rem; border-left: 3px solid transparent; transition: background .15s; }
 .notif-item:hover { background: var(--bg); }
-.notif-unread { background: rgba(74,144,217,.06); }
-.notif-title { font-weight: 600; margin-bottom: .15rem; }
+.notif-unread { background: color-mix(in srgb, var(--primary) 8%, var(--card-bg)); border-left-color: var(--accent); }
+.notif-title { font-weight: 600; margin-bottom: .15rem; display: flex; align-items: center; gap: .4rem; }
+.notif-unread .notif-title::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 .notif-msg { color: var(--text-muted); }
 .notif-time { color: var(--text-muted); font-size: .7rem; margin-top: .2rem; }
 `;
@@ -231,6 +236,47 @@ async function apiFetch(url, options = {}) {
 }
 
 // ---- Push notifications ----
+
+// iOS only supports Web Push for an app added to the home screen (iOS 16.4+).
+// In a regular Safari tab, permission can be requested but pushes never arrive.
+// navigator.platform is unreliable/deprecated — check the UA string first,
+// falling back to the "iPadOS reports as Mac" heuristic for iPads.
+function isIOS() {
+    return /iPhone|iPad|iPod/.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function isStandalonePWA() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+/**
+ * Full cross-platform check of whether push notifications can/do work here.
+ * Returns { state, message } where state is one of:
+ * 'unsupported' | 'ios-not-installed' | 'blocked' | 'not-enabled' | 'enabled'
+ */
+async function checkPushStatus() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+        return { state: 'unsupported', message: "Les notifications push ne sont pas supportées par ce navigateur." };
+    }
+    if (isIOS() && !isStandalonePWA()) {
+        return {
+            state: 'ios-not-installed',
+            message: "Sur iPhone/iPad, installez d'abord l'app sur l'écran d'accueil (bouton « Installer l'app ») — sans cela, iOS ne délivre jamais les notifications, même si vous les autorisez.",
+        };
+    }
+    if (Notification.permission === 'denied') {
+        return { state: 'blocked', message: "Notifications bloquées dans les réglages du navigateur ou du système." };
+    }
+    if (Notification.permission === 'granted') {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) return { state: 'enabled', message: 'Activées sur cet appareil.' };
+        return { state: 'not-enabled', message: "Autorisées par le navigateur mais pas encore activées ici." };
+    }
+    return { state: 'not-enabled', message: '' };
+}
+
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -241,6 +287,10 @@ function urlBase64ToUint8Array(base64String) {
 async function subscribeToPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         Dialog.alert("Les notifications push ne sont pas supportées par ce navigateur.");
+        return false;
+    }
+    if (isIOS() && !isStandalonePWA()) {
+        Dialog.alert("Installez d'abord l'app sur l'écran d'accueil (bouton « Installer l'app » dans le menu) avant d'activer les notifications — iOS ne les délivre jamais sinon.");
         return false;
     }
     const permission = await Notification.requestPermission();
