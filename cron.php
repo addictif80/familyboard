@@ -26,18 +26,18 @@ use App\Models\Event;
 use App\Models\TaskList;
 use App\Models\EmailTemplate;
 use App\Models\EmailLog;
-use App\Models\SmtpSettings;
 use App\Models\CalDAVSource;
+use App\Models\Notification;
 
 $appUrl = (getenv('APP_URL') ?: 'https://board.abhd.fr') . BASE_URL;
 
 // Auto-sync CalDAV sources for families that have configured an interval
 syncCalDAVSources();
 
-// Get all families that have SMTP configured
-$families = Database::fetchAll(
-    'SELECT DISTINCT f.* FROM families f JOIN smtp_settings ss ON ss.family_id = f.id'
-);
+// SMTP is a single, global configuration (not per-family) — Mail::send()
+// already no-ops gracefully when it isn't set up, so every family is processed
+// the same way regardless of whether the system administrator configured it.
+$families = Database::fetchAll('SELECT * FROM families');
 
 foreach ($families as $family) {
     $familyId = (int)$family['id'];
@@ -157,9 +157,9 @@ function sendEventReminders(int $familyId, array $members, string $appUrl): void
 function sendTaskReminders(int $familyId, array $members, string $appUrl): void
 {
     $tasks = Database::fetchAll(
-        'SELECT t.*, tl.name as list_name, tl.is_shopping FROM tasks t
+        'SELECT t.*, tl.name as list_name FROM tasks t
          JOIN task_lists tl ON tl.id = t.list_id
-         WHERE tl.family_id=? AND t.is_done=0 AND tl.is_shopping=0
+         WHERE tl.family_id=? AND t.is_completed=0 AND tl.type != \'shopping\'
            AND t.created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)',
         [$familyId]
     );
@@ -221,8 +221,6 @@ function sendRecurringAlerts(int $familyId, string $appUrl): void
     );
 
     foreach ($items as $item) {
-        if (empty($item['user_email'])) continue;
-
         $alertDay = (int)$item['alert_days_before'];
         if ($alertDay <= 0) continue;
 
@@ -259,15 +257,18 @@ function sendRecurringAlerts(int $familyId, string $appUrl): void
             . ($item['category_name'] ? '<p>Catégorie : ' . htmlspecialchars($item['category_name']) . '</p>' : '')
             . '<p><a href="' . $appUrl . '/budget">Voir le budget</a></p>';
 
-        [$ok] = Mail::send($familyId, $item['user_email'], $item['user_name'], $subject, $body, 'budget_recurring');
+        Notification::create((int)$item['user_id'], 'budget',
+            "{$typeLabel} à venir", "« {$item['title']} » de {$amountFmt} le {$dueStr}.", BASE_URL . '/budget');
 
-        if ($ok) {
-            Database::execute(
-                'UPDATE budget_recurring SET last_alert_sent=? WHERE id=?',
-                [$todayStr, $item['id']]
-            );
-            echo "  → Recurring alert sent to {$item['user_email']} for item #{$item['id']} ({$item['title']})" . PHP_EOL;
+        if (!empty($item['user_email'])) {
+            Mail::send($familyId, $item['user_email'], $item['user_name'], $subject, $body, 'budget_recurring');
         }
+
+        Database::execute(
+            'UPDATE budget_recurring SET last_alert_sent=? WHERE id=?',
+            [$todayStr, $item['id']]
+        );
+        echo "  → Recurring alert sent for item #{$item['id']} ({$item['title']})" . PHP_EOL;
     }
 }
 
@@ -278,9 +279,9 @@ function sendShoppingReminders(int $familyId, array $members, string $appUrl): v
 {
     $lists = Database::fetchAll(
         'SELECT tl.* FROM task_lists tl
-         WHERE tl.family_id=? AND tl.is_shopping=1
+         WHERE tl.family_id=? AND tl.type = \'shopping\'
            AND EXISTS (
-             SELECT 1 FROM tasks t WHERE t.list_id=tl.id AND t.is_done=0
+             SELECT 1 FROM tasks t WHERE t.list_id=tl.id AND t.is_completed=0
                AND t.created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)
            )',
         [$familyId]
@@ -296,7 +297,7 @@ function sendShoppingReminders(int $familyId, array $members, string $appUrl): v
         if ($alreadySent) continue;
 
         $items = Database::fetchAll(
-            'SELECT title FROM tasks WHERE list_id=? AND is_done=0 ORDER BY created_at',
+            'SELECT title FROM tasks WHERE list_id=? AND is_completed=0 ORDER BY created_at',
             [$list['id']]
         );
         $itemsHtml = implode('', array_map(fn($i) => '<li>' . htmlspecialchars($i['title']) . '</li>', $items));

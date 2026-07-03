@@ -2,10 +2,8 @@
 namespace App\Controllers;
 
 use App\Core\Session;
-use App\Core\Mail;
 use App\Models\User;
 use App\Models\Family;
-use App\Models\SmtpSettings;
 use App\Models\Notification;
 use App\Models\EmailLog;
 use App\Models\EmailTemplate;
@@ -18,7 +16,6 @@ class SettingsController extends BaseController
         $user = Session::user();
         $family = Family::findById($user['family_id']);
         $members = User::getByFamily($user['family_id']);
-        $smtp = SmtpSettings::getByFamily($user['family_id']);
         $emailLogs = ($user['role'] === 'admin') ? EmailLog::getByFamily($user['family_id'], 30) : [];
         $emailTemplates = ($user['role'] === 'admin') ? EmailTemplate::getAll($user['family_id']) : [];
         require BASE_PATH . '/templates/settings/index.php';
@@ -86,51 +83,6 @@ class SettingsController extends BaseController
         Session::flash('success', 'Modules mis à jour.');
         header('Location: ' . BASE_URL . '/settings');
         exit;
-    }
-
-    public function updateSmtp(array $params): void
-    {
-        $this->requireAdmin();
-        $user = Session::user();
-        SmtpSettings::save($user['family_id'], [
-            'host' => $_POST['smtp_host'] ?? '',
-            'port' => (int)($_POST['smtp_port'] ?? 587),
-            'username' => $_POST['smtp_user'] ?? '',
-            'password' => $_POST['smtp_pass'] ?? '',
-            'from_email' => $_POST['smtp_from_email'] ?? '',
-            'from_name' => $_POST['smtp_from_name'] ?? '',
-            'encryption' => $_POST['smtp_encryption'] ?? 'tls',
-        ]);
-        Session::flash('success', 'Paramètres SMTP enregistrés.');
-        header('Location: ' . BASE_URL . '/settings');
-        exit;
-    }
-
-    public function testSmtp(array $params): void
-    {
-        $this->requireAdmin();
-        $this->json(function () {
-            $user     = Session::user();
-            $settings = SmtpSettings::getByFamily($user['family_id']);
-            if (!$settings) {
-                return ['ok' => false, 'error' => 'Aucune configuration SMTP enregistrée.', 'steps' => []];
-            }
-            return Mail::testConnection($settings);
-        });
-    }
-
-    public function sendTestEmail(array $params): void
-    {
-        $this->requireAdmin();
-        $this->json(function () {
-            $user     = Session::user();
-            $settings = SmtpSettings::getByFamily($user['family_id']);
-            if (!$settings) {
-                return ['ok' => false, 'error' => 'Aucune configuration SMTP enregistrée.', 'steps' => []];
-            }
-            // Send to the admin's own email address
-            return Mail::sendTest($settings, $user['email'], $user['name']);
-        });
     }
 
     public function removeMember(array $params): void

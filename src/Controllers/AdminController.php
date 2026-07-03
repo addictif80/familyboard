@@ -2,8 +2,10 @@
 namespace App\Controllers;
 
 use App\Core\Database;
+use App\Core\Mail;
 use App\Core\Session;
 use App\Models\AppSetting;
+use App\Models\SmtpSettings;
 use App\Models\SupportTicket;
 use App\Models\User;
 
@@ -129,8 +131,54 @@ class AdminController extends BaseController
         $users        = Database::fetchAll('SELECT u.*, f.name as family_name FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC');
         $blockedIps   = Database::fetchAll('SELECT * FROM blocked_ips ORDER BY created_at DESC');
         $tickets      = SupportTicket::getAll();
+        $smtp         = SmtpSettings::get();
 
         require BASE_PATH . '/templates/admin/index.php';
+    }
+
+    // ── SMTP (global, système) ────────────────────────────────────
+
+    public function updateSmtp(array $params): void
+    {
+        $this->requireSuperAdmin();
+        SmtpSettings::save([
+            'host'       => $_POST['smtp_host'] ?? '',
+            'port'       => (int)($_POST['smtp_port'] ?? 587),
+            'username'   => $_POST['smtp_user'] ?? '',
+            'password'   => $_POST['smtp_pass'] ?? '',
+            'from_email' => $_POST['smtp_from_email'] ?? '',
+            'from_name'  => $_POST['smtp_from_name'] ?? '',
+            'encryption' => $_POST['smtp_encryption'] ?? 'tls',
+        ]);
+        $this->redirect('/admin?tab=smtp&msg=smtp_saved');
+    }
+
+    public function testSmtp(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () {
+            $settings = SmtpSettings::get();
+            if (!$settings) {
+                return ['ok' => false, 'error' => 'Aucune configuration SMTP enregistrée.', 'steps' => []];
+            }
+            return Mail::testConnection($settings);
+        });
+    }
+
+    public function sendTestEmail(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () {
+            $settings = SmtpSettings::get();
+            if (!$settings) {
+                return ['ok' => false, 'error' => 'Aucune configuration SMTP enregistrée.', 'steps' => []];
+            }
+            $to = trim($this->jsonInput()['email'] ?? '');
+            if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+                return ['ok' => false, 'error' => 'Adresse email de test invalide.', 'steps' => []];
+            }
+            return Mail::sendTest($settings, $to, $to);
+        });
     }
 
     // ── User management ──────────────────────────────────────────

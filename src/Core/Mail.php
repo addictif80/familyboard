@@ -15,7 +15,7 @@ class Mail
         string $type = 'manual',
         ?int $sentBy = null
     ): bool {
-        $settings = SmtpSettings::getByFamily($familyId);
+        $settings = SmtpSettings::get();
         if (!$settings) {
             EmailLog::add($familyId, $sentBy, $to, $toName, $subject, $htmlBody, $type, false, 'Configuration SMTP manquante.');
             return false;

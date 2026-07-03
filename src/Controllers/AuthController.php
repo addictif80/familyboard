@@ -1,6 +1,7 @@
 <?php
 namespace App\Controllers;
 
+use App\Core\RememberMe;
 use App\Core\Session;
 use App\Models\Family;
 use App\Models\User;
@@ -43,6 +44,7 @@ class AuthController
         }
 
         Session::login($user);
+        RememberMe::issue($user['id']);
         header('Location: ' . BASE_URL . '/');
         exit;
     }
@@ -110,6 +112,7 @@ class AuthController
         $userId = User::create($familyId, $name, $email, $password, $role, $color);
         $user = User::findById($userId);
         Session::login($user);
+        RememberMe::issue($user['id']);
 
         header('Location: ' . BASE_URL . '/');
         exit;
@@ -117,6 +120,7 @@ class AuthController
 
     public function logout(array $params): void
     {
+        RememberMe::clear();
         Session::destroy();
         header('Location: ' . BASE_URL . '/login');
         exit;

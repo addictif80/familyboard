@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\Message;
+use App\Models\Notification;
 
 class ChatController extends BaseController
 {
@@ -27,6 +28,10 @@ class ChatController extends BaseController
             if (mb_strlen($content) > 2000) return ['success' => false, 'error' => 'Message trop long'];
 
             $id = Message::create($user['family_id'], $user['id'], $content);
+
+            Notification::notifyFamily($user['family_id'], $user['id'], 'chat',
+                $user['name'], mb_strimwidth($content, 0, 80, '…'), BASE_URL . '/chat');
+
             return [
                 'success' => true,
                 'message' => [

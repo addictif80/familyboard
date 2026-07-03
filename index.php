@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 
 // Global exception handler — ensures a clean HTTP response even on fatal errors
@@ -51,6 +52,7 @@ use App\Controllers\DocumentController;
 use App\Controllers\FamilyWallController;
 use App\Controllers\CameraController;
 use App\Controllers\BabyController;
+use App\Controllers\PushController;
 
 Session::start();
 
@@ -76,6 +78,16 @@ try {
     \App\Core\Database::autoMigrate(BASE_PATH . '/database');
 } catch (\Throwable $e) {
     error_log('Migration error: ' . $e->getMessage());
+}
+
+// Restore a persistent login (PWA) from the remember-me cookie if the PHP
+// session has expired or been cleared.
+if (!Session::isLoggedIn()) {
+    try {
+        \App\Core\RememberMe::attempt();
+    } catch (\Throwable $e) {
+        error_log('RememberMe error: ' . $e->getMessage());
+    }
 }
 
 // Apply family timezone as early as possible (graceful fallback if migration not yet applied)
@@ -198,6 +210,9 @@ $router->post('/admin/tickets/:id/close', [AdminController::class, 'closeTicket'
 $router->post('/admin/tickets/:id/reopen', [AdminController::class, 'reopenTicket']);
 $router->get('/admin/profile', [AdminController::class, 'showProfile']);
 $router->post('/admin/profile', [AdminController::class, 'updateProfile']);
+$router->post('/admin/smtp', [AdminController::class, 'updateSmtp']);
+$router->post('/admin/smtp/test', [AdminController::class, 'testSmtp']);
+$router->post('/admin/smtp/send-test', [AdminController::class, 'sendTestEmail']);
 
 // Support (user-facing)
 $router->get('/support', [SupportController::class, 'index']);
@@ -230,15 +245,17 @@ $router->post('/settings/profile', [SettingsController::class, 'updateProfile'])
 $router->post('/settings/family',   [SettingsController::class, 'updateFamily']);
 $router->post('/settings/modules',  [SettingsController::class, 'updateModules']);
 $router->post('/settings/family/code', [SettingsController::class, 'regenerateCode']);
-$router->post('/settings/smtp', [SettingsController::class, 'updateSmtp']);
-$router->post('/api/settings/smtp/test', [SettingsController::class, 'testSmtp']);
-$router->post('/api/settings/smtp/send-test', [SettingsController::class, 'sendTestEmail']);
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
 $router->post('/api/settings/email-template', [SettingsController::class, 'saveEmailTemplate']);
 $router->post('/api/settings/email-template/:type/reset', [SettingsController::class, 'resetEmailTemplate']);
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
 $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
+
+// Push notifications
+$router->get('/api/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);
+$router->post('/api/push/subscribe', [PushController::class, 'subscribe']);
+$router->post('/api/push/unsubscribe', [PushController::class, 'unsubscribe']);
 
 // Warranties
 $router->get('/warranties', [WarrantyController::class, 'index']);

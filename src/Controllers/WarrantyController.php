@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\Warranty;
+use App\Models\Notification;
 
 class WarrantyController extends BaseController
 {
@@ -26,6 +27,8 @@ class WarrantyController extends BaseController
             $data     = $_POST ?: $this->jsonInput();
             $file     = $_FILES['file'] ?? null;
             $id = Warranty::create($user['family_id'], $user['id'], $data, $file);
+            Notification::notifyFamily($user['family_id'], $user['id'], 'warranties', 'Nouvelle garantie',
+                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/warranties');
             return ['success' => true, 'id' => $id];
         });
     }

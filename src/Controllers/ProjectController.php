@@ -81,6 +81,8 @@ class ProjectController extends BaseController
             $user = Session::user();
             $data = $this->jsonInput();
             $id = Project::create($user['family_id'], $user['id'], $data);
+            Notification::notifyFamily($user['family_id'], $user['id'], 'projects', 'Nouveau projet',
+                $user['name'] . ' a créé le projet : ' . $data['name'], BASE_URL . '/projects/' . $id);
             return ['success' => true, 'id' => $id];
         });
     }

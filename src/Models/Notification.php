@@ -7,10 +7,16 @@ class Notification
 {
     public static function create(int $userId, string $type, string $title, string $message, ?string $link = null): int
     {
-        return Database::insert(
+        $id = Database::insert(
             'INSERT INTO notifications (user_id, type, title, message, link) VALUES (?,?,?,?,?)',
             [$userId, $type, $title, $message, $link]
         );
+        try {
+            \App\Core\Push::sendToUser($userId, $title, $message, $link);
+        } catch (\Throwable $e) {
+            error_log('Push notification error: ' . $e->getMessage());
+        }
+        return $id;
     }
 
     public static function getByUser(int $userId, int $limit = 20): array

@@ -222,6 +222,61 @@ async function apiFetch(url, options = {}) {
     return res.json();
 }
 
+// ---- Push notifications ----
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function subscribeToPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        Dialog.alert("Les notifications push ne sont pas supportées par ce navigateur.");
+        return false;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return false;
+
+    const reg = await navigator.serviceWorker.ready;
+    const { publicKey } = await fetch(BASE_URL + '/api/push/vapid-public-key').then(r => r.json());
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+        sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey),
+        });
+    }
+    await apiFetch(BASE_URL + '/api/push/subscribe', { method: 'POST', body: JSON.stringify(sub.toJSON()) });
+    return true;
+}
+
+async function unsubscribeFromPush() {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+        await apiFetch(BASE_URL + '/api/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) });
+        await sub.unsubscribe();
+    }
+}
+
+// Silently re-attach an already-granted subscription (e.g. after a browser
+// update rotated the push endpoint) without prompting the user again.
+async function initPushSubscription() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) {
+            await apiFetch(BASE_URL + '/api/push/subscribe', { method: 'POST', body: JSON.stringify(existing.toJSON()) });
+        } else {
+            await subscribeToPush();
+        }
+    } catch { /* ignore — retried on next page load */ }
+}
+
 // Auto-dismiss alerts
 document.querySelectorAll('.alert').forEach(el => {
     setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .5s'; setTimeout(() => el.remove(), 500); }, 4000);

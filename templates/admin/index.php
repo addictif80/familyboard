@@ -14,7 +14,7 @@
             <span>🔐 Admin</span>
         </div>
         <ul class="admin-nav">
-            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support'] as $t=>$label): ?>
+            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP'] as $t=>$label): ?>
             <li class="<?= $tab === $t ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
             </li>
@@ -30,11 +30,12 @@
     <!-- Content -->
     <main class="admin-content">
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['blocked','unblocked']) ? 'success' : 'info' ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['blocked','unblocked','smtp_saved']) ? 'success' : 'info' ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
-                    'blocked'   => 'Utilisateur bloqué.',
-                    'unblocked' => 'Utilisateur débloqué.',
-                    default     => ''
+                    'blocked'     => 'Utilisateur bloqué.',
+                    'unblocked'   => 'Utilisateur débloqué.',
+                    'smtp_saved'  => 'Configuration SMTP enregistrée.',
+                    default       => ''
                 } ?>
             </div>
         <?php endif; ?>
@@ -155,9 +156,69 @@
         </table>
         <?php endif; ?>
 
+        <?php elseif ($tab === 'smtp'): ?>
+        <h2>Configuration SMTP (globale)</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Un seul serveur SMTP est utilisé pour l'envoi d'emails de toutes les familles inscrites.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/smtp" class="card" style="padding:1.25rem;max-width:640px">
+            <div class="form-row">
+                <div class="form-group flex-2">
+                    <label>Serveur SMTP</label>
+                    <input type="text" name="smtp_host" value="<?= htmlspecialchars($smtp['host'] ?? '') ?>" placeholder="smtp.gmail.com">
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" name="smtp_port" value="<?= htmlspecialchars($smtp['port'] ?? '587') ?>">
+                </div>
+                <div class="form-group">
+                    <label>Chiffrement</label>
+                    <select name="smtp_encryption">
+                        <option value="tls" <?= ($smtp['encryption'] ?? '') === 'tls' ? 'selected' : '' ?>>TLS</option>
+                        <option value="ssl" <?= ($smtp['encryption'] ?? '') === 'ssl' ? 'selected' : '' ?>>SSL</option>
+                        <option value="none" <?= ($smtp['encryption'] ?? '') === 'none' ? 'selected' : '' ?>>Aucun</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Identifiant</label>
+                    <input type="text" name="smtp_user" value="<?= htmlspecialchars($smtp['username'] ?? '') ?>" placeholder="user@gmail.com">
+                </div>
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" name="smtp_pass" value="<?= htmlspecialchars($smtp['password'] ?? '') ?>">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Email expéditeur</label>
+                    <input type="email" name="smtp_from_email" value="<?= htmlspecialchars($smtp['from_email'] ?? '') ?>">
+                </div>
+                <div class="form-group">
+                    <label>Nom expéditeur</label>
+                    <input type="text" name="smtp_from_name" value="<?= htmlspecialchars($smtp['from_name'] ?? 'FamilyBoard') ?>">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer la configuration SMTP</button>
+        </form>
+
+        <?php if ($smtp): ?>
+        <div class="card" style="padding:1.25rem;max-width:640px;margin-top:1rem">
+            <h3 style="margin-top:0">Tester la configuration</h3>
+            <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-bottom:.75rem">
+                <button type="button" class="btn btn-secondary" onclick="testSmtp()">🔌 Tester la connexion</button>
+                <input type="email" id="smtp-test-email" placeholder="destinataire@exemple.com" style="flex:1;min-width:220px">
+                <button type="button" class="btn btn-secondary" onclick="sendTestSmtpEmail()">📨 Envoyer un email test</button>
+            </div>
+            <div id="smtp-test-result"></div>
+        </div>
+        <?php endif; ?>
+
         <?php endif; ?>
     </main>
 </div>
+<script>const BASE_URL = <?= json_encode(BASE_URL) ?>;</script>
 <script src="<?= ASSETS_URL ?>/js/admin.js?v=<?= APP_VERSION ?>"></script>
 </body>
 </html>

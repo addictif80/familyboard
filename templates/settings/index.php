@@ -163,6 +163,19 @@ ob_start();
         </div>
     </div>
 
+    <!-- Push notifications -->
+    <div class="card settings-section">
+        <h3>🔔 Notifications push</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Recevez une notification directement sur cet appareil (ordinateur ou mobile) dès qu'un événement
+            vous concerne, même quand l'application est fermée.
+        </p>
+        <button type="button" class="btn btn-primary" id="push-toggle-btn" onclick="togglePushNotifications()">
+            Activer les notifications push
+        </button>
+        <p id="push-status" style="color:var(--text-muted);font-size:.8rem;margin-top:.5rem"></p>
+    </div>
+
     <!-- Modules (admin only) -->
     <?php if ($user['role'] === 'admin'): ?>
     <?php $_disabledMods = \App\Models\Family::getDisabledModules($family ?? []); ?>
@@ -209,59 +222,6 @@ ob_start();
                 </div>
             <?php endforeach; ?>
         </div>
-    </div>
-
-    <!-- SMTP -->
-    <div class="card settings-section">
-        <h3>✉️ Serveur SMTP (notifications email)</h3>
-        <form method="POST" action="<?= BASE_URL ?>/settings/smtp">
-            <div class="form-row">
-                <div class="form-group flex-2">
-                    <label>Serveur SMTP</label>
-                    <input type="text" name="smtp_host" value="<?= htmlspecialchars($smtp['host'] ?? '') ?>" placeholder="smtp.gmail.com">
-                </div>
-                <div class="form-group">
-                    <label>Port</label>
-                    <input type="number" name="smtp_port" value="<?= htmlspecialchars($smtp['port'] ?? '587') ?>">
-                </div>
-                <div class="form-group">
-                    <label>Chiffrement</label>
-                    <select name="smtp_encryption">
-                        <option value="tls" <?= ($smtp['encryption'] ?? '') === 'tls' ? 'selected' : '' ?>>TLS</option>
-                        <option value="ssl" <?= ($smtp['encryption'] ?? '') === 'ssl' ? 'selected' : '' ?>>SSL</option>
-                        <option value="none" <?= ($smtp['encryption'] ?? '') === 'none' ? 'selected' : '' ?>>Aucun</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Identifiant</label>
-                    <input type="text" name="smtp_user" value="<?= htmlspecialchars($smtp['username'] ?? '') ?>" placeholder="user@gmail.com">
-                </div>
-                <div class="form-group">
-                    <label>Mot de passe</label>
-                    <input type="password" name="smtp_pass" value="<?= htmlspecialchars($smtp['password'] ?? '') ?>">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Email expéditeur</label>
-                    <input type="email" name="smtp_from_email" value="<?= htmlspecialchars($smtp['from_email'] ?? '') ?>">
-                </div>
-                <div class="form-group">
-                    <label>Nom expéditeur</label>
-                    <input type="text" name="smtp_from_name" value="<?= htmlspecialchars($smtp['from_name'] ?? 'FamilyBoard') ?>">
-                </div>
-            </div>
-            <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.5rem">
-                <button type="submit" class="btn btn-primary">Enregistrer la configuration SMTP</button>
-                <?php if ($smtp): ?>
-                <button type="button" class="btn btn-secondary" onclick="testSmtp(false)">🔌 Tester la connexion</button>
-                <button type="button" class="btn btn-secondary" onclick="testSmtp(true)" title="Envoie un email réel à votre adresse">📨 Envoyer un email test</button>
-                <?php endif; ?>
-            </div>
-        </form>
-        <div id="smtp-test-result" style="display:none;margin-top:1rem"></div>
     </div>
 
     <!-- Email templates -->
@@ -380,38 +340,6 @@ function previewAvatar(input) {
             el.innerHTML = '<img src="' + e.target.result + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
         };
         reader.readAsDataURL(input.files[0]);
-    }
-}
-async function testSmtp(sendReal = false) {
-    const box = document.getElementById('smtp-test-result');
-    const url = sendReal
-        ? BASE_URL + '/api/settings/smtp/send-test'
-        : BASE_URL + '/api/settings/smtp/test';
-    box.style.display = 'none';
-    box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';
-    box.style.display = 'block';
-    try {
-        const r = await apiFetch(url, { method: 'POST' });
-        let html = '<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">';
-        for (const step of (r.steps || [])) {
-            html += `<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem .75rem;border-bottom:1px solid var(--border)">
-                <span style="font-size:1rem">${step.ok ? '✅' : '❌'}</span>
-                <strong style="min-width:140px;flex-shrink:0">${step.label}</strong>
-                <code style="font-size:.75rem;color:var(--text-muted)">${step.detail}</code>
-            </div>`;
-        }
-        html += '</div>';
-        if (!r.ok && r.error) {
-            html += `<p style="color:var(--danger);margin-top:.5rem;font-size:.85rem">❌ ${r.error}</p>`;
-        } else if (r.ok) {
-            const msg = sendReal
-                ? '✅ Email envoyé ! Vérifiez votre boîte de réception (et les spams).'
-                : '✅ Connexion SMTP réussie !';
-            html += `<p style="color:var(--success);margin-top:.5rem;font-size:.85rem">${msg}</p>`;
-        }
-        box.innerHTML = html;
-    } catch(e) {
-        box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
     }
 }
 async function sendInvitation() {

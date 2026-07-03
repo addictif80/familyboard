@@ -19,12 +19,14 @@ class BaseController
         }
         $user = User::findById(Session::userId());
         if (!$user) {
+            \App\Core\RememberMe::clear();
             Session::destroy();
             header('Location: ' . BASE_URL . '/login');
             exit;
         }
         // Check if account has been blocked while logged in
         if (!empty($user['blocked_at'])) {
+            \App\Core\RememberMe::clear();
             Session::destroy();
             $reason = $user['blocked_reason'] ?? '';
             require BASE_PATH . '/templates/blocked.php';
