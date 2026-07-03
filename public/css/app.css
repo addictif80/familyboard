@@ -956,6 +956,8 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .settings-container { max-width: 700px; display: flex; flex-direction: column; gap: 1.5rem; }
 .settings-section { }
 .settings-section h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
+.push-status { color: var(--text-muted); }
+.push-status-warn { color: var(--warning-text); background: var(--warning-bg); padding: .5rem .7rem; border-radius: var(--radius-sm); }
 .profile-preview { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
 .invite-section { display: flex; align-items: center; gap: .75rem; margin-top: 1rem; flex-wrap: wrap; background: var(--bg); padding: .75rem 1rem; border-radius: 8px; }
 .invite-code { font-size: 1.1rem; font-weight: 700; letter-spacing: 3px; color: var(--primary); background: none; border: none; }

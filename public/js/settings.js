@@ -4,26 +4,28 @@ async function refreshPushStatus() {
     const status = document.getElementById('push-status');
     if (!btn || !status) return;
 
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        btn.disabled = true;
-        status.textContent = "Non supporté par ce navigateur.";
-        return;
-    }
+    const { state, message } = await checkPushStatus();
 
-    if (Notification.permission === 'denied') {
-        btn.disabled = true;
-        status.textContent = "Notifications bloquées dans les réglages du navigateur.";
-        return;
-    }
+    status.textContent = message;
+    status.classList.toggle('push-status-warn', state === 'ios-not-installed' || state === 'blocked' || state === 'not-enabled');
 
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-        btn.textContent = 'Désactiver les notifications push';
-        status.textContent = 'Activées sur cet appareil.';
-    } else {
-        btn.textContent = 'Activer les notifications push';
-        status.textContent = '';
+    switch (state) {
+        case 'unsupported':
+        case 'blocked':
+            btn.disabled = true;
+            btn.textContent = 'Activer les notifications push';
+            break;
+        case 'ios-not-installed':
+            btn.disabled = false; // clicking still explains what to do, via subscribeToPush's guard
+            btn.textContent = 'Activer les notifications push';
+            break;
+        case 'enabled':
+            btn.disabled = false;
+            btn.textContent = 'Désactiver les notifications push';
+            break;
+        default: // not-enabled
+            btn.disabled = false;
+            btn.textContent = 'Activer les notifications push';
     }
 }
 
