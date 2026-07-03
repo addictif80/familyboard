@@ -1,0 +1,25 @@
+-- Fiche urgence partageable par QR code / lien : allergies, groupe sanguin,
+-- médecin, contact d'urgence — pour un membre de la famille ou un bébé.
+CREATE TABLE IF NOT EXISTS emergency_cards (
+    id                       INT AUTO_INCREMENT PRIMARY KEY,
+    family_id                INT          NOT NULL,
+    subject_type             ENUM('user','baby') NOT NULL,
+    subject_id               INT          NOT NULL,
+    blood_type               VARCHAR(5)   NULL DEFAULT NULL,
+    allergies                TEXT         NULL DEFAULT NULL,
+    medications              TEXT         NULL DEFAULT NULL,
+    conditions               TEXT         NULL DEFAULT NULL,
+    doctor_name              VARCHAR(150) NULL DEFAULT NULL,
+    doctor_phone             VARCHAR(30)  NULL DEFAULT NULL,
+    emergency_contact_name   VARCHAR(150) NULL DEFAULT NULL,
+    emergency_contact_phone  VARCHAR(30)  NULL DEFAULT NULL,
+    notes                    TEXT         NULL DEFAULT NULL,
+    public_token             VARCHAR(64)  NOT NULL,
+    created_by               INT          NOT NULL,
+    updated_at               DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at               DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_subject (family_id, subject_type, subject_id),
+    UNIQUE KEY uq_token (public_token),
+    FOREIGN KEY (family_id)  REFERENCES families(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id)    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

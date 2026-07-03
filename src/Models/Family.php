@@ -21,6 +21,10 @@ class Family
         'family-wall' => ['label' => 'Écran mural',       'icon' => '📺'],
         'baby'        => ['label' => 'Bébé',               'icon' => '🍼'],
         'location'    => ['label' => 'Position',          'icon' => '📍'],
+        'emergency'   => ['label' => 'Fiches urgence',    'icon' => '🚑'],
+        'comm_log'    => ['label' => 'Journal parental',  'icon' => '📝'],
+        'meals'       => ['label' => 'Repas',              'icon' => '🍽️'],
+        'sitter'      => ['label' => 'Accès baby-sitter',  'icon' => '👶'],
     ];
 
     public static function findById(int $id): ?array

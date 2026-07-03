@@ -7,6 +7,7 @@ use App\Models\Family;
 use App\Models\Notification;
 use App\Models\EmailLog;
 use App\Models\EmailTemplate;
+use App\Models\SitterLink;
 
 class SettingsController extends BaseController
 {
@@ -18,6 +19,7 @@ class SettingsController extends BaseController
         $members = User::getByFamily($user['family_id']);
         $emailLogs = ($user['role'] === 'admin') ? EmailLog::getByFamily($user['family_id'], 30) : [];
         $emailTemplates = ($user['role'] === 'admin') ? EmailTemplate::getAll($user['family_id']) : [];
+        $sitterLinks = SitterLink::getByFamily($user['family_id']);
         require BASE_PATH . '/templates/settings/index.php';
     }
 
