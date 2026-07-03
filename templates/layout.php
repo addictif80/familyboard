@@ -14,6 +14,9 @@
         } catch (e) {}
     })();
     </script>
+    <!-- Favicon -->
+    <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon-192.png" type="image/png">
     <!-- PWA -->
     <link rel="manifest" href="<?= BASE_URL ?>/public/manifest.json">
     <meta name="theme-color" content="#232A3D">
