@@ -46,21 +46,9 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_family (family_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ── SMTP ─────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS smtp_settings (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    family_id   INT          NOT NULL UNIQUE,
-    host        VARCHAR(255) NOT NULL DEFAULT '',
-    port        SMALLINT     NOT NULL DEFAULT 587,
-    username    VARCHAR(255) NOT NULL DEFAULT '',
-    password    VARCHAR(255) NOT NULL DEFAULT '',
-    from_email  VARCHAR(255) NOT NULL DEFAULT '',
-    from_name   VARCHAR(100) NOT NULL DEFAULT '',
-    encryption  ENUM('tls','ssl','none') NOT NULL DEFAULT 'tls',
-    created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Note : les identifiants SMTP sont globaux (configurés par l'administrateur
+-- système dans le panneau /admin, stockés dans app_settings) et non plus
+-- propres à chaque famille — voir database/add_global_smtp.sql.
 
 -- ── Sources CalDAV ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS caldav_sources (
