@@ -87,7 +87,7 @@ class Warranty
 
         $endDate = self::computeEndDate($data['purchase_date'] ?? null, (int)($data['warranty_months'] ?? 24));
 
-        Database::execute(
+        return Database::insert(
             'INSERT INTO warranties
              (family_id, user_id, title, brand, model, serial_number, store,
               purchase_date, warranty_months, warranty_end_date, price, notes,
@@ -109,7 +109,6 @@ class Warranty
                 $data['ocr_text'] ?? null,
             ]
         );
-        return (int)Database::lastInsertId();
     }
 
     public static function update(int $id, int $familyId, array $data, ?array $file = null): void

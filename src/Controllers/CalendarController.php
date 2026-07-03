@@ -200,6 +200,8 @@ class CalendarController extends BaseController
             }
             $data = $this->jsonInput();
             Event::update($id, $data);
+            Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement modifié',
+                $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']), BASE_URL . '/calendar');
             return ['success' => true];
         });
     }
@@ -215,6 +217,8 @@ class CalendarController extends BaseController
                 return ['success' => false, 'error' => 'Non autorisé'];
             }
             Event::delete($id);
+            Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement supprimé',
+                $user['name'] . ' a supprimé : ' . $event['title'], BASE_URL . '/calendar');
             return ['success' => true];
         });
     }

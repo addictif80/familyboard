@@ -5,6 +5,7 @@ use App\Core\Session;
 use App\Core\OcrHelper;
 use App\Models\Document;
 use App\Models\User;
+use App\Models\Notification;
 
 class DocumentController extends BaseController
 {
@@ -37,6 +38,8 @@ class DocumentController extends BaseController
             $file   = $_FILES['file'] ?? null;
             $userId = (int)($data['user_id'] ?? $user['id']);
             $id     = Document::create($user['family_id'], $userId, $data, $file);
+            Notification::notifyFamily($user['family_id'], $user['id'], 'documents', 'Nouveau document',
+                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/documents');
             return ['success' => true, 'id' => $id];
         });
     }

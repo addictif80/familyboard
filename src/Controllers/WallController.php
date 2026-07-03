@@ -116,6 +116,13 @@ class WallController extends BaseController
             if (!$content) return ['success' => false];
 
             $commentId = Post::addComment($postId, $user['id'], $content);
+
+            if ((int)$post['user_id'] !== $user['id']) {
+                Notification::create($post['user_id'], 'wall', 'Nouveau commentaire',
+                    $user['name'] . ' a commenté votre post : ' . mb_strimwidth($content, 0, 80, '…'),
+                    BASE_URL . '/wall');
+            }
+
             return ['success' => true, 'comment' => [
                 'id' => $commentId,
                 'user_name' => $user['name'],
@@ -138,6 +145,12 @@ class WallController extends BaseController
             }
             $action = Post::toggleReaction($postId, $user['id']);
             $count = \App\Core\Database::fetch('SELECT COUNT(*) as c FROM post_reactions WHERE post_id=?', [$postId])['c'];
+
+            if ($action === 'added' && (int)$post['user_id'] !== $user['id']) {
+                Notification::create($post['user_id'], 'wall', 'Nouvelle réaction',
+                    $user['name'] . ' a réagi ❤️ à votre post.', BASE_URL . '/wall');
+            }
+
             return ['success' => true, 'action' => $action, 'count' => $count];
         });
     }

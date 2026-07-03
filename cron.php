@@ -28,6 +28,7 @@ use App\Models\EmailTemplate;
 use App\Models\EmailLog;
 use App\Models\SmtpSettings;
 use App\Models\CalDAVSource;
+use App\Models\Notification;
 
 $appUrl = (getenv('APP_URL') ?: 'https://board.abhd.fr') . BASE_URL;
 
@@ -51,7 +52,15 @@ foreach ($families as $family) {
     sendTomorrowEventDigest($familyId, $members, $appUrl);
     sendTaskReminders($familyId, $members, $appUrl);
     sendShoppingReminders($familyId, $members, $appUrl);
-    sendRecurringAlerts($familyId, $appUrl);
+}
+
+// Recurring budget alerts run for every family — the push notification
+// doesn't need SMTP; the email is only sent if SMTP happens to be configured.
+$allFamilies = Database::fetchAll('SELECT * FROM families');
+foreach ($allFamilies as $family) {
+    $tz = $family['timezone'] ?? 'Europe/Paris';
+    date_default_timezone_set($tz);
+    sendRecurringAlerts((int)$family['id'], $appUrl);
 }
 
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;
@@ -221,8 +230,6 @@ function sendRecurringAlerts(int $familyId, string $appUrl): void
     );
 
     foreach ($items as $item) {
-        if (empty($item['user_email'])) continue;
-
         $alertDay = (int)$item['alert_days_before'];
         if ($alertDay <= 0) continue;
 
@@ -259,15 +266,18 @@ function sendRecurringAlerts(int $familyId, string $appUrl): void
             . ($item['category_name'] ? '<p>Catégorie : ' . htmlspecialchars($item['category_name']) . '</p>' : '')
             . '<p><a href="' . $appUrl . '/budget">Voir le budget</a></p>';
 
-        [$ok] = Mail::send($familyId, $item['user_email'], $item['user_name'], $subject, $body, 'budget_recurring');
+        Notification::create((int)$item['user_id'], 'budget',
+            "{$typeLabel} à venir", "« {$item['title']} » de {$amountFmt} le {$dueStr}.", BASE_URL . '/budget');
 
-        if ($ok) {
-            Database::execute(
-                'UPDATE budget_recurring SET last_alert_sent=? WHERE id=?',
-                [$todayStr, $item['id']]
-            );
-            echo "  → Recurring alert sent to {$item['user_email']} for item #{$item['id']} ({$item['title']})" . PHP_EOL;
+        if (!empty($item['user_email'])) {
+            Mail::send($familyId, $item['user_email'], $item['user_name'], $subject, $body, 'budget_recurring');
         }
+
+        Database::execute(
+            'UPDATE budget_recurring SET last_alert_sent=? WHERE id=?',
+            [$todayStr, $item['id']]
+        );
+        echo "  → Recurring alert sent for item #{$item['id']} ({$item['title']})" . PHP_EOL;
     }
 }
 
