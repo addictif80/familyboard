@@ -1,3 +1,11 @@
+// ---- Theme (clair / sombre) ----
+function toggleTheme() {
+    const root = document.documentElement;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('fb-theme', next); } catch {}
+}
+
 // Auto-dismiss alerts after 4s
 document.querySelectorAll('.alert').forEach(el => {
     setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .5s'; setTimeout(() => el.remove(), 500); }, 4000);
