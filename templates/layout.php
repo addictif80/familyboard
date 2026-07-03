@@ -153,6 +153,38 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 </a>
             </li>
             <?php endif; ?>
+            <?php if (!in_array('location', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/location" class="nav-link">
+                    <span class="nav-icon">📍</span>
+                    <span class="nav-label">Position</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (!in_array('emergency', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/emergency') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/emergency" class="nav-link">
+                    <span class="nav-icon">🚑</span>
+                    <span class="nav-label">Fiches urgence</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (!in_array('comm_log', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/comm-log') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/comm-log" class="nav-link">
+                    <span class="nav-icon">📝</span>
+                    <span class="nav-label">Journal parental</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (!in_array('meals', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/meals') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/meals" class="nav-link">
+                    <span class="nav-icon">🍽️</span>
+                    <span class="nav-label">Repas</span>
+                </a>
+            </li>
+            <?php endif; ?>
         </ul>
 
         <div class="sidebar-footer">

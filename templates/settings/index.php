@@ -224,6 +224,54 @@ ob_start();
         </div>
     </div>
 
+    <!-- Sitter access -->
+    <?php $_disabledModsForSitter = \App\Models\Family::getDisabledModules($family ?? []); ?>
+    <?php if (!in_array('sitter', $_disabledModsForSitter)): ?>
+    <div class="card settings-section">
+        <h3>👶 Accès baby-sitter</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Générez un lien temporaire donnant un accès limité en lecture seule (planning du jour, tâches
+            ouvertes, fiches urgence) — sans connexion, sans accès au reste des données familiales.
+        </p>
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label>Libellé</label>
+                <input type="text" id="sitter-label" placeholder="Ex : Baby-sitter mardi soir">
+            </div>
+            <div class="form-group">
+                <label>Valide pendant</label>
+                <select id="sitter-hours">
+                    <option value="6">6 heures</option>
+                    <option value="12" selected>12 heures</option>
+                    <option value="24">24 heures</option>
+                    <option value="72">3 jours</option>
+                </select>
+            </div>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="createSitterLink()">+ Générer un lien</button>
+        <div id="sitter-new-link" style="margin-top:1rem"></div>
+
+        <div id="sitter-links-list" style="margin-top:1.25rem">
+            <?php foreach ($sitterLinks as $link): ?>
+                <?php /* expires_at is stored in UTC (matches SQL NOW()) — parse it as such, not as local time */ ?>
+                <?php $active = !$link['revoked_at'] && strtotime($link['expires_at'] . ' UTC') > time(); ?>
+                <div class="member-item" data-sitter-id="<?= $link['id'] ?>">
+                    <div class="member-info">
+                        <strong><?= htmlspecialchars($link['label']) ?></strong>
+                        <small>
+                            <?= $active ? '✅ Actif' : '⛔ ' . ($link['revoked_at'] ? 'Révoqué' : 'Expiré') ?>
+                            · expire le <?= \App\Core\DateHelper::fromUtc($link['expires_at'], 'd/m/Y à H:i') ?>
+                        </small>
+                    </div>
+                    <?php if ($active): ?>
+                    <button class="btn btn-danger btn-sm" onclick="revokeSitterLink(<?= $link['id'] ?>)">Révoquer</button>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Email templates -->
     <div class="card settings-section">
         <h3>📝 Templates d'emails</h3>

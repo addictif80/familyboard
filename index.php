@@ -53,6 +53,11 @@ use App\Controllers\FamilyWallController;
 use App\Controllers\CameraController;
 use App\Controllers\BabyController;
 use App\Controllers\PushController;
+use App\Controllers\LocationController;
+use App\Controllers\EmergencyController;
+use App\Controllers\CommLogController;
+use App\Controllers\MealController;
+use App\Controllers\SitterController;
 
 Session::start();
 
@@ -303,6 +308,38 @@ $router->post('/api/baby/:baby_id/consultations/:id/delete', [BabyController::cl
 // Family Wall (écran mural)
 $router->get('/family-wall', [FamilyWallController::class, 'index']);
 $router->get('/api/family-wall/data', [FamilyWallController::class, 'apiData']);
+
+// Location (partage de position ponctuel)
+$router->get('/location', [LocationController::class, 'index']);
+$router->get('/api/location/current', [LocationController::class, 'apiCurrent']);
+$router->post('/api/location/places', [LocationController::class, 'createPlace']);
+$router->post('/api/location/places/:id/delete', [LocationController::class, 'deletePlace']);
+$router->post('/api/location/checkin', [LocationController::class, 'checkin']);
+$router->post('/api/location/clear', [LocationController::class, 'clear']);
+
+// Emergency cards (fiches urgence)
+$router->get('/emergency', [EmergencyController::class, 'index']);
+$router->post('/api/emergency', [EmergencyController::class, 'save']);
+$router->get('/emergency/public/:token', [EmergencyController::class, 'publicView']);
+
+// Journal parental (communication horodatée, immuable)
+$router->get('/comm-log', [CommLogController::class, 'index']);
+$router->post('/api/comm-log/send', [CommLogController::class, 'send']);
+$router->get('/api/comm-log/poll', [CommLogController::class, 'poll']);
+
+// Repas
+$router->get('/meals', [MealController::class, 'index']);
+$router->post('/api/meals/recipes', [MealController::class, 'createRecipe']);
+$router->post('/api/meals/recipes/:id', [MealController::class, 'updateRecipe']);
+$router->post('/api/meals/recipes/:id/delete', [MealController::class, 'deleteRecipe']);
+$router->post('/api/meals/recipes/:id/add-to-shopping-list', [MealController::class, 'addIngredientsToShoppingList']);
+$router->post('/api/meals/plan', [MealController::class, 'setMeal']);
+$router->post('/api/meals/plan/clear', [MealController::class, 'clearMeal']);
+
+// Mode baby-sitter
+$router->post('/api/sitter/links', [SitterController::class, 'create']);
+$router->post('/api/sitter/links/:id/revoke', [SitterController::class, 'revoke']);
+$router->get('/sitter/:token', [SitterController::class, 'view']);
 
 // Invitations
 $router->get('/invite/:token', [InvitationController::class, 'show']);
