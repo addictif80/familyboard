@@ -151,12 +151,16 @@ function loadNotifications() {
             if (badge) badge.textContent = data.unread || '';
             if (!data.unread) document.getElementById('notif-badge')?.remove();
 
-            if (!data.notifications.length) {
+            // Only show unread notifications — once read (or after "Tout lire"),
+            // they disappear from the panel. They stay marked read in the DB.
+            const unread = data.notifications.filter(n => !n.is_read);
+
+            if (!unread.length) {
                 list.innerHTML = '<p style="padding:.75rem 1rem;color:var(--text-muted);font-size:.8rem">Aucune notification.</p>';
                 return;
             }
-            list.innerHTML = data.notifications.map(n => `
-                <div class="notif-item ${n.is_read ? '' : 'notif-unread'}" onclick="readNotif(${n.id}, '${n.link || '#'}')">
+            list.innerHTML = unread.map(n => `
+                <div class="notif-item notif-unread" onclick="readNotif(${n.id}, '${n.link || '#'}')">
                     <div class="notif-title">${escapeHtml(n.title)}</div>
                     <div class="notif-msg">${escapeHtml(n.message)}</div>
                     <div class="notif-time">${formatTime(n.created_at)}</div>
