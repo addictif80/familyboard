@@ -4,9 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? APP_NAME) ?></title>
+    <!-- Apply saved theme before first paint to avoid a flash of the wrong theme -->
+    <script>
+    (function () {
+        try {
+            var stored = localStorage.getItem('fb-theme');
+            var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+    })();
+    </script>
     <!-- PWA -->
     <link rel="manifest" href="<?= BASE_URL ?>/public/manifest.json">
-    <meta name="theme-color" content="#4A90D9">
+    <meta name="theme-color" content="#2F3E5C">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="FamilyBoard">
@@ -19,7 +29,7 @@
         <?php endforeach; ?>
     <?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
 </head>
 <body>
 
@@ -216,6 +226,10 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
             <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
             <h1 class="page-title"><?= htmlspecialchars($pageTitle ?? '') ?></h1>
             <div class="topbar-actions">
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème">
+                    <span class="theme-icon-sun">☀️</span>
+                    <span class="theme-icon-moon">🌙</span>
+                </button>
                 <button class="btn-icon" onclick="toggleNotifications()" title="Notifications">
                     🔔
                     <?php if ($unreadCount > 0): ?>
