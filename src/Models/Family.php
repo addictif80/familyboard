@@ -20,6 +20,7 @@ class Family
         'cameras'     => ['label' => 'Caméras',           'icon' => '🎥'],
         'family-wall' => ['label' => 'Écran mural',       'icon' => '📺'],
         'baby'        => ['label' => 'Bébé',               'icon' => '🍼'],
+        'location'    => ['label' => 'Position',          'icon' => '📍'],
     ];
 
     public static function findById(int $id): ?array

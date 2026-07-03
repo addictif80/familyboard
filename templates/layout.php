@@ -153,6 +153,14 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 </a>
             </li>
             <?php endif; ?>
+            <?php if (!in_array('location', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/location" class="nav-link">
+                    <span class="nav-icon">📍</span>
+                    <span class="nav-label">Position</span>
+                </a>
+            </li>
+            <?php endif; ?>
         </ul>
 
         <div class="sidebar-footer">

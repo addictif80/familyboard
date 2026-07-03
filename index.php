@@ -53,6 +53,7 @@ use App\Controllers\FamilyWallController;
 use App\Controllers\CameraController;
 use App\Controllers\BabyController;
 use App\Controllers\PushController;
+use App\Controllers\LocationController;
 
 Session::start();
 
@@ -303,6 +304,14 @@ $router->post('/api/baby/:baby_id/consultations/:id/delete', [BabyController::cl
 // Family Wall (écran mural)
 $router->get('/family-wall', [FamilyWallController::class, 'index']);
 $router->get('/api/family-wall/data', [FamilyWallController::class, 'apiData']);
+
+// Location (partage de position ponctuel)
+$router->get('/location', [LocationController::class, 'index']);
+$router->get('/api/location/current', [LocationController::class, 'apiCurrent']);
+$router->post('/api/location/places', [LocationController::class, 'createPlace']);
+$router->post('/api/location/places/:id/delete', [LocationController::class, 'deletePlace']);
+$router->post('/api/location/checkin', [LocationController::class, 'checkin']);
+$router->post('/api/location/clear', [LocationController::class, 'clear']);
 
 // Invitations
 $router->get('/invite/:token', [InvitationController::class, 'show']);
