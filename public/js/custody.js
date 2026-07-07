@@ -142,8 +142,21 @@ function hexToRgba(hex, alpha) {
 function loadCustodyEvents() {
     const year = custodyCurrentDate.getFullYear();
     const month = custodyCurrentDate.getMonth();
-    const start = `${year}-${String(month+1).padStart(2,'0')}-01`;
-    const end = `${year}-${String(month+1).padStart(2,'0')}-${new Date(year, month+1, 0).getDate()}`;
+
+    // Fetch the full 42-cell grid range actually rendered by renderCustodyCalendar()
+    // (which starts on the Monday on/before the 1st and always shows 6 weeks),
+    // not just the calendar month — otherwise the trailing days from the next
+    // month shown in the grid have no data and render blank/stale.
+    const firstDay = new Date(year, month, 1);
+    let startDow = firstDay.getDay();
+    if (startDow === 0) startDow = 7;
+    const gridStart = new Date(firstDay);
+    gridStart.setDate(gridStart.getDate() - (startDow - 1));
+    const gridEnd = new Date(gridStart);
+    gridEnd.setDate(gridEnd.getDate() + 41);
+
+    const start = formatCustodyDate(gridStart);
+    const end = formatCustodyDate(gridEnd);
 
     fetch(`${BASE_URL}/api/custody/events?start=${start}&end=${end}`)
         .then(r => r.json())
