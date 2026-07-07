@@ -217,6 +217,27 @@ function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Month/day-name formatting shared by every month-grid view (calendar, custody, coparent).
+const _intlMonth = new Intl.DateTimeFormat('fr-FR', { month: 'long', timeZone: APP_TIMEZONE });
+const _intlDay   = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', timeZone: APP_TIMEZONE });
+
+function fmtMonthYear(year, month) {
+    const d = new Date(year, month, 1);
+    const m = _intlMonth.format(d);
+    return m.charAt(0).toUpperCase() + m.slice(1) + ' ' + year;
+}
+
+function fmtDayNames() {
+    const names = [];
+    // Get Mon-Sun: use a known Monday (2024-01-01 was a Monday)
+    for (let i = 1; i <= 7; i++) {
+        const d = new Date(2024, 0, i);
+        const s = _intlDay.format(d);
+        names.push(s.charAt(0).toUpperCase() + s.slice(1).replace('.',''));
+    }
+    return names;
+}
+
 function formatTime(datetime) {
     const d = new Date(datetime);
     const now = new Date();
