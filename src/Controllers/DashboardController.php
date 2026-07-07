@@ -25,6 +25,10 @@ class DashboardController extends \App\Controllers\BaseController
 
     public function index(array $params): void
     {
+        if (!Session::isLoggedIn()) {
+            require BASE_PATH . '/templates/landing.php';
+            return;
+        }
         $this->requireAuth();
         $user     = Session::user();
         $familyId = $user['family_id'];
