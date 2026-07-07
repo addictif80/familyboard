@@ -58,6 +58,7 @@ use App\Controllers\EmergencyController;
 use App\Controllers\CommLogController;
 use App\Controllers\MealController;
 use App\Controllers\SitterController;
+use App\Controllers\CoparentController;
 
 Session::start();
 
@@ -181,6 +182,23 @@ $router->post('/api/custody/event', [CustodyController::class, 'createEvent']);
 $router->post('/api/custody/event/:id', [CustodyController::class, 'updateEvent']);
 $router->post('/api/custody/event/:id/delete', [CustodyController::class, 'deleteEvent']);
 $router->post('/api/custody/proposal/apply', [CustodyController::class, 'applyProposal']);
+$router->get('/api/custody/schedule/:id/vacation-list', [CustodyController::class, 'listVacationPeriods']);
+$router->post('/api/custody/schedule/:id/vacation', [CustodyController::class, 'createVacationPeriod']);
+$router->post('/api/custody/vacation/:id', [CustodyController::class, 'updateVacationPeriod']);
+$router->post('/api/custody/vacation/:id/delete', [CustodyController::class, 'deleteVacationPeriod']);
+$router->post('/api/custody/schedule/:id/invite-coparent', [CustodyController::class, 'inviteCoparent']);
+
+// Vue co-parent à accès restreint
+$router->get('/coparent', [CoparentController::class, 'index']);
+$router->post('/api/coparent/create-family', [CoparentController::class, 'createFamily']);
+$router->get('/api/coparent/custody-events', [CoparentController::class, 'apiCustodyEvents']);
+$router->post('/api/coparent/custody-proposal', [CoparentController::class, 'proposeCustody']);
+$router->get('/api/coparent/journal', [CoparentController::class, 'journal']);
+$router->post('/api/coparent/journal', [CoparentController::class, 'journalSend']);
+$router->get('/api/coparent/documents', [CoparentController::class, 'documentsList']);
+$router->post('/api/coparent/documents', [CoparentController::class, 'documentsUpload']);
+$router->get('/api/coparent/events', [CoparentController::class, 'eventsList']);
+$router->post('/api/coparent/events', [CoparentController::class, 'eventsCreate']);
 
 // Projects
 $router->get('/projects', [ProjectController::class, 'index']);

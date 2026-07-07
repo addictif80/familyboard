@@ -75,6 +75,7 @@ class CalendarController extends BaseController
                     'user_color' => $e['user_color'],
                     'caldav' => (bool)$e['caldav_uid'],
                     'type' => 'event',
+                    'custody_schedule_id' => $e['custody_schedule_id'] ?? null,
                 ],
             ], $events);
 
@@ -204,6 +205,10 @@ class CalendarController extends BaseController
             $data = $this->jsonInput();
             $data['family_id'] = $user['family_id'];
             $data['user_id'] = $user['id'];
+            if (!empty($data['custody_schedule_id'])) {
+                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
+                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
+            }
             $id = Event::create($data);
             $event = Event::getById($id);
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Nouvel événement', $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/calendar');
@@ -222,6 +227,10 @@ class CalendarController extends BaseController
                 return ['success' => false, 'error' => 'Non autorisé'];
             }
             $data = $this->jsonInput();
+            if (!empty($data['custody_schedule_id'])) {
+                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
+                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
+            }
             Event::update($id, $data);
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement modifié',
                 $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']), BASE_URL . '/calendar');

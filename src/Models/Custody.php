@@ -37,15 +37,16 @@ class Custody
     {
         return Database::insert(
             'INSERT INTO custody_schedules
-             (family_id, child_name, color, notes, recurrence_type, recurrence_start,
+             (family_id, child_name, color, notes, recurrence_type, recurrence_start, handover_weekday,
               recurrence_parent1_id, recurrence_parent2_id,
               recurrence_parent1_label, recurrence_parent1_color,
               recurrence_parent2_label, recurrence_parent2_color)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId, $childName, $color, $notes,
                 $recurrence['type'] ?? 'none',
                 $recurrence['start'] ?? null,
+                $recurrence['handover_weekday'] ?: null,
                 $recurrence['parent1_id'] ?: null,
                 $recurrence['parent2_id'] ?: null,
                 $recurrence['parent1_label'] ?? null,
@@ -59,7 +60,7 @@ class Custody
     public static function updateSchedule(int $id, string $childName, string $color, string $notes, array $recurrence = []): void
     {
         Database::execute(
-            'UPDATE custody_schedules SET child_name=?, color=?, notes=?, recurrence_type=?, recurrence_start=?,
+            'UPDATE custody_schedules SET child_name=?, color=?, notes=?, recurrence_type=?, recurrence_start=?, handover_weekday=?,
              recurrence_parent1_id=?, recurrence_parent2_id=?,
              recurrence_parent1_label=?, recurrence_parent1_color=?,
              recurrence_parent2_label=?, recurrence_parent2_color=?
@@ -68,6 +69,7 @@ class Custody
                 $childName, $color, $notes,
                 $recurrence['type'] ?? 'none',
                 $recurrence['start'] ?? null,
+                $recurrence['handover_weekday'] ?: null,
                 $recurrence['parent1_id'] ?: null,
                 $recurrence['parent2_id'] ?: null,
                 $recurrence['parent1_label'] ?? null,
@@ -84,9 +86,57 @@ class Custody
         Database::execute('DELETE FROM custody_schedules WHERE id=?', [$id]);
     }
 
+    /** Plannings (enfants "garde alternée") accessibles à un utilisateur via custody_access,
+     *  quelle que soit sa propre famille (co-parent restreint, ou parent avec sa propre famille). */
+    public static function getSchedulesForUser(int $userId): array
+    {
+        return Database::fetchAll(
+            'SELECT cs.*,
+             u1.name as parent1_name, u1.color as parent1_color,
+             u2.name as parent2_name, u2.color as parent2_color
+             FROM custody_access ca
+             JOIN custody_schedules cs ON cs.id = ca.schedule_id
+             LEFT JOIN users u1 ON u1.id = cs.recurrence_parent1_id
+             LEFT JOIN users u2 ON u2.id = cs.recurrence_parent2_id
+             WHERE ca.user_id=? ORDER BY cs.child_name',
+            [$userId]
+        );
+    }
+
+    /** [user_id => ['Enfant A', 'Enfant B']] pour un ensemble d'utilisateurs (affichage réglages). */
+    public static function getChildNamesByUserIds(array $userIds): array
+    {
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+        if (empty($userIds)) return [];
+        $ph = implode(',', array_fill(0, count($userIds), '?'));
+        $rows = Database::fetchAll(
+            "SELECT ca.user_id, cs.child_name FROM custody_access ca
+             JOIN custody_schedules cs ON cs.id = ca.schedule_id
+             WHERE ca.user_id IN ($ph)",
+            $userIds
+        );
+        $byUser = [];
+        foreach ($rows as $row) {
+            $byUser[$row['user_id']][] = $row['child_name'];
+        }
+        return $byUser;
+    }
+
+    public static function userHasAccessToSchedule(int $userId, int $scheduleId): bool
+    {
+        return (bool)Database::fetch('SELECT 1 FROM custody_access WHERE user_id=? AND schedule_id=?', [$userId, $scheduleId]);
+    }
+
+    public static function grantAccess(int $userId, int $scheduleId): void
+    {
+        Database::execute(
+            'INSERT IGNORE INTO custody_access (user_id, schedule_id) VALUES (?,?)',
+            [$userId, $scheduleId]
+        );
+    }
+
     public static function getAllEventsForFamily(int $familyId, string $start, string $end): array
     {
-        // Manual events
         $manual = Database::fetchAll(
             'SELECT ce.*, cs.child_name, cs.color as schedule_color, cs.recurrence_type,
              u.name as parent_name, u.color as parent_color
@@ -98,17 +148,69 @@ class Custody
             [$familyId, $start, $end]
         );
 
-        // Generate recurring events from schedules
         $schedules = self::getSchedules($familyId);
-        $recurring = [];
+        return array_merge(self::buildRecurringAndVacationEvents($schedules, $start, $end), $manual);
+    }
+
+    /** Même chose que getAllEventsForFamily, mais limité à une liste explicite de plannings
+     *  (utilisé par la vue co-parent, où les plannings peuvent appartenir à une autre famille). */
+    public static function getAllEventsForSchedules(array $scheduleIds, string $start, string $end): array
+    {
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        if (empty($scheduleIds)) return [];
+
+        $placeholders = implode(',', array_fill(0, count($scheduleIds), '?'));
+        $manual = Database::fetchAll(
+            "SELECT ce.*, cs.child_name, cs.color as schedule_color, cs.recurrence_type,
+             u.name as parent_name, u.color as parent_color
+             FROM custody_events ce
+             JOIN custody_schedules cs ON cs.id=ce.schedule_id
+             JOIN users u ON u.id=ce.parent_user_id
+             WHERE ce.schedule_id IN ($placeholders) AND ce.end_date >= ? AND ce.start_date <= ?
+             ORDER BY ce.start_date",
+            [...$scheduleIds, $start, $end]
+        );
+
+        $schedules = array_filter(array_map([self::class, 'getScheduleById'], $scheduleIds));
+        return array_merge(self::buildRecurringAndVacationEvents($schedules, $start, $end), $manual);
+    }
+
+    /** Génère les événements récurrents + les surcharges de vacances pour une liste de plannings. */
+    private static function buildRecurringAndVacationEvents(array $schedules, string $start, string $end): array
+    {
+        $events = [];
         foreach ($schedules as $schedule) {
             if ($schedule['recurrence_type'] !== 'none' && $schedule['recurrence_start']) {
-                $recurring = array_merge($recurring, self::generateRecurringEvents($schedule, $start, $end));
+                $recurring = self::generateRecurringEvents($schedule, $start, $end);
+            } else {
+                $recurring = [];
+            }
+
+            $vacations = self::getVacationPeriods((int)$schedule['id']);
+            $relevantVacations = array_filter($vacations, fn($v) => $v['end_date'] >= $start && $v['start_date'] <= $end);
+
+            if ($relevantVacations) {
+                // Drop recurring events that overlap any vacation period — the
+                // vacation's own distribution takes over for those days.
+                $recurring = array_values(array_filter($recurring, function ($e) use ($relevantVacations) {
+                    foreach ($relevantVacations as $v) {
+                        if ($e['end_date'] >= $v['start_date'] && $e['start_date'] <= $v['end_date']) return false;
+                    }
+                    return true;
+                }));
+            }
+
+            $events = array_merge($events, $recurring);
+
+            $p1ok = $schedule['recurrence_parent1_id'] || !empty($schedule['recurrence_parent1_label']);
+            $p2ok = $schedule['recurrence_parent2_id'] || !empty($schedule['recurrence_parent2_label']);
+            if ($p1ok && $p2ok) {
+                foreach ($relevantVacations as $vacation) {
+                    $events = array_merge($events, self::generateVacationEvents($schedule, $vacation, $start, $end));
+                }
             }
         }
-
-        // Merge: recurring first, then manual events are added on top
-        return array_merge($recurring, $manual);
+        return $events;
     }
 
     /**
@@ -139,6 +241,16 @@ class Custody
         $recStart  = new \DateTime($schedule['recurrence_start']);
         $rangeFrom = new \DateTime($rangeStart);
         $rangeTo   = new \DateTime($rangeEnd);
+
+        // Passation un jour de semaine précis (ex: mercredi) plutôt que le jour
+        // implicite de recurrence_start, pour every_other_week / every_2weeks / every_month.
+        if (!empty($schedule['handover_weekday'])) {
+            $targetDow = (int)$schedule['handover_weekday'];
+            $curDow = (int)$recStart->format('N');
+            if ($targetDow >= 1 && $targetDow <= 7 && $curDow !== $targetDow) {
+                $recStart->modify('+' . (($targetDow - $curDow + 7) % 7) . ' days');
+            }
+        }
 
         $parents = [
             1 => [
@@ -299,6 +411,180 @@ class Custody
         }
 
         return $events;
+    }
+
+    // ── Périodes de vacances (répartition dédiée : grandes vacances, Noël...) ──
+
+    public static function getVacationPeriods(int $scheduleId): array
+    {
+        return Database::fetchAll(
+            'SELECT * FROM custody_vacation_periods WHERE schedule_id=? ORDER BY start_date',
+            [$scheduleId]
+        );
+    }
+
+    public static function getVacationPeriodById(int $id): ?array
+    {
+        return Database::fetch(
+            'SELECT vp.*, cs.family_id FROM custody_vacation_periods vp
+             JOIN custody_schedules cs ON cs.id = vp.schedule_id WHERE vp.id=?',
+            [$id]
+        );
+    }
+
+    public static function createVacationPeriod(int $scheduleId, array $data): int
+    {
+        return Database::insert(
+            'INSERT INTO custody_vacation_periods (schedule_id, label, start_date, end_date, distribution_type, starting_parent)
+             VALUES (?,?,?,?,?,?)',
+            [
+                $scheduleId,
+                $data['label'] ?? null,
+                $data['start_date'],
+                $data['end_date'],
+                $data['distribution_type'] ?? '1week_2',
+                (int)($data['starting_parent'] ?? 1) === 2 ? 2 : 1,
+            ]
+        );
+    }
+
+    public static function updateVacationPeriod(int $id, array $data): void
+    {
+        Database::execute(
+            'UPDATE custody_vacation_periods SET label=?, start_date=?, end_date=?, distribution_type=?, starting_parent=? WHERE id=?',
+            [
+                $data['label'] ?? null,
+                $data['start_date'],
+                $data['end_date'],
+                $data['distribution_type'] ?? '1week_2',
+                (int)($data['starting_parent'] ?? 1) === 2 ? 2 : 1,
+                $id,
+            ]
+        );
+    }
+
+    public static function deleteVacationPeriod(int $id): void
+    {
+        Database::execute('DELETE FROM custody_vacation_periods WHERE id=?', [$id]);
+    }
+
+    /**
+     * Génère les événements de garde pour une période de vacances, en appliquant
+     * sa propre répartition (1 semaine sur 2 / 2 semaines sur 4 / semaines paires-impaires)
+     * plutôt que la récurrence normale du planning.
+     */
+    public static function generateVacationEvents(array $schedule, array $vacation, string $rangeStart, string $rangeEnd): array
+    {
+        $vacStart = new \DateTime(max($vacation['start_date'], $rangeStart));
+        $vacEnd   = new \DateTime(min($vacation['end_date'], $rangeEnd));
+        if ($vacStart > $vacEnd) return [];
+
+        $parents = [
+            1 => [
+                'id'    => $schedule['recurrence_parent1_id'],
+                'name'  => $schedule['recurrence_parent1_label'] ?: ($schedule['parent1_name'] ?? 'Parent 1'),
+                'color' => $schedule['recurrence_parent1_color'] ?: ($schedule['parent1_color'] ?? '#4A90D9'),
+            ],
+            2 => [
+                'id'    => $schedule['recurrence_parent2_id'],
+                'name'  => $schedule['recurrence_parent2_label'] ?: ($schedule['parent2_name'] ?? 'Parent 2'),
+                'color' => $schedule['recurrence_parent2_color'] ?: ($schedule['parent2_color'] ?? '#E74C3C'),
+            ],
+        ];
+
+        $startingParent = (int)$vacation['starting_parent'] === 2 ? 2 : 1;
+        $otherParent    = $startingParent === 1 ? 2 : 1;
+        $periodStart    = new \DateTime($vacation['start_date']);
+        $blockDays      = $vacation['distribution_type'] === '2weeks_4' ? 14 : 7; // 1week_2 par défaut
+
+        $pairs = [];
+        $cursor = clone $vacStart;
+        while ($cursor <= $vacEnd) {
+            if ($vacation['distribution_type'] === 'odd_even_weeks') {
+                $weekNum   = (int)$cursor->format('W');
+                $parentKey = ($weekNum % 2 === 1) ? $startingParent : $otherParent;
+            } else {
+                $daysSinceStart = (int)$periodStart->diff($cursor)->days;
+                $blockIndex     = (int)floor($daysSinceStart / $blockDays);
+                $parentKey      = ($blockIndex % 2 === 0) ? $startingParent : $otherParent;
+            }
+            $pairs[] = ['date' => $cursor->format('Y-m-d'), 'parent' => $parentKey];
+            $cursor->modify('+1 day');
+        }
+
+        $events = [];
+        foreach (self::groupDaysIntoBlocks($pairs) as $block) {
+            $parent = $parents[$block['parent']];
+            $events[] = [
+                'id'             => 'v_' . $vacation['id'] . '_' . str_replace('-', '', $block['start_date']),
+                'schedule_id'    => $schedule['id'],
+                'child_name'     => $schedule['child_name'],
+                'schedule_color' => $schedule['color'],
+                'parent_user_id' => $parent['id'],
+                'parent_name'    => $parent['name'],
+                'parent_color'   => $parent['color'],
+                'start_date'     => $block['start_date'],
+                'end_date'       => $block['end_date'],
+                'arrival_time'   => null,
+                'departure_time' => null,
+                'notes'          => $vacation['label'] ?: 'Vacances',
+                'is_recurring'   => true,
+            ];
+        }
+        return $events;
+    }
+
+    /**
+     * Regroupe une liste de paires ['date' => 'Y-m-d', 'parent' => scalaire] en blocs
+     * de dates consécutives pour un même parent. `parent` peut être un id utilisateur
+     * réel (proposition manuelle) ou un simple slot 1/2 (génération de vacances).
+     */
+    public static function groupDaysIntoBlocks(array $days): array
+    {
+        $days = array_values(array_filter($days, fn($d) => isset($d['parent']) && $d['parent'] !== null && $d['parent'] !== ''));
+        usort($days, fn($a, $b) => strcmp($a['date'], $b['date']));
+
+        $blocks = [];
+        $current = null;
+        foreach ($days as $day) {
+            if (
+                $current &&
+                $current['parent'] === $day['parent'] &&
+                date('Y-m-d', strtotime($current['end_date'] . ' +1 day')) === $day['date']
+            ) {
+                $current['end_date'] = $day['date'];
+                $blocks[count($blocks) - 1] = $current;
+            } else {
+                $current = ['parent' => $day['parent'], 'start_date' => $day['date'], 'end_date' => $day['date']];
+                $blocks[] = $current;
+            }
+        }
+        return $blocks;
+    }
+
+    /**
+     * Applique une proposition de garde (jours peints jour par jour) en créant les
+     * custody_events correspondants (blocs de jours consécutifs regroupés par parent).
+     * Retourne le nombre de blocs créés.
+     */
+    public static function applyProposalDays(int $scheduleId, array $days): int
+    {
+        $pairs = [];
+        foreach ($days as $day) {
+            if (empty($day['parent_user_id'])) continue;
+            $pairs[] = ['date' => $day['date'], 'parent' => (int)$day['parent_user_id']];
+        }
+        $blocks = self::groupDaysIntoBlocks($pairs);
+        foreach ($blocks as $block) {
+            self::createEvent($scheduleId, $block['parent'], [
+                'start_date'     => $block['start_date'],
+                'end_date'       => $block['end_date'],
+                'arrival_time'   => null,
+                'departure_time' => null,
+                'notes'          => 'Proposition de garde',
+            ]);
+        }
+        return count($blocks);
     }
 
     public static function createEvent(int $scheduleId, int $parentUserId, array $data): int

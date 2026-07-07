@@ -5,13 +5,13 @@ use App\Core\Database;
 
 class Invitation
 {
-    public static function create(int $familyId, int $userId, string $email): string
+    public static function create(int $familyId, int $userId, string $email, string $role = 'member', array $scheduleIds = []): string
     {
         $token = bin2hex(random_bytes(32));
         $expires = date('Y-m-d H:i:s', strtotime('+7 days'));
         Database::insert(
-            'INSERT INTO invitation_tokens (family_id, invited_by, email, token, expires_at) VALUES (?,?,?,?,?)',
-            [$familyId, $userId, $email, $token, $expires]
+            'INSERT INTO invitation_tokens (family_id, invited_by, email, token, expires_at, invite_role, custody_schedule_ids) VALUES (?,?,?,?,?,?,?)',
+            [$familyId, $userId, $email, $token, $expires, $role, $scheduleIds ? implode(',', $scheduleIds) : null]
         );
         return $token;
     }
