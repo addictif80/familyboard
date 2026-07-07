@@ -242,6 +242,12 @@ function openEventModal(date = null, eventData = null) {
     document.getElementById('event-desc').value = '';
     document.getElementById('event-color').value = '#4A90D9';
     document.getElementById('event-recurrence').value = '';
+    const custodyToggle = document.getElementById('event-custody-toggle');
+    if (custodyToggle) {
+        custodyToggle.checked = false;
+        document.getElementById('event-custody-select-wrap').style.display = 'none';
+        document.getElementById('event-custody-schedule').value = '';
+    }
 
     if (date) {
         document.getElementById('event-start').value = date + 'T09:00';
@@ -257,6 +263,12 @@ function openEventModal(date = null, eventData = null) {
         document.getElementById('event-start').value = eventData.start?.replace(' ', 'T') || '';
         document.getElementById('event-end').value = (eventData.end || eventData.start)?.replace(' ', 'T') || '';
         document.getElementById('event-color').value = eventData.color || '#4A90D9';
+        if (custodyToggle) {
+            const csId = eventData.extendedProps?.custody_schedule_id || '';
+            custodyToggle.checked = !!csId;
+            document.getElementById('event-custody-select-wrap').style.display = csId ? '' : 'none';
+            document.getElementById('event-custody-schedule').value = csId;
+        }
     }
     openModal('event-modal');
 }
@@ -282,6 +294,10 @@ async function saveEvent() {
         color: document.getElementById('event-color').value,
         recurrence: document.getElementById('event-recurrence').value || null,
     };
+    const custodyToggle = document.getElementById('event-custody-toggle');
+    if (custodyToggle && custodyToggle.checked) {
+        data.custody_schedule_id = document.getElementById('event-custody-schedule').value;
+    }
 
     const id = document.getElementById('event-id').value;
     const url = id ? `${BASE_URL}/api/calendar/events/${id}` : `${BASE_URL}/api/calendar/events`;

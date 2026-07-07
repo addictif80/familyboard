@@ -12,12 +12,26 @@ ob_start();
         <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
         <p style="text-align:center;margin-top:1rem"><a href="<?= BASE_URL ?>/login">Se connecter</a></p>
     <?php else: ?>
+        <?php $isCoparent = ($invitation['invite_role'] ?? 'member') === 'coparent'; ?>
         <div style="text-align:center;margin-bottom:1.5rem">
-            <p style="color:var(--text-muted);font-size:.9rem">
-                <strong><?= htmlspecialchars($invitation['invited_by_name']) ?></strong>
-                vous invite à rejoindre la famille
-            </p>
-            <h2 style="color:var(--primary);margin:.5rem 0"><?= htmlspecialchars($invitation['family_name']) ?></h2>
+            <?php if ($isCoparent): ?>
+                <p style="color:var(--text-muted);font-size:.9rem">
+                    <strong><?= htmlspecialchars($invitation['invited_by_name']) ?></strong>
+                    vous invite à un accès restreint sur FamilyBoard, pour le suivi de garde partagée de
+                </p>
+                <h2 style="color:var(--primary);margin:.5rem 0"><?= htmlspecialchars(implode(', ', $invitedChildren ?? [])) ?></h2>
+                <p style="color:var(--text-muted);font-size:.85rem">
+                    Vous aurez accès au calendrier de garde, aux propositions de garde, au journal parental
+                    et aux documents/évènements liés à cet enfant — pas au reste des données de la famille
+                    <strong><?= htmlspecialchars($invitation['family_name']) ?></strong>.
+                </p>
+            <?php else: ?>
+                <p style="color:var(--text-muted);font-size:.9rem">
+                    <strong><?= htmlspecialchars($invitation['invited_by_name']) ?></strong>
+                    vous invite à rejoindre la famille
+                </p>
+                <h2 style="color:var(--primary);margin:.5rem 0"><?= htmlspecialchars($invitation['family_name']) ?></h2>
+            <?php endif; ?>
             <p style="color:var(--text-muted);font-size:.85rem">
                 Invitation pour : <strong><?= htmlspecialchars($invitation['email']) ?></strong>
             </p>
@@ -37,7 +51,7 @@ ob_start();
                 <input type="password" name="password" required minlength="6" placeholder="Minimum 6 caractères">
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%">
-                Rejoindre la famille
+                <?= $isCoparent ? "Activer l'accès" : 'Rejoindre la famille' ?>
             </button>
         </form>
         <p style="text-align:center;margin-top:1rem;font-size:.85rem;color:var(--text-muted)">

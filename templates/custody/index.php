@@ -13,6 +13,8 @@ ob_start();
                         <span class="recurrence-badge" title="Périodicité active">🔄</span>
                     <?php endif; ?>
                     <button onclick="openEditScheduleModal(<?= htmlspecialchars(json_encode($schedule)) ?>)" class="btn-chip">✏️</button>
+                    <button onclick="openVacationModal(<?= (int)$schedule['id'] ?>, <?= htmlspecialchars(json_encode($schedule['child_name'])) ?>)" class="btn-chip" title="Périodes de vacances">🏖️</button>
+                    <button onclick="openInviteCoparentModal(<?= (int)$schedule['id'] ?>)" class="btn-chip" title="Inviter un co-parent">🔒</button>
                     <button onclick="deleteSchedule(<?= $schedule['id'] ?>)" class="btn-chip">✕</button>
                 </span>
             <?php endforeach; ?>
@@ -86,6 +88,20 @@ ob_start();
                     <label>Date de début de la périodicité</label>
                     <input type="date" id="schedule-recurrence-start">
                     <small class="field-hint" id="recurrence-start-hint">Premier jour où le parent 1 prend la garde (pour weekends : choisir un samedi)</small>
+                </div>
+                <div class="form-group" id="schedule-handover-group">
+                    <label>Jour de passation</label>
+                    <select id="schedule-handover-weekday">
+                        <option value="">Jour de recurrence_start (par défaut)</option>
+                        <option value="1">Lundi</option>
+                        <option value="2">Mardi</option>
+                        <option value="3">Mercredi</option>
+                        <option value="4">Jeudi</option>
+                        <option value="5">Vendredi</option>
+                        <option value="6">Samedi</option>
+                        <option value="7">Dimanche</option>
+                    </select>
+                    <small class="field-hint">Le jour de la semaine où la garde bascule d'un parent à l'autre.</small>
                 </div>
 
                 <!-- Parent 1 -->
@@ -281,6 +297,85 @@ ob_start();
     </div>
 </div>
 
+<!-- Vacation periods modal -->
+<div class="modal-overlay" id="vacation-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="vacation-modal-title">Périodes de vacances</h3>
+            <button onclick="closeModal('vacation-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="vacation-schedule-id">
+            <div id="vacation-list" style="margin-bottom:1rem"></div>
+            <hr class="divider">
+            <p class="section-label">Ajouter une période</p>
+            <input type="hidden" id="vacation-id">
+            <div class="form-group">
+                <label>Libellé</label>
+                <input type="text" id="vacation-label" placeholder="Grandes vacances 2026…">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Du</label>
+                    <input type="date" id="vacation-start">
+                </div>
+                <div class="form-group">
+                    <label>Au</label>
+                    <input type="date" id="vacation-end">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Répartition</label>
+                <select id="vacation-distribution">
+                    <option value="1week_2">1 semaine sur 2</option>
+                    <option value="2weeks_4">2 semaines sur 4</option>
+                    <option value="odd_even_weeks">Semaines paires / impaires</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Commence chez</label>
+                <select id="vacation-starting-parent">
+                    <option value="1">Parent 1</option>
+                    <option value="2">Parent 2</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="resetVacationForm()">Nouvelle période</button>
+            <button class="btn btn-primary" onclick="saveVacationPeriod()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Invite co-parent modal -->
+<div class="modal-overlay" id="invite-coparent-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Inviter un co-parent 🔒</h3>
+            <button onclick="closeModal('invite-coparent-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem">
+                Cette personne pourra se connecter avec un accès limité au calendrier de garde, aux
+                propositions de garde, au journal parental et aux documents/évènements des enfants
+                sélectionnés — pas au reste de vos données familiales.
+            </p>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="invite-coparent-email" placeholder="autre-parent@email.fr">
+            </div>
+            <div class="form-group">
+                <label>Enfants concernés</label>
+                <div id="invite-coparent-children"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('invite-coparent-modal')">Annuler</button>
+            <button class="btn btn-primary" onclick="sendCoparentInvite()">Envoyer l'invitation</button>
+        </div>
+    </div>
+</div>
+
 <style>
 .modal-xl { max-width: 900px; width: 96vw; }
 .proposal-setup { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
@@ -325,6 +420,8 @@ const SCHEDULES = <?= json_encode($schedules) ?>;
 
 function toggleRecurrenceFields(value) {
     document.getElementById('recurrence-fields').style.display = value === 'none' ? 'none' : 'block';
+    const handoverApplicable = ['every_other_week', 'every_2weeks', 'every_month'].includes(value);
+    document.getElementById('schedule-handover-group').style.display = handoverApplicable ? '' : 'none';
 }
 </script>
 <?php

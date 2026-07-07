@@ -55,14 +55,15 @@ class CustodyController extends BaseController
             $user = Session::user();
             $data = $this->jsonInput();
             $recurrence = [
-                'type'          => $data['recurrence_type'] ?? 'none',
-                'start'         => $data['recurrence_start'] ?? null,
-                'parent1_id'    => $data['recurrence_parent1_id'] ?? null,
-                'parent2_id'    => $data['recurrence_parent2_id'] ?? null,
-                'parent1_label' => $data['recurrence_parent1_label'] ?? null,
-                'parent1_color' => $data['recurrence_parent1_color'] ?? '#4A90D9',
-                'parent2_label' => $data['recurrence_parent2_label'] ?? null,
-                'parent2_color' => $data['recurrence_parent2_color'] ?? '#E74C3C',
+                'type'             => $data['recurrence_type'] ?? 'none',
+                'start'            => $data['recurrence_start'] ?? null,
+                'handover_weekday' => $data['handover_weekday'] ?? null,
+                'parent1_id'       => $data['recurrence_parent1_id'] ?? null,
+                'parent2_id'       => $data['recurrence_parent2_id'] ?? null,
+                'parent1_label'    => $data['recurrence_parent1_label'] ?? null,
+                'parent1_color'    => $data['recurrence_parent1_color'] ?? '#4A90D9',
+                'parent2_label'    => $data['recurrence_parent2_label'] ?? null,
+                'parent2_color'    => $data['recurrence_parent2_color'] ?? '#E74C3C',
             ];
             $id = Custody::createSchedule($user['family_id'], $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence);
             return ['success' => true, 'id' => $id];
@@ -79,14 +80,15 @@ class CustodyController extends BaseController
             if (!$schedule || $schedule['family_id'] !== $user['family_id']) return ['success' => false];
             $data = $this->jsonInput();
             $recurrence = [
-                'type'          => $data['recurrence_type'] ?? 'none',
-                'start'         => $data['recurrence_start'] ?? null,
-                'parent1_id'    => $data['recurrence_parent1_id'] ?? null,
-                'parent2_id'    => $data['recurrence_parent2_id'] ?? null,
-                'parent1_label' => $data['recurrence_parent1_label'] ?? null,
-                'parent1_color' => $data['recurrence_parent1_color'] ?? '#4A90D9',
-                'parent2_label' => $data['recurrence_parent2_label'] ?? null,
-                'parent2_color' => $data['recurrence_parent2_color'] ?? '#E74C3C',
+                'type'             => $data['recurrence_type'] ?? 'none',
+                'start'            => $data['recurrence_start'] ?? null,
+                'handover_weekday' => $data['handover_weekday'] ?? null,
+                'parent1_id'       => $data['recurrence_parent1_id'] ?? null,
+                'parent2_id'       => $data['recurrence_parent2_id'] ?? null,
+                'parent1_label'    => $data['recurrence_parent1_label'] ?? null,
+                'parent1_color'    => $data['recurrence_parent1_color'] ?? '#4A90D9',
+                'parent2_label'    => $data['recurrence_parent2_label'] ?? null,
+                'parent2_color'    => $data['recurrence_parent2_color'] ?? '#E74C3C',
             ];
             Custody::updateSchedule($id, $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence);
             return ['success' => true];
@@ -162,42 +164,7 @@ class CustodyController extends BaseController
 
             if (empty($days)) return ['success' => true, 'created' => 0];
 
-            // Group consecutive days with the same parent into blocks
-            usort($days, fn($a, $b) => strcmp($a['date'], $b['date']));
-
-            $blocks  = [];
-            $current = null;
-
-            foreach ($days as $day) {
-                if (!isset($day['parent_user_id']) || !$day['parent_user_id']) continue;
-                if (
-                    $current &&
-                    $current['parent_user_id'] === (int)$day['parent_user_id'] &&
-                    date('Y-m-d', strtotime($current['end_date'] . ' +1 day')) === $day['date']
-                ) {
-                    $current['end_date'] = $day['date'];
-                    $blocks[count($blocks) - 1] = $current;
-                } else {
-                    $current = [
-                        'parent_user_id' => (int)$day['parent_user_id'],
-                        'start_date'     => $day['date'],
-                        'end_date'       => $day['date'],
-                    ];
-                    $blocks[] = $current;
-                }
-            }
-
-            $created = 0;
-            foreach ($blocks as $block) {
-                Custody::createEvent($scheduleId, $block['parent_user_id'], [
-                    'start_date'     => $block['start_date'],
-                    'end_date'       => $block['end_date'],
-                    'arrival_time'   => null,
-                    'departure_time' => null,
-                    'notes'          => 'Proposition de garde',
-                ]);
-                $created++;
-            }
+            $created = Custody::applyProposalDays($scheduleId, $days);
 
             Notification::notifyFamily(
                 $user['family_id'], $user['id'], 'custody',
@@ -207,6 +174,111 @@ class CustodyController extends BaseController
             );
 
             return ['success' => true, 'created' => $created];
+        });
+    }
+
+    public function listVacationPeriods(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $scheduleId = (int)$params['id'];
+            $schedule = Custody::getScheduleById($scheduleId);
+            if (!$schedule || $schedule['family_id'] !== $user['family_id']) return [];
+            return Custody::getVacationPeriods($scheduleId);
+        });
+    }
+
+    public function createVacationPeriod(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $scheduleId = (int)$params['id'];
+            $schedule = Custody::getScheduleById($scheduleId);
+            if (!$schedule || $schedule['family_id'] !== $user['family_id']) return ['success' => false];
+            $data = $this->jsonInput();
+            $id = Custody::createVacationPeriod($scheduleId, $data);
+            return ['success' => true, 'id' => $id];
+        });
+    }
+
+    public function updateVacationPeriod(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id = (int)$params['id'];
+            $vacation = Custody::getVacationPeriodById($id);
+            if (!$vacation || $vacation['family_id'] !== $user['family_id']) return ['success' => false];
+            Custody::updateVacationPeriod($id, $this->jsonInput());
+            return ['success' => true];
+        });
+    }
+
+    public function deleteVacationPeriod(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id = (int)$params['id'];
+            $vacation = Custody::getVacationPeriodById($id);
+            if (!$vacation || $vacation['family_id'] !== $user['family_id']) return ['success' => false];
+            Custody::deleteVacationPeriod($id);
+            return ['success' => true];
+        });
+    }
+
+    /** Invite un co-parent à accès restreint (garde + journal + docs/évènements tagués) pour un ou plusieurs enfants. */
+    public function inviteCoparent(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $anchorSchedule = Custody::getScheduleById((int)$params['id']);
+            if (!$anchorSchedule || $anchorSchedule['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Planning introuvable'];
+            }
+
+            $data  = $this->jsonInput();
+            $email = trim($data['email'] ?? '');
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return ['success' => false, 'error' => 'Adresse email invalide.'];
+            }
+
+            $scheduleIds = array_map('intval', $data['schedule_ids'] ?? [(int)$params['id']]);
+            $scheduleIds = array_values(array_unique(array_filter($scheduleIds)));
+            $childNames = [];
+            foreach ($scheduleIds as $sid) {
+                $s = Custody::getScheduleById($sid);
+                if (!$s || $s['family_id'] !== $user['family_id']) {
+                    return ['success' => false, 'error' => 'Planning introuvable'];
+                }
+                $childNames[] = $s['child_name'];
+            }
+            if (empty($scheduleIds)) {
+                return ['success' => false, 'error' => 'Sélectionnez au moins un enfant.'];
+            }
+
+            $token = \App\Models\Invitation::create($user['family_id'], $user['id'], $email, 'coparent', $scheduleIds);
+
+            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $inviteUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . BASE_URL . '/invite/' . $token;
+            $family = \App\Models\Family::findById($user['family_id']);
+            $childList = implode(', ', $childNames);
+
+            $subject = $user['name'] . ' vous invite à un accès restreint sur FamilyBoard';
+            $body = '<p>Bonjour,</p>'
+                . '<p><strong>' . htmlspecialchars($user['name']) . '</strong> vous invite à accéder, sur FamilyBoard, '
+                . 'au suivi de garde partagée de <strong>' . htmlspecialchars($childList) . '</strong>.</p>'
+                . '<p>Cet accès est volontairement limité au calendrier de garde, aux propositions de garde, '
+                . 'au journal parental et aux documents/évènements liés à cet enfant — vous n\'aurez pas accès '
+                . 'au reste des données de la famille ' . htmlspecialchars($family['name'] ?? '') . '.</p>'
+                . '<p><a href="' . htmlspecialchars($inviteUrl) . '">Accepter l\'invitation</a></p>';
+
+            $ok = \App\Core\Mail::send($user['family_id'], $email, $email, $subject, $body, 'invitation', $user['id']);
+            if ($ok) return ['success' => true];
+            return ['success' => false, 'error' => "Erreur d'envoi. Vérifiez la configuration SMTP."];
         });
     }
 }

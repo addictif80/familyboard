@@ -1337,6 +1337,22 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
   .hero-identity { flex-direction: column; align-items: flex-start; }
 }
 
+/* ── Vue co-parent à accès restreint ─────────────────────────── */
+.coparent-shell { min-height: 100vh; background: var(--bg); }
+.coparent-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.5rem; background: var(--card-bg); border-bottom: 1px solid var(--border);
+}
+.coparent-brand { display: flex; align-items: center; gap: .6rem; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
+.coparent-content { max-width: 900px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+.coparent-content .alert { margin: 1rem 0 0; }
+.coparent-tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.coparent-tab { padding: .5rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--card-bg); cursor: pointer; font-weight: 600; font-size: .85rem; color: var(--text); }
+.coparent-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.coparent-panel { display: none; }
+.coparent-panel.active { display: block; }
+.coparent-child-picker { margin-bottom: 1rem; }
+
 /* ── City autocomplete ───────────────────────────────────────── */
 .city-autocomplete { position: relative; }
 .city-ac-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 200; background: var(--card-bg); border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,.12); list-style: none; padding: .25rem 0; margin: 0; max-height: 260px; overflow-y: auto; }

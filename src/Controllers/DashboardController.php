@@ -29,6 +29,13 @@ class DashboardController extends \App\Controllers\BaseController
             require BASE_PATH . '/templates/landing.php';
             return;
         }
+        // Un compte à accès restreint (role=coparent) n'a pas de tableau de bord
+        // classique — requireAuth() par défaut le redirigerait ici en boucle,
+        // donc on l'aiguille vers sa vue dédiée avant tout autre traitement.
+        if ((Session::user()['role'] ?? null) === 'coparent') {
+            header('Location: ' . BASE_URL . '/coparent');
+            exit;
+        }
         $this->requireAuth();
         $user     = Session::user();
         $familyId = $user['family_id'];
