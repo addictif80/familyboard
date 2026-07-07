@@ -507,9 +507,16 @@ class Custody
      */
     public static function generateVacationEvents(array $schedule, array $vacation, string $rangeStart, string $rangeEnd): array
     {
-        $vacStart = new \DateTime(max($vacation['start_date'], $rangeStart));
-        $vacEnd   = new \DateTime(min($vacation['end_date'], $rangeEnd));
-        if ($vacStart > $vacEnd) return [];
+        // Compute the day-by-day parity over the FULL vacation period, not clipped
+        // to the query range — like generateRecurringEvents/generateWeekendEvents,
+        // only the resulting blocks are filtered by overlap with [rangeStart, rangeEnd]
+        // below. Clipping the loop itself here previously truncated (or entirely
+        // dropped) the tail block of a vacation period whenever it fell right at
+        // or past the edge of the requested range (e.g. viewing the month before
+        // the one where the vacation ends).
+        if ($vacation['end_date'] < $rangeStart || $vacation['start_date'] > $rangeEnd) return [];
+        $vacStart = new \DateTime($vacation['start_date']);
+        $vacEnd   = new \DateTime($vacation['end_date']);
 
         $parents = [
             1 => [
@@ -546,6 +553,7 @@ class Custody
 
         $events = [];
         foreach (self::groupDaysIntoBlocks($pairs) as $block) {
+            if ($block['end_date'] < $rangeStart || $block['start_date'] > $rangeEnd) continue;
             $parent = $parents[$block['parent']];
             $events[] = [
                 'id'             => 'v_' . $vacation['id'] . '_' . str_replace('-', '', $block['start_date']),
