@@ -175,6 +175,34 @@ class Custody
         return array_merge(self::buildRecurringAndVacationEvents($schedules, $start, $end), $manual);
     }
 
+    /**
+     * Soustrait une liste de périodes [start_date, end_date] (bornes incluses) d'un
+     * intervalle [start, end], et retourne les segments restants sous forme de
+     * paires [start, end]. Utilisé pour ne masquer que les jours réellement
+     * couverts par une période de vacances, pas tout le bloc récurrent qui la chevauche.
+     */
+    private static function subtractDateRanges(string $start, string $end, array $blockers): array
+    {
+        $segments = [[$start, $end]];
+        foreach ($blockers as $b) {
+            $next = [];
+            foreach ($segments as [$s, $e]) {
+                if ($b['end_date'] < $s || $b['start_date'] > $e) {
+                    $next[] = [$s, $e];
+                    continue;
+                }
+                if ($b['start_date'] > $s) {
+                    $next[] = [$s, date('Y-m-d', strtotime($b['start_date'] . ' -1 day'))];
+                }
+                if ($b['end_date'] < $e) {
+                    $next[] = [date('Y-m-d', strtotime($b['end_date'] . ' +1 day')), $e];
+                }
+            }
+            $segments = $next;
+        }
+        return $segments;
+    }
+
     /** Génère les événements récurrents + les surcharges de vacances pour une liste de plannings. */
     private static function buildRecurringAndVacationEvents(array $schedules, string $start, string $end): array
     {
@@ -190,14 +218,18 @@ class Custody
             $relevantVacations = array_filter($vacations, fn($v) => $v['end_date'] >= $start && $v['start_date'] <= $end);
 
             if ($relevantVacations) {
-                // Drop recurring events that overlap any vacation period — the
-                // vacation's own distribution takes over for those days.
-                $recurring = array_values(array_filter($recurring, function ($e) use ($relevantVacations) {
-                    foreach ($relevantVacations as $v) {
-                        if ($e['end_date'] >= $v['start_date'] && $e['start_date'] <= $v['end_date']) return false;
+                // Clip recurring events to the days NOT covered by a vacation period —
+                // the vacation's own distribution takes over for those days, but days
+                // just before/after the vacation window keep the normal recurrence.
+                $clipped = [];
+                foreach ($recurring as $e) {
+                    $segments = self::subtractDateRanges($e['start_date'], $e['end_date'], $relevantVacations);
+                    foreach ($segments as $i => [$segStart, $segEnd]) {
+                        $id = count($segments) > 1 ? $e['id'] . '_s' . $i : $e['id'];
+                        $clipped[] = array_merge($e, ['id' => $id, 'start_date' => $segStart, 'end_date' => $segEnd]);
                     }
-                    return true;
-                }));
+                }
+                $recurring = $clipped;
             }
 
             $events = array_merge($events, $recurring);
