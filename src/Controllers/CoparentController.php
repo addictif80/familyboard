@@ -1,12 +1,15 @@
 <?php
 namespace App\Controllers;
 
+use App\Core\Database;
 use App\Core\Session;
 use App\Models\Custody;
 use App\Models\CommLogMessage;
 use App\Models\Document;
 use App\Models\Event;
+use App\Models\Family;
 use App\Models\Notification;
+use App\Models\User;
 
 /**
  * Vue dédiée pour un accès "garde partagée" restreint : soit un compte
@@ -28,6 +31,35 @@ class CoparentController extends BaseController
             exit;
         }
         require BASE_PATH . '/templates/coparent/index.php';
+    }
+
+    /**
+     * Un compte à accès restreint (role=coparent) peut, s'il le souhaite, se
+     * créer sa propre famille FamilyBoard complète. On bascule alors son
+     * family_id/role — mais on ne touche jamais à custody_access, qui référence
+     * les plannings indépendamment de la famille : il garde donc son accès
+     * "Garde partagée" via la nouvelle vue /coparent, en plus de son propre
+     * tableau de bord complet.
+     */
+    public function createFamily(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            if ($user['role'] !== 'coparent') {
+                return ['success' => false, 'error' => 'Vous avez déjà votre propre famille.'];
+            }
+            $familyName = trim($this->jsonInput()['family_name'] ?? '');
+            if (!$familyName) {
+                return ['success' => false, 'error' => 'Veuillez donner un nom à votre famille.'];
+            }
+
+            $familyId = Family::create($familyName);
+            Database::execute('UPDATE users SET family_id=?, role=? WHERE id=?', [$familyId, 'admin', $user['id']]);
+            Session::login(User::findById($user['id']));
+
+            return ['success' => true];
+        });
     }
 
     public function apiCustodyEvents(array $params): void

@@ -281,6 +281,29 @@ async function cpCreateEvent() {
     }
 }
 
+// ── Créer ma propre famille ───────────────────────────────────────────────
+
+function cpOpenCreateFamilyModal() {
+    document.getElementById('cp-family-name').value = '';
+    openModal('cp-create-family-modal');
+}
+
+async function cpCreateFamily() {
+    const familyName = document.getElementById('cp-family-name').value.trim();
+    if (!familyName) { Dialog.toast('Donnez un nom à votre famille.', 'error'); return; }
+
+    const result = await apiFetch(`${BASE_URL}/api/coparent/create-family`, {
+        method: 'POST',
+        body: JSON.stringify({ family_name: familyName }),
+    });
+    if (result.success) {
+        Dialog.toast('Famille créée !', 'success');
+        location.href = BASE_URL + '/';
+    } else {
+        Dialog.toast(result.error || 'Erreur lors de la création.', 'error');
+    }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────
 
 if (cpCurrentScheduleId) {

@@ -190,6 +190,7 @@ $router->post('/api/custody/schedule/:id/invite-coparent', [CustodyController::c
 
 // Vue co-parent à accès restreint
 $router->get('/coparent', [CoparentController::class, 'index']);
+$router->post('/api/coparent/create-family', [CoparentController::class, 'createFamily']);
 $router->get('/api/coparent/custody-events', [CoparentController::class, 'apiCustodyEvents']);
 $router->post('/api/coparent/custody-proposal', [CoparentController::class, 'proposeCustody']);
 $router->get('/api/coparent/journal', [CoparentController::class, 'journal']);

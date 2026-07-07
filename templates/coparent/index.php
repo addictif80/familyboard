@@ -10,6 +10,18 @@ ob_start();
     </div>
 <?php else: ?>
 
+<?php if ((\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
+<div class="card" style="padding:1.25rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+    <div>
+        <strong>Vous avez aussi votre propre famille ?</strong>
+        <p style="color:var(--text-muted);font-size:.85rem;margin:.2rem 0 0">
+            Créez votre espace FamilyBoard complet — vous garderez cet accès de garde partagée en plus.
+        </p>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="cpOpenCreateFamilyModal()">Créer ma propre famille</button>
+</div>
+<?php endif; ?>
+
 <?php if (count($schedules) > 1): ?>
 <div class="form-group coparent-child-picker">
     <label>Enfant</label>
@@ -117,6 +129,29 @@ ob_start();
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('cp-proposal-modal')">Annuler</button>
             <button class="btn btn-primary" onclick="cpSubmitProposal()">Envoyer la proposition</button>
+        </div>
+    </div>
+</div>
+
+<!-- Create family modal -->
+<div class="modal-overlay" id="cp-create-family-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Créer ma propre famille</h3>
+            <button onclick="closeModal('cp-create-family-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem">
+                Vous garderez votre accès de garde partagée actuel après la création de votre famille.
+            </p>
+            <div class="form-group">
+                <label>Nom de la famille</label>
+                <input type="text" id="cp-family-name" placeholder="Famille Martin…">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('cp-create-family-modal')">Annuler</button>
+            <button class="btn btn-primary" onclick="cpCreateFamily()">Créer</button>
         </div>
     </div>
 </div>
