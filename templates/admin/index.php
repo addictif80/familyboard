@@ -27,7 +27,7 @@
             <span>🔐 Admin</span>
         </div>
         <ul class="admin-nav">
-            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP'] as $t=>$label): ?>
+            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP'] as $t=>$label): ?>
             <li class="<?= $tab === $t ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
             </li>
@@ -50,6 +50,15 @@
                     'unblocked'   => 'Utilisateur débloqué.',
                     'smtp_saved'  => 'Configuration SMTP enregistrée.',
                     default       => ''
+                } ?>
+            </div>
+        <?php endif; ?>
+        <?php if ($err = ($_GET['error'] ?? '')): ?>
+            <div class="alert alert-error" style="margin-bottom:1rem">
+                <?= match($err) {
+                    'blocked_user' => "Impossible de se connecter en tant qu'un compte bloqué — débloquez-le d'abord.",
+                    'not_found'    => 'Utilisateur introuvable.',
+                    default        => "Une erreur s'est produite."
                 } ?>
             </div>
         <?php endif; ?>
@@ -111,12 +120,40 @@
                             <input type="text" name="reason" placeholder="Raison (optionnel)" style="font-size:.78rem;padding:.2rem .4rem;border:1px solid var(--border);border-radius:4px;width:140px">
                             <button class="btn btn-danger btn-sm">Bloquer</button>
                         </form>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/impersonate" onsubmit="return confirm('Se connecter en tant que <?= htmlspecialchars(addslashes($u['name'])) ?> ? Cette action est journalisée.')">
+                            <button class="btn btn-secondary btn-sm" title="Se connecter en tant que cet utilisateur">🕵️ Impersoner</button>
+                        </form>
                     <?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>
             </tbody>
         </table>
+
+        <?php elseif ($tab === 'impersonation'): ?>
+        <h2>Journal d'impersonation</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Historique des connexions d'un admin système en tant qu'un membre de famille, pour du support.
+        </p>
+        <?php $impersonationLog = \App\Models\ImpersonationLog::getRecent(100); ?>
+        <?php if (empty($impersonationLog)): ?>
+            <p class="empty-state">Aucune impersonation enregistrée.</p>
+        <?php else: ?>
+        <table class="admin-table">
+            <thead><tr><th>Admin</th><th>Utilisateur ciblé</th><th>IP</th><th>Début</th><th>Fin</th></tr></thead>
+            <tbody>
+            <?php foreach ($impersonationLog as $l): ?>
+            <tr>
+                <td><?= htmlspecialchars($l['admin_username']) ?></td>
+                <td><?= htmlspecialchars($l['target_name']) ?> <span style="color:var(--text-muted)">(<?= htmlspecialchars($l['target_email']) ?>)</span></td>
+                <td><code><?= htmlspecialchars($l['ip'] ?? '—') ?></code></td>
+                <td><?= \App\Core\DateHelper::fromUtc($l['started_at'], 'd/m/Y H:i') ?></td>
+                <td><?= $l['ended_at'] ? \App\Core\DateHelper::fromUtc($l['ended_at'], 'd/m/Y H:i') : '<span class="badge badge-warn">En cours</span>' ?></td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
 
         <?php elseif ($tab === 'ips'): ?>
         <h2>IPs bloquées</h2>

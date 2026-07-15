@@ -155,9 +155,12 @@ function cpAppendJournalMessage(m) {
     const list = document.getElementById('cp-journal-list');
     const div = document.createElement('div');
     div.className = 'cp-journal-msg';
+    const voice = m.audio_path ? voiceBubbleHtml(`${BASE_URL}/api/coparent/journal/${m.id}/audio`, m.audio_duration) : '';
+    const text = m.content ? `<div>${escapeHtml(m.content).replace(/\n/g, '<br>')}</div>` : '';
     div.innerHTML = `
         <div class="cp-journal-meta" style="color:${escapeHtml(m.user_color || '#888')}">${escapeHtml(m.user_name)} · ${cpFormatDateTime(m.created_at)}</div>
-        <div>${escapeHtml(m.content).replace(/\n/g, '<br>')}</div>
+        ${voice}
+        ${text}
     `;
     list.appendChild(div);
 }
@@ -182,6 +185,34 @@ async function cpSendJournal() {
         const list = document.getElementById('cp-journal-list');
         list.scrollTop = list.scrollHeight;
     }
+}
+
+async function cpSendVoiceJournal({ blob, mimeType, durationSec }) {
+    const input = document.getElementById('cp-journal-input');
+    const content = input.value.trim();
+    input.value = '';
+
+    const fd = new FormData();
+    fd.append('schedule_id', cpCurrentScheduleId);
+    fd.append('audio', blob, 'voice.' + voiceExtensionForMime(mimeType));
+    fd.append('content', content);
+    fd.append('duration', durationSec);
+
+    const res = await fetch(`${BASE_URL}/api/coparent/journal`, { method: 'POST', body: fd });
+    const result = await res.json();
+    if (result.success) {
+        cpAppendJournalMessage(result.message);
+        cpJournalLastId = result.message.id;
+        const list = document.getElementById('cp-journal-list');
+        list.scrollTop = list.scrollHeight;
+    } else {
+        Dialog.toast(result.error || "Erreur lors de l'envoi du message vocal.", 'error');
+    }
+}
+
+const cpVoiceBtn = document.getElementById('cp-voice-btn');
+if (cpVoiceBtn) {
+    initVoiceRecorder(cpVoiceBtn, document.getElementById('cp-voice-timer'), cpSendVoiceJournal);
 }
 
 async function cpPollJournal() {

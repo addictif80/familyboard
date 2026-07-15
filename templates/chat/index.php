@@ -21,7 +21,12 @@ ob_start();
                     <?php if (!$isOwn): ?>
                         <div class="message-author" style="color:<?= htmlspecialchars($msg['user_color']) ?>"><?= htmlspecialchars($msg['user_name']) ?></div>
                     <?php endif; ?>
-                    <div class="message-text"><?= nl2br(htmlspecialchars($msg['content'])) ?></div>
+                    <?php if (!empty($msg['audio_path'])): ?>
+                        <div class="voice-msg">🎤<audio controls preload="none" src="<?= BASE_URL ?>/api/chat/<?= $msg['id'] ?>/audio"></audio><?php if ($msg['audio_duration']): ?><span class="voice-duration"><?= sprintf('%02d:%02d', intdiv($msg['audio_duration'], 60), $msg['audio_duration'] % 60) ?></span><?php endif; ?></div>
+                    <?php endif; ?>
+                    <?php if ($msg['content'] !== ''): ?>
+                        <div class="message-text"><?= nl2br(htmlspecialchars($msg['content'])) ?></div>
+                    <?php endif; ?>
                     <div class="message-time"><?= \App\Core\DateHelper::fromUtc($msg['created_at'], 'H:i') ?></div>
                 </div>
                 <?php if ($isOwn || $user['role'] === 'admin'): ?>
@@ -34,6 +39,8 @@ ob_start();
     <div class="chat-input-bar">
         <input type="text" id="chat-input" placeholder="Votre message…" maxlength="2000"
                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}">
+        <span class="voice-record-timer" id="chat-voice-timer"></span>
+        <button type="button" class="voice-record-btn" id="chat-voice-btn" title="Message vocal">🎤</button>
         <button onclick="sendMessage()" class="btn btn-primary">➤</button>
     </div>
 </div>

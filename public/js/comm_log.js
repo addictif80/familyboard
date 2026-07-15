@@ -28,6 +28,32 @@ async function sendCommLogMessage() {
     }
 }
 
+async function sendCommLogVoiceMessage({ blob, mimeType, durationSec }) {
+    const input = document.getElementById('chat-input');
+    const content = input.value.trim();
+    input.value = '';
+
+    const fd = new FormData();
+    fd.append('audio', blob, 'voice.' + voiceExtensionForMime(mimeType));
+    fd.append('content', content);
+    fd.append('duration', durationSec);
+
+    const res = await fetch(BASE_URL + '/api/comm-log/send', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) {
+        appendCommLogMessage(data.message, true);
+        commLogLastId = data.message.id;
+        commLogScrollToBottom();
+    } else {
+        Dialog.toast(data.error || "Erreur lors de l'envoi du message vocal.", 'error');
+    }
+}
+
+const commLogVoiceBtn = document.getElementById('chat-voice-btn');
+if (commLogVoiceBtn) {
+    initVoiceRecorder(commLogVoiceBtn, document.getElementById('chat-voice-timer'), sendCommLogVoiceMessage);
+}
+
 function appendCommLogMessage(msg, own) {
     const container = document.getElementById('chat-messages');
     const isOwn = own || msg.user_id === CURRENT_USER_ID;
@@ -42,11 +68,15 @@ function appendCommLogMessage(msg, own) {
 
     const author = !isOwn ? `<div class="message-author" style="color:${escapeHtml(msg.user_color)}">${escapeHtml(msg.user_name)}</div>` : '';
 
+    const voice = msg.audio_path ? voiceBubbleHtml(`${BASE_URL}/api/comm-log/${msg.id}/audio`, msg.audio_duration) : '';
+    const text = msg.content ? `<div class="message-text">${escapeHtml(msg.content).replace(/\n/g,'<br>')}</div>` : '';
+
     div.innerHTML = `
         ${avatar}
         <div class="message-bubble ${isOwn ? 'bubble-own' : 'bubble-other'}">
             ${author}
-            <div class="message-text">${escapeHtml(msg.content).replace(/\n/g,'<br>')}</div>
+            ${voice}
+            ${text}
             <div class="message-time">${commLogFormatTime(msg.created_at)}</div>
         </div>
     `;

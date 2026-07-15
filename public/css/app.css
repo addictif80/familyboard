@@ -426,6 +426,15 @@ input:focus, textarea:focus, select:focus {
 input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .input-readonly { background: var(--bg); color: var(--text-muted); }
 
+/* ---- Impersonation banner ---- */
+.impersonation-banner {
+    display: flex; align-items: center; justify-content: center; gap: .75rem; flex-wrap: wrap;
+    background: #b45309; color: #fff; padding: .5rem 1rem; font-size: .85rem; text-align: center;
+    position: sticky; top: 0; z-index: 500;
+}
+.impersonation-banner a.btn-sm { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.5); }
+.impersonation-banner a.btn-sm:hover { background: rgba(255,255,255,.32); }
+
 /* ---- Alerts ---- */
 .alert { padding: .8rem 1.05rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: .875rem; border: 1px solid transparent; }
 .alert-success { background: var(--success-bg); color: var(--success-text); border-color: var(--success); }
@@ -649,8 +658,15 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .message-time { font-size: .65rem; opacity: .6; margin-top: .2rem; text-align: right; }
 .msg-delete-btn { background: none; border: none; font-size: .7rem; color: var(--text-muted); cursor: pointer; opacity: 0; transition: opacity .15s; padding: .2rem; }
 .message-row:hover .msg-delete-btn { opacity: 1; }
-.chat-input-bar { display: flex; gap: .5rem; padding: .75rem 0; border-top: 1px solid var(--border); margin-top: auto; }
+.chat-input-bar { display: flex; gap: .5rem; padding: .75rem 0; border-top: 1px solid var(--border); margin-top: auto; align-items: center; }
 .chat-input-bar input { flex: 1; border-radius: 20px; padding: .55rem 1rem; }
+.voice-record-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: .3rem .5rem; border-radius: 50%; line-height: 1; color: var(--text); }
+.voice-record-btn.recording { background: var(--danger); color: #fff; animation: voice-pulse 1.2s infinite; }
+.voice-record-timer { font-size: .75rem; color: var(--danger); font-variant-numeric: tabular-nums; min-width: 2.4em; }
+@keyframes voice-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+.voice-msg { display: flex; align-items: center; gap: .4rem; }
+.voice-msg audio { max-width: 220px; height: 32px; }
+.voice-duration { font-size: .7rem; opacity: .7; }
 
 /* ---- Budget ---- */
 .budget-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }

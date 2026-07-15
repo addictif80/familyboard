@@ -180,6 +180,7 @@ function openScheduleModal() {
     document.getElementById('schedule-recurrence-type').value = 'none';
     document.getElementById('schedule-recurrence-start').value = '';
     document.getElementById('schedule-handover-weekday').value = '';
+    document.getElementById('schedule-extra-weekday').value = '';
     document.getElementById('schedule-parent1-label').value = '';
     document.getElementById('schedule-parent1-color').value = '#4A90D9';
     document.getElementById('schedule-parent1-id').value = '';
@@ -201,6 +202,7 @@ function openEditScheduleModal(schedule) {
     document.getElementById('schedule-recurrence-type').value = recType;
     document.getElementById('schedule-recurrence-start').value = schedule.recurrence_start || '';
     document.getElementById('schedule-handover-weekday').value = schedule.handover_weekday || '';
+    document.getElementById('schedule-extra-weekday').value = schedule.extra_weekday || '';
 
     // Parent 1
     document.getElementById('schedule-parent1-label').value = schedule.recurrence_parent1_label || schedule.parent1_name || '';
@@ -247,6 +249,7 @@ async function saveSchedule() {
         recurrence_type: recType,
         recurrence_start: recType !== 'none' ? recStart : null,
         handover_weekday: document.getElementById('schedule-handover-weekday').value || null,
+        extra_weekday: document.getElementById('schedule-extra-weekday').value || null,
         recurrence_parent1_id: document.getElementById('schedule-parent1-id').value || null,
         recurrence_parent1_label: p1label || null,
         recurrence_parent1_color: document.getElementById('schedule-parent1-color').value,
