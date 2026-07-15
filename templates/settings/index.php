@@ -212,7 +212,19 @@ ob_start();
                     </div>
                     <div class="member-info">
                         <strong><?= htmlspecialchars($member['name']) ?></strong>
-                        <small><?= htmlspecialchars($member['email']) ?> · <?= $member['role'] === 'admin' ? '👑 Admin' : 'Membre' ?></small>
+                        <small>
+                            <?= htmlspecialchars($member['email']) ?> ·
+                            <?php if ($member['role'] === 'admin'): ?>
+                                👑 Admin
+                            <?php elseif ($member['role'] === 'coparent'): ?>
+                                🔒 Co-parent (accès restreint)
+                                <?php if (!empty($coparentChildren[$member['id']])): ?>
+                                    — <?= htmlspecialchars(implode(', ', $coparentChildren[$member['id']])) ?>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                Membre
+                            <?php endif; ?>
+                        </small>
                     </div>
                     <?php if ($member['id'] !== $user['id']): ?>
                         <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')">

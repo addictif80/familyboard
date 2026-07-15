@@ -25,6 +25,7 @@ class DocumentController extends BaseController
         $expiring     = Document::getExpiringsSoon($familyId, 90);
         $members      = User::getByFamily($familyId);
         $allTypes     = OcrHelper::$types;
+        $custodySchedules = \App\Models\Custody::getSchedules($familyId);
 
         require BASE_PATH . '/templates/documents/index.php';
     }
@@ -37,6 +38,10 @@ class DocumentController extends BaseController
             $data   = $_POST ?: $this->jsonInput();
             $file   = $_FILES['file'] ?? null;
             $userId = (int)($data['user_id'] ?? $user['id']);
+            if (!empty($data['custody_schedule_id'])) {
+                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
+                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
+            }
             $id     = Document::create($user['family_id'], $userId, $data, $file);
             Notification::notifyFamily($user['family_id'], $user['id'], 'documents', 'Nouveau document',
                 $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/documents');
@@ -52,6 +57,10 @@ class DocumentController extends BaseController
             $data = $_POST ?: $this->jsonInput();
             $file = $_FILES['file'] ?? null;
             if (isset($data['user_id'])) $data['user_id'] = (int)$data['user_id'];
+            if (!empty($data['custody_schedule_id'])) {
+                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
+                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
+            }
             Document::update((int)$params['id'], $user['family_id'], $data, $file);
             return ['success' => true];
         });

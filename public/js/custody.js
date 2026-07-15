@@ -142,8 +142,21 @@ function hexToRgba(hex, alpha) {
 function loadCustodyEvents() {
     const year = custodyCurrentDate.getFullYear();
     const month = custodyCurrentDate.getMonth();
-    const start = `${year}-${String(month+1).padStart(2,'0')}-01`;
-    const end = `${year}-${String(month+1).padStart(2,'0')}-${new Date(year, month+1, 0).getDate()}`;
+
+    // Fetch the full 42-cell grid range actually rendered by renderCustodyCalendar()
+    // (which starts on the Monday on/before the 1st and always shows 6 weeks),
+    // not just the calendar month — otherwise the trailing days from the next
+    // month shown in the grid have no data and render blank/stale.
+    const firstDay = new Date(year, month, 1);
+    let startDow = firstDay.getDay();
+    if (startDow === 0) startDow = 7;
+    const gridStart = new Date(firstDay);
+    gridStart.setDate(gridStart.getDate() - (startDow - 1));
+    const gridEnd = new Date(gridStart);
+    gridEnd.setDate(gridEnd.getDate() + 41);
+
+    const start = formatCustodyDate(gridStart);
+    const end = formatCustodyDate(gridEnd);
 
     fetch(`${BASE_URL}/api/custody/events?start=${start}&end=${end}`)
         .then(r => r.json())
@@ -166,6 +179,7 @@ function openScheduleModal() {
     document.getElementById('schedule-notes').value = '';
     document.getElementById('schedule-recurrence-type').value = 'none';
     document.getElementById('schedule-recurrence-start').value = '';
+    document.getElementById('schedule-handover-weekday').value = '';
     document.getElementById('schedule-parent1-label').value = '';
     document.getElementById('schedule-parent1-color').value = '#4A90D9';
     document.getElementById('schedule-parent1-id').value = '';
@@ -186,6 +200,7 @@ function openEditScheduleModal(schedule) {
     const recType = schedule.recurrence_type || 'none';
     document.getElementById('schedule-recurrence-type').value = recType;
     document.getElementById('schedule-recurrence-start').value = schedule.recurrence_start || '';
+    document.getElementById('schedule-handover-weekday').value = schedule.handover_weekday || '';
 
     // Parent 1
     document.getElementById('schedule-parent1-label').value = schedule.recurrence_parent1_label || schedule.parent1_name || '';
@@ -197,7 +212,7 @@ function openEditScheduleModal(schedule) {
     document.getElementById('schedule-parent2-color').value = schedule.recurrence_parent2_color || '#E74C3C';
     document.getElementById('schedule-parent2-id').value = schedule.recurrence_parent2_id || '';
 
-    document.getElementById('recurrence-fields').style.display = recType === 'none' ? 'none' : 'block';
+    toggleRecurrenceFields(recType);
     openModal('schedule-modal');
 }
 
@@ -231,6 +246,7 @@ async function saveSchedule() {
         notes: document.getElementById('schedule-notes').value,
         recurrence_type: recType,
         recurrence_start: recType !== 'none' ? recStart : null,
+        handover_weekday: document.getElementById('schedule-handover-weekday').value || null,
         recurrence_parent1_id: document.getElementById('schedule-parent1-id').value || null,
         recurrence_parent1_label: p1label || null,
         recurrence_parent1_color: document.getElementById('schedule-parent1-color').value,
@@ -765,6 +781,132 @@ function roundRect(ctx, x, y, w, h, r) {
     ctx.lineTo(x, y + r);
     ctx.quadraticCurveTo(x, y, x + r, y);
     ctx.closePath();
+}
+
+// ---- Vacation periods ----
+
+let vacationPeriodsCache = [];
+
+async function openVacationModal(scheduleId, childName) {
+    document.getElementById('vacation-modal-title').textContent = `Périodes de vacances — ${childName}`;
+    document.getElementById('vacation-schedule-id').value = scheduleId;
+    resetVacationForm();
+    await loadVacationPeriods(scheduleId);
+    openModal('vacation-modal');
+}
+
+async function loadVacationPeriods(scheduleId) {
+    const list = document.getElementById('vacation-list');
+    list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>';
+    const schedule = SCHEDULES.find(s => s.id == scheduleId);
+    const data = await apiFetch(`${BASE_URL}/api/custody/schedule/${scheduleId}/vacation-list`);
+    vacationPeriodsCache = Array.isArray(data) ? data : (data.periods || []);
+    if (!vacationPeriodsCache.length) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucune période configurée.</p>';
+        return;
+    }
+    const distLabels = { '1week_2': '1 semaine sur 2', '2weeks_4': '2 semaines sur 4', 'odd_even_weeks': 'Semaines paires/impaires' };
+    list.innerHTML = vacationPeriodsCache.map(v => `
+        <div class="cp-custody-item" style="display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border)">
+            <div>
+                <strong>${escapeHtml(v.label || 'Vacances')}</strong>
+                <div style="font-size:.78rem;color:var(--text-muted)">${v.start_date} → ${v.end_date} · ${distLabels[v.distribution_type] || v.distribution_type}</div>
+            </div>
+            <div>
+                <button class="btn-chip" onclick="editVacationPeriod(${v.id})">✏️</button>
+                <button class="btn-chip" onclick="deleteVacationPeriod(${v.id}, ${scheduleId})">✕</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function resetVacationForm() {
+    document.getElementById('vacation-id').value = '';
+    document.getElementById('vacation-label').value = '';
+    document.getElementById('vacation-start').value = '';
+    document.getElementById('vacation-end').value = '';
+    document.getElementById('vacation-distribution').value = '1week_2';
+    document.getElementById('vacation-starting-parent').value = '1';
+}
+
+function editVacationPeriod(id) {
+    const v = vacationPeriodsCache.find(p => p.id == id);
+    if (!v) return;
+    document.getElementById('vacation-id').value = v.id;
+    document.getElementById('vacation-label').value = v.label || '';
+    document.getElementById('vacation-start').value = v.start_date;
+    document.getElementById('vacation-end').value = v.end_date;
+    document.getElementById('vacation-distribution').value = v.distribution_type;
+    document.getElementById('vacation-starting-parent').value = v.starting_parent;
+}
+
+async function saveVacationPeriod() {
+    const scheduleId = document.getElementById('vacation-schedule-id').value;
+    const start = document.getElementById('vacation-start').value;
+    const end = document.getElementById('vacation-end').value;
+    if (!start || !end) { Dialog.toast('Renseignez les deux dates.', 'error'); return; }
+
+    const data = {
+        label: document.getElementById('vacation-label').value.trim(),
+        start_date: start,
+        end_date: end,
+        distribution_type: document.getElementById('vacation-distribution').value,
+        starting_parent: document.getElementById('vacation-starting-parent').value,
+    };
+
+    const id = document.getElementById('vacation-id').value;
+    const url = id ? `${BASE_URL}/api/custody/vacation/${id}` : `${BASE_URL}/api/custody/schedule/${scheduleId}/vacation`;
+    const result = await apiFetch(url, { method: 'POST', body: JSON.stringify(data) });
+    if (result.success) {
+        resetVacationForm();
+        loadVacationPeriods(scheduleId);
+        loadCustodyEvents();
+    } else {
+        Dialog.toast(result.error || 'Erreur.', 'error');
+    }
+}
+
+async function deleteVacationPeriod(id, scheduleId) {
+    if (!await Dialog.confirm('Supprimer cette période de vacances ?')) return;
+    const result = await apiFetch(`${BASE_URL}/api/custody/vacation/${id}/delete`, { method: 'POST' });
+    if (result.success) {
+        loadVacationPeriods(scheduleId);
+        loadCustodyEvents();
+    }
+}
+
+// ---- Invite co-parent ----
+
+function openInviteCoparentModal(scheduleId) {
+    document.getElementById('invite-coparent-email').value = '';
+    const container = document.getElementById('invite-coparent-children');
+    container.innerHTML = SCHEDULES.map(s => `
+        <label class="radio-option" style="display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem">
+            <input type="checkbox" class="invite-coparent-child-cb" value="${s.id}" ${s.id == scheduleId ? 'checked' : ''}>
+            <span>${escapeHtml(s.child_name)}</span>
+        </label>
+    `).join('');
+    document.getElementById('invite-coparent-modal').dataset.anchorSchedule = scheduleId;
+    openModal('invite-coparent-modal');
+}
+
+async function sendCoparentInvite() {
+    const email = document.getElementById('invite-coparent-email').value.trim();
+    if (!email) { Dialog.toast('Adresse email requise.', 'error'); return; }
+    const scheduleIds = Array.from(document.querySelectorAll('.invite-coparent-child-cb:checked')).map(cb => parseInt(cb.value));
+    if (!scheduleIds.length) { Dialog.toast('Sélectionnez au moins un enfant.', 'error'); return; }
+
+    const anchorSchedule = document.getElementById('invite-coparent-modal').dataset.anchorSchedule;
+    const result = await apiFetch(`${BASE_URL}/api/custody/schedule/${anchorSchedule}/invite-coparent`, {
+        method: 'POST',
+        body: JSON.stringify({ email, schedule_ids: scheduleIds }),
+    });
+    if (result.success) {
+        Dialog.toast('Invitation envoyée.', 'success');
+        closeModal('invite-coparent-modal');
+    } else {
+        Dialog.toast(result.error || 'Erreur lors de l\'envoi.', 'error');
+    }
 }
 
 // Init

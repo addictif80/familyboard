@@ -118,6 +118,23 @@ ob_start();
                     <option value="yearly">Annuelle</option>
                 </select>
             </div>
+            <?php if (!empty($custodySchedules)): ?>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="event-custody-toggle" onchange="document.getElementById('event-custody-select-wrap').style.display = this.checked ? '' : 'none'">
+                    Garde alternée
+                </label>
+                <div id="event-custody-select-wrap" style="display:none;margin-top:.4rem">
+                    <select id="event-custody-schedule">
+                        <option value="">Sélectionner un enfant…</option>
+                        <?php foreach ($custodySchedules as $cs): ?>
+                            <option value="<?= (int)$cs['id'] ?>"><?= htmlspecialchars($cs['child_name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small class="form-hint">Cet évènement sera visible par le co-parent à accès restreint de cet enfant.</small>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('event-modal')">Annuler</button>

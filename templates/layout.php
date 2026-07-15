@@ -36,7 +36,24 @@
 </head>
 <body>
 
-<?php if (\App\Core\Session::isLoggedIn()): ?>
+<?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
+<!-- Compte à accès restreint : pas de sidebar complète, seulement l'essentiel. -->
+<div class="coparent-shell">
+    <header class="coparent-topbar">
+        <div class="coparent-brand">
+            <span class="logo-icon">🔒</span>
+            <span>Garde partagée</span>
+        </div>
+        <a href="<?= BASE_URL ?>/logout" class="btn btn-secondary btn-sm">Déconnexion</a>
+    </header>
+    <?php $success = \App\Core\Session::getFlash('success'); $error = \App\Core\Session::getFlash('error'); ?>
+    <?php if ($success): ?><div class="alert alert-success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="alert alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+    <div class="coparent-content">
+        <?= $content ?? '' ?>
+    </div>
+</div>
+<?php elseif (\App\Core\Session::isLoggedIn()): ?>
 <?php
 $currentUser = \App\Core\Session::user();
 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -83,6 +100,14 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 <a href="<?= BASE_URL ?>/custody" class="nav-link">
                     <span class="nav-icon">👶</span>
                     <span class="nav-label">Garde alternée</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (\App\Models\Custody::getSchedulesForUser($currentUser['id'])): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/coparent') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/coparent" class="nav-link">
+                    <span class="nav-icon">🔒</span>
+                    <span class="nav-label">Garde partagée</span>
                 </a>
             </li>
             <?php endif; ?>

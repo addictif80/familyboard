@@ -6,7 +6,12 @@ use App\Models\User;
 
 class BaseController
 {
-    protected function requireAuth(): void
+    /**
+     * @param bool $allowCoparent Les comptes à accès restreint (role='coparent') n'ont, par
+     *   défaut, accès à rien d'autre qu'au module Garde alternée / vue co-parent — passer
+     *   true uniquement pour les contrôleurs qui gèrent explicitement leur accès restreint.
+     */
+    protected function requireAuth(bool $allowCoparent = false): void
     {
         if (!Session::isLoggedIn()) {
             if ($this->isAjax()) {
@@ -30,6 +35,15 @@ class BaseController
             Session::destroy();
             $reason = $user['blocked_reason'] ?? '';
             require BASE_PATH . '/templates/blocked.php';
+            exit;
+        }
+        if (!$allowCoparent && $user['role'] === 'coparent') {
+            if ($this->isAjax()) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Accès restreint']);
+                exit;
+            }
+            header('Location: ' . BASE_URL . '/');
             exit;
         }
         Session::set('user', $user);

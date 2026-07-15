@@ -9,11 +9,54 @@ use App\Core\Database;
  */
 class CommLogMessage
 {
-    public static function create(int $familyId, int $userId, string $content): int
+    public static function create(int $familyId, int $userId, string $content, ?int $custodyScheduleId = null): int
     {
         return Database::insert(
-            'INSERT INTO comm_log_messages (family_id, user_id, content) VALUES (?,?,?)',
-            [$familyId, $userId, $content]
+            'INSERT INTO comm_log_messages (family_id, user_id, content, custody_schedule_id) VALUES (?,?,?,?)',
+            [$familyId, $userId, $content, $custodyScheduleId]
+        );
+    }
+
+    /** Messages tagués à l'un des plannings de garde donnés (journal parental du co-parent restreint). */
+    public static function getForSchedules(array $scheduleIds, int $limit = 200): array
+    {
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        if (empty($scheduleIds)) return [];
+        $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
+        return Database::fetchAll(
+            "SELECT m.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
+             FROM comm_log_messages m
+             JOIN users u ON u.id = m.user_id
+             WHERE m.custody_schedule_id IN ($ph)
+             ORDER BY m.created_at ASC
+             LIMIT ?",
+            [...$scheduleIds, $limit]
+        );
+    }
+
+    /** Dernier id parmi les messages tagués à ces plannings (pour le polling co-parent). */
+    public static function getLastIdForSchedules(array $scheduleIds): int
+    {
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        if (empty($scheduleIds)) return 0;
+        $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
+        $row = Database::fetch("SELECT MAX(id) as id FROM comm_log_messages WHERE custody_schedule_id IN ($ph)", $scheduleIds);
+        return (int)($row['id'] ?? 0);
+    }
+
+    /** Nouveaux messages tagués à ces plannings, postérieurs à $afterId (polling co-parent). */
+    public static function getNewForSchedules(array $scheduleIds, int $afterId): array
+    {
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        if (empty($scheduleIds)) return [];
+        $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
+        return Database::fetchAll(
+            "SELECT m.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
+             FROM comm_log_messages m
+             JOIN users u ON u.id = m.user_id
+             WHERE m.custody_schedule_id IN ($ph) AND m.id > ?
+             ORDER BY m.created_at ASC",
+            [...$scheduleIds, $afterId]
         );
     }
 

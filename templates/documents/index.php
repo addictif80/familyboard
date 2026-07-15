@@ -236,6 +236,24 @@ $totalDocs = array_sum($typeCounts);
                 <input type="text" id="doc-tags" placeholder="2024, important, à renouveler…">
             </div>
 
+            <?php if (!empty($custodySchedules)): ?>
+            <div class="form-group">
+                <label class="radio-option" style="border:none;padding:0">
+                    <input type="checkbox" id="doc-custody-toggle" onchange="document.getElementById('doc-custody-select-wrap').style.display = this.checked ? '' : 'none'">
+                    <span>Garde alternée</span>
+                </label>
+                <div id="doc-custody-select-wrap" style="display:none;margin-top:.4rem">
+                    <select id="doc-custody-schedule">
+                        <option value="">Sélectionner un enfant…</option>
+                        <?php foreach ($custodySchedules as $cs): ?>
+                            <option value="<?= (int)$cs['id'] ?>"><?= htmlspecialchars($cs['child_name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small class="form-hint">Ce document sera visible par le co-parent à accès restreint de cet enfant.</small>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div class="form-group">
                 <label>Notes</label>
                 <textarea id="doc-notes" rows="2"></textarea>

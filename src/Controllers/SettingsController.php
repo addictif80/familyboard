@@ -18,6 +18,7 @@ class SettingsController extends BaseController
         $user = Session::user();
         $family = Family::findById($user['family_id']);
         $members = User::getByFamily($user['family_id']);
+        $coparentChildren = \App\Models\Custody::getChildNamesByUserIds(array_column($members, 'id'));
         $emailLogs = ($user['role'] === 'admin') ? EmailLog::getByFamily($user['family_id'], 30) : [];
         $emailTemplates = ($user['role'] === 'admin') ? EmailTemplate::getAll($user['family_id']) : [];
         $sitterLinks = SitterLink::getByFamily($user['family_id']);
