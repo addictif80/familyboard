@@ -56,46 +56,59 @@
             <span>⚡ Installable comme une app (PWA)</span>
         </div>
 
+        <div class="hero-mockup-wrap">
         <div class="hero-mockup" aria-hidden="true">
-            <div class="hero-mockup-bar"><span></span><span></span><span></span></div>
+            <div class="hero-mockup-bar">
+                <span></span><span></span><span></span>
+                <strong class="hero-mockup-bar-title">FamilyBoard</strong>
+            </div>
             <div class="hero-mockup-grid">
                 <div class="hero-mockup-cell">
-                    <span class="mm-icon">📅</span>
-                    <span class="mm-title">Calendrier</span>
-                    <span class="mm-line"></span>
-                    <span class="mm-line short"></span>
+                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#6BA6E8;--mm-b:#3D6BAF">📅</span><span class="mm-title">Calendrier</span></div>
+                    <div class="mm-cal">
+                        <span></span><span></span><span class="mm-on mm-c1"></span><span></span>
+                        <span class="mm-on mm-c2"></span><span></span><span></span>
+                    </div>
                 </div>
                 <div class="hero-mockup-cell">
-                    <span class="mm-icon">📸</span>
-                    <span class="mm-title">Mur familial</span>
-                    <span class="mm-line"></span>
-                    <span class="mm-line short"></span>
+                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#F5A9C1;--mm-b:#D65B84">📸</span><span class="mm-title">Mur familial</span></div>
+                    <div class="mm-photos">
+                        <span style="background:linear-gradient(135deg,#F7C873,#E67E22)"></span>
+                        <span style="background:linear-gradient(135deg,#8FD3C6,#1E9C7A)"></span>
+                        <span style="background:linear-gradient(135deg,#B9A6F0,#7B5FE0)"></span>
+                    </div>
                 </div>
                 <div class="hero-mockup-cell">
-                    <span class="mm-icon">✅</span>
-                    <span class="mm-title">Tâches</span>
-                    <span class="mm-line"></span>
-                    <span class="mm-line short"></span>
+                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#7BD79A;--mm-b:#2FA968">✅</span><span class="mm-title">Tâches</span></div>
+                    <div class="mm-tasks">
+                        <span class="mm-task done"></span>
+                        <span class="mm-task done"></span>
+                        <span class="mm-task"></span>
+                    </div>
                 </div>
                 <div class="hero-mockup-cell">
-                    <span class="mm-icon">💰</span>
-                    <span class="mm-title">Budget</span>
-                    <span class="mm-line"></span>
-                    <span class="mm-line short"></span>
+                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#F0C267;--mm-b:#D69A2E">💰</span><span class="mm-title">Budget</span></div>
+                    <div class="mm-bars">
+                        <span style="height:38%"></span><span style="height:72%"></span><span style="height:52%"></span><span style="height:88%"></span><span style="height:60%"></span>
+                    </div>
                 </div>
                 <div class="hero-mockup-cell">
-                    <span class="mm-icon">👶</span>
-                    <span class="mm-title">Garde alternée</span>
-                    <span class="mm-line"></span>
-                    <span class="mm-line short"></span>
+                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#8FB8E8;--mm-b:#4A7FC7">👶</span><span class="mm-title">Garde alternée</span></div>
+                    <div class="mm-custody">
+                        <span class="mm-avatar" style="background:#4A90D9"></span>
+                        <span class="mm-custody-swap">⇄</span>
+                        <span class="mm-avatar" style="background:#E67E22"></span>
+                    </div>
                 </div>
                 <div class="hero-mockup-cell">
-                    <span class="mm-icon">🍼</span>
-                    <span class="mm-title">Suivi bébé</span>
-                    <span class="mm-line"></span>
-                    <span class="mm-line short"></span>
+                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#F0A6B8;--mm-b:#D6667F">🍼</span><span class="mm-title">Suivi bébé</span></div>
+                    <div class="mm-baby">
+                        <span class="mm-baby-stat">🍼 <b>4</b></span>
+                        <span class="mm-baby-stat">💤 <b>7h20</b></span>
+                    </div>
                 </div>
             </div>
+        </div>
         </div>
     </header>
 
@@ -225,6 +238,7 @@
             <div class="feature-tab-panels">
                 <?php foreach ($features as $f): ?>
                     <article class="feature-tab-panel feature-tab-panel-<?= $f['id'] ?>" id="ftp-<?= $f['id'] ?>">
+                        <div class="feature-tab-watermark" aria-hidden="true"><?= $f['icon'] ?></div>
                         <div class="feature-tab-panel-icon"><?= $f['icon'] ?></div>
                         <h3><?= htmlspecialchars($f['title']) ?><?php if (!empty($f['badge'])): ?> <span class="feature-tab-badge-inline"><?= htmlspecialchars($f['badge']) ?></span><?php endif; ?></h3>
                         <p class="feature-tab-tagline"><?= htmlspecialchars($f['tagline']) ?></p>
