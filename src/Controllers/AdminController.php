@@ -5,6 +5,7 @@ use App\Core\Database;
 use App\Core\Mail;
 use App\Core\Session;
 use App\Models\AppSetting;
+use App\Models\ImpersonationLog;
 use App\Models\SmtpSettings;
 use App\Models\SupportTicket;
 use App\Models\User;
@@ -200,6 +201,62 @@ class AdminController extends BaseController
         $id = (int)$params['id'];
         Database::execute('UPDATE users SET blocked_at=NULL, blocked_reason=NULL WHERE id=?', [$id]);
         $this->redirect('/admin?tab=users&msg=unblocked');
+    }
+
+    /**
+     * Se connecte temporairement en tant qu'un membre de famille, pour du support.
+     * Ne passe jamais par RememberMe (aucun cookie persistant émis pour le compte
+     * ciblé) et reste journalisé dans impersonation_log. La session admin système
+     * ($_SESSION['admin_logged_in']) est indépendante de la session utilisateur
+     * et n'est jamais touchée ici : l'admin reste connecté au panneau /admin
+     * pendant toute la durée de l'impersonation.
+     */
+    public function impersonate(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id     = (int)$params['id'];
+        $target = User::findById($id);
+
+        if (!$target) { $this->redirect('/admin?tab=users&error=not_found'); return; }
+        if (!empty($target['blocked_at'])) { $this->redirect('/admin?tab=users&error=blocked_user'); return; }
+
+        // Si l'admin naviguait déjà avec son propre compte membre, on le garde de
+        // côté pour pouvoir y revenir plutôt que de simplement déconnecter au retour.
+        if (empty($_SESSION['impersonation'])) {
+            $_SESSION['impersonation'] = ['original_user_id' => Session::userId()];
+        }
+
+        $adminUsername = AppSetting::get('admin_username') ?? ADMIN_USER;
+        $logId = ImpersonationLog::create($id, (int)$target['family_id'], $adminUsername, $_SERVER['REMOTE_ADDR'] ?? null);
+        $_SESSION['impersonation']['log_id'] = $logId;
+
+        Session::login($target);
+        header('Location: ' . BASE_URL . '/');
+        exit;
+    }
+
+    public function stopImpersonating(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $imp = $_SESSION['impersonation'] ?? null;
+        unset($_SESSION['impersonation']);
+
+        if ($imp) {
+            if (!empty($imp['log_id'])) ImpersonationLog::end((int)$imp['log_id']);
+            if (!empty($imp['original_user_id'])) {
+                $original = User::findById((int)$imp['original_user_id']);
+                if ($original) {
+                    Session::login($original);
+                    $this->redirect('/');
+                    return;
+                }
+            }
+        }
+
+        Session::delete('user_id');
+        Session::delete('family_id');
+        Session::delete('user');
+        $this->redirect('/admin?tab=users');
     }
 
     // ── IP management ────────────────────────────────────────────

@@ -120,6 +120,12 @@ class AuthController
 
     public function logout(array $params): void
     {
+        // If a system admin is mid-impersonation and logs out via the normal button
+        // (instead of the "Revenir à l'admin" banner), still close the audit entry
+        // rather than leaving it stuck "en cours" forever.
+        if (!empty($_SESSION['impersonation']['log_id'])) {
+            \App\Models\ImpersonationLog::end((int)$_SESSION['impersonation']['log_id']);
+        }
         RememberMe::clear();
         Session::destroy();
         header('Location: ' . BASE_URL . '/login');

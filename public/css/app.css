@@ -426,6 +426,15 @@ input:focus, textarea:focus, select:focus {
 input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .input-readonly { background: var(--bg); color: var(--text-muted); }
 
+/* ---- Impersonation banner ---- */
+.impersonation-banner {
+    display: flex; align-items: center; justify-content: center; gap: .75rem; flex-wrap: wrap;
+    background: #b45309; color: #fff; padding: .5rem 1rem; font-size: .85rem; text-align: center;
+    position: sticky; top: 0; z-index: 500;
+}
+.impersonation-banner a.btn-sm { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.5); }
+.impersonation-banner a.btn-sm:hover { background: rgba(255,255,255,.32); }
+
 /* ---- Alerts ---- */
 .alert { padding: .8rem 1.05rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: .875rem; border: 1px solid transparent; }
 .alert-success { background: var(--success-bg); color: var(--success-text); border-color: var(--success); }
