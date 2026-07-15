@@ -2,6 +2,7 @@
 namespace App\Controllers;
 
 use App\Core\Session;
+use App\Models\CustodyActivityLog;
 use App\Models\Event;
 use App\Models\CalDAVSource;
 use App\Models\Family;
@@ -211,6 +212,9 @@ class CalendarController extends BaseController
             }
             $id = Event::create($data);
             $event = Event::getById($id);
+            if (!empty($data['custody_schedule_id'])) {
+                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'event_created', $data['title'] ?? null);
+            }
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Nouvel événement', $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/calendar');
             return ['success' => true, 'id' => $id, 'event' => $event];
         });
@@ -232,6 +236,10 @@ class CalendarController extends BaseController
                 if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
             }
             Event::update($id, $data);
+            $loggedScheduleId = $data['custody_schedule_id'] ?? $event['custody_schedule_id'] ?? null;
+            if (!empty($loggedScheduleId)) {
+                CustodyActivityLog::record((int)$loggedScheduleId, $user['id'], 'event_updated', $data['title'] ?? $event['title']);
+            }
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement modifié',
                 $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']), BASE_URL . '/calendar');
             return ['success' => true];

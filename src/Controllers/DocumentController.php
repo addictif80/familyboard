@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Core\OcrHelper;
+use App\Models\CustodyActivityLog;
 use App\Models\Document;
 use App\Models\User;
 use App\Models\Notification;
@@ -43,6 +44,9 @@ class DocumentController extends BaseController
                 if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
             }
             $id     = Document::create($user['family_id'], $userId, $data, $file);
+            if (!empty($data['custody_schedule_id'])) {
+                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'document_uploaded', $data['title'] ?? null);
+            }
             Notification::notifyFamily($user['family_id'], $user['id'], 'documents', 'Nouveau document',
                 $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/documents');
             return ['success' => true, 'id' => $id];
@@ -62,6 +66,9 @@ class DocumentController extends BaseController
                 if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
             }
             Document::update((int)$params['id'], $user['family_id'], $data, $file);
+            if (!empty($data['custody_schedule_id'])) {
+                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'document_updated', $data['title'] ?? null);
+            }
             return ['success' => true];
         });
     }

@@ -38,6 +38,7 @@ ob_start();
     <button class="coparent-tab" data-panel="cp-panel-journal" onclick="cpShowTab('cp-panel-journal')">📝 Journal parental</button>
     <button class="coparent-tab" data-panel="cp-panel-documents" onclick="cpShowTab('cp-panel-documents')">🗂️ Documents</button>
     <button class="coparent-tab" data-panel="cp-panel-events" onclick="cpShowTab('cp-panel-events')">📆 Évènements</button>
+    <button class="coparent-tab" data-panel="cp-panel-activity" onclick="cpShowTab('cp-panel-activity')">📜 Journal d'activité</button>
 </div>
 
 <div class="coparent-panel active" id="cp-panel-calendar">
@@ -105,6 +106,16 @@ ob_start();
     <div class="card" style="padding:1.25rem">
         <h3 style="margin-top:0">Évènements à venir</h3>
         <div id="cp-events-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+    </div>
+</div>
+
+<div class="coparent-panel" id="cp-panel-activity">
+    <div class="card" style="padding:1.25rem">
+        <h3 style="margin-top:0">Journal d'activité</h3>
+        <p style="color:var(--text-muted);font-size:.8rem;margin-top:-.5rem;margin-bottom:1rem">
+            Historique horodaté (fuseau de la famille) et IP de toutes les actions liées à cet enfant, des deux côtés — visible par les deux parents.
+        </p>
+        <div id="cp-activity-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
     </div>
 </div>
 

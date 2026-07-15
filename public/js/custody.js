@@ -912,5 +912,15 @@ async function sendCoparentInvite() {
     }
 }
 
+// ---- Activity log ----
+
+async function openActivityLogModal(scheduleId, childName) {
+    document.getElementById('activity-log-title').textContent = `Journal d'activité — ${childName}`;
+    document.getElementById('activity-log-content').innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>';
+    openModal('activity-log-modal');
+    const data = await apiFetch(`${BASE_URL}/api/custody/schedule/${scheduleId}/activity-log`);
+    document.getElementById('activity-log-content').innerHTML = renderActivityLogHtml(data);
+}
+
 // Init
 loadCustodyEvents();

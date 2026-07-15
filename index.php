@@ -188,6 +188,7 @@ $router->post('/api/custody/schedule/:id/vacation', [CustodyController::class, '
 $router->post('/api/custody/vacation/:id', [CustodyController::class, 'updateVacationPeriod']);
 $router->post('/api/custody/vacation/:id/delete', [CustodyController::class, 'deleteVacationPeriod']);
 $router->post('/api/custody/schedule/:id/invite-coparent', [CustodyController::class, 'inviteCoparent']);
+$router->get('/api/custody/schedule/:id/activity-log', [CustodyController::class, 'activityLog']);
 
 // Vue co-parent à accès restreint
 $router->get('/coparent', [CoparentController::class, 'index']);
@@ -197,6 +198,7 @@ $router->post('/api/coparent/custody-proposal', [CoparentController::class, 'pro
 $router->get('/api/coparent/journal', [CoparentController::class, 'journal']);
 $router->post('/api/coparent/journal', [CoparentController::class, 'journalSend']);
 $router->get('/api/coparent/journal/:id/audio', [CoparentController::class, 'journalAudio']);
+$router->get('/api/coparent/activity-log', [CoparentController::class, 'activityLog']);
 $router->get('/api/coparent/documents', [CoparentController::class, 'documentsList']);
 $router->post('/api/coparent/documents', [CoparentController::class, 'documentsUpload']);
 $router->get('/api/coparent/events', [CoparentController::class, 'eventsList']);

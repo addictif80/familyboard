@@ -28,6 +28,14 @@ function cpLoadAll() {
     cpLoadJournal();
     cpLoadDocuments();
     cpLoadEvents();
+    cpLoadActivityLog();
+}
+
+// ── Journal d'activité ───────────────────────────────────────────────────
+
+async function cpLoadActivityLog() {
+    const data = await apiFetch(`${BASE_URL}/api/coparent/activity-log?schedule_id=${cpCurrentScheduleId}`);
+    document.getElementById('cp-activity-list').innerHTML = renderActivityLogHtml(data);
 }
 
 // ── Calendrier de garde ──────────────────────────────────────────────────

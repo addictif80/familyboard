@@ -5,6 +5,7 @@ use App\Core\Database;
 use App\Core\OcrHelper;
 use App\Core\Session;
 use App\Models\Custody;
+use App\Models\CustodyActivityLog;
 use App\Models\CommLogMessage;
 use App\Models\Document;
 use App\Models\Event;
@@ -108,6 +109,7 @@ class CoparentController extends BaseController
             if (empty($days)) return ['success' => true, 'created' => 0];
 
             $created = Custody::applyProposalDays($scheduleId, $days);
+            CustodyActivityLog::record($scheduleId, $user['id'], 'proposal_sent', $created . ' bloc(s)');
 
             Notification::notifyFamily(
                 (int)$schedule['family_id'], $user['id'], 'custody',
@@ -165,6 +167,7 @@ class CoparentController extends BaseController
             }
 
             $id = CommLogMessage::create((int)$schedule['family_id'], $user['id'], $content, $scheduleId, $audioPath, $audioOriginal, $audioMime, $duration);
+            CustodyActivityLog::record($scheduleId, $user['id'], 'journal_message_sent', $audioPath ? 'Message vocal' : mb_strimwidth($content, 0, 100, '…'));
 
             Notification::notifyFamily((int)$schedule['family_id'], $user['id'], 'comm_log',
                 'Journal parental', $user['name'] . ' a ajouté ' . ($audioPath ? 'un message vocal' : 'un message') . ' au sujet de ' . $schedule['child_name'] . '.',
@@ -211,6 +214,30 @@ class CoparentController extends BaseController
         exit;
     }
 
+    public function activityLog(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            $scheduleId = (int)($_GET['schedule_id'] ?? 0);
+            if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) return ['active' => false, 'entries' => []];
+
+            return [
+                'active'  => CustodyActivityLog::isActiveForSchedule($scheduleId),
+                'entries' => array_map(fn($e) => [
+                    'id'         => $e['id'],
+                    'action'     => $e['action'],
+                    'label'      => CustodyActivityLog::labelFor($e['action']),
+                    'details'    => $e['details'],
+                    'ip'         => $e['ip'],
+                    'user_name'  => $e['user_name'] ?? 'Compte supprimé',
+                    'user_color' => $e['user_color'] ?? '#95A5A6',
+                    'created_at' => $e['created_at'],
+                ], CustodyActivityLog::getForSchedule($scheduleId)),
+            ];
+        });
+    }
+
     public function documentsList(array $params): void
     {
         $this->requireAuth(true);
@@ -236,6 +263,7 @@ class CoparentController extends BaseController
             $file = $_FILES['file'] ?? null;
             $data['custody_schedule_id'] = $scheduleId;
             $id = Document::create((int)$schedule['family_id'], $user['id'], $data, $file);
+            CustodyActivityLog::record($scheduleId, $user['id'], 'document_uploaded', $data['title'] ?? null);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -268,6 +296,7 @@ class CoparentController extends BaseController
             $data['user_id'] = $user['id'];
             $data['custody_schedule_id'] = $scheduleId;
             $id = Event::create($data);
+            CustodyActivityLog::record($scheduleId, $user['id'], 'event_created', $data['title'] ?? null);
             return ['success' => true, 'id' => $id];
         });
     }

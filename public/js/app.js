@@ -297,6 +297,34 @@ function voiceBubbleHtml(audioUrl, durationSec) {
     return `<div class="voice-msg">🎤<audio controls preload="none" src="${audioUrl}"></audio>${dur}</div>`;
 }
 
+// ============================================
+// Journal d'activité garde partagée (custody + coparent)
+// ============================================
+
+function activityLogFormatDateTime(datetime) {
+    const iso = datetime.includes('T') ? datetime : datetime.replace(' ', 'T') + 'Z';
+    return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: APP_TIMEZONE });
+}
+
+/** Rendu partagé par la modale (custody) et l'onglet (vue co-parent). */
+function renderActivityLogHtml(data) {
+    if (!data.active) {
+        return '<p style="color:var(--text-muted);font-size:.85rem">Le journal d\'activité n\'est pas encore actif : il s\'active automatiquement dès que le co-parent invité se connecte pour la première fois. Toutes les actions des deux côtés seront alors horodatées (fuseau horaire de la famille) et associées à une adresse IP.</p>';
+    }
+    if (!data.entries || !data.entries.length) {
+        return '<p style="color:var(--text-muted);font-size:.85rem">Journal actif — aucune action enregistrée pour l\'instant.</p>';
+    }
+    return '<div class="activity-log-list">' + data.entries.map(e => `
+        <div class="activity-log-item">
+            <div><span class="activity-log-user" style="color:${escapeHtml(e.user_color)}">${escapeHtml(e.user_name)}</span> — ${escapeHtml(e.label)}${e.details ? ' : ' + escapeHtml(e.details) : ''}</div>
+            <div class="activity-log-meta">
+                <span>🕐 ${activityLogFormatDateTime(e.created_at)}</span>
+                <span>🌐 ${escapeHtml(e.ip || '—')}</span>
+            </div>
+        </div>
+    `).join('') + '</div>';
+}
+
 // Helpers
 function escapeHtml(str) {
     if (!str) return '';
