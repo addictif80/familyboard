@@ -112,6 +112,67 @@
 .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: .4rem; color: var(--text); }
 .feature-card p { color: var(--text-muted); font-size: .87rem; line-height: 1.55; }
 
+/* ---- Feature tabs (CSS-only radio tabs) ---- */
+.feature-tab-radio { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
+.feature-tabs { display: grid; grid-template-columns: 300px 1fr; gap: 1.75rem; align-items: start; }
+
+.feature-tab-nav { display: flex; flex-direction: column; gap: .3rem; }
+.feature-tab-btn {
+  display: flex; align-items: center; gap: .7rem; padding: .7rem .9rem;
+  border-radius: var(--radius-sm); border: 1px solid transparent; cursor: pointer;
+  font-weight: 600; font-size: .87rem; color: var(--text-muted);
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.feature-tab-btn:hover { background: var(--card-bg); color: var(--text); }
+.feature-tab-icon {
+  flex-shrink: 0; width: 2.1rem; height: 2.1rem; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; font-size: 1rem; background: var(--bg); transition: background .15s ease;
+}
+.feature-tab-label { flex: 1; }
+.feature-tab-badge {
+  flex-shrink: 0; font-size: .65rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  padding: .15rem .45rem; border-radius: 20px; background: var(--success-bg); color: var(--success-text);
+}
+
+.feature-tab-panels {
+  position: relative; background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 2.2rem; box-shadow: var(--shadow); min-height: 320px;
+}
+.feature-tab-panel { display: none; animation: featureTabFade .25s ease; }
+.feature-tab-panel-icon {
+  width: 3.2rem; height: 3.2rem; display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; font-size: 1.5rem; margin-bottom: 1.1rem;
+  background: linear-gradient(145deg, var(--primary-light), var(--primary));
+}
+:root[data-theme="dark"] .feature-tab-panel-icon { background: linear-gradient(145deg, var(--primary), var(--primary-dark)); }
+.feature-tab-panel h3 { display: flex; align-items: center; gap: .6rem; font-size: 1.3rem; color: var(--text); margin-bottom: .5rem; }
+.feature-tab-badge-inline {
+  font-size: .68rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  padding: .2rem .55rem; border-radius: 20px; background: var(--success-bg); color: var(--success-text);
+}
+.feature-tab-tagline { color: var(--text-muted); font-size: 1rem; margin-bottom: 1.3rem; }
+.feature-tab-points { display: flex; flex-direction: column; gap: .65rem; padding: 0; margin: 0; list-style: none; }
+.feature-tab-points li {
+  position: relative; padding-left: 1.5rem; color: var(--text); font-size: .9rem; line-height: 1.55;
+}
+.feature-tab-points li::before {
+  content: "✓"; position: absolute; left: 0; top: 0; color: var(--accent-dark); font-weight: 700;
+}
+:root[data-theme="dark"] .feature-tab-points li::before { color: var(--accent); }
+
+@keyframes featureTabFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 860px) {
+  .feature-tabs { grid-template-columns: 1fr; }
+  .feature-tab-nav { flex-direction: row; flex-wrap: wrap; gap: .5rem; }
+  .feature-tab-btn { flex: 1 1 auto; }
+  .feature-tab-label { white-space: nowrap; }
+  .feature-tab-panels { padding: 1.5rem; }
+}
+
 /* ---- Differentiation ---- */
 .diff-section { background: var(--card-bg-alt); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .diff-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1.6rem; }
