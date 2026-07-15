@@ -238,6 +238,7 @@
             <div class="feature-tab-panels">
                 <?php foreach ($features as $f): ?>
                     <article class="feature-tab-panel feature-tab-panel-<?= $f['id'] ?>" id="ftp-<?= $f['id'] ?>">
+                        <div class="feature-tab-watermark" aria-hidden="true"><?= $f['icon'] ?></div>
                         <div class="feature-tab-panel-icon"><?= $f['icon'] ?></div>
                         <h3><?= htmlspecialchars($f['title']) ?><?php if (!empty($f['badge'])): ?> <span class="feature-tab-badge-inline"><?= htmlspecialchars($f['badge']) ?></span><?php endif; ?></h3>
                         <p class="feature-tab-tagline"><?= htmlspecialchars($f['tagline']) ?></p>
