@@ -99,60 +99,151 @@
         </div>
     </header>
 
+    <?php
+    $features = [
+        ['id' => 'dashboard', 'icon' => '🏠', 'title' => 'Tableau de bord', 'tagline' => 'Une vue d\'ensemble sur mesure, dès la connexion.', 'points' => [
+            'Widgets personnalisables : tâches du jour, prochains événements, derniers messages…',
+            'Réorganisation des widgets en glisser-déposer',
+            'Accès rapide à tous les modules activés pour votre famille',
+        ]],
+        ['id' => 'calendar', 'icon' => '📅', 'title' => 'Calendrier partagé', 'tagline' => 'Un agenda commun, sans doublons ni confusion.', 'points' => [
+            'Synchronisation CalDAV avec vos calendriers existants (Google, Apple…)',
+            'Vue par membre, avec une couleur dédiée à chacun',
+            'Événements récurrents, rappels et vacances scolaires intégrées',
+        ]],
+        ['id' => 'custody', 'icon' => '👶', 'title' => 'Garde alternée', 'badge' => 'Nouveau', 'tagline' => 'Un planning de garde qui s\'adapte à toutes les organisations.', 'points' => [
+            'Récurrences automatiques : semaine sur deux, un weekend sur deux…',
+            'Nouveau : un weekend sur deux + un jour fixe en semaine (ex. le mercredi)',
+            'Périodes de vacances avec répartition dédiée (1 semaine sur 2, semaines paires/impaires…)',
+            'Propositions de garde peintes jour par jour pour les cas les plus atypiques',
+            'Nouveau : journal d\'activité horodaté (fuseau horaire de la famille) et IP, activé automatiquement dès la première connexion du co-parent invité',
+        ]],
+        ['id' => 'coparent', 'icon' => '🔒', 'title' => 'Garde partagée', 'badge' => 'Nouveau', 'tagline' => 'Un accès restreint et sécurisé pour l\'autre parent.', 'points' => [
+            'Le co-parent ne voit que le planning, le journal, les documents et évènements liés à l\'enfant',
+            'Nouveau : envoi de messages vocaux dans le journal parental',
+            'Peut proposer des jours de garde directement depuis son accès',
+            'Peut créer son propre espace FamilyBoard complet tout en gardant cet accès',
+        ]],
+        ['id' => 'chat', 'icon' => '💬', 'title' => 'Chat familial', 'badge' => 'Nouveau', 'tagline' => 'Une messagerie privée, rien que pour votre foyer.', 'points' => [
+            'Messages instantanés entre tous les membres de la famille',
+            'Nouveau : messages vocaux, enregistrés au micro depuis le navigateur',
+            'Historique complet, sans publicité ni tiers',
+        ]],
+        ['id' => 'commlog', 'icon' => '📝', 'title' => 'Journal parental', 'badge' => 'Nouveau', 'tagline' => 'Une trace de communication fiable entre parents.', 'points' => [
+            'Messages horodatés, jamais modifiables ni supprimables',
+            'Nouveau : messages vocaux, pour un ton plus clair qu\'à l\'écrit',
+            'Accusés de lecture pour savoir qui a vu quoi',
+        ]],
+        ['id' => 'wall', 'icon' => '📸', 'title' => 'Mur familial', 'tagline' => 'Le fil d\'actualité de votre foyer, à l\'abri des regards extérieurs.', 'points' => [
+            'Partagez photos, souvenirs et petits mots',
+            'Réactions et commentaires entre membres',
+            'Aucune donnée revendue, aucune publicité',
+        ]],
+        ['id' => 'familywall', 'icon' => '📺', 'title' => 'Écran mural', 'tagline' => 'Affichez l\'essentiel de votre organisation sur un écran fixe.', 'points' => [
+            'Vue calendrier, tâches et météo en un coup d\'œil',
+            'Idéal sur une tablette ou un écran dans la cuisine',
+            'Se met à jour automatiquement',
+        ]],
+        ['id' => 'tasks', 'icon' => '✅', 'title' => 'Tâches & Courses', 'tagline' => 'Listes de tâches et de courses, assignables à chacun.', 'points' => [
+            'Corvées, courses et listes partagées entre membres',
+            'Assignation par personne, avec priorités et échéances',
+            'Synchronisées en temps réel pour toute la famille',
+        ]],
+        ['id' => 'budget', 'icon' => '💰', 'title' => 'Budget familial', 'tagline' => 'Vos finances de famille, en toute transparence.', 'points' => [
+            'Suivi des dépenses et revenus par catégorie',
+            'Objectifs d\'épargne et prélèvements récurrents',
+            'Graphiques mensuels pour visualiser vos tendances',
+        ]],
+        ['id' => 'projects', 'icon' => '📋', 'title' => 'Projets', 'tagline' => 'Pilotez vos projets familiaux de A à Z.', 'points' => [
+            'Tâches, budget et matériel liés à un même projet (travaux, voyages…)',
+            'Suivi des dépenses et des achats',
+            'Statuts d\'avancement clairs',
+        ]],
+        ['id' => 'contacts', 'icon' => '📒', 'title' => 'Répertoire', 'tagline' => 'Tous vos contacts importants au même endroit.', 'points' => [
+            'Médecins, école, nounou, famille élargie…',
+            'Accessible à tous les membres autorisés',
+            'Recherche rapide',
+        ]],
+        ['id' => 'warranties', 'icon' => '🛡️', 'title' => 'Garanties', 'tagline' => 'Ne perdez plus jamais une preuve d\'achat.', 'points' => [
+            'Date d\'achat, durée de garantie et rappel d\'expiration',
+            'Photo du ticket ou de la facture jointe',
+            'Alerte avant l\'expiration',
+        ]],
+        ['id' => 'documents', 'icon' => '🗂️', 'title' => 'Documents', 'tagline' => 'Un coffre-fort numérique pour vos papiers importants.', 'points' => [
+            'OCR automatique et classement par type',
+            'Recherche plein texte instantanée',
+            'Partage ciblé pour un enfant en garde alternée',
+        ]],
+        ['id' => 'cameras', 'icon' => '🎥', 'title' => 'Caméras', 'tagline' => 'Vos caméras IP, réunies dans une seule vue.', 'points' => [
+            'Compatible flux MJPEG, snapshot, HLS et RTSP (via go2rtc)',
+            'Accès rapide depuis le tableau de bord',
+            'Vos identifiants restent privés, jamais partagés à des tiers',
+        ]],
+        ['id' => 'baby', 'icon' => '🍼', 'title' => 'Bébé & grossesse', 'tagline' => 'Le quotidien de bébé, suivi par les deux parents.', 'points' => [
+            'Biberons, sommeil et changes en un geste',
+            'Suivi de grossesse partagé',
+            'Historique consultable par toute la famille',
+        ]],
+        ['id' => 'location', 'icon' => '📍', 'title' => 'Position', 'tagline' => 'Savoir que tout le monde est bien arrivé, sans intrusion.', 'points' => [
+            'Partage de position volontaire entre membres',
+            'Utile pour les trajets école/activités',
+            'Désactivable à tout moment',
+        ]],
+        ['id' => 'emergency', 'icon' => '🆘', 'title' => 'Fiches d\'urgence', 'tagline' => 'Les informations vitales, accessibles en un scan.', 'points' => [
+            'Allergies, traitements, contacts d\'urgence',
+            'QR code à imprimer pour la nounou ou l\'école',
+            'Toujours à jour, jamais périmé dans un tiroir',
+        ]],
+        ['id' => 'meals', 'icon' => '🍽️', 'title' => 'Repas & recettes', 'tagline' => 'Planifiez la semaine sans y penser.', 'points' => [
+            'Planning des repas en glisser-déposer',
+            'Recettes transformées en listes de courses en un clic',
+            'Idées de repas partagées par toute la famille',
+        ]],
+    ];
+    ?>
     <section class="landing-section">
         <div class="section-heading">
             <span class="kicker">Fonctionnalités</span>
             <h2>Tout ce dont votre famille a besoin, réuni au même endroit</h2>
-            <p>Chaque module est pensé pour être utile dès la première minute, sans réglages compliqués.</p>
+            <p>Chaque module est pensé pour être utile dès la première minute, sans réglages compliqués. Cliquez sur un module pour en voir le détail.</p>
         </div>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">📅</div>
-                <h3>Calendrier partagé</h3>
-                <p>Un agenda commun pour toute la famille, avec synchronisation CalDAV et vue par membre.</p>
+        <div class="feature-tabs">
+            <?php foreach ($features as $i => $f): ?>
+                <input type="radio" name="feature-tab" id="ft-<?= $f['id'] ?>" class="feature-tab-radio" <?= $i === 0 ? 'checked' : '' ?>>
+            <?php endforeach; ?>
+
+            <div class="feature-tab-nav">
+                <?php foreach ($features as $f): ?>
+                    <label for="ft-<?= $f['id'] ?>" class="feature-tab-btn feature-tab-btn-<?= $f['id'] ?>">
+                        <span class="feature-tab-icon"><?= $f['icon'] ?></span>
+                        <span class="feature-tab-label"><?= htmlspecialchars($f['title']) ?></span>
+                        <?php if (!empty($f['badge'])): ?><span class="feature-tab-badge"><?= htmlspecialchars($f['badge']) ?></span><?php endif; ?>
+                    </label>
+                <?php endforeach; ?>
             </div>
-            <div class="feature-card">
-                <div class="feature-icon">📸</div>
-                <h3>Mur familial</h3>
-                <p>Partagez photos, souvenirs et petits mots comme sur un fil d'actualité, à l'abri des regards extérieurs.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">✅</div>
-                <h3>Tâches & listes</h3>
-                <p>Listes de courses, corvées et projets partagés, assignables à chaque membre du foyer.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">💰</div>
-                <h3>Budget familial</h3>
-                <p>Suivez dépenses, objectifs d'épargne et prélèvements récurrents en toute transparence.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">👶</div>
-                <h3>Garde alternée</h3>
-                <p>Un planning de garde clair, avec propositions automatiques et historique des échanges.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🍼</div>
-                <h3>Suivi bébé & grossesse</h3>
-                <p>Biberons, sommeil, consultations et suivi de grossesse, centralisés pour les deux parents.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🆘</div>
-                <h3>Fiches d'urgence QR</h3>
-                <p>Allergies, contacts et informations vitales accessibles en un scan pour les nounous et l'école.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🍽️</div>
-                <h3>Repas & recettes</h3>
-                <p>Planifiez les repas de la semaine et transformez vos recettes en listes de courses en un clic.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🗂️</div>
-                <h3>Coffre-fort documents</h3>
-                <p>Garanties, papiers administratifs et documents importants, retrouvés en quelques secondes.</p>
+
+            <div class="feature-tab-panels">
+                <?php foreach ($features as $f): ?>
+                    <article class="feature-tab-panel feature-tab-panel-<?= $f['id'] ?>" id="ftp-<?= $f['id'] ?>">
+                        <div class="feature-tab-panel-icon"><?= $f['icon'] ?></div>
+                        <h3><?= htmlspecialchars($f['title']) ?><?php if (!empty($f['badge'])): ?> <span class="feature-tab-badge-inline"><?= htmlspecialchars($f['badge']) ?></span><?php endif; ?></h3>
+                        <p class="feature-tab-tagline"><?= htmlspecialchars($f['tagline']) ?></p>
+                        <ul class="feature-tab-points">
+                            <?php foreach ($f['points'] as $p): ?><li><?= htmlspecialchars($p) ?></li><?php endforeach; ?>
+                        </ul>
+                    </article>
+                <?php endforeach; ?>
             </div>
         </div>
     </section>
+    <style>
+        /* Règles générées : un radio "coché" affiche son panneau et surligne son onglet. */
+        <?php foreach ($features as $f): ?>
+        #ft-<?= $f['id'] ?>:checked ~ .feature-tab-nav .feature-tab-btn-<?= $f['id'] ?> { background: var(--card-bg); color: var(--text); border-color: var(--border); }
+        #ft-<?= $f['id'] ?>:checked ~ .feature-tab-nav .feature-tab-btn-<?= $f['id'] ?> .feature-tab-icon { background: linear-gradient(145deg, var(--primary-light), var(--primary)); }
+        #ft-<?= $f['id'] ?>:checked ~ .feature-tab-panels .feature-tab-panel-<?= $f['id'] ?> { display: block; }
+        <?php endforeach; ?>
+    </style>
 
     <section class="landing-section diff-section">
         <div class="section-heading">
