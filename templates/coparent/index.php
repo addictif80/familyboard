@@ -53,8 +53,10 @@ ob_start();
 <div class="coparent-panel" id="cp-panel-journal">
     <div class="card" style="padding:1.25rem">
         <div id="cp-journal-list" style="display:flex;flex-direction:column;gap:.6rem;max-height:400px;overflow-y:auto;margin-bottom:1rem"></div>
-        <div style="display:flex;gap:.5rem">
+        <div style="display:flex;gap:.5rem;align-items:center">
             <input type="text" id="cp-journal-input" placeholder="Écrire un message…" style="flex:1" onkeydown="if(event.key==='Enter')cpSendJournal()">
+            <span class="voice-record-timer" id="cp-voice-timer"></span>
+            <button type="button" class="voice-record-btn" id="cp-voice-btn" title="Message vocal">🎤</button>
             <button class="btn btn-primary" onclick="cpSendJournal()">Envoyer</button>
         </div>
     </div>

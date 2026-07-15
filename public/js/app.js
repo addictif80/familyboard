@@ -211,6 +211,92 @@ function openLightbox(src) {
     document.body.appendChild(overlay);
 }
 
+// ============================================
+// Messages vocaux — enregistreur réutilisable (chat, journal parental, garde partagée)
+// ============================================
+
+/**
+ * Cable un bouton micro sur MediaRecorder. Cliquer démarre l'enregistrement,
+ * re-cliquer l'arrête et appelle onDone({blob, mimeType, durationSec}).
+ * Un enregistrement de moins d'une seconde est silencieusement ignoré (clic accidentel).
+ */
+function initVoiceRecorder(buttonEl, timerEl, onDone) {
+    let mediaRecorder = null;
+    let chunks = [];
+    let stream = null;
+    let startedAt = 0;
+    let timerInterval = null;
+
+    function pickMimeType() {
+        if (!window.MediaRecorder) return '';
+        const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+        return candidates.find(t => MediaRecorder.isTypeSupported(t)) || '';
+    }
+
+    async function start() {
+        if (!navigator.mediaDevices || !window.MediaRecorder) {
+            Dialog.toast("Votre navigateur ne permet pas l'enregistrement vocal.", 'error');
+            return;
+        }
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+            Dialog.toast('Micro refusé ou indisponible.', 'error');
+            return;
+        }
+        chunks = [];
+        const mimeType = pickMimeType();
+        mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+        mediaRecorder.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+            clearInterval(timerInterval);
+            if (timerEl) timerEl.textContent = '';
+            buttonEl.classList.remove('recording');
+            const durationSec = Math.round((Date.now() - startedAt) / 1000);
+            if (durationSec < 1 || !chunks.length) return;
+            const blob = new Blob(chunks, { type: mediaRecorder.mimeType || mimeType || 'audio/webm' });
+            onDone({ blob, mimeType: blob.type, durationSec });
+        };
+        mediaRecorder.start();
+        startedAt = Date.now();
+        buttonEl.classList.add('recording');
+        if (timerEl) {
+            timerInterval = setInterval(() => {
+                timerEl.textContent = formatVoiceDuration(Math.floor((Date.now() - startedAt) / 1000));
+            }, 250);
+        }
+    }
+
+    function stop() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    }
+
+    buttonEl.addEventListener('click', () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') stop();
+        else start();
+    });
+}
+
+function voiceExtensionForMime(mime) {
+    if (mime.includes('webm')) return 'webm';
+    if (mime.includes('mp4')) return 'm4a';
+    if (mime.includes('ogg')) return 'ogg';
+    if (mime.includes('wav')) return 'wav';
+    return 'bin';
+}
+
+function formatVoiceDuration(sec) {
+    sec = Math.max(0, sec || 0);
+    return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
+}
+
+/** Bulle de lecture audio pour un message contenant audio_path (déjà en base) ou en attente d'envoi. */
+function voiceBubbleHtml(audioUrl, durationSec) {
+    const dur = durationSec ? `<span class="voice-duration">${formatVoiceDuration(durationSec)}</span>` : '';
+    return `<div class="voice-msg">🎤<audio controls preload="none" src="${audioUrl}"></audio>${dur}</div>`;
+}
+
 // Helpers
 function escapeHtml(str) {
     if (!str) return '';

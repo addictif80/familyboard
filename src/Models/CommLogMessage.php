@@ -9,12 +9,19 @@ use App\Core\Database;
  */
 class CommLogMessage
 {
-    public static function create(int $familyId, int $userId, string $content, ?int $custodyScheduleId = null): int
-    {
+    public static function create(
+        int $familyId, int $userId, string $content, ?int $custodyScheduleId = null,
+        ?string $audioPath = null, ?string $audioOriginal = null, ?string $audioMime = null, ?int $audioDuration = null
+    ): int {
         return Database::insert(
-            'INSERT INTO comm_log_messages (family_id, user_id, content, custody_schedule_id) VALUES (?,?,?,?)',
-            [$familyId, $userId, $content, $custodyScheduleId]
+            'INSERT INTO comm_log_messages (family_id, user_id, content, custody_schedule_id, audio_path, audio_original, audio_mime, audio_duration) VALUES (?,?,?,?,?,?,?,?)',
+            [$familyId, $userId, $content, $custodyScheduleId, $audioPath, $audioOriginal, $audioMime, $audioDuration]
         );
+    }
+
+    public static function findById(int $id): ?array
+    {
+        return Database::fetch('SELECT * FROM comm_log_messages WHERE id=?', [$id]);
     }
 
     /** Messages tagués à l'un des plannings de garde donnés (journal parental du co-parent restreint). */

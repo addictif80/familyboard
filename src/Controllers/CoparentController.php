@@ -2,6 +2,7 @@
 namespace App\Controllers;
 
 use App\Core\Database;
+use App\Core\OcrHelper;
 use App\Core\Session;
 use App\Models\Custody;
 use App\Models\CommLogMessage;
@@ -21,6 +22,8 @@ use App\Models\User;
  */
 class CoparentController extends BaseController
 {
+    private const MAX_VOICE_SIZE = 15 * 1024 * 1024;
+
     public function index(array $params): void
     {
         $this->requireAuth(true);
@@ -138,20 +141,33 @@ class CoparentController extends BaseController
         $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
-            $data = $this->jsonInput();
+            $audioFile = $_FILES['audio'] ?? null;
+            $data = $audioFile ? $_POST : $this->jsonInput();
             $scheduleId = (int)($data['schedule_id'] ?? 0);
             if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) {
                 return ['success' => false, 'error' => 'Accès non autorisé'];
             }
             $content = trim($data['content'] ?? '');
-            if (!$content) return ['success' => false];
+            if (!$content && !$audioFile) return ['success' => false];
             if (mb_strlen($content) > 4000) return ['success' => false, 'error' => 'Message trop long'];
 
             $schedule = Custody::getScheduleById($scheduleId);
-            $id = CommLogMessage::create((int)$schedule['family_id'], $user['id'], $content, $scheduleId);
+
+            $audioPath = $audioOriginal = $audioMime = $duration = null;
+            if ($audioFile) {
+                try {
+                    [$audioPath, $audioOriginal, $audioMime] =
+                        OcrHelper::saveUploadedFile($audioFile, 'voice', (int)$schedule['family_id'], OcrHelper::VOICE_MIMES, self::MAX_VOICE_SIZE);
+                } catch (\RuntimeException $e) {
+                    return ['success' => false, 'error' => $e->getMessage()];
+                }
+                $duration = isset($data['duration']) ? (int)$data['duration'] : null;
+            }
+
+            $id = CommLogMessage::create((int)$schedule['family_id'], $user['id'], $content, $scheduleId, $audioPath, $audioOriginal, $audioMime, $duration);
 
             Notification::notifyFamily((int)$schedule['family_id'], $user['id'], 'comm_log',
-                'Journal parental', $user['name'] . ' a ajouté un message au sujet de ' . $schedule['child_name'] . '.',
+                'Journal parental', $user['name'] . ' a ajouté ' . ($audioPath ? 'un message vocal' : 'un message') . ' au sujet de ' . $schedule['child_name'] . '.',
                 BASE_URL . '/comm-log');
 
             return [
@@ -159,6 +175,9 @@ class CoparentController extends BaseController
                 'message' => [
                     'id' => $id,
                     'content' => $content,
+                    'audio_path' => $audioPath,
+                    'audio_mime' => $audioMime,
+                    'audio_duration' => $duration,
                     'user_name' => $user['name'],
                     'user_color' => $user['color'],
                     'user_avatar' => $user['avatar'],
@@ -167,6 +186,29 @@ class CoparentController extends BaseController
                 ],
             ];
         });
+    }
+
+    public function journalAudio(array $params): void
+    {
+        $this->requireAuth(true);
+        $user = Session::user();
+        $msg  = CommLogMessage::findById((int)$params['id']);
+
+        if (!$msg || !$msg['audio_path'] || !$msg['custody_schedule_id']
+            || !Custody::userHasAccessToSchedule($user['id'], (int)$msg['custody_schedule_id'])) {
+            http_response_code(404); echo 'Introuvable.'; return;
+        }
+
+        $path = BASE_PATH . $msg['audio_path'];
+        if (!file_exists($path)) { http_response_code(404); echo 'Introuvable.'; return; }
+
+        header('Content-Type: ' . ($msg['audio_mime'] ?: 'audio/webm'));
+        header('Content-Length: ' . filesize($path));
+        header('Content-Disposition: inline; filename="' . addslashes($msg['audio_original'] ?: basename($path)) . '"');
+        header('Cache-Control: private, max-age=3600');
+        header('Accept-Ranges: bytes');
+        readfile($path);
+        exit;
     }
 
     public function documentsList(array $params): void

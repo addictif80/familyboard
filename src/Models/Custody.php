@@ -37,16 +37,17 @@ class Custody
     {
         return Database::insert(
             'INSERT INTO custody_schedules
-             (family_id, child_name, color, notes, recurrence_type, recurrence_start, handover_weekday,
+             (family_id, child_name, color, notes, recurrence_type, recurrence_start, handover_weekday, extra_weekday,
               recurrence_parent1_id, recurrence_parent2_id,
               recurrence_parent1_label, recurrence_parent1_color,
               recurrence_parent2_label, recurrence_parent2_color)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId, $childName, $color, $notes,
                 $recurrence['type'] ?? 'none',
                 $recurrence['start'] ?? null,
                 $recurrence['handover_weekday'] ?: null,
+                $recurrence['extra_weekday'] ?: null,
                 $recurrence['parent1_id'] ?: null,
                 $recurrence['parent2_id'] ?: null,
                 $recurrence['parent1_label'] ?? null,
@@ -60,7 +61,7 @@ class Custody
     public static function updateSchedule(int $id, string $childName, string $color, string $notes, array $recurrence = []): void
     {
         Database::execute(
-            'UPDATE custody_schedules SET child_name=?, color=?, notes=?, recurrence_type=?, recurrence_start=?, handover_weekday=?,
+            'UPDATE custody_schedules SET child_name=?, color=?, notes=?, recurrence_type=?, recurrence_start=?, handover_weekday=?, extra_weekday=?,
              recurrence_parent1_id=?, recurrence_parent2_id=?,
              recurrence_parent1_label=?, recurrence_parent1_color=?,
              recurrence_parent2_label=?, recurrence_parent2_color=?
@@ -70,6 +71,7 @@ class Custody
                 $recurrence['type'] ?? 'none',
                 $recurrence['start'] ?? null,
                 $recurrence['handover_weekday'] ?: null,
+                $recurrence['extra_weekday'] ?: null,
                 $recurrence['parent1_id'] ?: null,
                 $recurrence['parent2_id'] ?: null,
                 $recurrence['parent1_label'] ?? null,
@@ -257,7 +259,7 @@ class Custody
 
         $recType = $schedule['recurrence_type'];
 
-        if (in_array($recType, ['weekends_every_2', 'weekends_monthly'], true)) {
+        if (in_array($recType, ['weekends_every_2', 'weekends_monthly', 'weekends_every_2_plus_weekday'], true)) {
             return self::generateWeekendEvents($schedule, $rangeStart, $rangeEnd);
         }
 
@@ -382,6 +384,12 @@ class Custody
             $firstSat->modify('next saturday');
         }
 
+        // weekends_every_2_plus_weekday: on top of the alternating weekend, the parent who
+        // does NOT have the weekend that week also gets a fixed weekday (e.g. Wednesday) —
+        // the common French "1 weekend sur 2 + un mercredi" custody pattern.
+        $extraWeekday = ($recType === 'weekends_every_2_plus_weekday' && !empty($schedule['extra_weekday']))
+            ? (int)$schedule['extra_weekday'] : null;
+
         $events       = [];
         $weekendIndex = 0; // counts all weekends since firstSat
         $monthsSeen   = []; // for weekends_monthly: track distinct months
@@ -436,6 +444,32 @@ class Custody
                     'notes'          => null,
                     'is_recurring'   => true,
                 ];
+            }
+
+            if ($extraWeekday) {
+                $weekStart = clone $current;
+                $weekStart->modify('-5 days'); // Monday of the week containing this Saturday
+                $extraDate = clone $weekStart;
+                $extraDate->modify('+' . ($extraWeekday - 1) . ' days');
+                $otherParent = $parents[$parentKey === 1 ? 2 : 1];
+
+                if ($extraDate >= $rangeFrom && $extraDate <= $rangeTo) {
+                    $events[] = [
+                        'id'             => 'rw_' . $schedule['id'] . '_' . $extraDate->format('Ymd'),
+                        'schedule_id'    => $schedule['id'],
+                        'child_name'     => $schedule['child_name'],
+                        'schedule_color' => $schedule['color'],
+                        'parent_user_id' => $otherParent['id'],
+                        'parent_name'    => $otherParent['name'],
+                        'parent_color'   => $otherParent['color'],
+                        'start_date'     => $extraDate->format('Y-m-d'),
+                        'end_date'       => $extraDate->format('Y-m-d'),
+                        'arrival_time'   => null,
+                        'departure_time' => null,
+                        'notes'          => null,
+                        'is_recurring'   => true,
+                    ];
+                }
             }
 
             $current->modify('next saturday');

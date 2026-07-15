@@ -155,6 +155,7 @@ $router->get('/chat', [ChatController::class, 'index']);
 $router->post('/api/chat/send', [ChatController::class, 'send']);
 $router->get('/api/chat/poll', [ChatController::class, 'poll']);
 $router->post('/api/chat/:id/delete', [ChatController::class, 'delete']);
+$router->get('/api/chat/:id/audio', [ChatController::class, 'serveAudio']);
 
 // Budget
 $router->get('/budget', [BudgetController::class, 'index']);
@@ -195,6 +196,7 @@ $router->get('/api/coparent/custody-events', [CoparentController::class, 'apiCus
 $router->post('/api/coparent/custody-proposal', [CoparentController::class, 'proposeCustody']);
 $router->get('/api/coparent/journal', [CoparentController::class, 'journal']);
 $router->post('/api/coparent/journal', [CoparentController::class, 'journalSend']);
+$router->get('/api/coparent/journal/:id/audio', [CoparentController::class, 'journalAudio']);
 $router->get('/api/coparent/documents', [CoparentController::class, 'documentsList']);
 $router->post('/api/coparent/documents', [CoparentController::class, 'documentsUpload']);
 $router->get('/api/coparent/events', [CoparentController::class, 'eventsList']);
@@ -344,6 +346,7 @@ $router->get('/emergency/public/:token', [EmergencyController::class, 'publicVie
 $router->get('/comm-log', [CommLogController::class, 'index']);
 $router->post('/api/comm-log/send', [CommLogController::class, 'send']);
 $router->get('/api/comm-log/poll', [CommLogController::class, 'poll']);
+$router->get('/api/comm-log/:id/audio', [CommLogController::class, 'serveAudio']);
 
 // Repas
 $router->get('/meals', [MealController::class, 'index']);

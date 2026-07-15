@@ -78,6 +78,7 @@ ob_start();
                     <option value="every_month">1 mois sur 2</option>
                     <optgroup label="Weekends uniquement">
                         <option value="weekends_every_2">1 weekend sur 2 (sam-dim alternés)</option>
+                        <option value="weekends_every_2_plus_weekday">1 weekend sur 2 + 1 jour fixe en semaine</option>
                         <option value="weekends_monthly">1 weekend par mois (1er sam du mois)</option>
                     </optgroup>
                 </select>
@@ -102,6 +103,18 @@ ob_start();
                         <option value="7">Dimanche</option>
                     </select>
                     <small class="field-hint">Le jour de la semaine où la garde bascule d'un parent à l'autre.</small>
+                </div>
+                <div class="form-group" id="schedule-extra-weekday-group" style="display:none">
+                    <label>Jour supplémentaire chez l'autre parent</label>
+                    <select id="schedule-extra-weekday">
+                        <option value="">— Choisir —</option>
+                        <option value="1">Lundi</option>
+                        <option value="2">Mardi</option>
+                        <option value="3">Mercredi</option>
+                        <option value="4">Jeudi</option>
+                        <option value="5">Vendredi</option>
+                    </select>
+                    <small class="field-hint">Chaque semaine, le parent qui n'a pas le weekend récupère l'enfant ce jour-là (ex : le mercredi).</small>
                 </div>
 
                 <!-- Parent 1 -->
@@ -422,6 +435,7 @@ function toggleRecurrenceFields(value) {
     document.getElementById('recurrence-fields').style.display = value === 'none' ? 'none' : 'block';
     const handoverApplicable = ['every_other_week', 'every_2weeks', 'every_month'].includes(value);
     document.getElementById('schedule-handover-group').style.display = handoverApplicable ? '' : 'none';
+    document.getElementById('schedule-extra-weekday-group').style.display = value === 'weekends_every_2_plus_weekday' ? '' : 'none';
 }
 </script>
 <?php
