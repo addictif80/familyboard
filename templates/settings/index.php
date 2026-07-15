@@ -284,6 +284,46 @@ ob_start();
     </div>
     <?php endif; ?>
 
+    <!-- Kiosk access (écran mural) -->
+    <?php $_disabledModsForKiosk = \App\Models\Family::getDisabledModules($family ?? []); ?>
+    <?php if ($user['role'] === 'admin' && !in_array('kiosk', $_disabledModsForKiosk)): ?>
+    <div class="card settings-section">
+        <h3>🖥️ Écran mural (mode kiosque)</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Générez un accès permanent pour une tablette dédiée (Android/iOS) affichée au mur : tâches et
+            courses (avec ajout et coche), contacts, événements et repas, actualisés automatiquement.
+            Quand un accès baby-sitter est actif, l'écran bascule sur un QR code au lieu d'afficher les
+            données familiales.
+        </p>
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label>Libellé</label>
+                <input type="text" id="kiosk-label" placeholder="Ex : Tablette cuisine">
+            </div>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="createKioskLink()">+ Générer un accès</button>
+        <div id="kiosk-new-link" style="margin-top:1rem"></div>
+
+        <div id="kiosk-links-list" style="margin-top:1.25rem">
+            <?php if (empty($kioskLinks)): ?>
+                <p style="color:var(--text-muted);font-size:.85rem">Aucun accès kiosque créé.</p>
+            <?php endif; ?>
+            <?php foreach ($kioskLinks as $link): ?>
+                <?php $active = !$link['revoked_at']; ?>
+                <div class="member-item" data-kiosk-id="<?= $link['id'] ?>">
+                    <div class="member-info">
+                        <strong><?= htmlspecialchars($link['label']) ?></strong>
+                        <small><?= $active ? '✅ Actif' : '⛔ Révoqué' ?> · créé le <?= \App\Core\DateHelper::fromUtc($link['created_at'], 'd/m/Y') ?></small>
+                    </div>
+                    <?php if ($active): ?>
+                    <button class="btn btn-danger btn-sm" onclick="revokeKioskLink(<?= $link['id'] ?>)">Révoquer</button>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Email templates -->
     <div class="card settings-section">
         <h3>📝 Templates d'emails</h3>

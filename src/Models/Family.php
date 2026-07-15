@@ -25,6 +25,7 @@ class Family
         'comm_log'    => ['label' => 'Journal parental',  'icon' => '📝'],
         'meals'       => ['label' => 'Repas',              'icon' => '🍽️'],
         'sitter'      => ['label' => 'Accès baby-sitter',  'icon' => '👶'],
+        'kiosk'       => ['label' => 'Écran mural (kiosque)', 'icon' => '🖥️'],
     ];
 
     public static function findById(int $id): ?array
