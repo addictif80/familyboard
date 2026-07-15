@@ -8,6 +8,7 @@ use App\Models\Invitation;
 use App\Models\User;
 use App\Models\Family;
 use App\Models\EmailTemplate;
+use App\Models\CustodyActivityLog;
 
 class InvitationController extends BaseController
 {
@@ -64,6 +65,10 @@ class InvitationController extends BaseController
                 foreach ($scheduleIds as $sid) {
                     \App\Models\Custody::grantAccess((int)$existing['id'], $sid);
                 }
+                // Cette connexion est la première fois que ce compte accède à CES
+                // plannings-ci — active le journal d'activité partagé même si le
+                // compte existait déjà (rattaché à une autre famille).
+                CustodyActivityLog::activate((int)$existing['id'], $scheduleIds);
             } else {
                 // Move to this family
                 \App\Core\Database::execute(
@@ -86,6 +91,8 @@ class InvitationController extends BaseController
             foreach ($scheduleIds as $sid) {
                 \App\Models\Custody::grantAccess($userId, $sid);
             }
+            // Premier login (le compte vient d'être créé) : active le journal d'activité.
+            CustodyActivityLog::activate($userId, $scheduleIds);
         }
         Invitation::markUsed($token);
 

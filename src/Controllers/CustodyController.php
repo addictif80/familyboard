@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\Custody;
+use App\Models\CustodyActivityLog;
 use App\Models\User;
 use App\Models\Notification;
 
@@ -93,6 +94,7 @@ class CustodyController extends BaseController
                 'parent2_color'    => $data['recurrence_parent2_color'] ?? '#E74C3C',
             ];
             Custody::updateSchedule($id, $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence);
+            CustodyActivityLog::record($id, $user['id'], 'schedule_updated');
             return ['success' => true];
         });
     }
@@ -105,6 +107,7 @@ class CustodyController extends BaseController
             $id = (int)$params['id'];
             $schedule = Custody::getScheduleById($id);
             if (!$schedule || $schedule['family_id'] !== $user['family_id']) return ['success' => false];
+            CustodyActivityLog::record($id, $user['id'], 'schedule_deleted');
             Custody::deleteSchedule($id);
             return ['success' => true];
         });
@@ -119,6 +122,7 @@ class CustodyController extends BaseController
             $schedule = Custody::getScheduleById((int)$data['schedule_id']);
             if (!$schedule || $schedule['family_id'] !== $user['family_id']) return ['success' => false];
             $id = Custody::createEvent($data['schedule_id'], $data['parent_user_id'] ?? $user['id'], $data);
+            CustodyActivityLog::record((int)$data['schedule_id'], $user['id'], 'custody_event_created', $data['notes'] ?? null);
             Notification::notifyFamily($user['family_id'], $user['id'], 'custody', 'Garde mise à jour', 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.', BASE_URL . '/custody');
             return ['success' => true, 'id' => $id];
         });
@@ -133,6 +137,7 @@ class CustodyController extends BaseController
             $event = Custody::getEvent($id);
             if (!$event || $event['family_id'] !== $user['family_id']) return ['success' => false];
             Custody::updateEvent($id, $this->jsonInput());
+            CustodyActivityLog::record((int)$event['schedule_id'], $user['id'], 'custody_event_updated');
             return ['success' => true];
         });
     }
@@ -145,6 +150,7 @@ class CustodyController extends BaseController
             $id = (int)$params['id'];
             $event = Custody::getEvent($id);
             if (!$event || $event['family_id'] !== $user['family_id']) return ['success' => false];
+            CustodyActivityLog::record((int)$event['schedule_id'], $user['id'], 'custody_event_deleted');
             Custody::deleteEvent($id);
             return ['success' => true];
         });
@@ -167,6 +173,7 @@ class CustodyController extends BaseController
             if (empty($days)) return ['success' => true, 'created' => 0];
 
             $created = Custody::applyProposalDays($scheduleId, $days);
+            CustodyActivityLog::record($scheduleId, $user['id'], 'proposal_applied', $created . ' bloc(s)');
 
             Notification::notifyFamily(
                 $user['family_id'], $user['id'], 'custody',
@@ -201,6 +208,7 @@ class CustodyController extends BaseController
             if (!$schedule || $schedule['family_id'] !== $user['family_id']) return ['success' => false];
             $data = $this->jsonInput();
             $id = Custody::createVacationPeriod($scheduleId, $data);
+            CustodyActivityLog::record($scheduleId, $user['id'], 'vacation_created', $data['label'] ?? null);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -214,6 +222,7 @@ class CustodyController extends BaseController
             $vacation = Custody::getVacationPeriodById($id);
             if (!$vacation || $vacation['family_id'] !== $user['family_id']) return ['success' => false];
             Custody::updateVacationPeriod($id, $this->jsonInput());
+            CustodyActivityLog::record((int)$vacation['schedule_id'], $user['id'], 'vacation_updated', $vacation['label'] ?? null);
             return ['success' => true];
         });
     }
@@ -226,8 +235,34 @@ class CustodyController extends BaseController
             $id = (int)$params['id'];
             $vacation = Custody::getVacationPeriodById($id);
             if (!$vacation || $vacation['family_id'] !== $user['family_id']) return ['success' => false];
+            CustodyActivityLog::record((int)$vacation['schedule_id'], $user['id'], 'vacation_deleted', $vacation['label'] ?? null);
             Custody::deleteVacationPeriod($id);
             return ['success' => true];
+        });
+    }
+
+    public function activityLog(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id = (int)$params['id'];
+            $schedule = Custody::getScheduleById($id);
+            if (!$schedule || $schedule['family_id'] !== $user['family_id']) return ['active' => false, 'entries' => []];
+
+            return [
+                'active'  => CustodyActivityLog::isActiveForSchedule($id),
+                'entries' => array_map(fn($e) => [
+                    'id'         => $e['id'],
+                    'action'     => $e['action'],
+                    'label'      => CustodyActivityLog::labelFor($e['action']),
+                    'details'    => $e['details'],
+                    'ip'         => $e['ip'],
+                    'user_name'  => $e['user_name'] ?? 'Compte supprimé',
+                    'user_color' => $e['user_color'] ?? '#95A5A6',
+                    'created_at' => $e['created_at'],
+                ], CustodyActivityLog::getForSchedule($id)),
+            ];
         });
     }
 

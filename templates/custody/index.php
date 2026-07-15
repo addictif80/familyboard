@@ -15,6 +15,7 @@ ob_start();
                     <button onclick="openEditScheduleModal(<?= htmlspecialchars(json_encode($schedule)) ?>)" class="btn-chip">✏️</button>
                     <button onclick="openVacationModal(<?= (int)$schedule['id'] ?>, <?= htmlspecialchars(json_encode($schedule['child_name'])) ?>)" class="btn-chip" title="Périodes de vacances">🏖️</button>
                     <button onclick="openInviteCoparentModal(<?= (int)$schedule['id'] ?>)" class="btn-chip" title="Inviter un co-parent">🔒</button>
+                    <button onclick="openActivityLogModal(<?= (int)$schedule['id'] ?>, <?= htmlspecialchars(json_encode($schedule['child_name'])) ?>)" class="btn-chip" title="Journal d'activité">📜</button>
                     <button onclick="deleteSchedule(<?= $schedule['id'] ?>)" class="btn-chip">✕</button>
                 </span>
             <?php endforeach; ?>
@@ -389,6 +390,22 @@ ob_start();
     </div>
 </div>
 
+<!-- Activity log modal -->
+<div class="modal-overlay" id="activity-log-modal" style="display:none">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="activity-log-title">Journal d'activité</h3>
+            <button onclick="closeModal('activity-log-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="activity-log-content"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('activity-log-modal')">Fermer</button>
+        </div>
+    </div>
+</div>
+
 <style>
 .modal-xl { max-width: 900px; width: 96vw; }
 .proposal-setup { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
@@ -426,6 +443,10 @@ ob_start();
 .parent-block-header { display: flex; align-items: center; gap: .75rem; margin-bottom: .5rem; font-size: .85rem; }
 .parent-block-header small { color: var(--text-muted); flex:1; }
 .fill-from-member { font-size: .75rem; border: 1px solid var(--border); border-radius: 6px; padding: .2rem .4rem; background: white; cursor: pointer; }
+.activity-log-list { display: flex; flex-direction: column; gap: .5rem; max-height: 55vh; overflow-y: auto; }
+.activity-log-item { padding: .55rem .75rem; border-radius: 8px; background: var(--bg); font-size: .85rem; }
+.activity-log-meta { display: flex; justify-content: space-between; gap: .5rem; font-size: .72rem; color: var(--text-muted); margin-top: .2rem; flex-wrap: wrap; }
+.activity-log-user { font-weight: 600; }
 </style>
 
 <script>
