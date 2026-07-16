@@ -225,6 +225,9 @@ function openEventModal(date = null, eventData = null) {
     document.getElementById('event-desc').value = '';
     document.getElementById('event-color').value = '#4A90D9';
     document.getElementById('event-recurrence').value = '';
+    document.getElementById('event-professional').value = '';
+    document.getElementById('event-location-input').value = '';
+    document.getElementById('event-more-info').open = false;
     const custodyToggle = document.getElementById('event-custody-toggle');
     if (custodyToggle) {
         custodyToggle.checked = false;
@@ -246,6 +249,11 @@ function openEventModal(date = null, eventData = null) {
         document.getElementById('event-start').value = eventData.start?.replace(' ', 'T') || '';
         document.getElementById('event-end').value = (eventData.end || eventData.start)?.replace(' ', 'T') || '';
         document.getElementById('event-color').value = eventData.color || '#4A90D9';
+        const professionalName = eventData.extendedProps?.professional_name || '';
+        const location = eventData.extendedProps?.location || '';
+        document.getElementById('event-professional').value = professionalName;
+        document.getElementById('event-location-input').value = location;
+        document.getElementById('event-more-info').open = !!(professionalName || location);
         if (custodyToggle) {
             const csId = eventData.extendedProps?.custody_schedule_id || '';
             custodyToggle.checked = !!csId;
@@ -276,6 +284,8 @@ async function saveEvent() {
         is_all_day: allDay ? 1 : 0,
         color: document.getElementById('event-color').value,
         recurrence: document.getElementById('event-recurrence').value || null,
+        professional_name: document.getElementById('event-professional').value.trim() || null,
+        location: document.getElementById('event-location-input').value.trim() || null,
     };
     const custodyToggle = document.getElementById('event-custody-toggle');
     if (custodyToggle && custodyToggle.checked) {
@@ -392,6 +402,81 @@ async function deleteVacationPrompt(id) {
     if (result?.success) loadEvents();
     else Dialog.toast('Erreur lors de la suppression.', 'error');
 }
+
+// ── Address autocomplete (event location) ──────────────────────
+(function () {
+    const input = document.getElementById('event-location-input');
+    const list  = document.getElementById('event-location-list');
+    if (!input) return;
+
+    let timer = null;
+    let activeIdx = -1;
+
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        const q = input.value.trim();
+        if (q.length < 3) { hide(); return; }
+        timer = setTimeout(() => fetchAddresses(q), 350);
+    });
+
+    input.addEventListener('keydown', e => {
+        const items = list.querySelectorAll('li');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); setActive(activeIdx + 1, items); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(activeIdx - 1, items); }
+        else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); items[activeIdx].click(); }
+        else if (e.key === 'Escape') { hide(); }
+    });
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#event-location-wrap')) hide();
+    });
+
+    async function fetchAddresses(q) {
+        try {
+            const url = 'https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=' + encodeURIComponent(q);
+            const res  = await fetch(url);
+            const data = await res.json();
+            render(data || []);
+        } catch (_) { hide(); }
+    }
+
+    function render(results) {
+        if (!results.length) { hide(); return; }
+        activeIdx = -1;
+        list.innerHTML = '';
+        results.forEach(r => {
+            const full = r.display_name;
+            const parts = full.split(',');
+            const main = parts[0].trim();
+            const sub = parts.slice(1).join(',').trim();
+            const li = document.createElement('li');
+            li.className = 'city-ac-item';
+            li.innerHTML = '<span class="city-ac-name">' + esc(main) + '</span>' +
+                           '<span class="city-ac-sub">' + esc(sub) + '</span>';
+            li.addEventListener('mousedown', e => { e.preventDefault(); select(full); });
+            list.appendChild(li);
+        });
+        list.style.display = 'block';
+    }
+
+    function select(address) {
+        input.value = address;
+        hide();
+    }
+
+    function setActive(idx, items) {
+        items.forEach(i => i.classList.remove('active'));
+        activeIdx = Math.max(0, Math.min(idx, items.length - 1));
+        items[activeIdx].classList.add('active');
+    }
+
+    function hide() { list.style.display = 'none'; activeIdx = -1; }
+
+    function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+})();
 
 // Init
 loadEvents();
