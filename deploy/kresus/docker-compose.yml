@@ -1,0 +1,57 @@
+# Une instance Kresus par membre de la famille (Kresus ne gère pas nativement
+# plusieurs utilisateurs isolés dans une seule instance — voir README.md).
+#
+# Pour ajouter un membre : dupliquer un bloc "kresus-<prenom>", changer le nom
+# du service/container, le port hôte exposé (127.0.0.1:987X) et les dossiers
+# de données. Chaque membre gère ses propres connexions bancaires dans son
+# instance, indépendamment des autres.
+#
+# Utilisation :
+#   docker compose up -d
+#
+# Les ports ne sont exposés que sur 127.0.0.1 : ils ne sont accessibles que via
+# le reverse-proxy OpenLiteSpeed configuré dans CyberPanel (voir README.md),
+# jamais directement depuis Internet.
+
+services:
+  kresus-alice:
+    image: bnjbvr/kresus
+    container_name: kresus-alice
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9871:9876"
+    environment:
+      - LOCAL_USER_ID=1000
+    volumes:
+      - ./data/alice:/home/user/data
+      - ./woob/alice:/woob
+      - ./config/alice.ini:/opt/config.ini
+      - /etc/localtime:/etc/localtime:ro
+
+  kresus-bob:
+    image: bnjbvr/kresus
+    container_name: kresus-bob
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9872:9876"
+    environment:
+      - LOCAL_USER_ID=1000
+    volumes:
+      - ./data/bob:/home/user/data
+      - ./woob/bob:/woob
+      - ./config/bob.ini:/opt/config.ini
+      - /etc/localtime:/etc/localtime:ro
+
+  # kresus-<nouveau-membre>:
+  #   image: bnjbvr/kresus
+  #   container_name: kresus-<nouveau-membre>
+  #   restart: unless-stopped
+  #   ports:
+  #     - "127.0.0.1:9873:9876"
+  #   environment:
+  #     - LOCAL_USER_ID=1000
+  #   volumes:
+  #     - ./data/<nouveau-membre>:/home/user/data
+  #     - ./woob/<nouveau-membre>:/woob
+  #     - ./config/<nouveau-membre>.ini:/opt/config.ini
+  #     - /etc/localtime:/etc/localtime:ro

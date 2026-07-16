@@ -99,6 +99,45 @@ ob_start();
         <?php endif; ?>
     </div>
 
+    <!-- Kresus bank connection -->
+    <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header">
+            <h3>🏦 Connexion bancaire</h3>
+        </div>
+        <?php if ($kresusAccount): ?>
+            <p>
+                Connecté à <strong><?= htmlspecialchars($kresusAccount['kresus_url']) ?></strong>.
+                <?php if ($kresusAccount['last_sync_at']): ?>
+                    Dernière synchronisation : <?= \App\Core\DateHelper::long($kresusAccount['last_sync_at']) ?>
+                    <?php if ($kresusAccount['last_sync_status'] === 'error'): ?>
+                        — <span style="color:var(--danger)">échec (<?= htmlspecialchars($kresusAccount['last_sync_error'] ?? '') ?>)</span>
+                    <?php else: ?>
+                        — <span style="color:var(--success)">OK</span>
+                    <?php endif; ?>
+                <?php else: ?>
+                    Pas encore synchronisé.
+                <?php endif; ?>
+            </p>
+            <div style="display:flex;gap:.5rem">
+                <button class="btn btn-secondary btn-sm" onclick="kresusSyncNow()">🔄 Synchroniser maintenant</button>
+                <button class="btn btn-secondary btn-sm" onclick="kresusDisconnect()">Déconnecter</button>
+            </div>
+        <?php else: ?>
+            <p class="empty-state" style="text-align:left">
+                Connectez votre propre instance Kresus pour importer automatiquement vos transactions bancaires,
+                ou continuez avec la <strong>saisie assistée</strong> ci-dessous (catégorie suggérée automatiquement).
+            </p>
+            <div class="form-row">
+                <div class="form-group"><label>URL de votre instance Kresus</label><input type="url" id="kresus-url" placeholder="https://kresus-<?= htmlspecialchars(strtolower($user['name'])) ?>.mondomaine.tld"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Identifiant (Basic Auth)</label><input type="text" id="kresus-username" autocomplete="off"></div>
+                <div class="form-group"><label>Mot de passe (Basic Auth)</label><input type="password" id="kresus-password" autocomplete="new-password"></div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="kresusConnect()">Connecter</button>
+        <?php endif; ?>
+    </div>
+
     <div class="budget-main-grid">
         <!-- Transactions -->
         <div class="card">
@@ -210,13 +249,13 @@ ob_start();
                 <label class="radio-option"><input type="radio" name="tx-type-r" id="tx-type-expense" value="expense" checked> 💸 Dépense</label>
                 <label class="radio-option"><input type="radio" name="tx-type-r" id="tx-type-income"  value="income">  💵 Revenu</label>
             </div>
-            <div class="form-group"><label>Titre</label><input type="text" id="tx-title" placeholder="Courses, salaire…"></div>
+            <div class="form-group"><label>Titre</label><input type="text" id="tx-title" placeholder="Courses, salaire…" onblur="suggestTxCategory()"></div>
             <div class="form-row">
                 <div class="form-group"><label>Montant (€)</label><input type="number" id="tx-amount" step="0.01" min="0"></div>
                 <div class="form-group"><label>Date</label><input type="date" id="tx-date" value="<?= date('Y-m-d') ?>"></div>
             </div>
             <div class="form-group">
-                <label>Catégorie</label>
+                <label>Catégorie <small id="tx-category-hint" style="color:var(--text-muted)"></small></label>
                 <select id="tx-category">
                     <option value="">Sans catégorie</option>
                     <?php foreach ($categories as $cat): ?>

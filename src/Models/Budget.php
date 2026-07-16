@@ -64,6 +64,51 @@ class Budget
         Database::execute('DELETE FROM budget_transactions WHERE id=?', [$id]);
     }
 
+    /** Insère une transaction importée (Kresus…) en ignorant les doublons (même family_id + external_id). */
+    public static function createFromExternal(int $familyId, int $userId, array $data): bool
+    {
+        $rows = Database::execute(
+            'INSERT IGNORE INTO budget_transactions (family_id, user_id, category_id, title, amount, type, date, source, external_id)
+             VALUES (?,?,?,?,?,?,?,?,?)',
+            [$familyId, $userId, $data['category_id'] ?? null, $data['title'], $data['amount'],
+             $data['type'], $data['date'], $data['source'] ?? 'manual', $data['external_id']]
+        );
+        return $rows > 0;
+    }
+
+    /** Retrouve une catégorie existante par nom (insensible à la casse) ou la crée. */
+    public static function matchOrCreateCategory(int $familyId, string $name): int
+    {
+        $name = trim($name) ?: 'Sans catégorie';
+        $existing = Database::fetch(
+            'SELECT id FROM budget_categories WHERE family_id=? AND LOWER(name)=LOWER(?)',
+            [$familyId, $name]
+        );
+        if ($existing) return (int)$existing['id'];
+        return self::createCategory($familyId, $name);
+    }
+
+    /**
+     * Saisie assistée : suggère une catégorie déjà utilisée pour un titre similaire,
+     * en se basant sur les transactions saisies précédemment par la famille.
+     */
+    public static function suggestCategory(int $familyId, string $title): ?array
+    {
+        $title = trim($title);
+        if ($title === '') return null;
+        $row = Database::fetch(
+            'SELECT bt.category_id, bc.name, bc.icon, bc.color
+             FROM budget_transactions bt
+             JOIN budget_categories bc ON bc.id = bt.category_id
+             WHERE bt.family_id = ? AND bt.category_id IS NOT NULL AND LOWER(bt.title) = LOWER(?)
+             GROUP BY bt.category_id
+             ORDER BY COUNT(*) DESC, MAX(bt.created_at) DESC
+             LIMIT 1',
+            [$familyId, $title]
+        );
+        return $row ?: null;
+    }
+
     public static function getTransaction(int $id): ?array
     {
         return Database::fetch('SELECT * FROM budget_transactions WHERE id=?', [$id]);

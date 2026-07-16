@@ -142,6 +142,17 @@ familyboard/
 └── index.php            Point d'entrée unique
 ```
 
+## Connexion bancaire (Kresus)
+
+Dans le module Budget, chaque membre peut soit continuer en **saisie
+assistée** (ajout manuel avec suggestion automatique de catégorie), soit
+connecter sa propre instance auto-hébergée de [Kresus](https://kresus.org)
+pour importer automatiquement ses transactions bancaires. FamilyBoard ne
+stocke jamais d'identifiants bancaires — voir
+[`deploy/kresus/README.md`](deploy/kresus/README.md) pour le guide de
+déploiement complet (une instance Kresus par membre, reverse-proxy et
+sécurisation).
+
 ## Modules désactivables
 
 Dans **Paramètres → Modules actifs** (admin uniquement), chaque famille peut
