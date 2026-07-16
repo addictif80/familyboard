@@ -1,15 +1,20 @@
 ; Configuration Kresus minimale pour un membre.
 ; Copier ce fichier vers ./config/<prenom>.ini pour chaque membre déclaré
-; dans docker-compose.yml.
+; dans docker-compose.yml, puis adapter [db] name/username/password si le
+; membre a sa propre base Postgres (voir README.md "Ajouter un membre").
 ;
-; Le format complet et à jour des clés disponibles (base de données externe,
-; SMTP, options avancées…) est documenté dans le dépôt officiel :
+; Le format complet et à jour des clés disponibles (SMTP, options avancées…)
+; est documenté dans le dépôt officiel :
 ;   https://framagit.org/kresusapp/kresus/-/blob/main/config.ini.example
 ; À vérifier après toute mise à jour de l'image bnjbvr/kresus.
-;
-; Par défaut (sans section [kresus:db]), Kresus utilise sa base embarquée :
-; largement suffisante pour les comptes bancaires d'une seule personne, pas
-; besoin de PostgreSQL séparé pour cet usage.
 
 [kresus]
 port = 9876
+
+[db]
+type = postgres
+host = kresus-db
+port = 5432
+username = kresus
+password = changeme-postgres
+name = kresus

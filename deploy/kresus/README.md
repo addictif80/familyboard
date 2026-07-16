@@ -32,20 +32,35 @@ curl -fsSL https://get.docker.com | sh
 
 ## 2. Déployer les instances Kresus
 
+Kresus (≥ 0.20) exige une base PostgreSQL déclarée explicitement — pas de
+base embarquée par défaut. Le `docker-compose.yml` fournit un conteneur
+Postgres partagé (`kresus-db`) ; **change le mot de passe par défaut**
+(`changeme-postgres`) dans `docker-compose.yml` et dans `config/kresus.ini`
+avant le premier démarrage — il doit être identique aux deux endroits.
+
 ```bash
 cd /home/user/familyboard/deploy/kresus
 cp config/member.ini.example config/kresus.ini
 docker compose up -d
 ```
 
-Pour chaque nouveau membre : dupliquer un bloc de service dans
-`docker-compose.yml` (nouveau nom de container, nouveau port hôte
-`127.0.0.1:987X`, nouveaux dossiers `data/`, `woob/`, nouveau fichier
-`config/<prenom>.ini`), puis relancer `docker compose up -d`.
+Les ports Kresus ne sont exposés que sur `127.0.0.1` — ils ne sont
+accessibles que via le reverse-proxy configuré à l'étape suivante, jamais
+directement depuis Internet. Postgres, lui, n'est pas exposé du tout.
 
-Les ports ne sont exposés que sur `127.0.0.1` — ils ne sont accessibles que
-via le reverse-proxy configuré à l'étape suivante, jamais directement depuis
-Internet.
+### Ajouter un membre
+
+1. Créer sa base dans le Postgres partagé :
+   ```bash
+   docker exec -it kresus-db psql -U kresus -c "CREATE DATABASE kresus_bob;"
+   ```
+2. Dupliquer le bloc `kresus-<nouveau-membre>` (commenté en bas de
+   `docker-compose.yml`) : nouveau nom de container, nouveau port hôte
+   `127.0.0.1:987X`, nouveaux dossiers `data/`, `woob/`.
+3. `cp config/member.ini.example config/bob.ini`, puis dans ce fichier
+   changer `name = kresus` en `name = kresus_bob` (et adapter
+   `username`/`password` si ce membre a un rôle Postgres dédié).
+4. `docker compose up -d`.
 
 ## 3. Reverse-proxy + sous-domaine par membre (CyberPanel)
 
