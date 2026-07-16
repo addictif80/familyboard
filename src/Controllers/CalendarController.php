@@ -79,6 +79,8 @@ class CalendarController extends BaseController
                     'custody_schedule_id' => $e['custody_schedule_id'] ?? null,
                     'professional_name' => $e['professional_name'] ?? null,
                     'location' => $e['location'] ?? null,
+                    'location_lat' => $e['location_lat'] ?? null,
+                    'location_lng' => $e['location_lng'] ?? null,
                 ],
             ], $events);
 

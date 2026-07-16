@@ -1375,8 +1375,12 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .city-ac-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 200; background: var(--card-bg); border: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,.12); list-style: none; padding: .25rem 0; margin: 0; max-height: 260px; overflow-y: auto; }
 .city-ac-item { display: flex; flex-direction: column; padding: .5rem .85rem; cursor: pointer; gap: .1rem; }
 .city-ac-item:hover, .city-ac-item.active { background: var(--primary-light, rgba(79,110,247,.08)); }
-.city-ac-name { font-size: .95rem; font-weight: 500; }
-.city-ac-sub { font-size: .78rem; color: var(--text-muted); }
+.city-ac-name { font-size: .95rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.city-ac-sub { font-size: .78rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 #event-more-info > summary { cursor: pointer; font-weight: 500; color: var(--primary); user-select: none; }
 #event-more-info[open] > summary { margin-bottom: .6rem; }
+
+#event-location-preview { margin-top: .6rem; display: flex; flex-direction: column; gap: .5rem; }
+.event-location-map { width: 100%; height: 180px; border: 1px solid var(--border); border-radius: var(--radius); }
+.event-location-links { display: flex; gap: .5rem; }

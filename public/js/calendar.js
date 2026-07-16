@@ -227,7 +227,10 @@ function openEventModal(date = null, eventData = null) {
     document.getElementById('event-recurrence').value = '';
     document.getElementById('event-professional').value = '';
     document.getElementById('event-location-input').value = '';
+    document.getElementById('event-location-lat').value = '';
+    document.getElementById('event-location-lng').value = '';
     document.getElementById('event-more-info').open = false;
+    hideLocationPreview();
     const custodyToggle = document.getElementById('event-custody-toggle');
     if (custodyToggle) {
         custodyToggle.checked = false;
@@ -251,9 +254,20 @@ function openEventModal(date = null, eventData = null) {
         document.getElementById('event-color').value = eventData.color || '#4A90D9';
         const professionalName = eventData.extendedProps?.professional_name || '';
         const location = eventData.extendedProps?.location || '';
+        const locationLat = eventData.extendedProps?.location_lat || '';
+        const locationLng = eventData.extendedProps?.location_lng || '';
         document.getElementById('event-professional').value = professionalName;
         document.getElementById('event-location-input').value = location;
+        document.getElementById('event-location-lat').value = locationLat;
+        document.getElementById('event-location-lng').value = locationLng;
         document.getElementById('event-more-info').open = !!(professionalName || location);
+        if (location && locationLat && locationLng) {
+            updateLocationPreview(location, locationLat, locationLng);
+        } else if (location) {
+            geocodeAndPreview(location);
+        } else {
+            hideLocationPreview();
+        }
         if (custodyToggle) {
             const csId = eventData.extendedProps?.custody_schedule_id || '';
             custodyToggle.checked = !!csId;
@@ -286,6 +300,8 @@ async function saveEvent() {
         recurrence: document.getElementById('event-recurrence').value || null,
         professional_name: document.getElementById('event-professional').value.trim() || null,
         location: document.getElementById('event-location-input').value.trim() || null,
+        location_lat: document.getElementById('event-location-lat').value || null,
+        location_lng: document.getElementById('event-location-lng').value || null,
     };
     const custodyToggle = document.getElementById('event-custody-toggle');
     if (custodyToggle && custodyToggle.checked) {
@@ -403,17 +419,62 @@ async function deleteVacationPrompt(id) {
     else Dialog.toast('Erreur lors de la suppression.', 'error');
 }
 
-// ── Address autocomplete (event location) ──────────────────────
+// ── Event location: map preview + Google Maps / Waze links ─────
+function hideLocationPreview() {
+    const preview = document.getElementById('event-location-preview');
+    if (preview) preview.style.display = 'none';
+}
+
+function updateLocationPreview(address, lat, lng) {
+    const preview = document.getElementById('event-location-preview');
+    if (!preview) return;
+    lat = parseFloat(lat);
+    lng = parseFloat(lng);
+    if (isNaN(lat) || isNaN(lng)) { hideLocationPreview(); return; }
+
+    const delta = 0.004;
+    const bbox = [lng - delta, lat - delta, lng + delta, lat + delta].join(',');
+    document.getElementById('event-location-map').src =
+        `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&marker=${lat},${lng}&layer=mapnik`;
+    document.getElementById('event-location-gmaps').href =
+        `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    document.getElementById('event-location-waze').href =
+        `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+    preview.style.display = '';
+}
+
+async function geocodeAndPreview(address) {
+    try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=json&countrycodes=fr&limit=1&q=' + encodeURIComponent(address);
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data[0]) {
+            document.getElementById('event-location-lat').value = data[0].lat;
+            document.getElementById('event-location-lng').value = data[0].lon;
+            updateLocationPreview(address, data[0].lat, data[0].lon);
+        } else {
+            hideLocationPreview();
+        }
+    } catch (_) { hideLocationPreview(); }
+}
+
+// ── Address autocomplete (event location, France uniquement) ───
 (function () {
     const input = document.getElementById('event-location-input');
     const list  = document.getElementById('event-location-list');
     if (!input) return;
+    const latInput = document.getElementById('event-location-lat');
+    const lngInput = document.getElementById('event-location-lng');
 
     let timer = null;
     let activeIdx = -1;
 
     input.addEventListener('input', () => {
         clearTimeout(timer);
+        // L'adresse a changé manuellement : les coordonnées mémorisées ne sont plus valables.
+        latInput.value = '';
+        lngInput.value = '';
+        hideLocationPreview();
         const q = input.value.trim();
         if (q.length < 3) { hide(); return; }
         timer = setTimeout(() => fetchAddresses(q), 350);
@@ -434,11 +495,22 @@ async function deleteVacationPrompt(id) {
 
     async function fetchAddresses(q) {
         try {
-            const url = 'https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=' + encodeURIComponent(q);
+            const url = 'https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&countrycodes=fr&q=' + encodeURIComponent(q);
             const res  = await fetch(url);
             const data = await res.json();
             render(data || []);
         } catch (_) { hide(); }
+    }
+
+    // Construit un libellé lisible : "12 Rue de la Paix" / "75002 Paris"
+    // plutôt que d'afficher tel quel le display_name brut de Nominatim.
+    function formatResult(r) {
+        const a = r.address || {};
+        const street = [a.house_number, a.road].filter(Boolean).join(' ');
+        const main = street || a.neighbourhood || a.suburb || a.village || r.display_name.split(',')[0].trim();
+        const city = a.city || a.town || a.village || a.municipality || '';
+        const sub = [a.postcode, city].filter(Boolean).join(' ');
+        return { main, sub: sub || a.state || '' };
     }
 
     function render(results) {
@@ -446,22 +518,25 @@ async function deleteVacationPrompt(id) {
         activeIdx = -1;
         list.innerHTML = '';
         results.forEach(r => {
-            const full = r.display_name;
-            const parts = full.split(',');
-            const main = parts[0].trim();
-            const sub = parts.slice(1).join(',').trim();
+            const { main, sub } = formatResult(r);
             const li = document.createElement('li');
             li.className = 'city-ac-item';
             li.innerHTML = '<span class="city-ac-name">' + esc(main) + '</span>' +
                            '<span class="city-ac-sub">' + esc(sub) + '</span>';
-            li.addEventListener('mousedown', e => { e.preventDefault(); select(full); });
+            li.addEventListener('mousedown', e => {
+                e.preventDefault();
+                select(r.display_name, r.lat, r.lon);
+            });
             list.appendChild(li);
         });
         list.style.display = 'block';
     }
 
-    function select(address) {
+    function select(address, lat, lon) {
         input.value = address;
+        latInput.value = lat;
+        lngInput.value = lon;
+        updateLocationPreview(address, lat, lon);
         hide();
     }
 

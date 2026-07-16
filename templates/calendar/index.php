@@ -146,6 +146,15 @@ ob_start();
                     <div class="city-autocomplete" id="event-location-wrap">
                         <input type="text" id="event-location-input" autocomplete="off" placeholder="Tapez une adresse…">
                         <ul class="city-ac-dropdown" id="event-location-list" style="display:none"></ul>
+                        <input type="hidden" id="event-location-lat">
+                        <input type="hidden" id="event-location-lng">
+                    </div>
+                    <div id="event-location-preview" style="display:none">
+                        <iframe id="event-location-map" class="event-location-map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                        <div class="event-location-links">
+                            <a id="event-location-gmaps" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">📍 Google Maps</a>
+                            <a id="event-location-waze" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">🚗 Waze</a>
+                        </div>
                     </div>
                 </div>
             </details>
