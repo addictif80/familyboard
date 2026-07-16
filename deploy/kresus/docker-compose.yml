@@ -6,6 +6,12 @@
 # membre a sa propre base de données à l'intérieur (isolation des données),
 # voir README.md "Ajouter un membre" pour créer une base supplémentaire.
 #
+# La configuration passe par les variables d'environnement KRESUS_DB_* (plus
+# fiable que le fichier config.ini avec l'image bnjbvr/kresus).
+#
+# ⚠️ Change "changeme-postgres" (2 occurrences ci-dessous, même valeur) avant
+# le premier démarrage.
+#
 # Pour ajouter un membre : dupliquer le bloc "kresus-<prenom>", changer le nom
 # du service/container, le port hôte exposé (127.0.0.1:987X), les dossiers de
 # données, et créer sa base Postgres dédiée (voir README.md).
@@ -26,7 +32,7 @@ services:
     environment:
       - POSTGRES_DB=kresus
       - POSTGRES_USER=kresus
-      - POSTGRES_PASSWORD=changeme-postgres   # à changer avant le premier démarrage
+      - POSTGRES_PASSWORD=changeme-postgres
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
 
@@ -40,10 +46,16 @@ services:
       - "127.0.0.1:9871:9876"
     environment:
       - LOCAL_USER_ID=1000
+      - KRESUS_PORT=9876
+      - KRESUS_DB_TYPE=postgres
+      - KRESUS_DB_HOST=kresus-db
+      - KRESUS_DB_PORT=5432
+      - KRESUS_DB_USERNAME=kresus
+      - KRESUS_DB_PASSWORD=changeme-postgres
+      - KRESUS_DB_NAME=kresus
     volumes:
       - ./data/kresus:/home/user/data
       - ./woob/kresus:/woob
-      - ./config/kresus.ini:/opt/config.ini
       - /etc/localtime:/etc/localtime:ro
 
   # kresus-<nouveau-membre>:
@@ -56,8 +68,14 @@ services:
   #     - "127.0.0.1:9872:9876"
   #   environment:
   #     - LOCAL_USER_ID=1000
+  #     - KRESUS_PORT=9876
+  #     - KRESUS_DB_TYPE=postgres
+  #     - KRESUS_DB_HOST=kresus-db
+  #     - KRESUS_DB_PORT=5432
+  #     - KRESUS_DB_USERNAME=kresus
+  #     - KRESUS_DB_PASSWORD=changeme-postgres
+  #     - KRESUS_DB_NAME=kresus_<nouveau-membre>
   #   volumes:
   #     - ./data/<nouveau-membre>:/home/user/data
   #     - ./woob/<nouveau-membre>:/woob
-  #     - ./config/<nouveau-membre>.ini:/opt/config.ini
   #     - /etc/localtime:/etc/localtime:ro
