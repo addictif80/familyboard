@@ -28,15 +28,11 @@ use App\Models\EmailTemplate;
 use App\Models\EmailLog;
 use App\Models\CalDAVSource;
 use App\Models\Notification;
-use App\Models\KresusAccount;
 
 $appUrl = (getenv('APP_URL') ?: 'https://board.abhd.fr') . BASE_URL;
 
 // Auto-sync CalDAV sources for families that have configured an interval
 syncCalDAVSources();
-
-// Auto-sync bank transactions from each member's own Kresus instance
-syncKresusAccounts();
 
 // SMTP is a single, global configuration (not per-family) — Mail::send()
 // already no-ops gracefully when it isn't set up, so every family is processed
@@ -107,23 +103,6 @@ function syncCalDAVSources(): void
             }
             CalDAVSource::updateSyncTime($source['id']);
             echo "  [CalDAV] Source #{$source['id']} ({$source['name']}): {$count} événement(s) synchronisé(s)." . PHP_EOL;
-        }
-    }
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// Kresus: synchronise les transactions de chaque membre connecté à sa propre
-// instance. Best-effort — une erreur sur un membre n'affecte pas les autres.
-// ──────────────────────────────────────────────────────────────────────────
-function syncKresusAccounts(): void
-{
-    foreach (KresusAccount::getAllActive() as $account) {
-        date_default_timezone_set($account['timezone'] ?? 'Europe/Paris');
-        $result = KresusAccount::syncOne($account);
-        if ($result['ok']) {
-            echo "  [Kresus] {$account['user_name']} : {$result['count']} nouvelle(s) transaction(s)." . PHP_EOL;
-        } else {
-            echo "  [Kresus] {$account['user_name']} : échec de synchronisation — {$result['error']}" . PHP_EOL;
         }
     }
 }

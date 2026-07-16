@@ -173,9 +173,6 @@ $router->post('/api/budget/recurring/:id', [BudgetController::class, 'updateRecu
 $router->post('/api/budget/recurring/:id/delete', [BudgetController::class, 'deleteRecurring']);
 $router->get('/api/budget/chart', [BudgetController::class, 'chartData']);
 $router->get('/api/budget/suggest-category', [BudgetController::class, 'suggestCategory']);
-$router->post('/api/budget/kresus/connect', [BudgetController::class, 'kresusConnect']);
-$router->post('/api/budget/kresus/disconnect', [BudgetController::class, 'kresusDisconnect']);
-$router->post('/api/budget/kresus/sync', [BudgetController::class, 'kresusSyncNow']);
 
 // Custody
 $router->get('/custody', [CustodyController::class, 'index']);
