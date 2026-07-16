@@ -83,7 +83,9 @@ class OcrHelper
             throw new \RuntimeException('Fichier trop volumineux (max ' . round($maxSize / 1024 / 1024) . ' Mo).');
         }
 
-        $ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION)) ?: self::extensionForMime($mimeBase);
+        // Le Content-Type et le nom envoyés par le client sont falsifiables : on ne
+        // dérive jamais l'extension stockée du nom de fichier fourni par le client.
+        $ext      = self::extensionForMime($mimeBase);
         $filename = bin2hex(random_bytes(16)) . '.' . $ext;
         $dir      = BASE_PATH . '/storage/' . $subDir . '/' . $familyId;
         if (!is_dir($dir)) mkdir($dir, 0755, true);
@@ -109,6 +111,11 @@ class OcrHelper
             'audio/mpeg' => 'mp3',
             'audio/wav', 'audio/x-wav' => 'wav',
             'audio/aac'  => 'aac',
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/webp' => 'webp',
+            'image/gif'  => 'gif',
+            'application/pdf' => 'pdf',
             default      => 'bin',
         };
     }

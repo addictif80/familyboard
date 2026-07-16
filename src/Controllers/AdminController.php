@@ -22,6 +22,14 @@ class AdminController extends BaseController
             header('Location: ' . BASE_URL . '/admin/login');
             exit;
         }
+        // Les appels fetch() JS envoient déjà X-Requested-With (vérifié par isAjax()), ce qui
+        // bloque les soumissions de &lt;form&gt; cross-origin classiques ; le jeton CSRF protège
+        // en plus les formulaires HTML POST natifs (impersonation, blocage, IPs…).
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$this->isAjax() && !\App\Core\Csrf::verify()) {
+            http_response_code(403);
+            echo 'Jeton de sécurité invalide ou expiré. Rechargez la page et réessayez.';
+            exit;
+        }
     }
 
     public function showLogin(array $params): void

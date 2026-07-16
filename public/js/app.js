@@ -331,6 +331,13 @@ function escapeHtml(str) {
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Colors are stored per family/event/contact and later injected into inline
+// style attributes (style="background:${color}") — validate the format so a
+// crafted value can't break out of the attribute (CSS/HTML injection).
+function safeColor(c, fallback = '#4A90D9') {
+    return typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : fallback;
+}
+
 // Month/day-name formatting shared by every month-grid view (calendar, custody, coparent).
 const _intlMonth = new Intl.DateTimeFormat('fr-FR', { month: 'long', timeZone: APP_TIMEZONE });
 const _intlDay   = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', timeZone: APP_TIMEZONE });

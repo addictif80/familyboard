@@ -23,6 +23,7 @@ class ContactController extends BaseController
             $user = Session::user();
             $data = $this->jsonInput();
             if (empty($data['first_name'])) return ['success' => false, 'error' => 'Prénom requis'];
+            if (isset($data['color'])) $data['color'] = $this->safeColor($data['color']);
             $id = Contact::create($user['family_id'], $user['id'], $data);
             return ['success' => true, 'contact' => Contact::getById($id)];
         });
@@ -37,7 +38,9 @@ class ContactController extends BaseController
             $contact = Contact::getById($id);
             if (!$contact || $contact['family_id'] !== $user['family_id']) return ['success' => false, 'error' => 'Non autorisé'];
             if ($contact['is_system']) return ['success' => false, 'error' => 'Ce contact système ne peut pas être modifié.'];
-            Contact::update($id, $this->jsonInput());
+            $data = $this->jsonInput();
+            if (isset($data['color'])) $data['color'] = $this->safeColor($data['color']);
+            Contact::update($id, $data);
             return ['success' => true, 'contact' => Contact::getById($id)];
         });
     }

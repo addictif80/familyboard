@@ -38,11 +38,11 @@
                 <?= match($ticket['status']) { 'open'=>'🆕 Ouvert','in_progress'=>'💬 En cours','closed'=>'✅ Fermé',default=>$ticket['status'] } ?>
             </span>
             <?php if ($ticket['status'] !== 'closed'): ?>
-            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/close" style="margin-left:auto">
+            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/close" style="margin-left:auto"><?= \App\Core\Csrf::field() ?>
                 <button class="btn btn-secondary btn-sm">✅ Fermer le ticket</button>
             </form>
             <?php else: ?>
-            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/reopen" style="margin-left:auto">
+            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/reopen" style="margin-left:auto"><?= \App\Core\Csrf::field() ?>
                 <button class="btn btn-secondary btn-sm">🔄 Rouvrir</button>
             </form>
             <?php endif; ?>
@@ -71,7 +71,7 @@
 
         <div class="card" style="max-width:700px">
             <div class="card-header"><h3>Répondre</h3></div>
-            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/reply" style="padding:1rem">
+            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/reply" style="padding:1rem"><?= \App\Core\Csrf::field() ?>
                 <div class="form-group">
                     <textarea name="message" rows="4" placeholder="Votre réponse…" required style="width:100%"></textarea>
                 </div>

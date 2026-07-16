@@ -210,6 +210,7 @@ class CalendarController extends BaseController
             $data = $this->jsonInput();
             $data['family_id'] = $user['family_id'];
             $data['user_id'] = $user['id'];
+            $data['color'] = $this->safeColor($data['color'] ?? null);
             if (!empty($data['custody_schedule_id'])) {
                 $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
                 if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
@@ -235,6 +236,7 @@ class CalendarController extends BaseController
                 return ['success' => false, 'error' => 'Non autorisé'];
             }
             $data = $this->jsonInput();
+            $data['color'] = $this->safeColor($data['color'] ?? null);
             if (!empty($data['custody_schedule_id'])) {
                 $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
                 if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;

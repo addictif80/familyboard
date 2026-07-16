@@ -83,11 +83,16 @@ class Event
 
     public static function getUpcoming(int $familyId, int $days = 7): array
     {
+        // start_datetime est enregistré tel quel depuis un <input datetime-local> (heure locale
+        // de la famille, ex. Europe/Paris), alors que la connexion DB force NOW() en UTC —
+        // on calcule donc les bornes en PHP (APP_TIMEZONE) plutôt que d'utiliser NOW() en SQL.
+        $now = date('Y-m-d H:i:s');
+        $until = date('Y-m-d H:i:s', strtotime("+{$days} days"));
         return Database::fetchAll(
             'SELECT e.*, u.name as user_name, u.color as user_color FROM events e JOIN users u ON u.id=e.user_id
-             WHERE e.family_id=? AND e.start_datetime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? DAY)
+             WHERE e.family_id=? AND e.start_datetime BETWEEN ? AND ?
              ORDER BY e.start_datetime LIMIT 10',
-            [$familyId, $days]
+            [$familyId, $now, $until]
         );
     }
 }

@@ -338,14 +338,14 @@ function openDocDetail(item) {
     const body   = document.getElementById('doc-detail-body');
     const rows = [
         item.type_label  && ['Type',       item.type_icon + ' ' + item.type_label],
-        item.issuer      && ['Émetteur',    item.issuer],
+        item.issuer      && ['Émetteur',    escapeHtml(item.issuer)],
         item.issue_date  && ['Émis le',     fmtDate(item.issue_date)],
         item.expiry_date && ['Expire le',   fmtDate(item.expiry_date) + expiryBadge(item)],
         (item.members && item.members.length) && ['Appartient à', item.members.map(m =>
             `<span class="user-avatar-xs" style="background:${escapeHtml(m.color)}" title="${escapeHtml(m.name)}">${escapeHtml(m.name.charAt(0))}</span> ${escapeHtml(m.name)}`
         ).join('&nbsp; ')],
-        item.tags        && ['Tags',        item.tags],
-        item.notes       && ['Notes',       item.notes],
+        item.tags        && ['Tags',        escapeHtml(item.tags)],
+        item.notes       && ['Notes',       escapeHtml(item.notes)],
     ].filter(Boolean);
 
     body.innerHTML = `

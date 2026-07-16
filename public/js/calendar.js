@@ -71,7 +71,7 @@ function renderCalendar() {
         // Dots for mobile (max 4 shown)
         const dotsHtml = '<div class="cal-day-dots">' +
             dayEvents.slice(0, 4).map(e =>
-                `<span class="cal-day-dot" style="background:${e.color || '#4A90D9'}"></span>`
+                `<span class="cal-day-dot" style="background:${safeColor(e.color)}"></span>`
             ).join('') + '</div>';
 
         html += `<div class="cal-day ${isCurrentMonth ? '' : 'cal-other-month'} ${isToday ? 'cal-today' : ''}"
@@ -100,7 +100,7 @@ function renderCalendar() {
             const label  = isCustody ? '👶 ' : isProject ? '📋 ' : '';
             const suffix = isCustody ? ' (Garde alternée)' : isProject ? ' (Projet)' : isBirthday ? ' (Anniversaire)' : isVacation ? ' — cliquer pour supprimer' : '';
             html += `<div class="cal-event${isCustody ? ' cal-event-custody' : ''}"
-                          style="background:${e.color || '#4A90D9'};${isSchool ? 'opacity:.85' : ''}"
+                          style="background:${safeColor(e.color)};${isSchool ? 'opacity:.85' : ''}"
                           onclick="event.stopPropagation();${onClick}"
                           title="${escapeHtml(e.title)}${suffix}"
                           ${isSchool ? '' : 'style="cursor:pointer"'}>
@@ -173,7 +173,7 @@ function renderMobileAgenda(dateStr) {
                             : isSchool ? '' : `openEventDetails(${JSON.stringify(e.id)})`;
             const label = isCustody ? '👶 ' : isProject ? '📋 ' : '';
             inner += `<div class="cal-agenda-event" onclick="${onClick}" style="cursor:pointer">
-                <span class="cal-agenda-dot" style="background:${e.color || '#4A90D9'}"></span>
+                <span class="cal-agenda-dot" style="background:${safeColor(e.color)}"></span>
                 <div class="cal-agenda-info">
                     <div class="cal-agenda-name">${label}${escapeHtml(e.title)}</div>
                     <div class="cal-agenda-time">${timeStr}</div>

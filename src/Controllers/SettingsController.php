@@ -29,7 +29,7 @@ class SettingsController extends BaseController
         $this->requireAuth();
         $user = Session::user();
         $name = trim($_POST['name'] ?? '');
-        $color = $_POST['color'] ?? '#4A90D9';
+        $color = $this->safeColor($_POST['color'] ?? null);
         $avatar = $this->uploadImage('avatar');
 
         $data = ['name' => $name ?: $user['name'], 'color' => $color];

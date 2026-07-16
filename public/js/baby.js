@@ -12,9 +12,21 @@ var BabyApp = (() => {
 
     // ── Helpers ───────────────────────────────────────────────
 
+    // toISOString() renvoie l'heure UTC ; les champs datetime-local attendent l'heure
+    // locale du navigateur telle quelle (comme le fait le calendrier), d'où le calcul
+    // manuel ci-dessous plutôt qu'un simple toISOString().
     function now() {
         const d = new Date();
-        return d.toISOString().slice(0, 16);
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // Heure locale actuelle au format DATETIME MySQL ('Y-m-d H:i:s'), à utiliser à la
+    // place de toISOString() (UTC) partout où on compare/stocke contre un start_at local.
+    function nowLocalDb() {
+        const d = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     }
 
     function toDatetimeLocal(str) {
@@ -484,7 +496,7 @@ var BabyApp = (() => {
     function stopSleep(id) {
         api(`/api/baby/${state.babyId}/sleeps/${id}/end`, {
             method: 'POST',
-            body: JSON.stringify({ end_at: new Date().toISOString().slice(0, 19).replace('T', ' ') }),
+            body: JSON.stringify({ end_at: nowLocalDb() }),
         }).then(res => { if (res.success) loadTracking(); });
     }
 

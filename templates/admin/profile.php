@@ -59,7 +59,7 @@
                 <h3>Informations de connexion</h3>
             </div>
             <div style="padding:1.25rem">
-                <form method="POST" action="<?= BASE_URL ?>/admin/profile">
+                <form method="POST" action="<?= BASE_URL ?>/admin/profile"><?= \App\Core\Csrf::field() ?>
 
                     <div class="form-group">
                         <label>Nom d'utilisateur actuel</label>
