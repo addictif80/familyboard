@@ -324,46 +324,6 @@ ob_start();
     </div>
     <?php endif; ?>
 
-    <!-- Email templates -->
-    <div class="card settings-section">
-        <h3>📝 Templates d'emails</h3>
-        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Personnalisez le contenu des emails automatiques. Variables disponibles entre <code>{{'{{'}}double accolades{{'}}'}}</code>.
-        </p>
-        <div class="template-tabs">
-            <?php foreach ($emailTemplates as $type => $tpl): ?>
-            <div class="template-block" id="tpl-<?= $type ?>">
-                <div class="template-header" onclick="toggleTemplate('<?= $type ?>')">
-                    <strong><?= htmlspecialchars($tpl['label']) ?></strong>
-                    <?php if ($tpl['is_custom']): ?>
-                        <span class="badge-custom">Personnalisé</span>
-                    <?php endif; ?>
-                    <span class="toggle-icon">▼</span>
-                </div>
-                <div class="template-body" style="display:none">
-                    <div style="margin-bottom:.5rem;font-size:.78rem;color:var(--text-muted)">
-                        Variables : <?= implode(', ', array_map(fn($v) => '<code>{{' . $v . '}}</code>', \App\Models\EmailTemplate::variables($type))) ?>
-                    </div>
-                    <div class="form-group">
-                        <label>Sujet</label>
-                        <input type="text" id="tpl-subject-<?= $type ?>" value="<?= htmlspecialchars($tpl['subject']) ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Corps (HTML)</label>
-                        <textarea id="tpl-body-<?= $type ?>" rows="6" style="font-family:monospace;font-size:.8rem"><?= htmlspecialchars($tpl['body']) ?></textarea>
-                    </div>
-                    <div style="display:flex;gap:.5rem">
-                        <button class="btn btn-primary btn-sm" onclick="saveTemplate('<?= $type ?>')">Enregistrer</button>
-                        <?php if ($tpl['is_custom']): ?>
-                        <button class="btn btn-secondary btn-sm" onclick="resetTemplate('<?= $type ?>')">Réinitialiser</button>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-    </div>
-
     <!-- Email logs -->
     <?php if (!empty($emailLogs)): ?>
     <div class="card settings-section">
@@ -407,15 +367,6 @@ ob_start();
 
 </div>
 
-<style>
-.template-block { border: 1px solid var(--border); border-radius: 8px; margin-bottom: .5rem; overflow: hidden; }
-.template-header { display:flex; align-items:center; gap:.75rem; padding: .75rem 1rem; cursor:pointer; background:var(--bg); }
-.template-header:hover { background: var(--bg-hover, #f5f5f5); }
-.template-header strong { flex:1; }
-.template-body { padding: 1rem; border-top: 1px solid var(--border); }
-.badge-custom { background:#fef3c7;color:#92400e;padding:.15rem .5rem;border-radius:4px;font-size:.75rem; }
-.toggle-icon { color:var(--text-muted);font-size:.75rem; }
-</style>
 
 <script>
 // Prevent double-submission on all settings forms
@@ -453,26 +404,6 @@ async function sendInvitation() {
         Dialog.toast(r.error || 'Erreur lors de l\'envoi.', 'error');
     }
 }
-function toggleTemplate(type) {
-    const body = document.querySelector('#tpl-' + type + ' .template-body');
-    body.style.display = body.style.display === 'none' ? 'block' : 'none';
-}
-async function saveTemplate(type) {
-    const subject = document.getElementById('tpl-subject-' + type).value;
-    const body = document.getElementById('tpl-body-' + type).value;
-    const r = await apiFetch(BASE_URL + '/api/settings/email-template', {
-        method: 'POST',
-        body: JSON.stringify({ type, subject, body })
-    });
-    if (r.success) Dialog.toast('Template enregistré !');
-    else Dialog.toast(r.error || 'Erreur.', 'error');
-}
-async function resetTemplate(type) {
-    if (!await Dialog.confirm('Réinitialiser ce template avec la valeur par défaut ?')) return;
-    const r = await apiFetch(BASE_URL + '/api/settings/email-template/' + type + '/reset', { method: 'POST', body: '{}' });
-    if (r.success) location.reload();
-}
-
 // ── City autocomplete ──────────────────────────────────────────
 (function () {
     const input = document.getElementById('city-ac-input');

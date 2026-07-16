@@ -1136,6 +1136,7 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .admin-inline-form input { padding: .35rem .6rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); font-size: .85rem; }
 .badge-new  { background: var(--info-bg); color: var(--info-text); }
 .badge-warn { background: var(--warning-bg); color: var(--warning); }
+.badge-custom { background: var(--accent-bg, var(--warning-bg)); color: var(--accent-dark, var(--warning)); padding: .15rem .5rem; border-radius: 4px; font-size: .75rem; }
 
 /* ── Support thread ────────────────────────────────────────── */
 .support-page { max-width: 900px; }

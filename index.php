@@ -243,6 +243,9 @@ $router->post('/admin/profile', [AdminController::class, 'updateProfile']);
 $router->post('/admin/smtp', [AdminController::class, 'updateSmtp']);
 $router->post('/admin/smtp/test', [AdminController::class, 'testSmtp']);
 $router->post('/admin/smtp/send-test', [AdminController::class, 'sendTestEmail']);
+$router->post('/admin/email-content', [AdminController::class, 'saveEmailContent']);
+$router->post('/admin/email-content/:type/reset', [AdminController::class, 'resetEmailContent']);
+$router->get('/admin/email-content/:type/preview', [AdminController::class, 'previewEmailContent']);
 
 // Support (user-facing)
 $router->get('/support', [SupportController::class, 'index']);
@@ -276,8 +279,6 @@ $router->post('/settings/family',   [SettingsController::class, 'updateFamily'])
 $router->post('/settings/modules',  [SettingsController::class, 'updateModules']);
 $router->post('/settings/family/code', [SettingsController::class, 'regenerateCode']);
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
-$router->post('/api/settings/email-template', [SettingsController::class, 'saveEmailTemplate']);
-$router->post('/api/settings/email-template/:type/reset', [SettingsController::class, 'resetEmailTemplate']);
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
 $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);

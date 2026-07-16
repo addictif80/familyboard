@@ -5,10 +5,12 @@ use App\Core\Database;
 use App\Core\Mail;
 use App\Core\Session;
 use App\Models\AppSetting;
+use App\Models\EmailContent;
 use App\Models\ImpersonationLog;
 use App\Models\SmtpSettings;
 use App\Models\SupportTicket;
 use App\Models\User;
+use App\Core\EmailLayout;
 
 class AdminController extends BaseController
 {
@@ -133,8 +135,55 @@ class AdminController extends BaseController
         $blockedIps   = Database::fetchAll('SELECT * FROM blocked_ips ORDER BY created_at DESC');
         $tickets      = SupportTicket::getAll();
         $smtp         = SmtpSettings::get();
+        $emailContents = EmailContent::getAll();
 
         require BASE_PATH . '/templates/admin/index.php';
+    }
+
+    // ── Contenu des emails (global, système) ──────────────────────
+
+    public function saveEmailContent(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $type    = $_POST['type'] ?? '';
+        $subject = trim($_POST['subject'] ?? '');
+        $message = trim($_POST['message'] ?? '');
+        if ($type && $subject && $message) {
+            EmailContent::save($type, $subject, $message);
+        }
+        $this->redirect('/admin?tab=email&msg=email_saved');
+    }
+
+    public function resetEmailContent(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $type = $params['type'] ?? '';
+        if ($type) EmailContent::reset($type);
+        $this->redirect('/admin?tab=email&msg=email_saved');
+    }
+
+    /**
+     * Preview the fixed email design with sample data, so the admin can see
+     * the graphical style without being able to edit it here.
+     */
+    public function previewEmailContent(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $type = $params['type'] ?? '';
+        $sampleVars = [
+            'sender_name' => 'Camille', 'family_name' => 'Dupont', 'user_name' => 'exemple@mail.com',
+            'child_list' => 'Léo, Nina', 'event_title' => 'Anniversaire de Léo',
+            'event_date' => 'demain à 15h00', 'event_description' => 'Ne pas oublier le gâteau !',
+            'task_name' => 'Ranger le garage', 'list_name' => 'Courses de la semaine',
+            'task_created' => 'lundi 12 mai', 'type_label' => 'prélèvement', 'title' => 'Abonnement internet',
+            'amount' => '39,99 €', 'due_date' => '5 août 2026', 'event_count' => '3',
+            'author_name' => 'Camille', 'content' => 'On part en week-end samedi, qui est partant ?',
+        ];
+        $rendered = EmailContent::render($type ?: 'invitation', $sampleVars);
+        echo EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+            'label' => 'Exemple de bouton',
+            'url'   => '#',
+        ]);
     }
 
     // ── SMTP (global, système) ────────────────────────────────────
