@@ -7,9 +7,60 @@ function openTransactionModal() {
     document.getElementById('tx-amount').value = '';
     document.getElementById('tx-date').value = new Date().toISOString().slice(0,10);
     document.getElementById('tx-category').value = '';
+    document.getElementById('tx-category-hint').textContent = '';
     document.getElementById('tx-notes').value = '';
     document.getElementById('tx-type-expense').checked = true;
     openModal('transaction-modal');
+}
+
+// Saisie assistée : suggère une catégorie déjà utilisée pour un titre similaire.
+async function suggestTxCategory() {
+    const title = document.getElementById('tx-title').value.trim();
+    const hint = document.getElementById('tx-category-hint');
+    if (!title) { hint.textContent = ''; return; }
+
+    const result = await apiFetch(`${BASE_URL}/api/budget/suggest-category?title=${encodeURIComponent(title)}`);
+    if (result.suggestion) {
+        document.getElementById('tx-category').value = result.suggestion.category_id;
+        hint.textContent = `(suggéré : ${result.suggestion.icon} ${result.suggestion.name})`;
+    } else {
+        hint.textContent = '';
+    }
+}
+
+// ---- Connexion bancaire Kresus ----
+
+async function kresusConnect() {
+    const kresus_url = document.getElementById('kresus-url').value.trim();
+    const username = document.getElementById('kresus-username').value.trim();
+    const password = document.getElementById('kresus-password').value;
+    if (!kresus_url) { Dialog.toast('URL Kresus requise.', 'error'); return; }
+
+    const result = await apiFetch(`${BASE_URL}/api/budget/kresus/connect`, {
+        method: 'POST',
+        body: JSON.stringify({ kresus_url, username, password }),
+    });
+    if (result.success) {
+        location.reload();
+    } else {
+        Dialog.toast(result.error || 'Connexion impossible.', 'error');
+    }
+}
+
+async function kresusDisconnect() {
+    if (!await Dialog.confirm('Déconnecter cette instance Kresus ?')) return;
+    const result = await apiFetch(`${BASE_URL}/api/budget/kresus/disconnect`, { method: 'POST' });
+    if (result.success) location.reload();
+}
+
+async function kresusSyncNow() {
+    const result = await apiFetch(`${BASE_URL}/api/budget/kresus/sync`, { method: 'POST' });
+    if (result.success) {
+        Dialog.toast(`${result.count} nouvelle(s) transaction(s).`, 'success');
+        location.reload();
+    } else {
+        Dialog.toast(result.error || 'Échec de synchronisation.', 'error');
+    }
 }
 
 async function saveTransaction() {

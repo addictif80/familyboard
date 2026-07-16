@@ -4,6 +4,7 @@ namespace App\Controllers;
 use App\Core\Session;
 use App\Models\Budget;
 use App\Models\User;
+use App\Models\KresusAccount;
 
 class BudgetController extends BaseController
 {
@@ -22,6 +23,7 @@ class BudgetController extends BaseController
         $members         = User::getByFamily($familyId);
         $recurring       = Budget::getRecurring($familyId);
         $recurringSummary = Budget::getRecurringSummary($familyId);
+        $kresusAccount   = KresusAccount::getByUser($user['id']);
         require BASE_PATH . '/templates/budget/index.php';
     }
 
@@ -177,6 +179,65 @@ class BudgetController extends BaseController
             $user  = Session::user();
             $month = $_GET['month'] ?? date('Y-m');
             return Budget::getChartData($user['family_id'], $month);
+        });
+    }
+
+    // ---- Saisie assistée ----
+
+    public function suggestCategory(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user  = Session::user();
+            $title = $_GET['title'] ?? '';
+            return ['suggestion' => Budget::suggestCategory($user['family_id'], $title)];
+        });
+    }
+
+    // ---- Connexion bancaire Kresus (une instance par membre) ----
+
+    public function kresusConnect(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $url  = trim($data['kresus_url'] ?? '');
+            if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) {
+                return ['success' => false, 'error' => 'URL Kresus invalide.'];
+            }
+            $username = trim($data['username'] ?? '') ?: null;
+            $password = $data['password'] ?? null;
+
+            $error = KresusAccount::testConnection($url, $username, $password);
+            if ($error) {
+                return ['success' => false, 'error' => 'Connexion impossible : ' . $error];
+            }
+
+            KresusAccount::connect($user['family_id'], $user['id'], $url, $username, $password);
+            return ['success' => true];
+        });
+    }
+
+    public function kresusDisconnect(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            KresusAccount::disconnect($user['id']);
+            return ['success' => true];
+        });
+    }
+
+    public function kresusSyncNow(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $account = KresusAccount::getByUser($user['id']);
+            if (!$account) return ['success' => false, 'error' => 'Aucune connexion Kresus.'];
+            $result = KresusAccount::syncOne($account);
+            return ['success' => $result['ok'], 'count' => $result['count'], 'error' => $result['error']];
         });
     }
 }
