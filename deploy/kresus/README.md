@@ -34,8 +34,7 @@ curl -fsSL https://get.docker.com | sh
 
 ```bash
 cd /home/user/familyboard/deploy/kresus
-cp config/member.ini.example config/alice.ini
-cp config/member.ini.example config/bob.ini
+cp config/member.ini.example config/kresus.ini
 docker compose up -d
 ```
 
