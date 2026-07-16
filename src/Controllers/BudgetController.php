@@ -42,7 +42,7 @@ class BudgetController extends BaseController
         $this->json(function () use ($params) {
             $user = Session::user();
             $id = (int)$params['id'];
-            Budget::deleteCategory($id);
+            Budget::deleteCategory($id, $user['family_id']);
             return ['success' => true];
         });
     }
@@ -101,7 +101,7 @@ class BudgetController extends BaseController
         $this->json(function () use ($params) {
             $user = Session::user();
             $id = (int)$params['id'];
-            Budget::updateGoal($id, $this->jsonInput());
+            Budget::updateGoal($id, $user['family_id'], $this->jsonInput());
             return ['success' => true];
         });
     }
@@ -110,8 +110,9 @@ class BudgetController extends BaseController
     {
         $this->requireAuth();
         $this->json(function () use ($params) {
+            $user = Session::user();
             $id = (int)$params['id'];
-            Budget::deleteGoal($id);
+            Budget::deleteGoal($id, $user['family_id']);
             return ['success' => true];
         });
     }
