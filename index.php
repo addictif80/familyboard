@@ -44,6 +44,7 @@ use App\Controllers\CustodyController;
 use App\Controllers\ProjectController;
 use App\Controllers\SettingsController;
 use App\Controllers\InvitationController;
+use App\Controllers\CoparentController;
 use App\Controllers\ContactController;
 use App\Controllers\AdminController;
 use App\Controllers\SupportController;
