@@ -77,6 +77,8 @@ class CalendarController extends BaseController
                     'caldav' => (bool)$e['caldav_uid'],
                     'type' => 'event',
                     'custody_schedule_id' => $e['custody_schedule_id'] ?? null,
+                    'professional_name' => $e['professional_name'] ?? null,
+                    'location' => $e['location'] ?? null,
                 ],
             ], $events);
 

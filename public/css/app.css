@@ -1377,3 +1377,6 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .city-ac-item:hover, .city-ac-item.active { background: var(--primary-light, rgba(79,110,247,.08)); }
 .city-ac-name { font-size: .95rem; font-weight: 500; }
 .city-ac-sub { font-size: .78rem; color: var(--text-muted); }
+
+#event-more-info > summary { cursor: pointer; font-weight: 500; color: var(--primary); user-select: none; }
+#event-more-info[open] > summary { margin-bottom: .6rem; }

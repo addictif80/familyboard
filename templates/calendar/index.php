@@ -135,6 +135,20 @@ ob_start();
                 </div>
             </div>
             <?php endif; ?>
+            <details class="form-group" id="event-more-info">
+                <summary>Ajouter plus d'infos</summary>
+                <div class="form-group">
+                    <label>Nom du professionnel</label>
+                    <input type="text" id="event-professional" placeholder="Dr Martin, Garage Dupont…">
+                </div>
+                <div class="form-group">
+                    <label>Adresse</label>
+                    <div class="city-autocomplete" id="event-location-wrap">
+                        <input type="text" id="event-location-input" autocomplete="off" placeholder="Tapez une adresse…">
+                        <ul class="city-ac-dropdown" id="event-location-list" style="display:none"></ul>
+                    </div>
+                </div>
+            </details>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('event-modal')">Annuler</button>
