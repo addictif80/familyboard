@@ -6,6 +6,8 @@ use App\Models\Custody;
 use App\Models\CustodyActivityLog;
 use App\Models\User;
 use App\Models\Notification;
+use App\Models\EmailContent;
+use App\Core\EmailLayout;
 
 class CustodyController extends BaseController
 {
@@ -304,16 +306,17 @@ class CustodyController extends BaseController
             $family = \App\Models\Family::findById($user['family_id']);
             $childList = implode(', ', $childNames);
 
-            $subject = $user['name'] . ' vous invite à un accès restreint sur FamilyBoard';
-            $body = '<p>Bonjour,</p>'
-                . '<p><strong>' . htmlspecialchars($user['name']) . '</strong> vous invite à accéder, sur FamilyBoard, '
-                . 'au suivi de garde partagée de <strong>' . htmlspecialchars($childList) . '</strong>.</p>'
-                . '<p>Cet accès est volontairement limité au calendrier de garde, aux propositions de garde, '
-                . 'au journal parental et aux documents/évènements liés à cet enfant — vous n\'aurez pas accès '
-                . 'au reste des données de la famille ' . htmlspecialchars($family['name'] ?? '') . '.</p>'
-                . '<p><a href="' . htmlspecialchars($inviteUrl) . '">Accepter l\'invitation</a></p>';
+            $rendered = EmailContent::render('custody_invitation', [
+                'sender_name' => $user['name'],
+                'family_name' => $family['name'] ?? '',
+                'child_list'  => $childList,
+            ]);
+            $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+                'label' => "Accepter l'invitation",
+                'url'   => $inviteUrl,
+            ]);
 
-            $ok = \App\Core\Mail::send($user['family_id'], $email, $email, $subject, $body, 'invitation', $user['id']);
+            $ok = \App\Core\Mail::send($user['family_id'], $email, $email, $rendered['subject'], $html, 'invitation', $user['id']);
             if ($ok) return ['success' => true];
             return ['success' => false, 'error' => "Erreur d'envoi. Vérifiez la configuration SMTP."];
         });

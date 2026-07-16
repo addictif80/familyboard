@@ -7,8 +7,9 @@ use App\Core\Database;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Models\Family;
-use App\Models\EmailTemplate;
+use App\Models\EmailContent;
 use App\Models\CustodyActivityLog;
+use App\Core\EmailLayout;
 
 class InvitationController extends BaseController
 {
@@ -128,15 +129,17 @@ class InvitationController extends BaseController
             $inviteUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . BASE_URL . '/invite/' . $token;
 
             $family = Family::findById($user['family_id']);
-            $rendered = EmailTemplate::render($user['family_id'], 'invitation', [
+            $rendered = EmailContent::render('invitation', [
                 'family_name' => $family['name'],
                 'sender_name' => $user['name'],
                 'user_name'   => $email,
-                'invite_url'  => $inviteUrl,
-                'app_url'     => $scheme . '://' . $_SERVER['HTTP_HOST'] . BASE_URL,
+            ]);
+            $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+                'label' => 'Rejoindre la famille',
+                'url'   => $inviteUrl,
             ]);
 
-            $ok = Mail::send($user['family_id'], $email, $email, $rendered['subject'], $rendered['body'], 'invitation', $user['id']);
+            $ok = Mail::send($user['family_id'], $email, $email, $rendered['subject'], $html, 'invitation', $user['id']);
             if ($ok) {
                 return ['success' => true];
             }

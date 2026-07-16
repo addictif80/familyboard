@@ -6,6 +6,8 @@ use App\Core\Mail;
 use App\Models\Post;
 use App\Models\User;
 use App\Models\Notification;
+use App\Models\EmailContent;
+use App\Core\EmailLayout;
 
 class WallController extends BaseController
 {
@@ -47,12 +49,17 @@ class WallController extends BaseController
 
         // Email notification
         $members = User::getByFamily($user['family_id']);
+        $rendered = EmailContent::render('wall_post', [
+            'author_name' => $user['name'],
+            'content'     => $content,
+        ]);
+        $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+            'label' => 'Voir le mur',
+            'url'   => BASE_URL . '/wall',
+        ]);
         foreach ($members as $member) {
             if ($member['id'] !== $user['id']) {
-                Mail::notifyUser(array_merge($member, ['family_id' => $user['family_id']]),
-                    'Nouveau post de ' . $user['name'],
-                    '<h2>' . htmlspecialchars($user['name']) . ' a publié sur le mur</h2><p>' . nl2br(htmlspecialchars($content)) . '</p><a href="' . BASE_URL . '/wall">Voir le mur</a>'
-                );
+                Mail::notifyUser(array_merge($member, ['family_id' => $user['family_id']]), $rendered['subject'], $html);
             }
         }
 

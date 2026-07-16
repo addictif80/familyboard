@@ -427,6 +427,7 @@ CREATE TABLE IF NOT EXISTS email_logs (
     INDEX idx_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Historique (non utilisé) : anciennes personnalisations par famille.
 CREATE TABLE IF NOT EXISTS email_templates (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     family_id  INT          NOT NULL,
@@ -436,6 +437,15 @@ CREATE TABLE IF NOT EXISTS email_templates (
     is_active  TINYINT(1)   NOT NULL DEFAULT 1,
     updated_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_family_type (family_id, type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Contenu (sujet + message) des emails, personnalisable uniquement par
+-- l'administrateur système (/admin) — le style graphique reste fixe.
+CREATE TABLE IF NOT EXISTS email_content (
+    type       VARCHAR(50)  NOT NULL PRIMARY KEY,
+    subject    VARCHAR(500) NOT NULL,
+    message    TEXT         NOT NULL,
+    updated_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Notifications ─────────────────────────────────────────────
