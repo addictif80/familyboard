@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Beaucoup d'instances FamilyBoard auto-hébergées tournent en HTTP simple
+     sur un réseau local (sans certificat TLS). On autorise donc le trafic
+     en clair par défaut, l'utilisateur choisissant lui-même l'adresse de
+     son serveur au premier lancement.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

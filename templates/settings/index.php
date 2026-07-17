@@ -58,6 +58,22 @@ ob_start();
         </div>
     </div>
 
+    <!-- Application Android -->
+    <div class="card settings-section">
+        <h3>📱 Application Android</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Installez FamilyBoard sur votre téléphone Android. L'application se connecte à
+            l'adresse de votre serveur (celle que vous utilisez déjà dans votre navigateur) —
+            aucune donnée supplémentaire n'est envoyée ailleurs.
+        </p>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+            <a href="<?= BASE_URL ?>/app/android" class="btn btn-secondary">⬇️ Télécharger l'APK</a>
+        </div>
+        <p style="color:var(--text-muted);font-size:.75rem;margin-top:.6rem">
+            L'installation depuis un fichier APK nécessite d'autoriser « sources inconnues » pour votre navigateur dans les réglages Android.
+        </p>
+    </div>
+
     <!-- Zone dangereuse -->
     <div class="card settings-section" style="border:1px solid var(--danger)">
         <h3 style="color:var(--danger)">⚠️ Zone dangereuse</h3>

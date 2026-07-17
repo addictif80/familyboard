@@ -282,6 +282,7 @@ $router->post('/settings/family/code', [SettingsController::class, 'regenerateCo
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
 $router->get('/settings/export', [SettingsController::class, 'exportData']);
 $router->post('/settings/delete-account', [SettingsController::class, 'deleteAccount']);
+$router->get('/app/android', [SettingsController::class, 'downloadAndroidApk']);
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
 $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
