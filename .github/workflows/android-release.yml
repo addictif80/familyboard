@@ -64,7 +64,13 @@ jobs:
         run: gradle assembleRelease --no-daemon
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/release/app-release.apk familyboard.apk
+        run: |
+          apk=$(find android/app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n1)
+          if [ -z "$apk" ]; then
+            echo "::error::No APK found in android/app/build/outputs/apk/release"
+            exit 1
+          fi
+          cp "$apk" familyboard.apk
 
       # Le lien "https://github.com/<repo>/releases/latest/download/familyboard.apk"
       # (utilisé par l'app web) pointe toujours vers cet asset : la release
