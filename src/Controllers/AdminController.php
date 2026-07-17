@@ -43,6 +43,13 @@ class AdminController extends BaseController
 
     public function login(array $params): void
     {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (\App\Models\LoginAttempt::isLocked('admin', $ip)) {
+            $_SESSION['admin_error'] = 'Trop de tentatives. Réessayez dans ' . \App\Models\LoginAttempt::minutesUntilUnlock() . ' minutes.';
+            header('Location: ' . BASE_URL . '/admin/login');
+            exit;
+        }
+
         $user = trim($_POST['username'] ?? '');
         $pass = $_POST['password'] ?? '';
 
@@ -58,9 +65,11 @@ class AdminController extends BaseController
         $ok = $validUser && $validPass;
 
         if ($ok) {
+            \App\Models\LoginAttempt::clear('admin', $ip);
             $_SESSION['admin_logged_in'] = true;
             header('Location: ' . BASE_URL . '/admin');
         } else {
+            \App\Models\LoginAttempt::record('admin', $ip);
             $_SESSION['admin_error'] = 'Identifiants incorrects.';
             header('Location: ' . BASE_URL . '/admin/login');
         }

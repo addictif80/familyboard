@@ -47,6 +47,15 @@ class BaseController
             exit;
         }
         Session::set('user', $user);
+
+        // Les appels fetch() JS envoient X-Requested-With/Accept (vérifié par isAjax()), ce qui
+        // bloque déjà les soumissions de <form> cross-origin classiques vers ces endpoints ; le
+        // jeton CSRF protège en plus les formulaires HTML POST natifs (listes, profil, mur...).
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$this->isAjax() && !\App\Core\Csrf::verify()) {
+            http_response_code(403);
+            echo 'Jeton de sécurité invalide ou expiré. Rechargez la page et réessayez.';
+            exit;
+        }
     }
 
     protected function requireModule(string $slug): void

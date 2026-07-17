@@ -15,7 +15,7 @@
             <div class="post-actions-btns">
                 <button class="btn-icon-sm" title="Modifier"
                     onclick="openEditPost(<?= htmlspecialchars(json_encode(['id' => $post['id'], 'content' => $post['content']])) ?>)">✏️</button>
-                <form method="POST" action="<?= BASE_URL ?>/wall/<?= $post['id'] ?>/delete" class="post-delete" onsubmit="return confirmSubmit(this,'Supprimer ce post ?')">
+                <form method="POST" action="<?= BASE_URL ?>/wall/<?= $post['id'] ?>/delete" class="post-delete" onsubmit="return confirmSubmit(this,'Supprimer ce post ?')"><?= \App\Core\Csrf::field() ?>
                     <button type="submit" class="btn-icon-sm">🗑</button>
                 </form>
             </div>

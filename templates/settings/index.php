@@ -8,7 +8,7 @@ ob_start();
     <!-- Profile -->
     <div class="card settings-section">
         <h3>👤 Mon profil</h3>
-        <form method="POST" action="<?= BASE_URL ?>/settings/profile" enctype="multipart/form-data">
+        <form method="POST" action="<?= BASE_URL ?>/settings/profile" enctype="multipart/form-data"><?= \App\Core\Csrf::field() ?>
             <div class="profile-preview">
                 <div class="user-avatar-lg" style="background:<?= htmlspecialchars($user['color']) ?>" id="avatar-preview">
                     <?php if ($user['avatar']): ?>
@@ -48,7 +48,7 @@ ob_start();
     <?php if ($user['role'] === 'admin'): ?>
     <div class="card settings-section">
         <h3>👨‍👩‍👧 Famille : <?= htmlspecialchars($family['name']) ?></h3>
-        <form method="POST" action="<?= BASE_URL ?>/settings/family">
+        <form method="POST" action="<?= BASE_URL ?>/settings/family"><?= \App\Core\Csrf::field() ?>
             <div class="form-row">
                 <div class="form-group flex-1">
                     <label>Nom de la famille</label>
@@ -140,7 +140,7 @@ ob_start();
             <strong>Code d'invitation :</strong>
             <code class="invite-code"><?= htmlspecialchars($family['invite_code']) ?></code>
             <button onclick="copyCode('<?= htmlspecialchars($family['invite_code']) ?>')" class="btn btn-secondary btn-sm">📋 Copier</button>
-            <form method="POST" action="<?= BASE_URL ?>/settings/family/code" style="display:inline">
+            <form method="POST" action="<?= BASE_URL ?>/settings/family/code" style="display:inline"><?= \App\Core\Csrf::field() ?>
                 <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirmSubmit(this.closest('form'),&quot;Régénérer le code ? L\'ancien ne fonctionnera plus.&quot;)">🔄 Régénérer</button>
             </form>
         </div>
@@ -184,7 +184,7 @@ ob_start();
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Tous les modules sont activés par défaut. Décochez ceux que vous souhaitez masquer pour toute la famille.
         </p>
-        <form method="POST" action="<?= BASE_URL ?>/settings/modules">
+        <form method="POST" action="<?= BASE_URL ?>/settings/modules"><?= \App\Core\Csrf::field() ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;margin-bottom:1rem">
                 <?php foreach (\App\Models\Family::MODULES as $slug => $mod): ?>
                 <label style="display:flex;align-items:center;gap:.55rem;padding:.5rem .65rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:background .12s"
@@ -227,7 +227,7 @@ ob_start();
                         </small>
                     </div>
                     <?php if ($member['id'] !== $user['id']): ?>
-                        <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')">
+                        <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')"><?= \App\Core\Csrf::field() ?>
                             <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
                         </form>
                     <?php endif; ?>

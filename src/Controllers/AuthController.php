@@ -4,6 +4,7 @@ namespace App\Controllers;
 use App\Core\RememberMe;
 use App\Core\Session;
 use App\Models\Family;
+use App\Models\LoginAttempt;
 use App\Models\User;
 
 class AuthController
@@ -22,6 +23,7 @@ class AuthController
     {
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
         if (!$email || !$password) {
             Session::flash('error', 'Veuillez remplir tous les champs.');
@@ -29,12 +31,20 @@ class AuthController
             exit;
         }
 
+        if (LoginAttempt::isLocked('user', $ip)) {
+            Session::flash('error', 'Trop de tentatives. Réessayez dans ' . LoginAttempt::minutesUntilUnlock() . ' minutes.');
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+
         $user = User::verify($email, $password);
         if (!$user) {
+            LoginAttempt::record('user', $ip);
             Session::flash('error', 'Email ou mot de passe incorrect.');
             header('Location: ' . BASE_URL . '/login');
             exit;
         }
+        LoginAttempt::clear('user', $ip);
 
         // Check if account is blocked
         if (!empty($user['blocked_at'])) {

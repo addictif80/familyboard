@@ -23,7 +23,7 @@ ob_start();
                         <?php endif; ?>
                     </a>
                     <?php if ($list['user_id'] === $user['id'] || $user['role'] === 'admin'): ?>
-                        <form method="POST" action="<?= BASE_URL ?>/tasks/list/<?= $list['id'] ?>/delete" onsubmit="return confirmSubmit(this,'Supprimer cette liste ?')">
+                        <form method="POST" action="<?= BASE_URL ?>/tasks/list/<?= $list['id'] ?>/delete" onsubmit="return confirmSubmit(this,'Supprimer cette liste ?')"><?= \App\Core\Csrf::field() ?>
                             <button type="submit" class="btn-icon-sm">🗑</button>
                         </form>
                     <?php endif; ?>
@@ -86,7 +86,7 @@ ob_start();
             <h3>Nouvelle liste</h3>
             <button onclick="closeModal('new-list-modal')">✕</button>
         </div>
-        <form method="POST" action="<?= BASE_URL ?>/tasks/list">
+        <form method="POST" action="<?= BASE_URL ?>/tasks/list"><?= \App\Core\Csrf::field() ?>
             <div class="modal-body">
                 <div class="form-group">
                     <label>Nom</label>
