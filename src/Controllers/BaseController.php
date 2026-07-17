@@ -47,6 +47,15 @@ class BaseController
             exit;
         }
         Session::set('user', $user);
+
+        // Les appels fetch() JS envoient X-Requested-With/Accept (vérifié par isAjax()), ce qui
+        // bloque déjà les soumissions de <form> cross-origin classiques vers ces endpoints ; le
+        // jeton CSRF protège en plus les formulaires HTML POST natifs (listes, profil, mur...).
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$this->isAjax() && !\App\Core\Csrf::verify()) {
+            http_response_code(403);
+            echo 'Jeton de sécurité invalide ou expiré. Rechargez la page et réessayez.';
+            exit;
+        }
     }
 
     protected function requireModule(string $slug): void
@@ -130,15 +139,26 @@ class BaseController
         return $html;
     }
 
+    /** Valide un code couleur hexadécimal (#rgb, #rrggbb…) ; retourne une valeur par défaut sinon. */
+    protected function safeColor(?string $color, string $fallback = '#4A90D9'): string
+    {
+        return $color && preg_match('/^#[0-9a-fA-F]{3,8}$/', $color) ? $color : $fallback;
+    }
+
     protected function uploadImage(string $field): ?string
     {
         if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) return null;
         $file = $_FILES[$field];
         if ($file['size'] > UPLOAD_MAX_SIZE) return null;
-        if (!in_array($file['type'], ALLOWED_IMAGE_TYPES)) return null;
 
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-        $filename = bin2hex(random_bytes(16)) . '.' . strtolower($ext);
+        // Ne jamais faire confiance au Content-Type ou au nom de fichier fournis par le
+        // client (trivialement falsifiables) : on inspecte le contenu réel du fichier.
+        $realType = @mime_content_type($file['tmp_name']) ?: '';
+        $extByType = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
+        if (!in_array($realType, ALLOWED_IMAGE_TYPES, true) || !isset($extByType[$realType])) return null;
+        if (@getimagesize($file['tmp_name']) === false) return null;
+
+        $filename = bin2hex(random_bytes(16)) . '.' . $extByType[$realType];
         $dest = UPLOAD_DIR . $filename;
 
         if (!is_dir(UPLOAD_DIR)) mkdir(UPLOAD_DIR, 0755, true);

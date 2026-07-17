@@ -37,7 +37,7 @@ class TaskController extends BaseController
         $user = Session::user();
         $name = trim($_POST['name'] ?? '');
         $type = in_array($_POST['type'] ?? '', ['tasks', 'shopping']) ? $_POST['type'] : 'tasks';
-        $color = $_POST['color'] ?? '#4A90D9';
+        $color = $this->safeColor($_POST['color'] ?? null);
         if ($name) {
             TaskList::create($user['family_id'], $user['id'], $name, $type, $color);
         }

@@ -139,10 +139,10 @@ class DashboardController extends \App\Controllers\BaseController
                 $lists = TaskList::getByFamily($familyId);
                 $pending = [];
                 foreach ($lists as $list) {
-                    if ($list['is_shopping']) continue;
+                    if ($list['type'] === 'shopping') continue;
                     $tasks = TaskList::getTasks((int)$list['id']);
                     foreach ($tasks as $t) {
-                        if (!$t['is_done']) $pending[] = array_merge($t, ['list_name' => $list['name']]);
+                        if (!$t['is_completed']) $pending[] = array_merge($t, ['list_name' => $list['name']]);
                     }
                 }
                 usort($pending, fn($a, $b) => strcmp($a['created_at'] ?? '', $b['created_at'] ?? ''));

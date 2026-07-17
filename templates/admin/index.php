@@ -113,15 +113,15 @@
                 </td>
                 <td style="display:flex;gap:.4rem;flex-wrap:wrap">
                     <?php if ($u['blocked_at']): ?>
-                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/unblock">
+                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/unblock"><?= \App\Core\Csrf::field() ?>
                             <button class="btn btn-secondary btn-sm">Débloquer</button>
                         </form>
                     <?php else: ?>
-                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/block" style="display:flex;gap:.3rem">
+                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/block" style="display:flex;gap:.3rem"><?= \App\Core\Csrf::field() ?>
                             <input type="text" name="reason" placeholder="Raison (optionnel)" style="font-size:.78rem;padding:.2rem .4rem;border:1px solid var(--border);border-radius:4px;width:140px">
                             <button class="btn btn-danger btn-sm">Bloquer</button>
                         </form>
-                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/impersonate" onsubmit="return confirm('Se connecter en tant que <?= htmlspecialchars(addslashes($u['name'])) ?> ? Cette action est journalisée.')">
+                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/impersonate" onsubmit="return confirm('Se connecter en tant que <?= htmlspecialchars(addslashes($u['name'])) ?> ? Cette action est journalisée.')"><?= \App\Core\Csrf::field() ?>
                             <button class="btn btn-secondary btn-sm" title="Se connecter en tant que cet utilisateur">🕵️ Impersoner</button>
                         </form>
                     <?php endif; ?>
@@ -158,7 +158,7 @@
 
         <?php elseif ($tab === 'ips'): ?>
         <h2>IPs bloquées</h2>
-        <form method="POST" action="<?= BASE_URL ?>/admin/ips" class="admin-inline-form">
+        <form method="POST" action="<?= BASE_URL ?>/admin/ips" class="admin-inline-form"><?= \App\Core\Csrf::field() ?>
             <input type="text" name="ip" placeholder="Adresse IP (ex: 1.2.3.4)" required style="width:180px">
             <input type="text" name="reason" placeholder="Raison (optionnel)" style="width:220px">
             <button class="btn btn-danger btn-sm">Bloquer cette IP</button>
@@ -175,7 +175,7 @@
                 <td><?= htmlspecialchars($ip['reason'] ?? '—') ?></td>
                 <td><?= \App\Core\DateHelper::fromUtc($ip['created_at'], 'd/m/Y H:i') ?></td>
                 <td>
-                    <form method="POST" action="<?= BASE_URL ?>/admin/ips/<?= $ip['id'] ?>/delete">
+                    <form method="POST" action="<?= BASE_URL ?>/admin/ips/<?= $ip['id'] ?>/delete"><?= \App\Core\Csrf::field() ?>
                         <button class="btn btn-secondary btn-sm">Débloquer</button>
                     </form>
                 </td>
@@ -213,7 +213,7 @@
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Un seul serveur SMTP est utilisé pour l'envoi d'emails de toutes les familles inscrites.
         </p>
-        <form method="POST" action="<?= BASE_URL ?>/admin/smtp" class="card" style="padding:1.25rem;max-width:640px">
+        <form method="POST" action="<?= BASE_URL ?>/admin/smtp" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
             <div class="form-row">
                 <div class="form-group flex-2">
                     <label>Serveur SMTP</label>
@@ -282,7 +282,7 @@
             <div style="margin-bottom:.75rem;font-size:.78rem;color:var(--text-muted)">
                 Variables : <?= implode(', ', array_map(fn($v) => '<code>{{' . $v . '}}</code>', \App\Models\EmailContent::variables($type))) ?>
             </div>
-            <form method="POST" action="<?= BASE_URL ?>/admin/email-content">
+            <form method="POST" action="<?= BASE_URL ?>/admin/email-content"><?= \App\Core\Csrf::field() ?>
                 <input type="hidden" name="type" value="<?= htmlspecialchars($type) ?>">
                 <div class="form-group">
                     <label>Sujet</label>
@@ -298,7 +298,7 @@
                 </div>
             </form>
             <?php if ($tpl['is_custom']): ?>
-            <form method="POST" action="<?= BASE_URL ?>/admin/email-content/<?= $type ?>/reset" style="margin-top:.5rem">
+            <form method="POST" action="<?= BASE_URL ?>/admin/email-content/<?= $type ?>/reset" style="margin-top:.5rem"><?= \App\Core\Csrf::field() ?>
                 <button type="submit" class="btn btn-secondary btn-sm">Réinitialiser la valeur par défaut</button>
             </form>
             <?php endif; ?>

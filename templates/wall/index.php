@@ -7,7 +7,7 @@ ob_start();
 <div class="wall-container">
     <!-- Post form -->
     <div class="card post-form-card">
-        <form method="POST" action="<?= BASE_URL ?>/wall" enctype="multipart/form-data" id="post-form">
+        <form method="POST" action="<?= BASE_URL ?>/wall" enctype="multipart/form-data" id="post-form"><?= \App\Core\Csrf::field() ?>
             <div class="post-input-row">
                 <div class="user-avatar" style="background:<?= htmlspecialchars($user['color']) ?>">
                     <?php if ($user['avatar']): ?>

@@ -22,6 +22,14 @@ class AdminController extends BaseController
             header('Location: ' . BASE_URL . '/admin/login');
             exit;
         }
+        // Les appels fetch() JS envoient déjà X-Requested-With (vérifié par isAjax()), ce qui
+        // bloque les soumissions de &lt;form&gt; cross-origin classiques ; le jeton CSRF protège
+        // en plus les formulaires HTML POST natifs (impersonation, blocage, IPs…).
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$this->isAjax() && !\App\Core\Csrf::verify()) {
+            http_response_code(403);
+            echo 'Jeton de sécurité invalide ou expiré. Rechargez la page et réessayez.';
+            exit;
+        }
     }
 
     public function showLogin(array $params): void
@@ -35,6 +43,13 @@ class AdminController extends BaseController
 
     public function login(array $params): void
     {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (\App\Models\LoginAttempt::isLocked('admin', $ip)) {
+            $_SESSION['admin_error'] = 'Trop de tentatives. Réessayez dans ' . \App\Models\LoginAttempt::minutesUntilUnlock() . ' minutes.';
+            header('Location: ' . BASE_URL . '/admin/login');
+            exit;
+        }
+
         $user = trim($_POST['username'] ?? '');
         $pass = $_POST['password'] ?? '';
 
@@ -50,9 +65,11 @@ class AdminController extends BaseController
         $ok = $validUser && $validPass;
 
         if ($ok) {
+            \App\Models\LoginAttempt::clear('admin', $ip);
             $_SESSION['admin_logged_in'] = true;
             header('Location: ' . BASE_URL . '/admin');
         } else {
+            \App\Models\LoginAttempt::record('admin', $ip);
             $_SESSION['admin_error'] = 'Identifiants incorrects.';
             header('Location: ' . BASE_URL . '/admin/login');
         }

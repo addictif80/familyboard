@@ -2,6 +2,8 @@
 namespace App\Controllers;
 
 use App\Core\Session;
+use App\Models\AccountDeletion;
+use App\Models\DataExport;
 use App\Models\User;
 use App\Models\Family;
 use App\Models\Notification;
@@ -29,7 +31,7 @@ class SettingsController extends BaseController
         $this->requireAuth();
         $user = Session::user();
         $name = trim($_POST['name'] ?? '');
-        $color = $_POST['color'] ?? '#4A90D9';
+        $color = $this->safeColor($_POST['color'] ?? null);
         $avatar = $this->uploadImage('avatar');
 
         $data = ['name' => $name ?: $user['name'], 'color' => $color];
@@ -101,6 +103,76 @@ class SettingsController extends BaseController
         }
         header('Location: ' . BASE_URL . '/settings');
         exit;
+    }
+
+    public function exportData(array $params): void
+    {
+        $this->requireAuth();
+        $user = Session::user();
+        $wholeFamily = ($_GET['scope'] ?? 'mine') === 'family';
+        if ($wholeFamily && $user['role'] !== 'admin') {
+            http_response_code(403);
+            echo 'Réservé à l\'administrateur de la famille.';
+            return;
+        }
+
+        $zipPath = DataExport::build((int)$user['id'], (int)$user['family_id'], $wholeFamily);
+        $filename = ($wholeFamily ? 'famille' : 'mes-donnees') . '-' . date('Y-m-d') . '.zip';
+
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . filesize($zipPath));
+        readfile($zipPath);
+        @unlink($zipPath);
+        exit;
+    }
+
+    /** Nombre de membres de la famille autres que $excludeId. */
+    private function otherMembersCount(int $familyId, int $excludeId): int
+    {
+        $row = \App\Core\Database::fetch(
+            'SELECT COUNT(*) as n FROM users WHERE family_id=? AND id!=?',
+            [$familyId, $excludeId]
+        );
+        return (int)($row['n'] ?? 0);
+    }
+
+    public function deleteAccount(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $familyId = (int)$user['family_id'];
+            $data = $this->jsonInput();
+
+            if ($user['role'] === 'admin' && $this->otherMembersCount($familyId, (int)$user['id']) > 0) {
+                $action = $data['action'] ?? '';
+                if ($action === 'transfer') {
+                    $targetId = (int)($data['transfer_to_user_id'] ?? 0);
+                    $target = User::findById($targetId);
+                    if (!$target || $target['family_id'] !== $familyId || $targetId === (int)$user['id']) {
+                        return ['success' => false, 'error' => 'Membre invalide.'];
+                    }
+                    AccountDeletion::transferAdminAndDelete((int)$user['id'], $targetId, $familyId);
+                } elseif ($action === 'delete_family') {
+                    AccountDeletion::deleteFamily($familyId);
+                } else {
+                    return ['success' => false, 'error' => 'Choisissez de transférer le rôle admin ou de supprimer la famille.'];
+                }
+            } else {
+                // Membre non-admin, co-parent, ou admin seul dans sa famille : suppression directe
+                // (dans ce dernier cas, la famille n'a plus personne d'autre à qui la confier).
+                if ($user['role'] === 'admin') {
+                    AccountDeletion::deleteFamily($familyId);
+                } else {
+                    AccountDeletion::deleteUser((int)$user['id'], $familyId);
+                }
+            }
+
+            \App\Core\RememberMe::clear();
+            Session::destroy();
+            return ['success' => true, 'redirect' => BASE_URL . '/login'];
+        });
     }
 
     public function getNotifications(array $params): void

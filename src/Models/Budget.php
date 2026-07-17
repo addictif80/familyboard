@@ -16,9 +16,9 @@ class Budget
         return Database::insert('INSERT INTO budget_categories (family_id, name, color, icon) VALUES (?,?,?,?)', [$familyId, $name, $color, $icon]);
     }
 
-    public static function deleteCategory(int $id): void
+    public static function deleteCategory(int $id, int $familyId): void
     {
-        Database::execute('DELETE FROM budget_categories WHERE id=?', [$id]);
+        Database::execute('DELETE FROM budget_categories WHERE id=? AND family_id=?', [$id, $familyId]);
     }
 
     // Transactions
@@ -226,16 +226,16 @@ class Budget
         );
     }
 
-    public static function updateGoal(int $id, array $data): void
+    public static function updateGoal(int $id, int $familyId, array $data): void
     {
         Database::execute(
-            'UPDATE budget_goals SET name=?, target_amount=?, current_amount=?, deadline=?, color=? WHERE id=?',
-            [$data['name'], $data['target_amount'], $data['current_amount'] ?? 0, $data['deadline'] ?? null, $data['color'] ?? '#4A90D9', $id]
+            'UPDATE budget_goals SET name=?, target_amount=?, current_amount=?, deadline=?, color=? WHERE id=? AND family_id=?',
+            [$data['name'], $data['target_amount'], $data['current_amount'] ?? 0, $data['deadline'] ?? null, $data['color'] ?? '#4A90D9', $id, $familyId]
         );
     }
 
-    public static function deleteGoal(int $id): void
+    public static function deleteGoal(int $id, int $familyId): void
     {
-        Database::execute('DELETE FROM budget_goals WHERE id=?', [$id]);
+        Database::execute('DELETE FROM budget_goals WHERE id=? AND family_id=?', [$id, $familyId]);
     }
 }

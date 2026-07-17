@@ -8,7 +8,7 @@ ob_start();
     <!-- Profile -->
     <div class="card settings-section">
         <h3>👤 Mon profil</h3>
-        <form method="POST" action="<?= BASE_URL ?>/settings/profile" enctype="multipart/form-data">
+        <form method="POST" action="<?= BASE_URL ?>/settings/profile" enctype="multipart/form-data"><?= \App\Core\Csrf::field() ?>
             <div class="profile-preview">
                 <div class="user-avatar-lg" style="background:<?= htmlspecialchars($user['color']) ?>" id="avatar-preview">
                     <?php if ($user['avatar']): ?>
@@ -44,11 +44,39 @@ ob_start();
         </form>
     </div>
 
+    <!-- Mes données -->
+    <div class="card settings-section">
+        <h3>📁 Mes données</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Téléchargez une archive de vos données (profil, événements, tâches, documents…) au format ZIP.
+        </p>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+            <a href="<?= BASE_URL ?>/settings/export?scope=mine" class="btn btn-secondary">📥 Télécharger mes données</a>
+            <?php if ($user['role'] === 'admin'): ?>
+                <a href="<?= BASE_URL ?>/settings/export?scope=family" class="btn btn-secondary">📦 Télécharger les données de toute la famille</a>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- Zone dangereuse -->
+    <div class="card settings-section" style="border:1px solid var(--danger)">
+        <h3 style="color:var(--danger)">⚠️ Zone dangereuse</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Supprimer votre compte est définitif et irréversible.
+            <?php if ($user['role'] === 'admin' && count($members) > 1): ?>
+                En tant qu'administrateur, vous devrez transférer ce rôle à un autre membre ou supprimer toute la famille.
+            <?php elseif ($user['role'] === 'admin'): ?>
+                Vous êtes le seul membre de cette famille : supprimer votre compte supprimera aussi toute la famille et ses données.
+            <?php endif; ?>
+        </p>
+        <button type="button" class="btn btn-danger" onclick="openDeleteAccountModal()">🗑 Supprimer mon compte</button>
+    </div>
+
     <!-- Family settings (admin only) -->
     <?php if ($user['role'] === 'admin'): ?>
     <div class="card settings-section">
         <h3>👨‍👩‍👧 Famille : <?= htmlspecialchars($family['name']) ?></h3>
-        <form method="POST" action="<?= BASE_URL ?>/settings/family">
+        <form method="POST" action="<?= BASE_URL ?>/settings/family"><?= \App\Core\Csrf::field() ?>
             <div class="form-row">
                 <div class="form-group flex-1">
                     <label>Nom de la famille</label>
@@ -140,7 +168,7 @@ ob_start();
             <strong>Code d'invitation :</strong>
             <code class="invite-code"><?= htmlspecialchars($family['invite_code']) ?></code>
             <button onclick="copyCode('<?= htmlspecialchars($family['invite_code']) ?>')" class="btn btn-secondary btn-sm">📋 Copier</button>
-            <form method="POST" action="<?= BASE_URL ?>/settings/family/code" style="display:inline">
+            <form method="POST" action="<?= BASE_URL ?>/settings/family/code" style="display:inline"><?= \App\Core\Csrf::field() ?>
                 <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirmSubmit(this.closest('form'),&quot;Régénérer le code ? L\'ancien ne fonctionnera plus.&quot;)">🔄 Régénérer</button>
             </form>
         </div>
@@ -184,7 +212,7 @@ ob_start();
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Tous les modules sont activés par défaut. Décochez ceux que vous souhaitez masquer pour toute la famille.
         </p>
-        <form method="POST" action="<?= BASE_URL ?>/settings/modules">
+        <form method="POST" action="<?= BASE_URL ?>/settings/modules"><?= \App\Core\Csrf::field() ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;margin-bottom:1rem">
                 <?php foreach (\App\Models\Family::MODULES as $slug => $mod): ?>
                 <label style="display:flex;align-items:center;gap:.55rem;padding:.5rem .65rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:background .12s"
@@ -227,7 +255,7 @@ ob_start();
                         </small>
                     </div>
                     <?php if ($member['id'] !== $user['id']): ?>
-                        <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')">
+                        <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')"><?= \App\Core\Csrf::field() ?>
                             <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
                         </form>
                     <?php endif; ?>
@@ -367,6 +395,38 @@ ob_start();
 
 </div>
 
+<!-- Delete account modal -->
+<div class="modal-overlay" id="delete-account-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>⚠️ Supprimer mon compte</h3>
+            <button onclick="closeModal('delete-account-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="dam-admin-choice" style="display:none">
+                <p>Vous êtes administrateur de cette famille. Avant de supprimer votre compte, choisissez :</p>
+                <div class="form-group">
+                    <label><input type="radio" name="dam-action" value="transfer" checked> Transférer le rôle admin à :</label>
+                    <select id="dam-transfer-target"></select>
+                </div>
+                <div class="form-group">
+                    <label><input type="radio" name="dam-action" value="delete_family"> Supprimer toute la famille et toutes ses données (irréversible)</label>
+                </div>
+            </div>
+            <div id="dam-simple-notice" style="display:none">
+                <p id="dam-simple-text"></p>
+            </div>
+            <div class="form-group">
+                <label>Tapez <strong>SUPPRIMER</strong> pour confirmer</label>
+                <input type="text" id="dam-confirm-text" placeholder="SUPPRIMER" autocomplete="off">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('delete-account-modal')">Annuler</button>
+            <button class="btn btn-danger" onclick="confirmDeleteAccount()">Supprimer définitivement</button>
+        </div>
+    </div>
+</div>
 
 <script>
 // Prevent double-submission on all settings forms
@@ -480,6 +540,50 @@ async function sendInvitation() {
         return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 })();
+
+// ── Suppression de compte ───────────────────────────────────────
+const DAM_IS_ADMIN = <?= $user['role'] === 'admin' ? 'true' : 'false' ?>;
+const DAM_OTHER_MEMBERS = <?= json_encode(array_values(array_map(
+    fn($m) => ['id' => $m['id'], 'name' => $m['name']],
+    array_filter($members, fn($m) => (int)$m['id'] !== (int)$user['id'])
+))) ?>;
+
+function openDeleteAccountModal() {
+    document.getElementById('dam-confirm-text').value = '';
+    document.getElementById('dam-admin-choice').style.display = 'none';
+    document.getElementById('dam-simple-notice').style.display = 'none';
+
+    if (DAM_IS_ADMIN && DAM_OTHER_MEMBERS.length > 0) {
+        const sel = document.getElementById('dam-transfer-target');
+        sel.innerHTML = DAM_OTHER_MEMBERS.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+        document.getElementById('dam-admin-choice').style.display = '';
+    } else {
+        document.getElementById('dam-simple-text').textContent = DAM_IS_ADMIN
+            ? "Vous êtes le seul membre de cette famille : la suppression de votre compte supprimera aussi toute la famille et ses données."
+            : "Votre compte et les données que vous avez créées seront définitivement supprimés.";
+        document.getElementById('dam-simple-notice').style.display = '';
+    }
+    openModal('delete-account-modal');
+}
+
+async function confirmDeleteAccount() {
+    if (document.getElementById('dam-confirm-text').value.trim().toUpperCase() !== 'SUPPRIMER') {
+        Dialog.toast('Tapez SUPPRIMER pour confirmer.', 'error');
+        return;
+    }
+    const body = {};
+    if (DAM_IS_ADMIN && DAM_OTHER_MEMBERS.length > 0) {
+        const action = document.querySelector('input[name="dam-action"]:checked').value;
+        body.action = action;
+        if (action === 'transfer') body.transfer_to_user_id = document.getElementById('dam-transfer-target').value;
+    }
+    const r = await apiFetch(BASE_URL + '/settings/delete-account', { method: 'POST', body: JSON.stringify(body) });
+    if (r.success) {
+        window.location.href = r.redirect || (BASE_URL + '/login');
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}
 </script>
 <?php
 $content = ob_get_clean();
