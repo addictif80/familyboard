@@ -152,6 +152,11 @@ $router->post('/api/albums/:id/delete', [AlbumController::class, 'delete']);
 $router->post('/api/albums/:id/share', [AlbumController::class, 'share']);
 $router->post('/albums/:id/photos', [AlbumController::class, 'addPhoto']);
 $router->post('/api/albums/photos/:id/delete', [AlbumController::class, 'deletePhoto']);
+$router->post('/api/albums/:id/public-link', [AlbumController::class, 'publicLinkCreate']);
+$router->post('/api/albums/:id/public-link/update', [AlbumController::class, 'publicLinkUpdate']);
+$router->post('/api/albums/:id/public-link/revoke', [AlbumController::class, 'publicLinkRevoke']);
+$router->get('/album/:token', [AlbumController::class, 'publicView']);
+$router->post('/album/:token/photos', [AlbumController::class, 'publicUpload']);
 
 // Tasks
 $router->get('/tasks', [TaskController::class, 'index']);
