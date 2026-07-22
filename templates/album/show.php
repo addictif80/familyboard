@@ -16,6 +16,7 @@ ob_start();
             <button class="btn btn-secondary btn-sm" onclick="albumOpenEditModal(<?= (int)$album['id'] ?>, <?= htmlspecialchars(json_encode($album['title']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($album['description'] ?? ''), ENT_QUOTES) ?>)">Renommer</button>
             <?php if ($user['role'] === 'admin'): ?>
             <button class="btn btn-secondary btn-sm" onclick="albumOpenShareModal(<?= (int)$album['id'] ?>, <?= (int)($album['custody_schedule_id'] ?? 0) ?>)">Partager</button>
+            <button class="btn btn-secondary btn-sm" onclick="albumOpenPublicLinkModal(<?= (int)$album['id'] ?>, <?= htmlspecialchars(json_encode($shareLink ?: null), ENT_QUOTES) ?>)">🔗 Lien public</button>
             <?php endif; ?>
             <button class="btn btn-danger btn-sm" onclick="albumDelete(<?= (int)$album['id'] ?>)">Supprimer l'album</button>
         </div>
@@ -36,11 +37,15 @@ ob_start();
 
 <div class="album-photo-grid">
     <?php foreach ($photos as $photo): ?>
-        <?php $canDeletePhoto = $user['role'] === 'admin' || (int)$photo['user_id'] === (int)$user['id']; ?>
+        <?php
+            $canDeletePhoto = $user['role'] === 'admin' || (int)$photo['user_id'] === (int)$user['id'];
+            $photoAuthor = $photo['user_name'] ?? $photo['uploader_name'] ?? 'Invité';
+            $photoColor  = $photo['user_color'] ?? '#95A5A6';
+        ?>
         <div class="album-photo">
             <img src="<?= BASE_URL . htmlspecialchars($photo['image_path']) ?>" alt="" loading="lazy" onclick="albumViewPhoto(this.src)">
             <div class="album-photo-meta">
-                <span title="<?= htmlspecialchars($photo['user_name']) ?>" style="color:<?= htmlspecialchars($photo['user_color']) ?>">● <?= htmlspecialchars($photo['user_name']) ?></span>
+                <span title="<?= htmlspecialchars($photoAuthor) ?>" style="color:<?= htmlspecialchars($photoColor) ?>">● <?= htmlspecialchars($photoAuthor) ?></span>
                 <?php if ($canDeletePhoto): ?>
                     <button class="album-photo-delete" onclick="albumDeletePhoto(<?= (int)$photo['id'] ?>, this)" title="Supprimer">✕</button>
                 <?php endif; ?>
@@ -102,6 +107,44 @@ ob_start();
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('album-share-modal')">Annuler</button>
             <button class="btn btn-primary" onclick="albumSaveShare()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Public link modal (admin only) -->
+<div class="modal-overlay" id="album-public-link-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>🔗 Lien public</h3>
+            <button onclick="closeModal('album-public-link-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="album-public-link-album-id">
+            <p style="color:var(--text-muted);font-size:.85rem">Toute personne disposant de ce lien peut voir les photos de l'album, sans avoir de compte FamilyBoard. Vous pouvez l'autoriser à ajouter ses propres photos.</p>
+
+            <div id="album-public-link-inactive">
+                <div class="form-group album-public-link-checkbox">
+                    <label><input type="checkbox" id="album-public-link-allow-upload-new"> Autoriser l'ajout de photos par le destinataire</label>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="albumGeneratePublicLink()">Générer un lien public</button>
+            </div>
+
+            <div id="album-public-link-active" style="display:none">
+                <div class="form-group">
+                    <label>Lien à partager</label>
+                    <div style="display:flex;gap:.5rem">
+                        <input type="text" id="album-public-link-url" readonly style="flex:1">
+                        <button class="btn btn-secondary btn-sm" onclick="albumCopyPublicLink()">Copier</button>
+                    </div>
+                </div>
+                <div class="form-group album-public-link-checkbox">
+                    <label><input type="checkbox" id="album-public-link-allow-upload" onchange="albumToggleAllowUpload()"> Autoriser l'ajout de photos par le destinataire</label>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="albumRevokePublicLink()">Révoquer le lien</button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('album-public-link-modal')">Fermer</button>
         </div>
     </div>
 </div>

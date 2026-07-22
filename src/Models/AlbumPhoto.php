@@ -9,7 +9,7 @@ class AlbumPhoto
     {
         return Database::fetchAll(
             'SELECT p.*, u.name as user_name, u.color as user_color
-             FROM album_photos p JOIN users u ON u.id=p.user_id
+             FROM album_photos p LEFT JOIN users u ON u.id=p.user_id
              WHERE p.album_id=? ORDER BY p.created_at DESC',
             [$albumId]
         );
@@ -26,11 +26,22 @@ class AlbumPhoto
         );
     }
 
-    public static function create(int $albumId, int $userId, string $imagePath, string $caption = ''): int
-    {
+    /**
+     * $userId est NULL pour un ajout via lien public (visiteur sans compte) —
+     * on garde alors $uploaderName (saisi librement) et $shareLinkId pour
+     * l'affichage et la traçabilité.
+     */
+    public static function create(
+        int $albumId,
+        ?int $userId,
+        string $imagePath,
+        string $caption = '',
+        ?string $uploaderName = null,
+        ?int $shareLinkId = null
+    ): int {
         return Database::insert(
-            'INSERT INTO album_photos (album_id, user_id, image_path, caption) VALUES (?,?,?,?)',
-            [$albumId, $userId, $imagePath, $caption ?: null]
+            'INSERT INTO album_photos (album_id, user_id, image_path, caption, uploader_name, share_link_id) VALUES (?,?,?,?,?,?)',
+            [$albumId, $userId, $imagePath, $caption ?: null, $uploaderName ?: null, $shareLinkId]
         );
     }
 

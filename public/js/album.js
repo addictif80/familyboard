@@ -104,3 +104,73 @@ function albumViewPhoto(src) {
     document.getElementById('album-lightbox-img').src = src;
     openModal('album-lightbox');
 }
+
+// ---- Public share link (admin only) ----
+
+function albumOpenPublicLinkModal(albumId, link) {
+    document.getElementById('album-public-link-album-id').value = albumId;
+    const inactive = document.getElementById('album-public-link-inactive');
+    const active = document.getElementById('album-public-link-active');
+
+    if (link) {
+        inactive.style.display = 'none';
+        active.style.display = 'block';
+        document.getElementById('album-public-link-url').value = link.url || (BASE_URL + '/album/' + link.token);
+        document.getElementById('album-public-link-allow-upload').checked = Number(link.allow_upload) === 1;
+    } else {
+        inactive.style.display = 'block';
+        active.style.display = 'none';
+        document.getElementById('album-public-link-allow-upload-new').checked = false;
+    }
+    openModal('album-public-link-modal');
+}
+
+async function albumGeneratePublicLink() {
+    const albumId = document.getElementById('album-public-link-album-id').value;
+    const allowUpload = document.getElementById('album-public-link-allow-upload-new').checked;
+
+    const result = await apiFetch(BASE_URL + '/api/albums/' + albumId + '/public-link', {
+        method: 'POST',
+        body: JSON.stringify({ allow_upload: allowUpload }),
+    });
+
+    if (result.success) {
+        albumOpenPublicLinkModal(albumId, result.link);
+        Dialog.toast('Lien public généré.', 'success');
+    } else {
+        Dialog.toast(result.error || 'Erreur lors de la génération du lien.', 'error');
+    }
+}
+
+async function albumToggleAllowUpload() {
+    const albumId = document.getElementById('album-public-link-album-id').value;
+    const allowUpload = document.getElementById('album-public-link-allow-upload').checked;
+
+    const result = await apiFetch(BASE_URL + '/api/albums/' + albumId + '/public-link/update', {
+        method: 'POST',
+        body: JSON.stringify({ allow_upload: allowUpload }),
+    });
+    if (!result.success) {
+        Dialog.toast(result.error || 'Erreur lors de la mise à jour.', 'error');
+    }
+}
+
+async function albumRevokePublicLink() {
+    const ok = await Dialog.confirm('Révoquer ce lien public ? Il ne fonctionnera plus.');
+    if (!ok) return;
+
+    const albumId = document.getElementById('album-public-link-album-id').value;
+    const result = await apiFetch(BASE_URL + '/api/albums/' + albumId + '/public-link/revoke', { method: 'POST' });
+    if (result.success) {
+        albumOpenPublicLinkModal(albumId, null);
+        Dialog.toast('Lien révoqué.', 'success');
+    } else {
+        Dialog.toast(result.error || 'Erreur lors de la révocation.', 'error');
+    }
+}
+
+function albumCopyPublicLink() {
+    const input = document.getElementById('album-public-link-url');
+    input.select();
+    navigator.clipboard?.writeText(input.value).then(() => Dialog.toast('Lien copié.', 'success'));
+}

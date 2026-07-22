@@ -4,6 +4,7 @@ namespace App\Controllers;
 use App\Core\Session;
 use App\Models\Album;
 use App\Models\AlbumPhoto;
+use App\Models\AlbumShareLink;
 use App\Models\Custody;
 
 class AlbumController extends BaseController
@@ -30,6 +31,7 @@ class AlbumController extends BaseController
         $photos = AlbumPhoto::getByAlbum($album['id']);
         $canManage = $this->canManageAlbum($album, $user);
         $schedules = $user['role'] === 'admin' ? Custody::getSchedules($user['family_id']) : [];
+        $shareLink = $user['role'] === 'admin' ? AlbumShareLink::getByAlbum($album['id']) : null;
         require BASE_PATH . '/templates/album/show.php';
     }
 
@@ -153,6 +155,95 @@ class AlbumController extends BaseController
         });
     }
 
+    // ── Lien de partage public (admin uniquement — mêmes règles que le partage classique) ──
+
+    public function publicLinkCreate(array $params): void
+    {
+        $this->requireAdmin();
+        $this->json(function () use ($params) {
+            $user  = Session::user();
+            $album = Album::getById((int)$params['id']);
+            if (!$album || (int)$album['family_id'] !== (int)$user['family_id']) {
+                return ['success' => false, 'error' => 'Album introuvable.'];
+            }
+
+            $allowUpload = !empty($this->jsonInput()['allow_upload']);
+            $existing = AlbumShareLink::getByAlbum($album['id']);
+            if ($existing) AlbumShareLink::revoke($existing['id']);
+
+            $link = AlbumShareLink::create($album['id'], $user['id'], $allowUpload);
+            $link['url'] = rtrim($this->originUrl(), '/') . BASE_URL . '/album/' . $link['token'];
+            return ['success' => true, 'link' => $link];
+        });
+    }
+
+    public function publicLinkUpdate(array $params): void
+    {
+        $this->requireAdmin();
+        $this->json(function () use ($params) {
+            $user  = Session::user();
+            $album = Album::getById((int)$params['id']);
+            if (!$album || (int)$album['family_id'] !== (int)$user['family_id']) {
+                return ['success' => false, 'error' => 'Album introuvable.'];
+            }
+
+            $link = AlbumShareLink::getByAlbum($album['id']);
+            if (!$link) return ['success' => false, 'error' => 'Aucun lien public actif.'];
+
+            AlbumShareLink::setAllowUpload($link['id'], !empty($this->jsonInput()['allow_upload']));
+            return ['success' => true];
+        });
+    }
+
+    public function publicLinkRevoke(array $params): void
+    {
+        $this->requireAdmin();
+        $this->json(function () use ($params) {
+            $user  = Session::user();
+            $album = Album::getById((int)$params['id']);
+            if (!$album || (int)$album['family_id'] !== (int)$user['family_id']) {
+                return ['success' => false, 'error' => 'Album introuvable.'];
+            }
+
+            $link = AlbumShareLink::getByAlbum($album['id']);
+            if ($link) AlbumShareLink::revoke($link['id']);
+            return ['success' => true];
+        });
+    }
+
+    /** Vue publique, sans connexion, d'un album partagé via lien. */
+    public function publicView(array $params): void
+    {
+        $token = $params['token'] ?? '';
+        $link  = AlbumShareLink::findValidByToken($token);
+        $album = $link ? Album::getById((int)$link['album_id']) : null;
+        if (!$album) http_response_code(404);
+        $photos = $album ? AlbumPhoto::getByAlbum($album['id']) : [];
+        require BASE_PATH . '/templates/album/public.php';
+    }
+
+    public function publicUpload(array $params): void
+    {
+        $token = $params['token'] ?? '';
+        $this->json(function () use ($token) {
+            $link = AlbumShareLink::findValidByToken($token);
+            if (!$link || !$link['allow_upload']) {
+                return ['success' => false, 'error' => 'Ajout de photos non autorisé.'];
+            }
+            $album = Album::getById((int)$link['album_id']);
+            if (!$album) return ['success' => false, 'error' => 'Album introuvable.'];
+
+            $imagePath = $this->uploadImage('image');
+            if (!$imagePath) {
+                return ['success' => false, 'error' => "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement)."];
+            }
+
+            $uploaderName = trim($_POST['uploader_name'] ?? '') ?: null;
+            $photoId = AlbumPhoto::create($album['id'], null, $imagePath, '', $uploaderName, (int)$link['id']);
+            return ['success' => true, 'id' => $photoId, 'image_path' => $imagePath, 'uploader_name' => $uploaderName ?? 'Invité'];
+        });
+    }
+
     private function canManageAlbum(array $album, array $user): bool
     {
         return $user['role'] === 'admin' || (int)$album['user_id'] === (int)$user['id'];
@@ -163,5 +254,11 @@ class AlbumController extends BaseController
         if ($path && file_exists(BASE_PATH . $path)) {
             @unlink(BASE_PATH . $path);
         }
+    }
+
+    private function originUrl(): string
+    {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
     }
 }

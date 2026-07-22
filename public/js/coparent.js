@@ -81,7 +81,7 @@ function cpRenderAlbumPhotos(photos) {
     grid.innerHTML = photos.map(p => `
         <div class="album-photo">
             <img src="${BASE_URL}${escapeHtml(p.image_path)}" alt="" loading="lazy">
-            <div class="album-photo-meta" style="color:${escapeHtml(p.user_color || '#888')}">● ${escapeHtml(p.user_name)}</div>
+            <div class="album-photo-meta" style="color:${escapeHtml(p.user_color || '#888')}">● ${escapeHtml(p.user_name || p.uploader_name || 'Invité')}</div>
         </div>
     `).join('');
 }
