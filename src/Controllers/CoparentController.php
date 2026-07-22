@@ -4,6 +4,8 @@ namespace App\Controllers;
 use App\Core\Database;
 use App\Core\OcrHelper;
 use App\Core\Session;
+use App\Models\Album;
+use App\Models\AlbumPhoto;
 use App\Models\Custody;
 use App\Models\CustodyActivityLog;
 use App\Models\CommLogMessage;
@@ -298,6 +300,59 @@ class CoparentController extends BaseController
             $id = Event::create($data);
             CustodyActivityLog::record($scheduleId, $user['id'], 'event_created', $data['title'] ?? null);
             return ['success' => true, 'id' => $id];
+        });
+    }
+
+    /**
+     * Albums partagés : lecture seule sur les albums, à l'exception de l'ajout de
+     * photos, autorisé pour un co-parent ayant accès au planning de garde auquel
+     * l'album est rattaché. Création/modification/suppression d'albums ou de
+     * photos restent réservées à l'admin de la famille (voir AlbumController).
+     */
+    public function albumsList(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            $scheduleIds = array_column(Custody::getSchedulesForUser($user['id']), 'id');
+            return Album::getForSchedules($scheduleIds);
+        });
+    }
+
+    public function albumShow(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $scheduleIds = array_column(Custody::getSchedulesForUser($user['id']), 'id');
+            $album = Album::getForSchedulesById((int)$params['id'], $scheduleIds);
+            if (!$album) return ['error' => 'Accès non autorisé'];
+            return ['album' => $album, 'photos' => AlbumPhoto::getByAlbum($album['id'])];
+        });
+    }
+
+    public function albumPhotoUpload(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $scheduleIds = array_column(Custody::getSchedulesForUser($user['id']), 'id');
+            $album = Album::getForSchedulesById((int)$params['id'], $scheduleIds);
+            if (!$album) return ['success' => false, 'error' => 'Accès non autorisé'];
+
+            $imagePath = $this->uploadImage('image');
+            if (!$imagePath) {
+                return ['success' => false, 'error' => "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement)."];
+            }
+
+            $photoId = AlbumPhoto::create($album['id'], $user['id'], $imagePath, trim($_POST['caption'] ?? ''));
+            Notification::notifyFamily(
+                (int)$album['family_id'], $user['id'], 'albums', 'Nouvelle photo',
+                $user['name'] . ' a ajouté une photo à l\'album "' . $album['title'] . '".',
+                BASE_URL . '/albums/' . $album['id']
+            );
+
+            return ['success' => true, 'id' => $photoId, 'image_path' => $imagePath, 'user_name' => $user['name'], 'user_color' => $user['color']];
         });
     }
 }

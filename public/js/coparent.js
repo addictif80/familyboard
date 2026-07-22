@@ -26,9 +26,84 @@ function cpShowTab(panelId) {
 function cpLoadAll() {
     cpLoadCustody();
     cpLoadJournal();
+    cpLoadAlbums();
     cpLoadDocuments();
     cpLoadEvents();
     cpLoadActivityLog();
+}
+
+// ── Albums photo partagés ────────────────────────────────────────────────
+
+let cpCurrentAlbumId = null;
+
+async function cpLoadAlbums() {
+    const albums = await apiFetch(`${BASE_URL}/api/coparent/albums`);
+    const grid = document.getElementById('cp-albums-grid');
+    if (!Array.isArray(albums) || !albums.length) {
+        grid.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucun album partagé pour l\'instant.</p>';
+        return;
+    }
+    grid.innerHTML = albums.map(a => `
+        <div class="album-card" onclick="cpOpenAlbum(${a.id})">
+            <div class="album-cover" ${a.cover_path ? `style="background-image:url('${BASE_URL}${escapeHtml(a.cover_path)}')"` : ''}>
+                ${a.cover_path ? '' : '<span class="album-cover-placeholder">🖼️</span>'}
+            </div>
+            <div class="album-info">
+                <strong>${escapeHtml(a.title)}</strong>
+                <span class="album-meta">${a.photo_count} photo${a.photo_count > 1 ? 's' : ''}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function cpOpenAlbum(id) {
+    cpCurrentAlbumId = id;
+    document.getElementById('cp-album-photos').innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>';
+    openModal('cp-album-modal');
+
+    const data = await apiFetch(`${BASE_URL}/api/coparent/albums/${id}`);
+    if (data.error) {
+        Dialog.toast(data.error, 'error');
+        closeModal('cp-album-modal');
+        return;
+    }
+    document.getElementById('cp-album-title').textContent = data.album.title;
+    document.getElementById('cp-album-id').value = id;
+    cpRenderAlbumPhotos(data.photos || []);
+}
+
+function cpRenderAlbumPhotos(photos) {
+    const grid = document.getElementById('cp-album-photos');
+    if (!photos.length) {
+        grid.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucune photo pour l\'instant.</p>';
+        return;
+    }
+    grid.innerHTML = photos.map(p => `
+        <div class="album-photo">
+            <img src="${BASE_URL}${escapeHtml(p.image_path)}" alt="" loading="lazy">
+            <div class="album-photo-meta" style="color:${escapeHtml(p.user_color || '#888')}">● ${escapeHtml(p.user_name)}</div>
+        </div>
+    `).join('');
+}
+
+async function cpUploadAlbumPhoto() {
+    const input = document.getElementById('cp-album-photo-input');
+    const file = input.files[0];
+    if (!file || !cpCurrentAlbumId) return;
+
+    const fd = new FormData();
+    fd.append('image', file);
+
+    const res = await fetch(`${BASE_URL}/api/coparent/albums/${cpCurrentAlbumId}/photos`, { method: 'POST', body: fd });
+    const result = await res.json();
+    input.value = '';
+
+    if (result.success) {
+        cpOpenAlbum(cpCurrentAlbumId);
+        cpLoadAlbums();
+    } else {
+        Dialog.toast(result.error || "Erreur lors de l'envoi.", 'error');
+    }
 }
 
 // ── Journal d'activité ───────────────────────────────────────────────────

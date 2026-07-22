@@ -36,6 +36,7 @@ ob_start();
 <div class="coparent-tabs">
     <button class="coparent-tab active" data-panel="cp-panel-calendar" onclick="cpShowTab('cp-panel-calendar')">📅 Calendrier de garde</button>
     <button class="coparent-tab" data-panel="cp-panel-journal" onclick="cpShowTab('cp-panel-journal')">📝 Journal parental</button>
+    <button class="coparent-tab" data-panel="cp-panel-albums" onclick="cpShowTab('cp-panel-albums')">🖼️ Albums</button>
     <button class="coparent-tab" data-panel="cp-panel-documents" onclick="cpShowTab('cp-panel-documents')">🗂️ Documents</button>
     <button class="coparent-tab" data-panel="cp-panel-events" onclick="cpShowTab('cp-panel-events')">📆 Évènements</button>
     <button class="coparent-tab" data-panel="cp-panel-activity" onclick="cpShowTab('cp-panel-activity')">📜 Journal d'activité</button>
@@ -60,6 +61,16 @@ ob_start();
             <button type="button" class="voice-record-btn" id="cp-voice-btn" title="Message vocal">🎤</button>
             <button class="btn btn-primary" onclick="cpSendJournal()">Envoyer</button>
         </div>
+    </div>
+</div>
+
+<div class="coparent-panel" id="cp-panel-albums">
+    <div class="card" style="padding:1.25rem">
+        <h3 style="margin-top:0">Albums partagés</h3>
+        <p style="color:var(--text-muted);font-size:.8rem;margin-top:-.5rem;margin-bottom:1rem">
+            Vous pouvez ajouter vos propres photos aux albums partagés ci-dessous, et voir celles ajoutées par l'autre parent.
+        </p>
+        <div id="cp-albums-grid" class="album-grid"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
     </div>
 </div>
 
@@ -146,6 +157,26 @@ ob_start();
     </div>
 </div>
 
+<!-- Album detail modal -->
+<div class="modal-overlay" id="cp-album-modal" style="display:none">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <h3 id="cp-album-title">Album</h3>
+            <button onclick="closeModal('cp-album-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="cp-album-id">
+            <div style="margin-bottom:.75rem">
+                <label class="btn btn-secondary btn-sm" for="cp-album-photo-input">
+                    📷 Ajouter une photo
+                    <input type="file" id="cp-album-photo-input" accept="image/*" style="display:none" onchange="cpUploadAlbumPhoto()">
+                </label>
+            </div>
+            <div id="cp-album-photos" class="album-photo-grid"></div>
+        </div>
+    </div>
+</div>
+
 <!-- Create family modal -->
 <div class="modal-overlay" id="cp-create-family-modal" style="display:none">
     <div class="modal">
@@ -183,6 +214,16 @@ ob_start();
 .cp-doc-item:last-child, .cp-event-item:last-child, .cp-custody-item:last-child { border-bottom:none; }
 .cp-journal-msg { background:var(--bg); border-radius:10px; padding:.5rem .75rem; font-size:.88rem; }
 .cp-journal-msg .cp-journal-meta { font-size:.72rem; color:var(--text-muted); margin-bottom:.15rem; }
+.album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:1rem; }
+.album-card { display:block; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-decoration:none; color:var(--text); cursor:pointer; }
+.album-cover { aspect-ratio:1; background:var(--bg) center/cover no-repeat; display:flex; align-items:center; justify-content:center; }
+.album-cover-placeholder { font-size:2.5rem; opacity:.4; }
+.album-info { padding:.5rem .65rem; display:flex; flex-direction:column; gap:.1rem; }
+.album-meta { font-size:.75rem; color:var(--text-muted); }
+.album-photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.6rem; }
+.album-photo { border-radius:10px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border); }
+.album-photo img { width:100%; aspect-ratio:1; object-fit:cover; display:block; }
+.album-photo-meta { padding:.3rem .45rem; font-size:.7rem; color:var(--text-muted); }
 </style>
 
 <script>

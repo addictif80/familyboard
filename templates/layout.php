@@ -94,6 +94,14 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 </a>
             </li>
             <?php endif; ?>
+            <?php if (!in_array('albums', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/albums" class="nav-link">
+                    <span class="nav-icon">🖼️</span>
+                    <span class="nav-label">Albums photo</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if (!in_array('calendar', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/calendar" class="nav-link">
