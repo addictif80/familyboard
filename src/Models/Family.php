@@ -8,6 +8,7 @@ class Family
     /** All disableable modules: slug => [label, icon] */
     public const MODULES = [
         'wall'        => ['label' => 'Mur familial',     'icon' => '📸'],
+        'albums'      => ['label' => 'Albums photo',     'icon' => '🖼️'],
         'calendar'    => ['label' => 'Calendrier',        'icon' => '📅'],
         'custody'     => ['label' => 'Garde alternée',    'icon' => '👶'],
         'tasks'       => ['label' => 'Tâches & Courses',  'icon' => '✅'],

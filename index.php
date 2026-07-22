@@ -37,6 +37,7 @@ use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\CalendarController;
 use App\Controllers\WallController;
+use App\Controllers\AlbumController;
 use App\Controllers\TaskController;
 use App\Controllers\ChatController;
 use App\Controllers\BudgetController;
@@ -142,6 +143,16 @@ $router->post('/api/wall/:id/comment', [WallController::class, 'addComment']);
 $router->post('/api/wall/:id/react', [WallController::class, 'toggleReaction']);
 $router->get('/api/wall/more', [WallController::class, 'loadMore']);
 
+// Albums photo
+$router->get('/albums', [AlbumController::class, 'index']);
+$router->get('/albums/:id', [AlbumController::class, 'show']);
+$router->post('/api/albums', [AlbumController::class, 'create']);
+$router->post('/api/albums/:id', [AlbumController::class, 'update']);
+$router->post('/api/albums/:id/delete', [AlbumController::class, 'delete']);
+$router->post('/api/albums/:id/share', [AlbumController::class, 'share']);
+$router->post('/albums/:id/photos', [AlbumController::class, 'addPhoto']);
+$router->post('/api/albums/photos/:id/delete', [AlbumController::class, 'deletePhoto']);
+
 // Tasks
 $router->get('/tasks', [TaskController::class, 'index']);
 $router->post('/tasks/list', [TaskController::class, 'createList']);
@@ -205,6 +216,9 @@ $router->get('/api/coparent/documents', [CoparentController::class, 'documentsLi
 $router->post('/api/coparent/documents', [CoparentController::class, 'documentsUpload']);
 $router->get('/api/coparent/events', [CoparentController::class, 'eventsList']);
 $router->post('/api/coparent/events', [CoparentController::class, 'eventsCreate']);
+$router->get('/api/coparent/albums', [CoparentController::class, 'albumsList']);
+$router->get('/api/coparent/albums/:id', [CoparentController::class, 'albumShow']);
+$router->post('/api/coparent/albums/:id/photos', [CoparentController::class, 'albumPhotoUpload']);
 
 // Projects
 $router->get('/projects', [ProjectController::class, 'index']);
