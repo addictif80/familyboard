@@ -482,4 +482,32 @@ document.querySelectorAll('.alert').forEach(el => {
     setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .5s'; setTimeout(() => el.remove(), 500); }, 4000);
 });
 
+// ---- Automatic technical-error reporting (continuous monitoring) ----
+// Reports uncaught JS errors so the server can open a support ticket in the
+// current user's name (see ErrorReportController / App\Core\ErrorReporter).
+// No-ops server-side for anonymous visitors — nothing to attribute a ticket to.
+const _errorReportSeen = {};
+function reportClientError(message, extra = {}) {
+    if (!message) return;
+    const key = message + '|' + (extra.file || '') + ':' + (extra.line || '');
+    const now = Date.now();
+    if (_errorReportSeen[key] && now - _errorReportSeen[key] < 10000) return; // debounce identical bursts client-side
+    _errorReportSeen[key] = now;
+
+    fetch(BASE_URL + '/api/errors/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ message, url: location.href, ...extra }),
+        keepalive: true,
+    }).catch(() => {});
+}
+
+window.addEventListener('error', e => {
+    reportClientError(e.message || 'Erreur inconnue', { file: e.filename, line: e.lineno });
+});
+window.addEventListener('unhandledrejection', e => {
+    const reason = e.reason;
+    reportClientError(reason && reason.message ? reason.message : String(reason));
+});
+
 // BASE_URL is set in layout.php
