@@ -510,4 +510,76 @@ window.addEventListener('unhandledrejection', e => {
     reportClientError(reason && reason.message ? reason.message : String(reason));
 });
 
+// Many failures (a library logging a failed render, a fetch()'s non-ok
+// response handled without throwing) never reach window.onerror — they only
+// show up as console.error. Mirror those into the same reporting pipeline
+// so "silent" breakage still opens a ticket, without changing what's logged.
+const _origConsoleError = console.error.bind(console);
+console.error = function (...args) {
+    _origConsoleError(...args);
+    try {
+        reportClientError(args.map(a => (a && a.stack) ? a.stack : String(a)).join(' '));
+    } catch { /* never let reporting itself break the app */ }
+};
+
+// ---- Manual, one-click problem report ("Signaler un problème") ----
+// For users who can't describe a bug technically (or when nothing actually
+// throws — e.g. a section just renders empty) : one button, no jargon, a
+// diagnostic bundle (browser, PWA cache/service-worker state, page) is
+// attached automatically so support can investigate without back-and-forth.
+async function collectDiagnostics() {
+    const diag = {
+        'Page': location.href,
+        'Navigateur': navigator.userAgent,
+        'Écran': screen.width + 'x' + screen.height + ' (fenêtre ' + window.innerWidth + 'x' + window.innerHeight + ')',
+        'En ligne': navigator.onLine ? 'oui' : 'non',
+        'Version app chargée': typeof APP_VERSION !== 'undefined' ? APP_VERSION : '?',
+    };
+    try {
+        if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.getRegistration();
+            diag['Service worker'] = reg
+                ? ('actif=' + !!reg.active + ' en_attente=' + !!reg.waiting + ' script=' + (reg.active ? reg.active.scriptURL : '?'))
+                : 'non enregistré';
+        }
+    } catch { /* best-effort diagnostic only */ }
+    try {
+        if ('caches' in window) {
+            const keys = await caches.keys();
+            diag['Caches PWA'] = keys.join(', ') || '(aucun)';
+        }
+    } catch { /* best-effort diagnostic only */ }
+    return diag;
+}
+
+async function reportManualIssue(description) {
+    const diagnostics = await collectDiagnostics();
+    return apiFetch(BASE_URL + '/api/errors/report-manual', {
+        method: 'POST',
+        body: JSON.stringify({ description, diagnostics }),
+    });
+}
+
+function openReportIssueModal() {
+    const el = document.getElementById('report-issue-description');
+    if (el) el.value = '';
+    openModal('report-issue-modal');
+}
+
+async function submitReportIssue() {
+    const btn = document.getElementById('report-issue-submit-btn');
+    const description = document.getElementById('report-issue-description')?.value.trim() || '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Envoi…'; }
+
+    const result = await reportManualIssue(description);
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Envoyer'; }
+    if (result && result.success) {
+        closeModal('report-issue-modal');
+        Dialog.toast('Signalement envoyé, merci ! Le support a été prévenu.', 'success');
+    } else {
+        Dialog.toast((result && result.error) || "Erreur lors de l'envoi du signalement.", 'error');
+    }
+}
+
 // BASE_URL is set in layout.php

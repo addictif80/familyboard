@@ -333,6 +333,7 @@ $router->post('/api/push/unsubscribe', [PushController::class, 'unsubscribe']);
 
 // Remontée automatique d'erreurs techniques (surveillance continue)
 $router->post('/api/errors/report', [ErrorReportController::class, 'report']);
+$router->post('/api/errors/report-manual', [ErrorReportController::class, 'reportManual']);
 
 // Warranties
 $router->get('/warranties', [WarrantyController::class, 'index']);

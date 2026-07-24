@@ -67,9 +67,9 @@ class SupportTicket
         );
     }
 
-    public static function markAuto(int $id, string $hash): void
+    public static function markSource(int $id, string $source, ?string $hash = null): void
     {
-        Database::execute("UPDATE support_tickets SET source='auto', error_hash=? WHERE id=?", [$hash, $id]);
+        Database::execute('UPDATE support_tickets SET source=?, error_hash=? WHERE id=?', [$source, $hash, $id]);
     }
 
     // ── Messages ────────────────────────────────────────────────
