@@ -271,6 +271,9 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
         <header class="topbar">
             <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
             <h1 class="page-title"><?= htmlspecialchars($pageTitle ?? '') ?></h1>
+            <div class="alert-banner" id="alert-banner" style="display:none">
+                <div class="alert-banner-track" id="alert-banner-track"></div>
+            </div>
             <div class="topbar-actions">
                 <button class="btn-icon" onclick="openReportIssueModal()" title="Signaler un problème">🐞</button>
                 <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème">

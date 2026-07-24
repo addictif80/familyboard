@@ -46,6 +46,7 @@ use App\Controllers\MealController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
 use App\Controllers\NotificationController;
+use App\Controllers\AlertController;
 use App\Controllers\ErrorReportController;
 
 Session::start();
@@ -329,6 +330,7 @@ $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNo
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
 $router->post('/settings/notify', [SettingsController::class, 'sendNotification']);
 $router->get('/notifications/:id', [NotificationController::class, 'show']);
+$router->get('/api/alerts/active', [AlertController::class, 'active']);
 
 // Push notifications
 $router->get('/api/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);

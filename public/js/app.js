@@ -170,15 +170,60 @@ function loadNotifications() {
 }
 
 function readNotif(id, link) {
-    fetch(BASE_URL + '/api/notifications/' + id + '/read', { method: 'POST' });
+    apiFetch(BASE_URL + '/api/notifications/' + id + '/read', { method: 'POST' });
     if (link && link !== '#') window.location.href = link;
     toggleNotifications();
 }
 
 function markAllRead() {
-    fetch(BASE_URL + '/api/notifications/read-all', { method: 'POST' })
+    apiFetch(BASE_URL + '/api/notifications/read-all', { method: 'POST' })
         .then(() => loadNotifications());
 }
+
+// ---- Official alerts banner (veille informationnelle) ----
+let officialAlerts = [];
+let officialAlertIndex = 0;
+let officialAlertTimer = null;
+
+function loadOfficialAlerts() {
+    const banner = document.getElementById('alert-banner');
+    if (!banner) return;
+    fetch(BASE_URL + '/api/alerts/active')
+        .then(r => r.json())
+        .then(data => {
+            officialAlerts = data.alerts || [];
+            if (officialAlertTimer) { clearInterval(officialAlertTimer); officialAlertTimer = null; }
+            if (!officialAlerts.length) { banner.style.display = 'none'; return; }
+            banner.style.display = 'flex';
+            officialAlertIndex = 0;
+            renderCurrentOfficialAlert();
+            if (officialAlerts.length > 1) {
+                officialAlertTimer = setInterval(() => {
+                    officialAlertIndex = (officialAlertIndex + 1) % officialAlerts.length;
+                    renderCurrentOfficialAlert();
+                }, 7000);
+            }
+        })
+        .catch(() => {});
+}
+
+function renderCurrentOfficialAlert() {
+    const track = document.getElementById('alert-banner-track');
+    if (!track || !officialAlerts.length) return;
+    const a = officialAlerts[officialAlertIndex];
+    track.innerHTML = `
+        <span class="alert-banner-icon">${a.icon}</span>
+        <span class="alert-banner-cat">${escapeHtml(a.label)}</span>
+        <span class="alert-banner-title" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</span>
+        <a href="${escapeHtml(a.source_url)}" target="_blank" rel="noopener noreferrer" class="alert-banner-btn">S'informer</a>
+    `;
+    // Restart the fade-in animation on each rotation
+    track.style.animation = 'none';
+    void track.offsetWidth;
+    track.style.animation = '';
+}
+
+loadOfficialAlerts();
 
 // Add notification styles
 const style = document.createElement('style');

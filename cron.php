@@ -32,6 +32,14 @@ use App\Core\EmailLayout;
 
 $appUrl = (getenv('APP_URL') ?: 'https://board.abhd.fr') . BASE_URL;
 
+// Veille informationnelle (alertes enlèvement/canicule/inondation/feu de forêt/climatique/
+// industrielle) : voir App\Core\OfficialAlertFeed pour les limites de cette approche.
+try {
+    \App\Core\OfficialAlertFeed::poll();
+} catch (\Throwable $e) {
+    error_log('OfficialAlertFeed poll error: ' . $e->getMessage());
+}
+
 // Auto-sync CalDAV sources for families that have configured an interval
 syncCalDAVSources();
 
