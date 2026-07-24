@@ -83,6 +83,7 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $adminUsername = AppSetting::get('admin_username') ?? ADMIN_USER;
+        $adminEmail    = AppSetting::get('admin_email') ?? '';
         require BASE_PATH . '/templates/admin/profile.php';
     }
 
@@ -92,6 +93,7 @@ class AdminController extends BaseController
 
         $currentPass = $_POST['current_password'] ?? '';
         $newUser     = trim($_POST['username'] ?? '');
+        $newEmail    = trim($_POST['email'] ?? '');
         $newPass     = $_POST['new_password'] ?? '';
         $confirmPass = $_POST['confirm_password'] ?? '';
 
@@ -112,6 +114,12 @@ class AdminController extends BaseController
         if ($newUser !== '') {
             AppSetting::set('admin_username', $newUser);
         }
+
+        if ($newEmail !== '' && !filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
+            $this->redirect('/admin/profile?error=invalid_email');
+            return;
+        }
+        AppSetting::set('admin_email', $newEmail);
 
         if ($newPass !== '') {
             if ($newPass !== $confirmPass) {

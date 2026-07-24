@@ -50,7 +50,26 @@ class SupportTicket
             [$familyId, $userId, $subject]
         );
         self::addMessage($id, $userId, false, $firstMessage);
+        self::notifyAdminOfNewTicket($id, $familyId, $userId, $subject, $firstMessage);
         return $id;
+    }
+
+    /** Prévient l'administrateur système par email (si une adresse est renseignée) qu'un nouveau ticket a été ouvert. */
+    private static function notifyAdminOfNewTicket(int $id, int $familyId, int $userId, string $subject, string $firstMessage): void
+    {
+        $adminEmail = AppSetting::get('admin_email');
+        if (!$adminEmail) return;
+
+        try {
+            $user = User::findById($userId);
+            $html = '<p>Nouveau ticket de support ouvert par ' . htmlspecialchars($user['name'] ?? 'un utilisateur') . ' :</p>'
+                  . '<p><strong>' . htmlspecialchars($subject) . '</strong></p>'
+                  . '<p>' . nl2br(htmlspecialchars($firstMessage)) . '</p>'
+                  . '<p><a href="' . BASE_URL . '/admin/tickets/' . $id . '">Voir le ticket dans l\'administration</a></p>';
+            \App\Core\Mail::send($familyId, $adminEmail, 'Administrateur', '[FamilyBoard] Nouveau ticket : ' . $subject, $html, 'admin_ticket_notification');
+        } catch (\Throwable $e) {
+            error_log('Admin ticket notification email error: ' . $e->getMessage());
+        }
     }
 
     public static function setStatus(int $id, string $status): void
