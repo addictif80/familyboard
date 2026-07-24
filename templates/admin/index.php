@@ -45,13 +45,14 @@
     <!-- Content -->
     <main class="admin-content">
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['blocked','unblocked','smtp_saved','email_saved','notification_sent']) ? 'success' : 'info' ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['blocked','unblocked','smtp_saved','email_saved','notification_sent','meteofrance_saved']) ? 'success' : 'info' ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
                     'smtp_saved'          => 'Configuration SMTP enregistrée.',
                     'email_saved'         => 'Contenu de l\'email enregistré.',
                     'notification_sent'   => 'Notification envoyée à tous les utilisateurs.',
+                    'meteofrance_saved'   => 'Clé API Météo-France enregistrée.',
                     default       => ''
                 } ?>
             </div>
@@ -179,6 +180,29 @@
             };
         })();
         </script>
+
+        <h2 style="margin-top:2rem">Veille informationnelle — Météo-France Vigilance</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Le bandeau d'alertes (canicule, inondation, alerte climatique, catastrophe industrielle…) repose par
+            défaut sur une veille par mots-clés dans des flux RSS d'actualité. En complément, renseignez ici une
+            clé API Vigilance de Météo-France pour des alertes canicule/météo officielles, précises par
+            département. Clé gratuite à créer sur
+            <a href="https://portail-api.meteofrance.fr/" target="_blank" rel="noopener">portail-api.meteofrance.fr</a>
+            (application « Vigilance », authentification « Clé API »).
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/meteofrance-key" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>Clé API Vigilance Météo-France</label>
+                <input type="text" name="api_key" value="<?= htmlspecialchars($meteoFranceApiKey) ?>" placeholder="Laisser vide pour désactiver ce complément" autocomplete="off">
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+                <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                <?php if ($meteoFranceApiKey): ?>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testMeteoFranceKey()">🔌 Tester la clé</button>
+                <?php endif; ?>
+            </div>
+            <div id="meteofrance-test-result" style="margin-top:.75rem"></div>
+        </form>
 
         <?php elseif ($tab === 'impersonation'): ?>
         <h2>Journal d'impersonation</h2>

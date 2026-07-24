@@ -6,6 +6,7 @@ use App\Core\Mail;
 use App\Core\Session;
 use App\Models\AppSetting;
 use App\Models\EmailContent;
+use App\Core\OfficialAlertFeed;
 use App\Models\ImpersonationLog;
 use App\Models\Notification;
 use App\Models\SmtpSettings;
@@ -162,6 +163,7 @@ class AdminController extends BaseController
         $tickets      = SupportTicket::getAll();
         $smtp         = SmtpSettings::get();
         $emailContents = EmailContent::getAll();
+        $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
 
         require BASE_PATH . '/templates/admin/index.php';
     }
@@ -413,6 +415,31 @@ class AdminController extends BaseController
             Notification::broadcastToAll($title, $shortText, $contentHtml);
         }
         $this->redirect('/admin?tab=notifications&msg=notification_sent');
+    }
+
+    // ── Veille informationnelle : clé API Météo-France Vigilance (optionnelle) ────
+
+    public function updateMeteoFranceKey(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('meteofrance_api_key', trim($_POST['api_key'] ?? ''));
+        $this->redirect('/admin?tab=notifications&msg=meteofrance_saved');
+    }
+
+    public function testMeteoFranceKey(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () {
+            $apiKey = AppSetting::get('meteofrance_api_key');
+            if (!$apiKey) {
+                return ['ok' => false, 'error' => 'Aucune clé API enregistrée.'];
+            }
+            $data = OfficialAlertFeed::fetchVigilanceData($apiKey);
+            if ($data === null) {
+                return ['ok' => false, 'error' => "Échec de l'appel à l'API Vigilance — clé invalide, expirée, ou service injoignable."];
+            }
+            return ['ok' => true];
+        });
     }
 
     // ── Helpers ──────────────────────────────────────────────────

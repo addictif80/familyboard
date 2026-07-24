@@ -46,6 +46,7 @@ use App\Controllers\MealController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
 use App\Controllers\NotificationController;
+use App\Controllers\AlertController;
 use App\Controllers\ErrorReportController;
 
 Session::start();
@@ -288,6 +289,8 @@ $router->post('/admin/email-content', [AdminController::class, 'saveEmailContent
 $router->post('/admin/email-content/:type/reset', [AdminController::class, 'resetEmailContent']);
 $router->get('/admin/email-content/:type/preview', [AdminController::class, 'previewEmailContent']);
 $router->post('/admin/notifications/send', [AdminController::class, 'sendSystemNotification']);
+$router->post('/admin/meteofrance-key', [AdminController::class, 'updateMeteoFranceKey']);
+$router->post('/admin/meteofrance-key/test', [AdminController::class, 'testMeteoFranceKey']);
 
 // Support (user-facing)
 $router->get('/support', [SupportController::class, 'index']);
@@ -329,6 +332,7 @@ $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNo
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
 $router->post('/settings/notify', [SettingsController::class, 'sendNotification']);
 $router->get('/notifications/:id', [NotificationController::class, 'show']);
+$router->get('/api/alerts/active', [AlertController::class, 'active']);
 
 // Push notifications
 $router->get('/api/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);
