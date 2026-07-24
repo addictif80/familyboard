@@ -256,6 +256,8 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   position: sticky;
   top: 0;
   z-index: 50;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .mobile-menu-btn { display: none; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text); }
@@ -275,8 +277,9 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 
 /* ---- Official alerts banner (between page title and the report-bug icon) ---- */
 .alert-banner {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -285,14 +288,16 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   border-radius: var(--radius-sm, 8px);
   padding: .35rem .6rem;
   height: 2.1rem;
+  box-sizing: border-box;
 }
 
 .alert-banner-track {
   display: flex;
   align-items: center;
   gap: .5rem;
-  width: 100%;
+  flex: 1 1 0;
   min-width: 0;
+  max-width: 100%;
   animation: alert-banner-fade .4s ease;
 }
 
@@ -316,7 +321,8 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
-  flex: 1;
+  max-width: 100%;
+  flex: 1 1 0;
 }
 
 .alert-banner-btn {
