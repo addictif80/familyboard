@@ -210,13 +210,13 @@ ob_start();
                 <label class="radio-option"><input type="radio" name="tx-type-r" id="tx-type-expense" value="expense" checked> 💸 Dépense</label>
                 <label class="radio-option"><input type="radio" name="tx-type-r" id="tx-type-income"  value="income">  💵 Revenu</label>
             </div>
-            <div class="form-group"><label>Titre</label><input type="text" id="tx-title" placeholder="Courses, salaire…"></div>
+            <div class="form-group"><label>Titre</label><input type="text" id="tx-title" placeholder="Courses, salaire…" onblur="suggestTxCategory()"></div>
             <div class="form-row">
                 <div class="form-group"><label>Montant (€)</label><input type="number" id="tx-amount" step="0.01" min="0"></div>
                 <div class="form-group"><label>Date</label><input type="date" id="tx-date" value="<?= date('Y-m-d') ?>"></div>
             </div>
             <div class="form-group">
-                <label>Catégorie</label>
+                <label>Catégorie <small id="tx-category-hint" style="color:var(--text-muted)"></small></label>
                 <select id="tx-category">
                     <option value="">Sans catégorie</option>
                     <?php foreach ($categories as $cat): ?>

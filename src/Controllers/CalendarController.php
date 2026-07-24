@@ -2,6 +2,7 @@
 namespace App\Controllers;
 
 use App\Core\Session;
+use App\Models\CustodyActivityLog;
 use App\Models\Event;
 use App\Models\CalDAVSource;
 use App\Models\Family;
@@ -19,16 +20,39 @@ class CalendarController extends BaseController
         $user = Session::user();
         $familyId = $user['family_id'];
         $members = User::getByFamily($familyId);
+        $family = Family::findById($familyId);
+        $schoolZone = $family['school_zone'] ?? null;
+
         try {
+            $caldavSources = CalDAVSource::getByFamily($familyId);
+            $this->autoSyncCalDAV($caldavSources, $family, $familyId, $user['id']);
+            // Reload sources after potential sync so last_sync timestamps are fresh
             $caldavSources = CalDAVSource::getByFamily($familyId);
         } catch (\Exception $e) {
             $caldavSources = [];
         }
+
         $custodySchedules = \App\Models\Custody::getSchedules($familyId);
         $hasProjects = !empty(\App\Models\Project::getByFamily($familyId));
-        $family = Family::findById($familyId);
-        $schoolZone = $family['school_zone'] ?? null;
         require BASE_PATH . '/templates/calendar/index.php';
+    }
+
+    private function autoSyncCalDAV(array $sources, array $family, int $familyId, int $userId): void
+    {
+        $interval = (int)($family['caldav_sync_interval'] ?? 0);
+        if ($interval <= 0 || empty($sources)) return;
+
+        foreach ($sources as $source) {
+            $lastSync = $source['last_sync'];
+            $due = !$lastSync || (time() - strtotime($lastSync)) >= $interval * 60;
+            if ($due) {
+                try {
+                    $this->doCalDAVSync($source, $familyId, $userId);
+                } catch (\Exception $e) {
+                    // Skip failing source silently — don't block calendar load
+                }
+            }
+        }
     }
 
     public function apiEvents(array $params): void
@@ -52,6 +76,11 @@ class CalendarController extends BaseController
                     'user_color' => $e['user_color'],
                     'caldav' => (bool)$e['caldav_uid'],
                     'type' => 'event',
+                    'custody_schedule_id' => $e['custody_schedule_id'] ?? null,
+                    'professional_name' => $e['professional_name'] ?? null,
+                    'location' => $e['location'] ?? null,
+                    'location_lat' => $e['location_lat'] ?? null,
+                    'location_lng' => $e['location_lng'] ?? null,
                 ],
             ], $events);
 
@@ -181,8 +210,16 @@ class CalendarController extends BaseController
             $data = $this->jsonInput();
             $data['family_id'] = $user['family_id'];
             $data['user_id'] = $user['id'];
+            $data['color'] = $this->safeColor($data['color'] ?? null);
+            if (!empty($data['custody_schedule_id'])) {
+                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
+                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
+            }
             $id = Event::create($data);
             $event = Event::getById($id);
+            if (!empty($data['custody_schedule_id'])) {
+                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'event_created', $data['title'] ?? null);
+            }
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Nouvel événement', $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/calendar');
             return ['success' => true, 'id' => $id, 'event' => $event];
         });
@@ -199,7 +236,18 @@ class CalendarController extends BaseController
                 return ['success' => false, 'error' => 'Non autorisé'];
             }
             $data = $this->jsonInput();
+            $data['color'] = $this->safeColor($data['color'] ?? null);
+            if (!empty($data['custody_schedule_id'])) {
+                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
+                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
+            }
             Event::update($id, $data);
+            $loggedScheduleId = $data['custody_schedule_id'] ?? $event['custody_schedule_id'] ?? null;
+            if (!empty($loggedScheduleId)) {
+                CustodyActivityLog::record((int)$loggedScheduleId, $user['id'], 'event_updated', $data['title'] ?? $event['title']);
+            }
+            Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement modifié',
+                $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']), BASE_URL . '/calendar');
             return ['success' => true];
         });
     }
@@ -215,6 +263,8 @@ class CalendarController extends BaseController
                 return ['success' => false, 'error' => 'Non autorisé'];
             }
             Event::delete($id);
+            Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement supprimé',
+                $user['name'] . ' a supprimé : ' . $event['title'], BASE_URL . '/calendar');
             return ['success' => true];
         });
     }

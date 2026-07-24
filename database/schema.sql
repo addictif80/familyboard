@@ -46,21 +46,9 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_family (family_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ── SMTP ─────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS smtp_settings (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    family_id   INT          NOT NULL UNIQUE,
-    host        VARCHAR(255) NOT NULL DEFAULT '',
-    port        SMALLINT     NOT NULL DEFAULT 587,
-    username    VARCHAR(255) NOT NULL DEFAULT '',
-    password    VARCHAR(255) NOT NULL DEFAULT '',
-    from_email  VARCHAR(255) NOT NULL DEFAULT '',
-    from_name   VARCHAR(100) NOT NULL DEFAULT '',
-    encryption  ENUM('tls','ssl','none') NOT NULL DEFAULT 'tls',
-    created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Note : les identifiants SMTP sont globaux (configurés par l'administrateur
+-- système dans le panneau /admin, stockés dans app_settings) et non plus
+-- propres à chaque famille — voir database/add_global_smtp.sql.
 
 -- ── Sources CalDAV ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS caldav_sources (
@@ -439,6 +427,7 @@ CREATE TABLE IF NOT EXISTS email_logs (
     INDEX idx_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Historique (non utilisé) : anciennes personnalisations par famille.
 CREATE TABLE IF NOT EXISTS email_templates (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     family_id  INT          NOT NULL,
@@ -448,6 +437,15 @@ CREATE TABLE IF NOT EXISTS email_templates (
     is_active  TINYINT(1)   NOT NULL DEFAULT 1,
     updated_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_family_type (family_id, type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Contenu (sujet + message) des emails, personnalisable uniquement par
+-- l'administrateur système (/admin) — le style graphique reste fixe.
+CREATE TABLE IF NOT EXISTS email_content (
+    type       VARCHAR(50)  NOT NULL PRIMARY KEY,
+    subject    VARCHAR(500) NOT NULL,
+    message    TEXT         NOT NULL,
+    updated_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Notifications ─────────────────────────────────────────────

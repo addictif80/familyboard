@@ -58,6 +58,20 @@ class SupportTicket
         Database::execute('UPDATE support_tickets SET status=? WHERE id=?', [$status, $id]);
     }
 
+    /** Dernier ticket (tout statut confondu) pour un utilisateur et une erreur donnée — voir ErrorReporter. */
+    public static function findByUserAndHash(int $userId, string $hash): ?array
+    {
+        return Database::fetch(
+            'SELECT * FROM support_tickets WHERE user_id=? AND error_hash=? ORDER BY updated_at DESC LIMIT 1',
+            [$userId, $hash]
+        );
+    }
+
+    public static function markSource(int $id, string $source, ?string $hash = null): void
+    {
+        Database::execute('UPDATE support_tickets SET source=?, error_hash=? WHERE id=?', [$source, $hash, $id]);
+    }
+
     // ── Messages ────────────────────────────────────────────────
 
     public static function getMessages(int $ticketId): array

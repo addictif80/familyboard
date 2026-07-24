@@ -47,7 +47,7 @@ ob_start();
             <h3>Nouveau ticket de support</h3>
             <button onclick="closeModal('new-ticket-modal')">✕</button>
         </div>
-        <form method="POST" action="<?= BASE_URL ?>/support">
+        <form method="POST" action="<?= BASE_URL ?>/support"><?= \App\Core\Csrf::field() ?>
             <div class="modal-body">
                 <div class="form-group">
                     <label>Sujet *</label>

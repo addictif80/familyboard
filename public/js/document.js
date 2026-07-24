@@ -63,6 +63,12 @@ function openDocModal() {
     document.getElementById('doc-expiry-date').value = '';
     document.getElementById('doc-tags').value = '';
     document.getElementById('doc-notes').value = '';
+    const custodyToggle = document.getElementById('doc-custody-toggle');
+    if (custodyToggle) {
+        custodyToggle.checked = false;
+        document.getElementById('doc-custody-select-wrap').style.display = 'none';
+        document.getElementById('doc-custody-schedule').value = '';
+    }
     document.getElementById('doc-ocr-text').value = '';
     document.getElementById('doc-ocr-details').style.display = 'none';
     document.getElementById('doc-ocr-status').style.display = 'none';
@@ -86,6 +92,13 @@ function openEditDocModal(item) {
     document.getElementById('doc-expiry-date').value = item.expiry_date || '';
     document.getElementById('doc-tags').value = item.tags || '';
     document.getElementById('doc-notes').value = item.notes || '';
+    const custodyToggle = document.getElementById('doc-custody-toggle');
+    if (custodyToggle) {
+        const wrap = document.getElementById('doc-custody-select-wrap');
+        custodyToggle.checked = !!item.custody_schedule_id;
+        wrap.style.display = item.custody_schedule_id ? '' : 'none';
+        document.getElementById('doc-custody-schedule').value = item.custody_schedule_id || '';
+    }
     // Check member checkboxes based on item.members array
     const memberIds = new Set((item.members || []).map(m => parseInt(m.id)));
     if (memberIds.size === 0 && item.user_id) memberIds.add(parseInt(item.user_id));
@@ -281,6 +294,10 @@ async function saveDoc() {
     fd.append('tags',        document.getElementById('doc-tags').value);
     fd.append('notes',       document.getElementById('doc-notes').value);
     fd.append('ocr_text',    document.getElementById('doc-ocr-text').value);
+    const custodyToggle = document.getElementById('doc-custody-toggle');
+    if (custodyToggle && custodyToggle.checked) {
+        fd.append('custody_schedule_id', document.getElementById('doc-custody-schedule').value);
+    }
     document.querySelectorAll('.doc-member-cb:checked').forEach(cb => {
         fd.append('member_ids[]', cb.value);
     });
@@ -321,14 +338,14 @@ function openDocDetail(item) {
     const body   = document.getElementById('doc-detail-body');
     const rows = [
         item.type_label  && ['Type',       item.type_icon + ' ' + item.type_label],
-        item.issuer      && ['Émetteur',    item.issuer],
+        item.issuer      && ['Émetteur',    escapeHtml(item.issuer)],
         item.issue_date  && ['Émis le',     fmtDate(item.issue_date)],
         item.expiry_date && ['Expire le',   fmtDate(item.expiry_date) + expiryBadge(item)],
         (item.members && item.members.length) && ['Appartient à', item.members.map(m =>
             `<span class="user-avatar-xs" style="background:${escapeHtml(m.color)}" title="${escapeHtml(m.name)}">${escapeHtml(m.name.charAt(0))}</span> ${escapeHtml(m.name)}`
         ).join('&nbsp; ')],
-        item.tags        && ['Tags',        item.tags],
-        item.notes       && ['Notes',       item.notes],
+        item.tags        && ['Tags',        escapeHtml(item.tags)],
+        item.notes       && ['Notes',       escapeHtml(item.notes)],
     ].filter(Boolean);
 
     body.innerHTML = `

@@ -24,19 +24,40 @@ class Event
     public static function create(array $data): int
     {
         return Database::insert(
-            'INSERT INTO events (family_id, user_id, title, description, start_datetime, end_datetime, is_all_day, color, recurrence, recurrence_end) VALUES (?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO events (family_id, user_id, title, description, start_datetime, end_datetime, is_all_day, color, recurrence, recurrence_end, custody_schedule_id, professional_name, location, location_lat, location_lng) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [$data['family_id'], $data['user_id'], $data['title'], $data['description'] ?? null,
              $data['start_datetime'], $data['end_datetime'], $data['is_all_day'] ?? 0,
-             $data['color'] ?? '#4A90D9', $data['recurrence'] ?? null, $data['recurrence_end'] ?? null]
+             $data['color'] ?? '#4A90D9', $data['recurrence'] ?? null, $data['recurrence_end'] ?? null,
+             !empty($data['custody_schedule_id']) ? $data['custody_schedule_id'] : null,
+             $data['professional_name'] ?? null, $data['location'] ?? null,
+             $data['location_lat'] ?? null, $data['location_lng'] ?? null]
         );
     }
 
     public static function update(int $id, array $data): void
     {
         Database::execute(
-            'UPDATE events SET title=?, description=?, start_datetime=?, end_datetime=?, is_all_day=?, color=?, recurrence=?, recurrence_end=? WHERE id=?',
+            'UPDATE events SET title=?, description=?, start_datetime=?, end_datetime=?, is_all_day=?, color=?, recurrence=?, recurrence_end=?, custody_schedule_id=?, professional_name=?, location=?, location_lat=?, location_lng=? WHERE id=?',
             [$data['title'], $data['description'] ?? null, $data['start_datetime'], $data['end_datetime'],
-             $data['is_all_day'] ?? 0, $data['color'] ?? '#4A90D9', $data['recurrence'] ?? null, $data['recurrence_end'] ?? null, $id]
+             $data['is_all_day'] ?? 0, $data['color'] ?? '#4A90D9', $data['recurrence'] ?? null, $data['recurrence_end'] ?? null,
+             !empty($data['custody_schedule_id']) ? $data['custody_schedule_id'] : null,
+             $data['professional_name'] ?? null, $data['location'] ?? null,
+             $data['location_lat'] ?? null, $data['location_lng'] ?? null, $id]
+        );
+    }
+
+    /** Événements calendrier tagués à l'un des plannings de garde donnés (vue co-parent restreint). */
+    public static function getForSchedules(array $scheduleIds, string $start, string $end): array
+    {
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        if (empty($scheduleIds)) return [];
+        $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
+        return Database::fetchAll(
+            "SELECT e.*, u.name as user_name, u.color as user_color FROM events e
+             JOIN users u ON u.id = e.user_id
+             WHERE e.custody_schedule_id IN ($ph) AND e.start_datetime < ? AND e.end_datetime > ?
+             ORDER BY e.start_datetime",
+            [...$scheduleIds, $end, $start]
         );
     }
 
@@ -62,11 +83,16 @@ class Event
 
     public static function getUpcoming(int $familyId, int $days = 7): array
     {
+        // start_datetime est enregistré tel quel depuis un <input datetime-local> (heure locale
+        // de la famille, ex. Europe/Paris), alors que la connexion DB force NOW() en UTC —
+        // on calcule donc les bornes en PHP (APP_TIMEZONE) plutôt que d'utiliser NOW() en SQL.
+        $now = date('Y-m-d H:i:s');
+        $until = date('Y-m-d H:i:s', strtotime("+{$days} days"));
         return Database::fetchAll(
             'SELECT e.*, u.name as user_name, u.color as user_color FROM events e JOIN users u ON u.id=e.user_id
-             WHERE e.family_id=? AND e.start_datetime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? DAY)
+             WHERE e.family_id=? AND e.start_datetime BETWEEN ? AND ?
              ORDER BY e.start_datetime LIMIT 10',
-            [$familyId, $days]
+            [$familyId, $now, $until]
         );
     }
 }

@@ -107,8 +107,8 @@ class Document
         $docId = (int)Database::insert(
             'INSERT INTO documents
              (family_id, user_id, title, doc_type, issuer, issue_date, expiry_date,
-              tags, file_path, file_original, file_mime, ocr_text, notes)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+              tags, file_path, file_original, file_mime, ocr_text, notes, custody_schedule_id)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId, $primaryUserId,
                 $data['title'],
@@ -120,6 +120,7 @@ class Document
                 $filePath, $fileOrig, $fileMime,
                 $ocrText ?: null,
                 $data['notes'] ?? null,
+                !empty($data['custody_schedule_id']) ? $data['custody_schedule_id'] : null,
             ]
         );
 
@@ -149,7 +150,7 @@ class Document
 
         Database::execute(
             'UPDATE documents SET user_id=?, title=?, doc_type=?, issuer=?, issue_date=?, expiry_date=?,
-             tags=?, file_path=?, file_original=?, file_mime=?, ocr_text=?, notes=?
+             tags=?, file_path=?, file_original=?, file_mime=?, ocr_text=?, notes=?, custody_schedule_id=?
              WHERE id=? AND family_id=?',
             [
                 $primaryUserId,
@@ -161,11 +162,29 @@ class Document
                 $filePath, $fileOrig, $fileMime,
                 $ocrText ?: null,
                 $data['notes'] ?? null,
+                !empty($data['custody_schedule_id']) ? $data['custody_schedule_id'] : null,
                 $id, $familyId,
             ]
         );
 
         self::syncMembers($id, $memberIds);
+    }
+
+    /** Documents tagués à l'un des plannings de garde donnés (vue co-parent restreint). */
+    public static function getForSchedules(array $scheduleIds): array
+    {
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        if (empty($scheduleIds)) return [];
+        $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
+        $rows = Database::fetchAll(
+            "SELECT d.*, u.name as user_name, u.color as user_color
+             FROM documents d JOIN users u ON u.id = d.user_id
+             WHERE d.custody_schedule_id IN ($ph)
+             ORDER BY d.created_at DESC",
+            $scheduleIds
+        );
+        self::attachMembers($rows);
+        return array_map([self::class, 'decorate'], $rows);
     }
 
     public static function delete(int $id, int $familyId): void

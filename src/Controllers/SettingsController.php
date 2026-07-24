@@ -2,13 +2,16 @@
 namespace App\Controllers;
 
 use App\Core\Session;
-use App\Core\Mail;
+use App\Models\AccountDeletion;
+use App\Models\Custody;
+use App\Models\CustodyActivityLog;
+use App\Models\DataExport;
 use App\Models\User;
 use App\Models\Family;
-use App\Models\SmtpSettings;
 use App\Models\Notification;
 use App\Models\EmailLog;
-use App\Models\EmailTemplate;
+use App\Models\SitterLink;
+use App\Models\KioskLink;
 
 class SettingsController extends BaseController
 {
@@ -18,9 +21,11 @@ class SettingsController extends BaseController
         $user = Session::user();
         $family = Family::findById($user['family_id']);
         $members = User::getByFamily($user['family_id']);
-        $smtp = SmtpSettings::getByFamily($user['family_id']);
+        $coparentChildren = \App\Models\Custody::getChildNamesByUserIds(array_column($members, 'id'));
         $emailLogs = ($user['role'] === 'admin') ? EmailLog::getByFamily($user['family_id'], 30) : [];
-        $emailTemplates = ($user['role'] === 'admin') ? EmailTemplate::getAll($user['family_id']) : [];
+        $sitterLinks = SitterLink::getByFamily($user['family_id']);
+        $kioskLinks = ($user['role'] === 'admin') ? KioskLink::getByFamily($user['family_id']) : [];
+        $coparentsForNotify = ($user['role'] === 'admin') ? Custody::getCoparentUsersForFamily($user['family_id']) : [];
         require BASE_PATH . '/templates/settings/index.php';
     }
 
@@ -29,7 +34,7 @@ class SettingsController extends BaseController
         $this->requireAuth();
         $user = Session::user();
         $name = trim($_POST['name'] ?? '');
-        $color = $_POST['color'] ?? '#4A90D9';
+        $color = $this->safeColor($_POST['color'] ?? null);
         $avatar = $this->uploadImage('avatar');
 
         $data = ['name' => $name ?: $user['name'], 'color' => $color];
@@ -88,51 +93,6 @@ class SettingsController extends BaseController
         exit;
     }
 
-    public function updateSmtp(array $params): void
-    {
-        $this->requireAdmin();
-        $user = Session::user();
-        SmtpSettings::save($user['family_id'], [
-            'host' => $_POST['smtp_host'] ?? '',
-            'port' => (int)($_POST['smtp_port'] ?? 587),
-            'username' => $_POST['smtp_user'] ?? '',
-            'password' => $_POST['smtp_pass'] ?? '',
-            'from_email' => $_POST['smtp_from_email'] ?? '',
-            'from_name' => $_POST['smtp_from_name'] ?? '',
-            'encryption' => $_POST['smtp_encryption'] ?? 'tls',
-        ]);
-        Session::flash('success', 'Paramètres SMTP enregistrés.');
-        header('Location: ' . BASE_URL . '/settings');
-        exit;
-    }
-
-    public function testSmtp(array $params): void
-    {
-        $this->requireAdmin();
-        $this->json(function () {
-            $user     = Session::user();
-            $settings = SmtpSettings::getByFamily($user['family_id']);
-            if (!$settings) {
-                return ['ok' => false, 'error' => 'Aucune configuration SMTP enregistrée.', 'steps' => []];
-            }
-            return Mail::testConnection($settings);
-        });
-    }
-
-    public function sendTestEmail(array $params): void
-    {
-        $this->requireAdmin();
-        $this->json(function () {
-            $user     = Session::user();
-            $settings = SmtpSettings::getByFamily($user['family_id']);
-            if (!$settings) {
-                return ['ok' => false, 'error' => 'Aucune configuration SMTP enregistrée.', 'steps' => []];
-            }
-            // Send to the admin's own email address
-            return Mail::sendTest($settings, $user['email'], $user['name']);
-        });
-    }
-
     public function removeMember(array $params): void
     {
         $this->requireAdmin();
@@ -145,6 +105,86 @@ class SettingsController extends BaseController
             }
         }
         header('Location: ' . BASE_URL . '/settings');
+        exit;
+    }
+
+    public function exportData(array $params): void
+    {
+        $this->requireAuth();
+        $user = Session::user();
+        $wholeFamily = ($_GET['scope'] ?? 'mine') === 'family';
+        if ($wholeFamily && $user['role'] !== 'admin') {
+            http_response_code(403);
+            echo 'Réservé à l\'administrateur de la famille.';
+            return;
+        }
+
+        $zipPath = DataExport::build((int)$user['id'], (int)$user['family_id'], $wholeFamily);
+        $filename = ($wholeFamily ? 'famille' : 'mes-donnees') . '-' . date('Y-m-d') . '.zip';
+
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . filesize($zipPath));
+        readfile($zipPath);
+        @unlink($zipPath);
+        exit;
+    }
+
+    /** Nombre de membres de la famille autres que $excludeId. */
+    private function otherMembersCount(int $familyId, int $excludeId): int
+    {
+        $row = \App\Core\Database::fetch(
+            'SELECT COUNT(*) as n FROM users WHERE family_id=? AND id!=?',
+            [$familyId, $excludeId]
+        );
+        return (int)($row['n'] ?? 0);
+    }
+
+    public function deleteAccount(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $familyId = (int)$user['family_id'];
+            $data = $this->jsonInput();
+
+            if ($user['role'] === 'admin' && $this->otherMembersCount($familyId, (int)$user['id']) > 0) {
+                $action = $data['action'] ?? '';
+                if ($action === 'transfer') {
+                    $targetId = (int)($data['transfer_to_user_id'] ?? 0);
+                    $target = User::findById($targetId);
+                    if (!$target || $target['family_id'] !== $familyId || $targetId === (int)$user['id']) {
+                        return ['success' => false, 'error' => 'Membre invalide.'];
+                    }
+                    AccountDeletion::transferAdminAndDelete((int)$user['id'], $targetId, $familyId);
+                } elseif ($action === 'delete_family') {
+                    AccountDeletion::deleteFamily($familyId);
+                } else {
+                    return ['success' => false, 'error' => 'Choisissez de transférer le rôle admin ou de supprimer la famille.'];
+                }
+            } else {
+                // Membre non-admin, co-parent, ou admin seul dans sa famille : suppression directe
+                // (dans ce dernier cas, la famille n'a plus personne d'autre à qui la confier).
+                if ($user['role'] === 'admin') {
+                    AccountDeletion::deleteFamily($familyId);
+                } else {
+                    AccountDeletion::deleteUser((int)$user['id'], $familyId);
+                }
+            }
+
+            \App\Core\RememberMe::clear();
+            Session::destroy();
+            return ['success' => true, 'redirect' => BASE_URL . '/login'];
+        });
+    }
+
+    /** Redirige vers le dernier APK Android publié (nécessite une session active). */
+    public function downloadAndroidApk(array $params): void
+    {
+        $this->requireAuth();
+        $url = defined('ANDROID_APK_URL') ? ANDROID_APK_URL
+            : 'https://github.com/addictif80/familyboard/releases/latest/download/familyboard.apk';
+        header('Location: ' . $url);
         exit;
     }
 
@@ -179,31 +219,59 @@ class SettingsController extends BaseController
         });
     }
 
-    public function saveEmailTemplate(array $params): void
+    /**
+     * Un admin de famille envoie une notification à ses membres. Si "inclure le co-parent"
+     * est coché, les comptes ayant un accès garde partagée à cette famille (custody_access)
+     * sont notifiés en plus, et l'envoi est journalisé dans le journal d'activité de la garde
+     * partagée (immuable) pour chaque planning concerné.
+     */
+    public function sendNotification(array $params): void
     {
         $this->requireAdmin();
         $this->json(function () {
             $user = Session::user();
             $data = $this->jsonInput();
-            $type    = $data['type'] ?? '';
-            $subject = trim($data['subject'] ?? '');
-            $body    = trim($data['body'] ?? '');
-            if (!$type || !$subject || !$body) {
-                return ['success' => false, 'error' => 'Champs requis manquants.'];
+            $title = trim($data['title'] ?? '');
+            $message = trim($data['message'] ?? '');
+            $includeCoparent = !empty($data['include_coparent']);
+
+            if (!$title || !$message) {
+                return ['success' => false, 'error' => 'Titre et message requis.'];
             }
-            EmailTemplate::save($user['family_id'], $type, $subject, $body);
-            return ['success' => true];
+            if (mb_strlen($title) > 150 || mb_strlen($message) > 2000) {
+                return ['success' => false, 'error' => 'Texte trop long.'];
+            }
+
+            $familyId = (int)$user['family_id'];
+
+            $recipients = [];
+            foreach (User::getByFamily($familyId) as $m) {
+                if ((int)$m['id'] === (int)$user['id']) continue;
+                if ($m['role'] === 'coparent' && !$includeCoparent) continue;
+                $recipients[(int)$m['id']] = true;
+            }
+
+            $coparents = $includeCoparent ? Custody::getCoparentUsersForFamily($familyId) : [];
+            foreach ($coparents as $cp) {
+                if ((int)$cp['id'] !== (int)$user['id']) $recipients[(int)$cp['id']] = true;
+            }
+
+            foreach (array_keys($recipients) as $uid) {
+                Notification::create($uid, 'family_admin', $title, $message, BASE_URL . '/');
+            }
+
+            if ($includeCoparent) {
+                $scheduleIds = [];
+                foreach ($coparents as $cp) {
+                    foreach ($cp['schedule_ids'] as $sid) $scheduleIds[$sid] = true;
+                }
+                foreach (array_keys($scheduleIds) as $sid) {
+                    CustodyActivityLog::record($sid, $user['id'], 'notification_sent', mb_strimwidth("$title — $message", 0, 150, '…'));
+                }
+            }
+
+            return ['success' => true, 'count' => count($recipients)];
         });
     }
 
-    public function resetEmailTemplate(array $params): void
-    {
-        $this->requireAdmin();
-        $this->json(function () use ($params) {
-            $user = Session::user();
-            $type = $params['type'] ?? '';
-            if ($type) EmailTemplate::reset($user['family_id'], $type);
-            return ['success' => true];
-        });
-    }
 }

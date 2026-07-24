@@ -37,7 +37,7 @@ class TaskController extends BaseController
         $user = Session::user();
         $name = trim($_POST['name'] ?? '');
         $type = in_array($_POST['type'] ?? '', ['tasks', 'shopping']) ? $_POST['type'] : 'tasks';
-        $color = $_POST['color'] ?? '#4A90D9';
+        $color = $this->safeColor($_POST['color'] ?? null);
         if ($name) {
             TaskList::create($user['family_id'], $user['id'], $name, $type, $color);
         }
@@ -104,6 +104,12 @@ class TaskController extends BaseController
             $list = TaskList::getById($task['list_id']);
             if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
             TaskList::deleteTask($taskId);
+
+            if (!empty($task['assigned_to']) && (int)$task['assigned_to'] !== $user['id']) {
+                Notification::create((int)$task['assigned_to'], 'task', 'Tâche supprimée',
+                    $user['name'] . ' a supprimé : ' . $task['title'], BASE_URL . '/tasks?list=' . $task['list_id']);
+            }
+
             return ['success' => true];
         });
     }
@@ -120,6 +126,14 @@ class TaskController extends BaseController
             if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
             $data = $this->jsonInput();
             TaskList::updateTask($taskId, $data);
+
+            $newAssignee = (int)($data['assigned_to'] ?? 0);
+            if ($newAssignee && $newAssignee !== $user['id']) {
+                Notification::create($newAssignee, 'task',
+                    (int)$task['assigned_to'] === $newAssignee ? 'Tâche modifiée' : 'Tâche assignée',
+                    $user['name'] . ' a modifié : ' . $data['title'], BASE_URL . '/tasks?list=' . $task['list_id']);
+            }
+
             return ['success' => true, 'task' => TaskList::getTask($taskId)];
         });
     }

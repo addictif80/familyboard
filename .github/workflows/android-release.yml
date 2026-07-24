@@ -1,0 +1,84 @@
+name: Android — build & release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Nom de version (ex: 1.2.0)"
+        required: false
+        default: "1.0.0"
+  push:
+    tags:
+      - "android-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Resolve version name
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/android-v* ]]; then
+            echo "name=${GITHUB_REF#refs/tags/android-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${{ inputs.version_name || '1.0.0' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Decode signing keystore
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FAMILYBOARD_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "path=$RUNNER_TEMP/release.keystore" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release APK
+        working-directory: android
+        env:
+          ANDROID_VERSION_NAME: ${{ steps.version.outputs.name }}
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+          FAMILYBOARD_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          FAMILYBOARD_KEYSTORE_PASSWORD: ${{ secrets.FAMILYBOARD_KEYSTORE_PASSWORD }}
+          FAMILYBOARD_KEY_ALIAS: ${{ secrets.FAMILYBOARD_KEY_ALIAS }}
+          FAMILYBOARD_KEY_PASSWORD: ${{ secrets.FAMILYBOARD_KEY_PASSWORD }}
+        run: gradle assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: |
+          apk=$(find android/app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n1)
+          if [ -z "$apk" ]; then
+            echo "::error::No APK found in android/app/build/outputs/apk/release"
+            exit 1
+          fi
+          cp "$apk" familyboard.apk
+
+      # Le lien "https://github.com/<repo>/releases/latest/download/familyboard.apk"
+      # (utilisé par l'app web) pointe toujours vers cet asset : la release
+      # "android-latest" est recréée à chaque build.
+      - name: Publish/replace the "latest" release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: "FamilyBoard Android ${{ steps.version.outputs.name }}"
+          make_latest: true
+          files: familyboard.apk

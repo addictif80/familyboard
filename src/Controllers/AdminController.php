@@ -2,10 +2,16 @@
 namespace App\Controllers;
 
 use App\Core\Database;
+use App\Core\Mail;
 use App\Core\Session;
 use App\Models\AppSetting;
+use App\Models\EmailContent;
+use App\Models\ImpersonationLog;
+use App\Models\Notification;
+use App\Models\SmtpSettings;
 use App\Models\SupportTicket;
 use App\Models\User;
+use App\Core\EmailLayout;
 
 class AdminController extends BaseController
 {
@@ -15,6 +21,14 @@ class AdminController extends BaseController
     {
         if (!($_SESSION['admin_logged_in'] ?? false)) {
             header('Location: ' . BASE_URL . '/admin/login');
+            exit;
+        }
+        // Les appels fetch() JS envoient déjà X-Requested-With (vérifié par isAjax()), ce qui
+        // bloque les soumissions de &lt;form&gt; cross-origin classiques ; le jeton CSRF protège
+        // en plus les formulaires HTML POST natifs (impersonation, blocage, IPs…).
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$this->isAjax() && !\App\Core\Csrf::verify()) {
+            http_response_code(403);
+            echo 'Jeton de sécurité invalide ou expiré. Rechargez la page et réessayez.';
             exit;
         }
     }
@@ -30,6 +44,13 @@ class AdminController extends BaseController
 
     public function login(array $params): void
     {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (\App\Models\LoginAttempt::isLocked('admin', $ip)) {
+            $_SESSION['admin_error'] = 'Trop de tentatives. Réessayez dans ' . \App\Models\LoginAttempt::minutesUntilUnlock() . ' minutes.';
+            header('Location: ' . BASE_URL . '/admin/login');
+            exit;
+        }
+
         $user = trim($_POST['username'] ?? '');
         $pass = $_POST['password'] ?? '';
 
@@ -45,9 +66,11 @@ class AdminController extends BaseController
         $ok = $validUser && $validPass;
 
         if ($ok) {
+            \App\Models\LoginAttempt::clear('admin', $ip);
             $_SESSION['admin_logged_in'] = true;
             header('Location: ' . BASE_URL . '/admin');
         } else {
+            \App\Models\LoginAttempt::record('admin', $ip);
             $_SESSION['admin_error'] = 'Identifiants incorrects.';
             header('Location: ' . BASE_URL . '/admin/login');
         }
@@ -129,8 +152,101 @@ class AdminController extends BaseController
         $users        = Database::fetchAll('SELECT u.*, f.name as family_name FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC');
         $blockedIps   = Database::fetchAll('SELECT * FROM blocked_ips ORDER BY created_at DESC');
         $tickets      = SupportTicket::getAll();
+        $smtp         = SmtpSettings::get();
+        $emailContents = EmailContent::getAll();
 
         require BASE_PATH . '/templates/admin/index.php';
+    }
+
+    // ── Contenu des emails (global, système) ──────────────────────
+
+    public function saveEmailContent(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $type    = $_POST['type'] ?? '';
+        $subject = trim($_POST['subject'] ?? '');
+        $message = trim($_POST['message'] ?? '');
+        if ($type && $subject && $message) {
+            EmailContent::save($type, $subject, $message);
+        }
+        $this->redirect('/admin?tab=email&msg=email_saved');
+    }
+
+    public function resetEmailContent(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $type = $params['type'] ?? '';
+        if ($type) EmailContent::reset($type);
+        $this->redirect('/admin?tab=email&msg=email_saved');
+    }
+
+    /**
+     * Preview the fixed email design with sample data, so the admin can see
+     * the graphical style without being able to edit it here.
+     */
+    public function previewEmailContent(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $type = $params['type'] ?? '';
+        $sampleVars = [
+            'sender_name' => 'Camille', 'family_name' => 'Dupont', 'user_name' => 'exemple@mail.com',
+            'child_list' => 'Léo, Nina', 'event_title' => 'Anniversaire de Léo',
+            'event_date' => 'demain à 15h00', 'event_description' => 'Ne pas oublier le gâteau !',
+            'task_name' => 'Ranger le garage', 'list_name' => 'Courses de la semaine',
+            'task_created' => 'lundi 12 mai', 'type_label' => 'prélèvement', 'title' => 'Abonnement internet',
+            'amount' => '39,99 €', 'due_date' => '5 août 2026', 'event_count' => '3',
+            'author_name' => 'Camille', 'content' => 'On part en week-end samedi, qui est partant ?',
+        ];
+        $rendered = EmailContent::render($type ?: 'invitation', $sampleVars);
+        echo EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+            'label' => 'Exemple de bouton',
+            'url'   => '#',
+        ]);
+    }
+
+    // ── SMTP (global, système) ────────────────────────────────────
+
+    public function updateSmtp(array $params): void
+    {
+        $this->requireSuperAdmin();
+        SmtpSettings::save([
+            'host'       => $_POST['smtp_host'] ?? '',
+            'port'       => (int)($_POST['smtp_port'] ?? 587),
+            'username'   => $_POST['smtp_user'] ?? '',
+            'password'   => $_POST['smtp_pass'] ?? '',
+            'from_email' => $_POST['smtp_from_email'] ?? '',
+            'from_name'  => $_POST['smtp_from_name'] ?? '',
+            'encryption' => $_POST['smtp_encryption'] ?? 'tls',
+        ]);
+        $this->redirect('/admin?tab=smtp&msg=smtp_saved');
+    }
+
+    public function testSmtp(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () {
+            $settings = SmtpSettings::get();
+            if (!$settings) {
+                return ['ok' => false, 'error' => 'Aucune configuration SMTP enregistrée.', 'steps' => []];
+            }
+            return Mail::testConnection($settings);
+        });
+    }
+
+    public function sendTestEmail(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () {
+            $settings = SmtpSettings::get();
+            if (!$settings) {
+                return ['ok' => false, 'error' => 'Aucune configuration SMTP enregistrée.', 'steps' => []];
+            }
+            $to = trim($this->jsonInput()['email'] ?? '');
+            if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+                return ['ok' => false, 'error' => 'Adresse email de test invalide.', 'steps' => []];
+            }
+            return Mail::sendTest($settings, $to, $to);
+        });
     }
 
     // ── User management ──────────────────────────────────────────
@@ -152,6 +268,62 @@ class AdminController extends BaseController
         $id = (int)$params['id'];
         Database::execute('UPDATE users SET blocked_at=NULL, blocked_reason=NULL WHERE id=?', [$id]);
         $this->redirect('/admin?tab=users&msg=unblocked');
+    }
+
+    /**
+     * Se connecte temporairement en tant qu'un membre de famille, pour du support.
+     * Ne passe jamais par RememberMe (aucun cookie persistant émis pour le compte
+     * ciblé) et reste journalisé dans impersonation_log. La session admin système
+     * ($_SESSION['admin_logged_in']) est indépendante de la session utilisateur
+     * et n'est jamais touchée ici : l'admin reste connecté au panneau /admin
+     * pendant toute la durée de l'impersonation.
+     */
+    public function impersonate(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id     = (int)$params['id'];
+        $target = User::findById($id);
+
+        if (!$target) { $this->redirect('/admin?tab=users&error=not_found'); return; }
+        if (!empty($target['blocked_at'])) { $this->redirect('/admin?tab=users&error=blocked_user'); return; }
+
+        // Si l'admin naviguait déjà avec son propre compte membre, on le garde de
+        // côté pour pouvoir y revenir plutôt que de simplement déconnecter au retour.
+        if (empty($_SESSION['impersonation'])) {
+            $_SESSION['impersonation'] = ['original_user_id' => Session::userId()];
+        }
+
+        $adminUsername = AppSetting::get('admin_username') ?? ADMIN_USER;
+        $logId = ImpersonationLog::create($id, (int)$target['family_id'], $adminUsername, $_SERVER['REMOTE_ADDR'] ?? null);
+        $_SESSION['impersonation']['log_id'] = $logId;
+
+        Session::login($target);
+        header('Location: ' . BASE_URL . '/');
+        exit;
+    }
+
+    public function stopImpersonating(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $imp = $_SESSION['impersonation'] ?? null;
+        unset($_SESSION['impersonation']);
+
+        if ($imp) {
+            if (!empty($imp['log_id'])) ImpersonationLog::end((int)$imp['log_id']);
+            if (!empty($imp['original_user_id'])) {
+                $original = User::findById((int)$imp['original_user_id']);
+                if ($original) {
+                    Session::login($original);
+                    $this->redirect('/');
+                    return;
+                }
+            }
+        }
+
+        Session::delete('user_id');
+        Session::delete('family_id');
+        Session::delete('user');
+        $this->redirect('/admin?tab=users');
     }
 
     // ── IP management ────────────────────────────────────────────
@@ -217,6 +389,19 @@ class AdminController extends BaseController
         $id = (int)$params['id'];
         SupportTicket::setStatus($id, 'open');
         $this->redirect('/admin/tickets/' . $id);
+    }
+
+    // ── Notifications système (broadcast à tous les utilisateurs) ─
+
+    public function sendSystemNotification(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title   = trim($_POST['title'] ?? '');
+        $message = trim($_POST['message'] ?? '');
+        if ($title && $message && mb_strlen($title) <= 150 && mb_strlen($message) <= 2000) {
+            Notification::broadcastToAll($title, $message);
+        }
+        $this->redirect('/admin?tab=notifications&msg=notification_sent');
     }
 
     // ── Helpers ──────────────────────────────────────────────────

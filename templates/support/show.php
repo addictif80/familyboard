@@ -33,7 +33,7 @@ ob_start();
     <?php if ($ticket['status'] !== 'closed'): ?>
     <div class="card" style="margin-top:1.5rem;max-width:700px">
         <div class="card-header"><h3>Répondre</h3></div>
-        <form method="POST" action="<?= BASE_URL ?>/support/<?= $ticket['id'] ?>/reply" style="padding:1rem">
+        <form method="POST" action="<?= BASE_URL ?>/support/<?= $ticket['id'] ?>/reply" style="padding:1rem"><?= \App\Core\Csrf::field() ?>
             <div class="form-group">
                 <textarea name="message" rows="4" placeholder="Votre message…" required style="width:100%"></textarea>
             </div>

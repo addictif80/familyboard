@@ -3,8 +3,10 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Core\OcrHelper;
+use App\Models\CustodyActivityLog;
 use App\Models\Document;
 use App\Models\User;
+use App\Models\Notification;
 
 class DocumentController extends BaseController
 {
@@ -24,6 +26,7 @@ class DocumentController extends BaseController
         $expiring     = Document::getExpiringsSoon($familyId, 90);
         $members      = User::getByFamily($familyId);
         $allTypes     = OcrHelper::$types;
+        $custodySchedules = \App\Models\Custody::getSchedules($familyId);
 
         require BASE_PATH . '/templates/documents/index.php';
     }
@@ -36,7 +39,16 @@ class DocumentController extends BaseController
             $data   = $_POST ?: $this->jsonInput();
             $file   = $_FILES['file'] ?? null;
             $userId = (int)($data['user_id'] ?? $user['id']);
+            if (!empty($data['custody_schedule_id'])) {
+                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
+                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
+            }
             $id     = Document::create($user['family_id'], $userId, $data, $file);
+            if (!empty($data['custody_schedule_id'])) {
+                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'document_uploaded', $data['title'] ?? null);
+            }
+            Notification::notifyFamily($user['family_id'], $user['id'], 'documents', 'Nouveau document',
+                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/documents');
             return ['success' => true, 'id' => $id];
         });
     }
@@ -49,7 +61,14 @@ class DocumentController extends BaseController
             $data = $_POST ?: $this->jsonInput();
             $file = $_FILES['file'] ?? null;
             if (isset($data['user_id'])) $data['user_id'] = (int)$data['user_id'];
+            if (!empty($data['custody_schedule_id'])) {
+                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
+                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
+            }
             Document::update((int)$params['id'], $user['family_id'], $data, $file);
+            if (!empty($data['custody_schedule_id'])) {
+                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'document_updated', $data['title'] ?? null);
+            }
             return ['success' => true];
         });
     }

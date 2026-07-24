@@ -87,7 +87,7 @@ class Warranty
 
         $endDate = self::computeEndDate($data['purchase_date'] ?? null, (int)($data['warranty_months'] ?? 24));
 
-        Database::execute(
+        return Database::insert(
             'INSERT INTO warranties
              (family_id, user_id, title, brand, model, serial_number, store,
               purchase_date, warranty_months, warranty_end_date, price, notes,
@@ -109,7 +109,6 @@ class Warranty
                 $data['ocr_text'] ?? null,
             ]
         );
-        return (int)Database::lastInsertId();
     }
 
     public static function update(int $id, int $familyId, array $data, ?array $file = null): void
@@ -179,19 +178,21 @@ class Warranty
 
     private static function saveFile(int $familyId, array $file): array
     {
-        $allowedMimes = [
-            'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-            'application/pdf',
+        $extByMime = [
+            'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif',
+            'application/pdf' => 'pdf',
         ];
-        if (!in_array($file['type'], $allowedMimes, true)) {
-            throw new \RuntimeException('Type de fichier non autorisé.');
-        }
         if ($file['size'] > 20 * 1024 * 1024) {
             throw new \RuntimeException('Fichier trop volumineux (max 20 Mo).');
         }
+        // Le Content-Type et le nom envoyés par le client sont falsifiables : on
+        // inspecte le contenu réel du fichier avant de choisir l'extension stockée.
+        $realType = @mime_content_type($file['tmp_name']) ?: '';
+        if (!isset($extByMime[$realType])) {
+            throw new \RuntimeException('Type de fichier non autorisé.');
+        }
 
-        $ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $filename = bin2hex(random_bytes(16)) . '.' . $ext;
+        $filename = bin2hex(random_bytes(16)) . '.' . $extByMime[$realType];
         $dir      = self::storageDir($familyId);
         $dest     = $dir . '/' . $filename;
 
@@ -201,7 +202,7 @@ class Warranty
 
         // Relative path from BASE_PATH for storage
         $rel = '/storage/warranties/' . $familyId . '/' . $filename;
-        return [$rel, $file['name'], $file['type']];
+        return [$rel, $file['name'], $realType];
     }
 
     private static function computeEndDate(?string $purchaseDate, int $months): ?string

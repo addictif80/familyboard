@@ -7,3 +7,6 @@
 // define('DB_NAME', 'familyboard');
 // define('DB_USER', 'your_user');
 // define('DB_PASS', 'your_password');
+
+// Android app download link (defaults to the GitHub Releases "latest" APK)
+// define('ANDROID_APK_URL', 'https://example.com/downloads/familyboard.apk');

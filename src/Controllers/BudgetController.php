@@ -42,7 +42,7 @@ class BudgetController extends BaseController
         $this->json(function () use ($params) {
             $user = Session::user();
             $id = (int)$params['id'];
-            Budget::deleteCategory($id);
+            Budget::deleteCategory($id, $user['family_id']);
             return ['success' => true];
         });
     }
@@ -101,7 +101,7 @@ class BudgetController extends BaseController
         $this->json(function () use ($params) {
             $user = Session::user();
             $id = (int)$params['id'];
-            Budget::updateGoal($id, $this->jsonInput());
+            Budget::updateGoal($id, $user['family_id'], $this->jsonInput());
             return ['success' => true];
         });
     }
@@ -110,8 +110,9 @@ class BudgetController extends BaseController
     {
         $this->requireAuth();
         $this->json(function () use ($params) {
+            $user = Session::user();
             $id = (int)$params['id'];
-            Budget::deleteGoal($id);
+            Budget::deleteGoal($id, $user['family_id']);
             return ['success' => true];
         });
     }
@@ -177,6 +178,18 @@ class BudgetController extends BaseController
             $user  = Session::user();
             $month = $_GET['month'] ?? date('Y-m');
             return Budget::getChartData($user['family_id'], $month);
+        });
+    }
+
+    // ---- Saisie assistée ----
+
+    public function suggestCategory(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user  = Session::user();
+            $title = $_GET['title'] ?? '';
+            return ['suggestion' => Budget::suggestCategory($user['family_id'], $title)];
         });
     }
 }

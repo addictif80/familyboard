@@ -6,8 +6,14 @@ class Session
     public static function start(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
-            ini_set('session.cookie_lifetime', SESSION_LIFETIME);
             ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
+            session_set_cookie_params([
+                'lifetime' => SESSION_LIFETIME,
+                'path'     => (BASE_URL ?: '') . '/',
+                'httponly' => true,
+                'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+                'samesite' => 'Lax',
+            ]);
             session_start();
         }
     }

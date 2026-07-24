@@ -8,6 +8,7 @@ class Family
     /** All disableable modules: slug => [label, icon] */
     public const MODULES = [
         'wall'        => ['label' => 'Mur familial',     'icon' => '📸'],
+        'albums'      => ['label' => 'Albums photo',     'icon' => '🖼️'],
         'calendar'    => ['label' => 'Calendrier',        'icon' => '📅'],
         'custody'     => ['label' => 'Garde alternée',    'icon' => '👶'],
         'tasks'       => ['label' => 'Tâches & Courses',  'icon' => '✅'],
@@ -19,6 +20,13 @@ class Family
         'documents'   => ['label' => 'Documents',         'icon' => '🗂️'],
         'cameras'     => ['label' => 'Caméras',           'icon' => '🎥'],
         'family-wall' => ['label' => 'Écran mural',       'icon' => '📺'],
+        'baby'        => ['label' => 'Bébé',               'icon' => '🍼'],
+        'location'    => ['label' => 'Position',          'icon' => '📍'],
+        'emergency'   => ['label' => 'Fiches urgence',    'icon' => '🚑'],
+        'comm_log'    => ['label' => 'Journal parental',  'icon' => '📝'],
+        'meals'       => ['label' => 'Repas',              'icon' => '🍽️'],
+        'sitter'      => ['label' => 'Accès baby-sitter',  'icon' => '👶'],
+        'kiosk'       => ['label' => 'Écran mural (kiosque)', 'icon' => '🖥️'],
     ];
 
     public static function findById(int $id): ?array

@@ -28,6 +28,32 @@ async function sendMessage() {
     }
 }
 
+async function sendVoiceMessage({ blob, mimeType, durationSec }) {
+    const input = document.getElementById('chat-input');
+    const content = input.value.trim();
+    input.value = '';
+
+    const fd = new FormData();
+    fd.append('audio', blob, 'voice.' + voiceExtensionForMime(mimeType));
+    fd.append('content', content);
+    fd.append('duration', durationSec);
+
+    const res = await fetch(BASE_URL + '/api/chat/send', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) {
+        appendMessage(data.message, true);
+        lastMsgId = data.message.id;
+        scrollToBottom();
+    } else {
+        Dialog.toast(data.error || "Erreur lors de l'envoi du message vocal.", 'error');
+    }
+}
+
+const chatVoiceBtn = document.getElementById('chat-voice-btn');
+if (chatVoiceBtn) {
+    initVoiceRecorder(chatVoiceBtn, document.getElementById('chat-voice-timer'), sendVoiceMessage);
+}
+
 function appendMessage(msg, own) {
     const container = document.getElementById('chat-messages');
     const isOwn = own || msg.user_id === CURRENT_USER_ID;
@@ -42,11 +68,15 @@ function appendMessage(msg, own) {
 
     const author = !isOwn ? `<div class="message-author" style="color:${escapeHtml(msg.user_color)}">${escapeHtml(msg.user_name)}</div>` : '';
 
+    const voice = msg.audio_path ? voiceBubbleHtml(`${BASE_URL}/api/chat/${msg.id}/audio`, msg.audio_duration) : '';
+    const text = msg.content ? `<div class="message-text">${escapeHtml(msg.content).replace(/\n/g,'<br>')}</div>` : '';
+
     div.innerHTML = `
         ${avatar}
         <div class="message-bubble ${isOwn ? 'bubble-own' : 'bubble-other'}">
             ${author}
-            <div class="message-text">${escapeHtml(msg.content).replace(/\n/g,'<br>')}</div>
+            ${voice}
+            ${text}
             <div class="message-time">${formatMsgTime(msg.created_at)}</div>
         </div>
         ${isOwn ? `<button class="msg-delete-btn" onclick="deleteMessage(${msg.id})" title="Supprimer">✕</button>` : ''}

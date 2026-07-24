@@ -15,26 +15,9 @@ function tzDate(dateStr) {
     return new Date(dateStr);
 }
 
-const _intlMonth = new Intl.DateTimeFormat('fr-FR', { month: 'long', timeZone: APP_TIMEZONE });
-const _intlDay   = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', timeZone: APP_TIMEZONE });
+// fmtMonthYear / fmtDayNames now live in app.js (loaded on every page) so
+// other month-grid views (custody, coparent) format headers correctly too.
 const _intlTime  = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIMEZONE });
-
-function fmtMonthYear(year, month) {
-    const d = new Date(year, month, 1);
-    const m = _intlMonth.format(d);
-    return m.charAt(0).toUpperCase() + m.slice(1) + ' ' + year;
-}
-
-function fmtDayNames() {
-    const names = [];
-    // Get Mon-Sun: use a known Monday (2024-01-01 was a Monday)
-    for (let i = 1; i <= 7; i++) {
-        const d = new Date(2024, 0, i);
-        const s = _intlDay.format(d);
-        names.push(s.charAt(0).toUpperCase() + s.slice(1).replace('.',''));
-    }
-    return names;
-}
 
 function fmtEventTime(dateStr) {
     if (!dateStr || dateStr.length === 10) return '';
@@ -88,7 +71,7 @@ function renderCalendar() {
         // Dots for mobile (max 4 shown)
         const dotsHtml = '<div class="cal-day-dots">' +
             dayEvents.slice(0, 4).map(e =>
-                `<span class="cal-day-dot" style="background:${e.color || '#4A90D9'}"></span>`
+                `<span class="cal-day-dot" style="background:${safeColor(e.color)}"></span>`
             ).join('') + '</div>';
 
         html += `<div class="cal-day ${isCurrentMonth ? '' : 'cal-other-month'} ${isToday ? 'cal-today' : ''}"
@@ -117,7 +100,7 @@ function renderCalendar() {
             const label  = isCustody ? '👶 ' : isProject ? '📋 ' : '';
             const suffix = isCustody ? ' (Garde alternée)' : isProject ? ' (Projet)' : isBirthday ? ' (Anniversaire)' : isVacation ? ' — cliquer pour supprimer' : '';
             html += `<div class="cal-event${isCustody ? ' cal-event-custody' : ''}"
-                          style="background:${e.color || '#4A90D9'};${isSchool ? 'opacity:.85' : ''}"
+                          style="background:${safeColor(e.color)};${isSchool ? 'opacity:.85' : ''}"
                           onclick="event.stopPropagation();${onClick}"
                           title="${escapeHtml(e.title)}${suffix}"
                           ${isSchool ? '' : 'style="cursor:pointer"'}>
@@ -190,7 +173,7 @@ function renderMobileAgenda(dateStr) {
                             : isSchool ? '' : `openEventDetails(${JSON.stringify(e.id)})`;
             const label = isCustody ? '👶 ' : isProject ? '📋 ' : '';
             inner += `<div class="cal-agenda-event" onclick="${onClick}" style="cursor:pointer">
-                <span class="cal-agenda-dot" style="background:${e.color || '#4A90D9'}"></span>
+                <span class="cal-agenda-dot" style="background:${safeColor(e.color)}"></span>
                 <div class="cal-agenda-info">
                     <div class="cal-agenda-name">${label}${escapeHtml(e.title)}</div>
                     <div class="cal-agenda-time">${timeStr}</div>
@@ -214,10 +197,21 @@ function loadEvents() {
     const school    = document.getElementById('school-toggle')?.checked ? 1 : 0;
 
     fetch(`${BASE_URL}/api/calendar/events?start=${start}&end=${end}&custody=${custody}&projects=${projects}&vacations=${vacations}&school=${school}`)
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error('Réponse serveur ' + r.status + ' lors du chargement du calendrier');
+            return r.json();
+        })
         .then(data => {
+            if (!Array.isArray(data)) throw new Error('Réponse invalide du calendrier (pas un tableau)');
             events = data;
             renderCalendar();
+        })
+        .catch(err => {
+            reportClientError('Échec du chargement du calendrier : ' + err.message, { file: 'calendar.js', line: 199 });
+            const container = document.getElementById('calendar');
+            if (container) {
+                container.innerHTML = '<div class="empty-state-card"><p>⚠️ Le calendrier n\'a pas pu être chargé. Rechargez la page ; si le problème persiste, un signalement a été envoyé au support.</p></div>';
+            }
         });
 }
 
@@ -242,6 +236,18 @@ function openEventModal(date = null, eventData = null) {
     document.getElementById('event-desc').value = '';
     document.getElementById('event-color').value = '#4A90D9';
     document.getElementById('event-recurrence').value = '';
+    document.getElementById('event-professional').value = '';
+    document.getElementById('event-location-input').value = '';
+    document.getElementById('event-location-lat').value = '';
+    document.getElementById('event-location-lng').value = '';
+    document.getElementById('event-more-info').open = false;
+    hideLocationPreview();
+    const custodyToggle = document.getElementById('event-custody-toggle');
+    if (custodyToggle) {
+        custodyToggle.checked = false;
+        document.getElementById('event-custody-select-wrap').style.display = 'none';
+        document.getElementById('event-custody-schedule').value = '';
+    }
 
     if (date) {
         document.getElementById('event-start').value = date + 'T09:00';
@@ -257,6 +263,28 @@ function openEventModal(date = null, eventData = null) {
         document.getElementById('event-start').value = eventData.start?.replace(' ', 'T') || '';
         document.getElementById('event-end').value = (eventData.end || eventData.start)?.replace(' ', 'T') || '';
         document.getElementById('event-color').value = eventData.color || '#4A90D9';
+        const professionalName = eventData.extendedProps?.professional_name || '';
+        const location = eventData.extendedProps?.location || '';
+        const locationLat = eventData.extendedProps?.location_lat || '';
+        const locationLng = eventData.extendedProps?.location_lng || '';
+        document.getElementById('event-professional').value = professionalName;
+        document.getElementById('event-location-input').value = location;
+        document.getElementById('event-location-lat').value = locationLat;
+        document.getElementById('event-location-lng').value = locationLng;
+        document.getElementById('event-more-info').open = !!(professionalName || location);
+        if (location && locationLat && locationLng) {
+            updateLocationPreview(location, locationLat, locationLng);
+        } else if (location) {
+            geocodeAndPreview(location);
+        } else {
+            hideLocationPreview();
+        }
+        if (custodyToggle) {
+            const csId = eventData.extendedProps?.custody_schedule_id || '';
+            custodyToggle.checked = !!csId;
+            document.getElementById('event-custody-select-wrap').style.display = csId ? '' : 'none';
+            document.getElementById('event-custody-schedule').value = csId;
+        }
     }
     openModal('event-modal');
 }
@@ -281,7 +309,15 @@ async function saveEvent() {
         is_all_day: allDay ? 1 : 0,
         color: document.getElementById('event-color').value,
         recurrence: document.getElementById('event-recurrence').value || null,
+        professional_name: document.getElementById('event-professional').value.trim() || null,
+        location: document.getElementById('event-location-input').value.trim() || null,
+        location_lat: document.getElementById('event-location-lat').value || null,
+        location_lng: document.getElementById('event-location-lng').value || null,
     };
+    const custodyToggle = document.getElementById('event-custody-toggle');
+    if (custodyToggle && custodyToggle.checked) {
+        data.custody_schedule_id = document.getElementById('event-custody-schedule').value;
+    }
 
     const id = document.getElementById('event-id').value;
     const url = id ? `${BASE_URL}/api/calendar/events/${id}` : `${BASE_URL}/api/calendar/events`;
@@ -393,6 +429,140 @@ async function deleteVacationPrompt(id) {
     if (result?.success) loadEvents();
     else Dialog.toast('Erreur lors de la suppression.', 'error');
 }
+
+// ── Event location: map preview + Google Maps / Waze links ─────
+function hideLocationPreview() {
+    const preview = document.getElementById('event-location-preview');
+    if (preview) preview.style.display = 'none';
+}
+
+function updateLocationPreview(address, lat, lng) {
+    const preview = document.getElementById('event-location-preview');
+    if (!preview) return;
+    lat = parseFloat(lat);
+    lng = parseFloat(lng);
+    if (isNaN(lat) || isNaN(lng)) { hideLocationPreview(); return; }
+
+    const delta = 0.004;
+    const bbox = [lng - delta, lat - delta, lng + delta, lat + delta].join(',');
+    document.getElementById('event-location-map').src =
+        `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&marker=${lat},${lng}&layer=mapnik`;
+    document.getElementById('event-location-gmaps').href =
+        `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    document.getElementById('event-location-waze').href =
+        `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+    preview.style.display = '';
+}
+
+async function geocodeAndPreview(address) {
+    try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=json&countrycodes=fr&limit=1&q=' + encodeURIComponent(address);
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data[0]) {
+            document.getElementById('event-location-lat').value = data[0].lat;
+            document.getElementById('event-location-lng').value = data[0].lon;
+            updateLocationPreview(address, data[0].lat, data[0].lon);
+        } else {
+            hideLocationPreview();
+        }
+    } catch (_) { hideLocationPreview(); }
+}
+
+// ── Address autocomplete (event location, France uniquement) ───
+(function () {
+    const input = document.getElementById('event-location-input');
+    const list  = document.getElementById('event-location-list');
+    if (!input) return;
+    const latInput = document.getElementById('event-location-lat');
+    const lngInput = document.getElementById('event-location-lng');
+
+    let timer = null;
+    let activeIdx = -1;
+
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        // L'adresse a changé manuellement : les coordonnées mémorisées ne sont plus valables.
+        latInput.value = '';
+        lngInput.value = '';
+        hideLocationPreview();
+        const q = input.value.trim();
+        if (q.length < 3) { hide(); return; }
+        timer = setTimeout(() => fetchAddresses(q), 350);
+    });
+
+    input.addEventListener('keydown', e => {
+        const items = list.querySelectorAll('li');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); setActive(activeIdx + 1, items); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(activeIdx - 1, items); }
+        else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); items[activeIdx].click(); }
+        else if (e.key === 'Escape') { hide(); }
+    });
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#event-location-wrap')) hide();
+    });
+
+    async function fetchAddresses(q) {
+        try {
+            const url = 'https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&countrycodes=fr&q=' + encodeURIComponent(q);
+            const res  = await fetch(url);
+            const data = await res.json();
+            render(data || []);
+        } catch (_) { hide(); }
+    }
+
+    // Construit un libellé lisible : "12 Rue de la Paix" / "75002 Paris"
+    // plutôt que d'afficher tel quel le display_name brut de Nominatim.
+    function formatResult(r) {
+        const a = r.address || {};
+        const street = [a.house_number, a.road].filter(Boolean).join(' ');
+        const main = street || a.neighbourhood || a.suburb || a.village || r.display_name.split(',')[0].trim();
+        const city = a.city || a.town || a.village || a.municipality || '';
+        const sub = [a.postcode, city].filter(Boolean).join(' ');
+        return { main, sub: sub || a.state || '' };
+    }
+
+    function render(results) {
+        if (!results.length) { hide(); return; }
+        activeIdx = -1;
+        list.innerHTML = '';
+        results.forEach(r => {
+            const { main, sub } = formatResult(r);
+            const li = document.createElement('li');
+            li.className = 'city-ac-item';
+            li.innerHTML = '<span class="city-ac-name">' + esc(main) + '</span>' +
+                           '<span class="city-ac-sub">' + esc(sub) + '</span>';
+            li.addEventListener('mousedown', e => {
+                e.preventDefault();
+                select(r.display_name, r.lat, r.lon);
+            });
+            list.appendChild(li);
+        });
+        list.style.display = 'block';
+    }
+
+    function select(address, lat, lon) {
+        input.value = address;
+        latInput.value = lat;
+        lngInput.value = lon;
+        updateLocationPreview(address, lat, lon);
+        hide();
+    }
+
+    function setActive(idx, items) {
+        items.forEach(i => i.classList.remove('active'));
+        activeIdx = Math.max(0, Math.min(idx, items.length - 1));
+        items[activeIdx].classList.add('active');
+    }
+
+    function hide() { list.style.display = 'none'; activeIdx = -1; }
+
+    function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+})();
 
 // Init
 loadEvents();

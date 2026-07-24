@@ -4,9 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? APP_NAME) ?></title>
+    <!-- Apply saved theme before first paint to avoid a flash of the wrong theme -->
+    <script>
+    (function () {
+        try {
+            var stored = localStorage.getItem('fb-theme');
+            var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+    })();
+    </script>
+    <!-- Favicon -->
+    <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon-192.png" type="image/png">
     <!-- PWA -->
     <link rel="manifest" href="<?= BASE_URL ?>/public/manifest.json">
-    <meta name="theme-color" content="#4A90D9">
+    <meta name="theme-color" content="#232A3D">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="FamilyBoard">
@@ -19,11 +32,38 @@
         <?php endforeach; ?>
     <?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
 </head>
 <body>
 
-<?php if (\App\Core\Session::isLoggedIn()): ?>
+<?php if (\App\Core\Session::isLoggedIn() && !empty($_SESSION['impersonation'])): ?>
+<div class="impersonation-banner">
+    🕵️ Connecté en tant que <strong><?= htmlspecialchars(\App\Core\Session::user()['name'] ?? '') ?></strong> (accès support admin)
+    <a href="<?= BASE_URL ?>/admin/stop-impersonating" class="btn btn-sm">Revenir à l'admin</a>
+</div>
+<?php endif; ?>
+
+<?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
+<!-- Compte à accès restreint : pas de sidebar complète, seulement l'essentiel. -->
+<div class="coparent-shell">
+    <header class="coparent-topbar">
+        <div class="coparent-brand">
+            <span class="logo-icon">🔒</span>
+            <span>Garde partagée</span>
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+            <button class="btn btn-secondary btn-sm" onclick="openReportIssueModal()" title="Signaler un problème">🐞 Signaler un problème</button>
+            <a href="<?= BASE_URL ?>/logout" class="btn btn-secondary btn-sm">Déconnexion</a>
+        </div>
+    </header>
+    <?php $success = \App\Core\Session::getFlash('success'); $error = \App\Core\Session::getFlash('error'); ?>
+    <?php if ($success): ?><div class="alert alert-success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="alert alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+    <div class="coparent-content">
+        <?= $content ?? '' ?>
+    </div>
+</div>
+<?php elseif (\App\Core\Session::isLoggedIn()): ?>
 <?php
 $currentUser = \App\Core\Session::user();
 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -57,6 +97,14 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 </a>
             </li>
             <?php endif; ?>
+            <?php if (!in_array('albums', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/albums" class="nav-link">
+                    <span class="nav-icon">🖼️</span>
+                    <span class="nav-label">Albums photo</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if (!in_array('calendar', $_disabledModules)): ?>
             <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/calendar" class="nav-link">
@@ -70,6 +118,14 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 <a href="<?= BASE_URL ?>/custody" class="nav-link">
                     <span class="nav-icon">👶</span>
                     <span class="nav-label">Garde alternée</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (\App\Models\Custody::getSchedulesForUser($currentUser['id'])): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/coparent') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/coparent" class="nav-link">
+                    <span class="nav-icon">🔒</span>
+                    <span class="nav-label">Garde partagée</span>
                 </a>
             </li>
             <?php endif; ?>
@@ -145,6 +201,46 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 </a>
             </li>
             <?php endif; ?>
+            <?php if (!in_array('baby', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/baby') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/baby" class="nav-link">
+                    <span class="nav-icon">🍼</span>
+                    <span class="nav-label">Bébé</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (!in_array('location', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/location" class="nav-link">
+                    <span class="nav-icon">📍</span>
+                    <span class="nav-label">Position</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (!in_array('emergency', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/emergency') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/emergency" class="nav-link">
+                    <span class="nav-icon">🚑</span>
+                    <span class="nav-label">Fiches urgence</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (!in_array('comm_log', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/comm-log') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/comm-log" class="nav-link">
+                    <span class="nav-icon">📝</span>
+                    <span class="nav-label">Journal parental</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (!in_array('meals', $_disabledModules)): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/meals') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/meals" class="nav-link">
+                    <span class="nav-icon">🍽️</span>
+                    <span class="nav-label">Repas</span>
+                </a>
+            </li>
+            <?php endif; ?>
         </ul>
 
         <div class="sidebar-footer">
@@ -176,6 +272,11 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
             <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
             <h1 class="page-title"><?= htmlspecialchars($pageTitle ?? '') ?></h1>
             <div class="topbar-actions">
+                <button class="btn-icon" onclick="openReportIssueModal()" title="Signaler un problème">🐞</button>
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème">
+                    <span class="theme-icon-sun">☀️</span>
+                    <span class="theme-icon-moon">🌙</span>
+                </button>
                 <button class="btn-icon" onclick="toggleNotifications()" title="Notifications">
                     🔔
                     <?php if ($unreadCount > 0): ?>
@@ -216,15 +317,39 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
 </div>
 <?php endif; ?>
 
+<!-- Signaler un problème (disponible sur toutes les pages, y compris l'accès co-parent restreint) -->
+<div class="modal-overlay" id="report-issue-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>🐞 Signaler un problème</h3>
+            <button onclick="closeModal('report-issue-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="color:var(--text-muted);font-size:.85rem">
+                Décrivez brièvement ce qui ne va pas (facultatif) : un diagnostic technique (navigateur, page, cache…) sera joint automatiquement pour le support.
+            </p>
+            <div class="form-group">
+                <textarea id="report-issue-description" rows="3" placeholder="Ex : le calendrier ne s'affiche pas…"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('report-issue-modal')">Annuler</button>
+            <button class="btn btn-primary" id="report-issue-submit-btn" onclick="submitReportIssue()">Envoyer</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const APP_TIMEZONE = <?= json_encode(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Paris') ?>;
+const APP_VERSION = <?= json_encode((string)APP_VERSION) ?>;
 </script>
 <script src="<?= ASSETS_URL ?>/js/app.js?v=<?= APP_VERSION ?>"></script>
 <script>
 if ('serviceWorker' in navigator) {
     // Register as early as possible so .ready resolves before initPushSubscription runs
-    navigator.serviceWorker.register('<?= BASE_URL ?>/sw.js?v=<?= APP_VERSION ?>');
+    navigator.serviceWorker.register('<?= BASE_URL ?>/sw.js?v=<?= APP_VERSION ?>')
+        .then(() => initPushSubscription());
 }
 // PWA install prompt
 let deferredPrompt;

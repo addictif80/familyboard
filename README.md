@@ -73,14 +73,22 @@ mysql -u root -p familyboard < database/schema.sql
 > instructions utilisent `IF NOT EXISTS` — elles sont sans effet si la
 > structure existe déjà.
 
-### 5. Permissions
+### 5. Installer les dépendances PHP
+
+```bash
+composer install --no-dev
+```
+
+Requis pour les notifications push (bibliothèque `minishlink/web-push`).
+
+### 6. Permissions
 
 ```bash
 chmod 755 public/uploads/
 chmod 755 storage/
 ```
 
-### 6. Configuration Apache
+### 7. Configuration Apache
 
 ```apache
 <VirtualHost *:80>
@@ -192,6 +200,32 @@ Configurez votre serveur SMTP dans **Paramètres → SMTP** pour activer :
 L'application peut être installée sur mobile et bureau via **📲 Installer
 l'app** dans la barre latérale. Elle fonctionne en mode hors-ligne partiel
 grâce au Service Worker.
+
+## Application Android
+
+Un vrai client Android (`android/`) est disponible en plus de la PWA : c'est
+une app WebView légère qui demande l'adresse de votre serveur au premier
+lancement (celle que vous utilisez déjà dans le navigateur), puis se comporte
+comme une app native (icône, session persistante, upload de fichiers,
+téléchargement des exports/documents).
+
+- **Téléchargement** : un utilisateur connecté trouve le lien dans
+  *Paramètres → Application Android* (route `/app/android`), qui redirige
+  vers le dernier APK publié sur GitHub Releases.
+- **Build** : `.github/workflows/android-release.yml` compile et publie
+  automatiquement l'APK (déclenchable manuellement ou via un tag `android-vX.Y.Z`).
+- **Signature** : pour produire un APK installable (signé), configurez ces
+  secrets du dépôt GitHub avant de lancer le workflow :
+  - `FAMILYBOARD_KEYSTORE_BASE64` — un keystore encodé en base64
+    (`keytool -genkeypair -v -keystore release.keystore -alias familyboard -keyalg RSA -keysize 2048 -validity 10000`
+    puis `base64 -w0 release.keystore`)
+  - `FAMILYBOARD_KEYSTORE_PASSWORD`, `FAMILYBOARD_KEY_ALIAS`, `FAMILYBOARD_KEY_PASSWORD`
+
+  Sans ces secrets, le workflow compile quand même mais produit un APK non
+  signé (non installable) — utile pour vérifier que le build passe.
+- **URL personnalisée** : si vous préférez héberger l'APK vous-même plutôt
+  que d'utiliser GitHub Releases, définissez `ANDROID_APK_URL` dans
+  `config/config.local.php`.
 
 ## Sécurité
 

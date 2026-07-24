@@ -42,7 +42,7 @@ function openViewModal(contact) {
 
     body.innerHTML = `
         <div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:1.2rem">
-            <div class="contact-avatar contact-avatar-lg" style="background:${contact.color}">${avatarHtml}</div>
+            <div class="contact-avatar contact-avatar-lg" style="background:${safeColor(contact.color)}">${avatarHtml}</div>
             <div>
                 <div style="font-size:1.3rem;font-weight:700">${esc(fullName)}</div>
             </div>
@@ -191,7 +191,7 @@ function buildContactCard(c) {
     div.onclick = () => openViewModal(c);
 
     div.innerHTML = `
-        <div class="contact-avatar" style="background:${c.color}">${avatarInner}</div>
+        <div class="contact-avatar" style="background:${safeColor(c.color)}">${avatarInner}</div>
         <div class="contact-info">
             <div class="contact-name">${esc(fullName)}</div>
             ${c.phone ? `<div class="contact-line">📞 <a href="tel:${esc(c.phone)}" onclick="event.stopPropagation()">${esc(c.phone)}</a></div>` : ''}

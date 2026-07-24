@@ -1,28 +1,36 @@
 <?php
 namespace App\Models;
 
-use App\Core\Database;
-
+/**
+ * Global SMTP configuration, set once by the system administrator
+ * (panneau /admin) and shared by every family — not per-family.
+ */
 class SmtpSettings
 {
-    public static function getByFamily(int $familyId): ?array
+    public static function get(): ?array
     {
-        return Database::fetch('SELECT * FROM smtp_settings WHERE family_id = ?', [$familyId]);
+        $host = AppSetting::get('smtp_host');
+        if (!$host) return null;
+
+        return [
+            'host'       => $host,
+            'port'       => (int)AppSetting::get('smtp_port', '587'),
+            'username'   => AppSetting::get('smtp_username', ''),
+            'password'   => AppSetting::get('smtp_password', ''),
+            'from_email' => AppSetting::get('smtp_from_email', ''),
+            'from_name'  => AppSetting::get('smtp_from_name', 'FamilyBoard'),
+            'encryption' => AppSetting::get('smtp_encryption', 'tls'),
+        ];
     }
 
-    public static function save(int $familyId, array $data): void
+    public static function save(array $data): void
     {
-        $existing = self::getByFamily($familyId);
-        if ($existing) {
-            Database::execute(
-                'UPDATE smtp_settings SET host=?, port=?, username=?, password=?, from_email=?, from_name=?, encryption=? WHERE family_id=?',
-                [$data['host'], $data['port'], $data['username'], $data['password'], $data['from_email'], $data['from_name'], $data['encryption'], $familyId]
-            );
-        } else {
-            Database::insert(
-                'INSERT INTO smtp_settings (family_id, host, port, username, password, from_email, from_name, encryption) VALUES (?,?,?,?,?,?,?,?)',
-                [$familyId, $data['host'], $data['port'], $data['username'], $data['password'], $data['from_email'], $data['from_name'], $data['encryption']]
-            );
-        }
+        AppSetting::set('smtp_host', $data['host'] ?? '');
+        AppSetting::set('smtp_port', (string)($data['port'] ?? 587));
+        AppSetting::set('smtp_username', $data['username'] ?? '');
+        AppSetting::set('smtp_password', $data['password'] ?? '');
+        AppSetting::set('smtp_from_email', $data['from_email'] ?? '');
+        AppSetting::set('smtp_from_name', $data['from_name'] ?? '');
+        AppSetting::set('smtp_encryption', $data['encryption'] ?? 'tls');
     }
 }

@@ -1,8 +1,10 @@
 <?php
 namespace App\Controllers;
 
+use App\Core\RememberMe;
 use App\Core\Session;
 use App\Models\Family;
+use App\Models\LoginAttempt;
 use App\Models\User;
 
 class AuthController
@@ -21,6 +23,7 @@ class AuthController
     {
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
         if (!$email || !$password) {
             Session::flash('error', 'Veuillez remplir tous les champs.');
@@ -28,12 +31,20 @@ class AuthController
             exit;
         }
 
+        if (LoginAttempt::isLocked('user', $ip)) {
+            Session::flash('error', 'Trop de tentatives. Réessayez dans ' . LoginAttempt::minutesUntilUnlock() . ' minutes.');
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+
         $user = User::verify($email, $password);
         if (!$user) {
+            LoginAttempt::record('user', $ip);
             Session::flash('error', 'Email ou mot de passe incorrect.');
             header('Location: ' . BASE_URL . '/login');
             exit;
         }
+        LoginAttempt::clear('user', $ip);
 
         // Check if account is blocked
         if (!empty($user['blocked_at'])) {
@@ -43,6 +54,7 @@ class AuthController
         }
 
         Session::login($user);
+        RememberMe::issue($user['id']);
         header('Location: ' . BASE_URL . '/');
         exit;
     }
@@ -110,6 +122,7 @@ class AuthController
         $userId = User::create($familyId, $name, $email, $password, $role, $color);
         $user = User::findById($userId);
         Session::login($user);
+        RememberMe::issue($user['id']);
 
         header('Location: ' . BASE_URL . '/');
         exit;
@@ -117,6 +130,13 @@ class AuthController
 
     public function logout(array $params): void
     {
+        // If a system admin is mid-impersonation and logs out via the normal button
+        // (instead of the "Revenir à l'admin" banner), still close the audit entry
+        // rather than leaving it stuck "en cours" forever.
+        if (!empty($_SESSION['impersonation']['log_id'])) {
+            \App\Models\ImpersonationLog::end((int)$_SESSION['impersonation']['log_id']);
+        }
+        RememberMe::clear();
         Session::destroy();
         header('Location: ' . BASE_URL . '/login');
         exit;

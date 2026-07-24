@@ -4,7 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ticket #<?= $ticket['id'] ?> — Admin</title>
+    <script>
+    (function () {
+        try {
+            var stored = localStorage.getItem('fb-theme');
+            var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+    })();
+    </script>
+    <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon-192.png" type="image/png">
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css?v=<?= APP_VERSION ?>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
 </head>
 <body class="admin-body">
 <div class="admin-layout">
@@ -14,6 +27,7 @@
             <li><a href="<?= BASE_URL ?>/admin?tab=tickets" style="font-weight:600">← Tickets</a></li>
         </ul>
         <div class="admin-sidebar-footer">
+            <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème"><span class="theme-icon-sun">☀️</span><span class="theme-icon-moon">🌙</span></button>
             <a href="<?= BASE_URL ?>/admin/logout" class="btn btn-danger btn-sm" style="margin-left:auto">Déconnexion</a>
         </div>
     </nav>
@@ -23,12 +37,15 @@
             <span class="badge badge-<?= $ticket['status'] === 'closed' ? 'ok' : 'warn' ?>">
                 <?= match($ticket['status']) { 'open'=>'🆕 Ouvert','in_progress'=>'💬 En cours','closed'=>'✅ Fermé',default=>$ticket['status'] } ?>
             </span>
+            <?php if (($ticket['source'] ?? 'user') === 'auto'): ?>
+                <span class="badge badge-warn" title="Créé automatiquement suite à une erreur technique">🤖 Signalement automatique</span>
+            <?php endif; ?>
             <?php if ($ticket['status'] !== 'closed'): ?>
-            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/close" style="margin-left:auto">
+            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/close" style="margin-left:auto"><?= \App\Core\Csrf::field() ?>
                 <button class="btn btn-secondary btn-sm">✅ Fermer le ticket</button>
             </form>
             <?php else: ?>
-            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/reopen" style="margin-left:auto">
+            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/reopen" style="margin-left:auto"><?= \App\Core\Csrf::field() ?>
                 <button class="btn btn-secondary btn-sm">🔄 Rouvrir</button>
             </form>
             <?php endif; ?>
@@ -57,7 +74,7 @@
 
         <div class="card" style="max-width:700px">
             <div class="card-header"><h3>Répondre</h3></div>
-            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/reply" style="padding:1rem">
+            <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/reply" style="padding:1rem"><?= \App\Core\Csrf::field() ?>
                 <div class="form-group">
                     <textarea name="message" rows="4" placeholder="Votre réponse…" required style="width:100%"></textarea>
                 </div>

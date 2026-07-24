@@ -8,7 +8,7 @@ ob_start();
     <!-- Profile -->
     <div class="card settings-section">
         <h3>👤 Mon profil</h3>
-        <form method="POST" action="<?= BASE_URL ?>/settings/profile" enctype="multipart/form-data">
+        <form method="POST" action="<?= BASE_URL ?>/settings/profile" enctype="multipart/form-data"><?= \App\Core\Csrf::field() ?>
             <div class="profile-preview">
                 <div class="user-avatar-lg" style="background:<?= htmlspecialchars($user['color']) ?>" id="avatar-preview">
                     <?php if ($user['avatar']): ?>
@@ -44,11 +44,55 @@ ob_start();
         </form>
     </div>
 
+    <!-- Mes données -->
+    <div class="card settings-section">
+        <h3>📁 Mes données</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Téléchargez une archive de vos données (profil, événements, tâches, documents…) au format ZIP.
+        </p>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+            <a href="<?= BASE_URL ?>/settings/export?scope=mine" class="btn btn-secondary">📥 Télécharger mes données</a>
+            <?php if ($user['role'] === 'admin'): ?>
+                <a href="<?= BASE_URL ?>/settings/export?scope=family" class="btn btn-secondary">📦 Télécharger les données de toute la famille</a>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- Application Android -->
+    <div class="card settings-section">
+        <h3>📱 Application Android</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Installez FamilyBoard sur votre téléphone Android. L'application se connecte à
+            l'adresse de votre serveur (celle que vous utilisez déjà dans votre navigateur) —
+            aucune donnée supplémentaire n'est envoyée ailleurs.
+        </p>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+            <a href="<?= BASE_URL ?>/app/android" class="btn btn-secondary">⬇️ Télécharger l'APK</a>
+        </div>
+        <p style="color:var(--text-muted);font-size:.75rem;margin-top:.6rem">
+            L'installation depuis un fichier APK nécessite d'autoriser « sources inconnues » pour votre navigateur dans les réglages Android.
+        </p>
+    </div>
+
+    <!-- Zone dangereuse -->
+    <div class="card settings-section" style="border:1px solid var(--danger)">
+        <h3 style="color:var(--danger)">⚠️ Zone dangereuse</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Supprimer votre compte est définitif et irréversible.
+            <?php if ($user['role'] === 'admin' && count($members) > 1): ?>
+                En tant qu'administrateur, vous devrez transférer ce rôle à un autre membre ou supprimer toute la famille.
+            <?php elseif ($user['role'] === 'admin'): ?>
+                Vous êtes le seul membre de cette famille : supprimer votre compte supprimera aussi toute la famille et ses données.
+            <?php endif; ?>
+        </p>
+        <button type="button" class="btn btn-danger" onclick="openDeleteAccountModal()">🗑 Supprimer mon compte</button>
+    </div>
+
     <!-- Family settings (admin only) -->
     <?php if ($user['role'] === 'admin'): ?>
     <div class="card settings-section">
         <h3>👨‍👩‍👧 Famille : <?= htmlspecialchars($family['name']) ?></h3>
-        <form method="POST" action="<?= BASE_URL ?>/settings/family">
+        <form method="POST" action="<?= BASE_URL ?>/settings/family"><?= \App\Core\Csrf::field() ?>
             <div class="form-row">
                 <div class="form-group flex-1">
                     <label>Nom de la famille</label>
@@ -74,11 +118,14 @@ ob_start();
                 </small>
             </div>
             <div class="form-group">
-                <label>📺 Ville pour la météo (écran mural)</label>
-                <input type="text" name="weather_city"
-                       value="<?= htmlspecialchars($family['weather_city'] ?? '') ?>"
-                       placeholder="Paris, Lyon, Bordeaux…">
-                <small style="color:var(--text-muted)">Affiché dans le bandeau de l'écran mural. Laisser vide pour utiliser la géolocalisation du navigateur.</small>
+                <label>📺 Ville pour la météo</label>
+                <div class="city-autocomplete" id="city-ac-wrap">
+                    <input type="text" name="weather_city" id="city-ac-input" autocomplete="off"
+                           value="<?= htmlspecialchars($family['weather_city'] ?? '') ?>"
+                           placeholder="Tapez une ville…">
+                    <ul class="city-ac-dropdown" id="city-ac-list" style="display:none"></ul>
+                </div>
+                <small style="color:var(--text-muted)">Affiché dans le bandeau du tableau de bord.</small>
             </div>
             <div class="form-group">
                 <label>🎓 Zone scolaire (vacances scolaires sur le calendrier)</label>
@@ -137,7 +184,7 @@ ob_start();
             <strong>Code d'invitation :</strong>
             <code class="invite-code"><?= htmlspecialchars($family['invite_code']) ?></code>
             <button onclick="copyCode('<?= htmlspecialchars($family['invite_code']) ?>')" class="btn btn-secondary btn-sm">📋 Copier</button>
-            <form method="POST" action="<?= BASE_URL ?>/settings/family/code" style="display:inline">
+            <form method="POST" action="<?= BASE_URL ?>/settings/family/code" style="display:inline"><?= \App\Core\Csrf::field() ?>
                 <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirmSubmit(this.closest('form'),&quot;Régénérer le code ? L\'ancien ne fonctionnera plus.&quot;)">🔄 Régénérer</button>
             </form>
         </div>
@@ -160,6 +207,19 @@ ob_start();
         </div>
     </div>
 
+    <!-- Push notifications -->
+    <div class="card settings-section">
+        <h3>🔔 Notifications push</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Recevez une notification directement sur cet appareil (ordinateur ou mobile) dès qu'un événement
+            vous concerne, même quand l'application est fermée.
+        </p>
+        <button type="button" class="btn btn-primary" id="push-toggle-btn" onclick="togglePushNotifications()">
+            Activer les notifications push
+        </button>
+        <p id="push-status" class="push-status" style="font-size:.8rem;margin-top:.5rem"></p>
+    </div>
+
     <!-- Modules (admin only) -->
     <?php if ($user['role'] === 'admin'): ?>
     <?php $_disabledMods = \App\Models\Family::getDisabledModules($family ?? []); ?>
@@ -168,7 +228,7 @@ ob_start();
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Tous les modules sont activés par défaut. Décochez ceux que vous souhaitez masquer pour toute la famille.
         </p>
-        <form method="POST" action="<?= BASE_URL ?>/settings/modules">
+        <form method="POST" action="<?= BASE_URL ?>/settings/modules"><?= \App\Core\Csrf::field() ?>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.6rem;margin-bottom:1rem">
                 <?php foreach (\App\Models\Family::MODULES as $slug => $mod): ?>
                 <label style="display:flex;align-items:center;gap:.55rem;padding:.5rem .65rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:background .12s"
@@ -196,10 +256,22 @@ ob_start();
                     </div>
                     <div class="member-info">
                         <strong><?= htmlspecialchars($member['name']) ?></strong>
-                        <small><?= htmlspecialchars($member['email']) ?> · <?= $member['role'] === 'admin' ? '👑 Admin' : 'Membre' ?></small>
+                        <small>
+                            <?= htmlspecialchars($member['email']) ?> ·
+                            <?php if ($member['role'] === 'admin'): ?>
+                                👑 Admin
+                            <?php elseif ($member['role'] === 'coparent'): ?>
+                                🔒 Co-parent (accès restreint)
+                                <?php if (!empty($coparentChildren[$member['id']])): ?>
+                                    — <?= htmlspecialchars(implode(', ', $coparentChildren[$member['id']])) ?>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                Membre
+                            <?php endif; ?>
+                        </small>
                     </div>
                     <?php if ($member['id'] !== $user['id']): ?>
-                        <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')">
+                        <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')"><?= \App\Core\Csrf::field() ?>
                             <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
                         </form>
                     <?php endif; ?>
@@ -208,98 +280,124 @@ ob_start();
         </div>
     </div>
 
-    <!-- SMTP -->
+    <!-- Family admin: send notification -->
+    <?php if ($user['role'] === 'admin'): ?>
     <div class="card settings-section">
-        <h3>✉️ Serveur SMTP (notifications email)</h3>
-        <form method="POST" action="<?= BASE_URL ?>/settings/smtp">
-            <div class="form-row">
-                <div class="form-group flex-2">
-                    <label>Serveur SMTP</label>
-                    <input type="text" name="smtp_host" value="<?= htmlspecialchars($smtp['host'] ?? '') ?>" placeholder="smtp.gmail.com">
-                </div>
-                <div class="form-group">
-                    <label>Port</label>
-                    <input type="number" name="smtp_port" value="<?= htmlspecialchars($smtp['port'] ?? '587') ?>">
-                </div>
-                <div class="form-group">
-                    <label>Chiffrement</label>
-                    <select name="smtp_encryption">
-                        <option value="tls" <?= ($smtp['encryption'] ?? '') === 'tls' ? 'selected' : '' ?>>TLS</option>
-                        <option value="ssl" <?= ($smtp['encryption'] ?? '') === 'ssl' ? 'selected' : '' ?>>SSL</option>
-                        <option value="none" <?= ($smtp['encryption'] ?? '') === 'none' ? 'selected' : '' ?>>Aucun</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Identifiant</label>
-                    <input type="text" name="smtp_user" value="<?= htmlspecialchars($smtp['username'] ?? '') ?>" placeholder="user@gmail.com">
-                </div>
-                <div class="form-group">
-                    <label>Mot de passe</label>
-                    <input type="password" name="smtp_pass" value="<?= htmlspecialchars($smtp['password'] ?? '') ?>">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Email expéditeur</label>
-                    <input type="email" name="smtp_from_email" value="<?= htmlspecialchars($smtp['from_email'] ?? '') ?>">
-                </div>
-                <div class="form-group">
-                    <label>Nom expéditeur</label>
-                    <input type="text" name="smtp_from_name" value="<?= htmlspecialchars($smtp['from_name'] ?? 'FamilyBoard') ?>">
-                </div>
-            </div>
-            <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:.5rem">
-                <button type="submit" class="btn btn-primary">Enregistrer la configuration SMTP</button>
-                <?php if ($smtp): ?>
-                <button type="button" class="btn btn-secondary" onclick="testSmtp(false)">🔌 Tester la connexion</button>
-                <button type="button" class="btn btn-secondary" onclick="testSmtp(true)" title="Envoie un email réel à votre adresse">📨 Envoyer un email test</button>
-                <?php endif; ?>
-            </div>
-        </form>
-        <div id="smtp-test-result" style="display:none;margin-top:1rem"></div>
-    </div>
-
-    <!-- Email templates -->
-    <div class="card settings-section">
-        <h3>📝 Templates d'emails</h3>
+        <h3>📣 Envoyer une notification</h3>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Personnalisez le contenu des emails automatiques. Variables disponibles entre <code>{{'{{'}}double accolades{{'}}'}}</code>.
+            Envoyez une notification (push + dans l'application) aux membres de votre famille.
         </p>
-        <div class="template-tabs">
-            <?php foreach ($emailTemplates as $type => $tpl): ?>
-            <div class="template-block" id="tpl-<?= $type ?>">
-                <div class="template-header" onclick="toggleTemplate('<?= $type ?>')">
-                    <strong><?= htmlspecialchars($tpl['label']) ?></strong>
-                    <?php if ($tpl['is_custom']): ?>
-                        <span class="badge-custom">Personnalisé</span>
-                    <?php endif; ?>
-                    <span class="toggle-icon">▼</span>
-                </div>
-                <div class="template-body" style="display:none">
-                    <div style="margin-bottom:.5rem;font-size:.78rem;color:var(--text-muted)">
-                        Variables : <?= implode(', ', array_map(fn($v) => '<code>{{' . $v . '}}</code>', \App\Models\EmailTemplate::variables($type))) ?>
-                    </div>
-                    <div class="form-group">
-                        <label>Sujet</label>
-                        <input type="text" id="tpl-subject-<?= $type ?>" value="<?= htmlspecialchars($tpl['subject']) ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Corps (HTML)</label>
-                        <textarea id="tpl-body-<?= $type ?>" rows="6" style="font-family:monospace;font-size:.8rem"><?= htmlspecialchars($tpl['body']) ?></textarea>
-                    </div>
-                    <div style="display:flex;gap:.5rem">
-                        <button class="btn btn-primary btn-sm" onclick="saveTemplate('<?= $type ?>')">Enregistrer</button>
-                        <?php if ($tpl['is_custom']): ?>
-                        <button class="btn btn-secondary btn-sm" onclick="resetTemplate('<?= $type ?>')">Réinitialiser</button>
-                        <?php endif; ?>
-                    </div>
-                </div>
+        <form id="family-notify-form" onsubmit="sendFamilyNotification(event)">
+            <div class="form-group">
+                <label>Titre</label>
+                <input type="text" id="notify-title" maxlength="150" required>
             </div>
+            <div class="form-group">
+                <label>Message</label>
+                <textarea id="notify-message" rows="3" maxlength="2000" required></textarea>
+            </div>
+            <?php if (!empty($coparentsForNotify)): ?>
+            <label style="display:flex;align-items:flex-start;gap:.55rem;margin-bottom:1rem;cursor:pointer;font-size:.85rem">
+                <input type="checkbox" id="notify-include-coparent" style="width:16px;height:16px;margin-top:.15rem;flex:none">
+                <span>
+                    Inclure le co-parent (<?= htmlspecialchars(implode(', ', array_column($coparentsForNotify, 'name'))) ?>) —
+                    dans ce cas, cet envoi sera journalisé de façon <strong>immuable</strong> dans le journal d'activité de la garde partagée.
+                </span>
+            </label>
+            <?php endif; ?>
+            <button type="submit" class="btn btn-primary">Envoyer</button>
+        </form>
+        <div id="family-notify-result" style="margin-top:.75rem"></div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Sitter access -->
+    <?php $_disabledModsForSitter = \App\Models\Family::getDisabledModules($family ?? []); ?>
+    <?php if (!in_array('sitter', $_disabledModsForSitter)): ?>
+    <div class="card settings-section">
+        <h3>👶 Accès baby-sitter</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Générez un lien temporaire donnant un accès limité en lecture seule (planning du jour, tâches
+            ouvertes, fiches urgence) — sans connexion, sans accès au reste des données familiales.
+        </p>
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label>Libellé</label>
+                <input type="text" id="sitter-label" placeholder="Ex : Baby-sitter mardi soir">
+            </div>
+            <div class="form-group">
+                <label>Valide pendant</label>
+                <select id="sitter-hours">
+                    <option value="6">6 heures</option>
+                    <option value="12" selected>12 heures</option>
+                    <option value="24">24 heures</option>
+                    <option value="72">3 jours</option>
+                </select>
+            </div>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="createSitterLink()">+ Générer un lien</button>
+        <div id="sitter-new-link" style="margin-top:1rem"></div>
+
+        <div id="sitter-links-list" style="margin-top:1.25rem">
+            <?php foreach ($sitterLinks as $link): ?>
+                <?php /* expires_at is stored in UTC (matches SQL NOW()) — parse it as such, not as local time */ ?>
+                <?php $active = !$link['revoked_at'] && strtotime($link['expires_at'] . ' UTC') > time(); ?>
+                <div class="member-item" data-sitter-id="<?= $link['id'] ?>">
+                    <div class="member-info">
+                        <strong><?= htmlspecialchars($link['label']) ?></strong>
+                        <small>
+                            <?= $active ? '✅ Actif' : '⛔ ' . ($link['revoked_at'] ? 'Révoqué' : 'Expiré') ?>
+                            · expire le <?= \App\Core\DateHelper::fromUtc($link['expires_at'], 'd/m/Y à H:i') ?>
+                        </small>
+                    </div>
+                    <?php if ($active): ?>
+                    <button class="btn btn-danger btn-sm" onclick="revokeSitterLink(<?= $link['id'] ?>)">Révoquer</button>
+                    <?php endif; ?>
+                </div>
             <?php endforeach; ?>
         </div>
     </div>
+    <?php endif; ?>
+
+    <!-- Kiosk access (écran mural) -->
+    <?php $_disabledModsForKiosk = \App\Models\Family::getDisabledModules($family ?? []); ?>
+    <?php if ($user['role'] === 'admin' && !in_array('kiosk', $_disabledModsForKiosk)): ?>
+    <div class="card settings-section">
+        <h3>🖥️ Écran mural (mode kiosque)</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Générez un accès permanent pour une tablette dédiée (Android/iOS) affichée au mur : tâches et
+            courses (avec ajout et coche), contacts, événements et repas, actualisés automatiquement.
+            Quand un accès baby-sitter est actif, l'écran bascule sur un QR code au lieu d'afficher les
+            données familiales.
+        </p>
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label>Libellé</label>
+                <input type="text" id="kiosk-label" placeholder="Ex : Tablette cuisine">
+            </div>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="createKioskLink()">+ Générer un accès</button>
+        <div id="kiosk-new-link" style="margin-top:1rem"></div>
+
+        <div id="kiosk-links-list" style="margin-top:1.25rem">
+            <?php if (empty($kioskLinks)): ?>
+                <p style="color:var(--text-muted);font-size:.85rem">Aucun accès kiosque créé.</p>
+            <?php endif; ?>
+            <?php foreach ($kioskLinks as $link): ?>
+                <?php $active = !$link['revoked_at']; ?>
+                <div class="member-item" data-kiosk-id="<?= $link['id'] ?>">
+                    <div class="member-info">
+                        <strong><?= htmlspecialchars($link['label']) ?></strong>
+                        <small><?= $active ? '✅ Actif' : '⛔ Révoqué' ?> · créé le <?= \App\Core\DateHelper::fromUtc($link['created_at'], 'd/m/Y') ?></small>
+                    </div>
+                    <?php if ($active): ?>
+                    <button class="btn btn-danger btn-sm" onclick="revokeKioskLink(<?= $link['id'] ?>)">Révoquer</button>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Email logs -->
     <?php if (!empty($emailLogs)): ?>
@@ -344,15 +442,38 @@ ob_start();
 
 </div>
 
-<style>
-.template-block { border: 1px solid var(--border); border-radius: 8px; margin-bottom: .5rem; overflow: hidden; }
-.template-header { display:flex; align-items:center; gap:.75rem; padding: .75rem 1rem; cursor:pointer; background:var(--bg); }
-.template-header:hover { background: var(--bg-hover, #f5f5f5); }
-.template-header strong { flex:1; }
-.template-body { padding: 1rem; border-top: 1px solid var(--border); }
-.badge-custom { background:#fef3c7;color:#92400e;padding:.15rem .5rem;border-radius:4px;font-size:.75rem; }
-.toggle-icon { color:var(--text-muted);font-size:.75rem; }
-</style>
+<!-- Delete account modal -->
+<div class="modal-overlay" id="delete-account-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>⚠️ Supprimer mon compte</h3>
+            <button onclick="closeModal('delete-account-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="dam-admin-choice" style="display:none">
+                <p>Vous êtes administrateur de cette famille. Avant de supprimer votre compte, choisissez :</p>
+                <div class="form-group">
+                    <label><input type="radio" name="dam-action" value="transfer" checked> Transférer le rôle admin à :</label>
+                    <select id="dam-transfer-target"></select>
+                </div>
+                <div class="form-group">
+                    <label><input type="radio" name="dam-action" value="delete_family"> Supprimer toute la famille et toutes ses données (irréversible)</label>
+                </div>
+            </div>
+            <div id="dam-simple-notice" style="display:none">
+                <p id="dam-simple-text"></p>
+            </div>
+            <div class="form-group">
+                <label>Tapez <strong>SUPPRIMER</strong> pour confirmer</label>
+                <input type="text" id="dam-confirm-text" placeholder="SUPPRIMER" autocomplete="off">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('delete-account-modal')">Annuler</button>
+            <button class="btn btn-danger" onclick="confirmDeleteAccount()">Supprimer définitivement</button>
+        </div>
+    </div>
+</div>
 
 <script>
 // Prevent double-submission on all settings forms
@@ -379,38 +500,6 @@ function previewAvatar(input) {
         reader.readAsDataURL(input.files[0]);
     }
 }
-async function testSmtp(sendReal = false) {
-    const box = document.getElementById('smtp-test-result');
-    const url = sendReal
-        ? BASE_URL + '/api/settings/smtp/send-test'
-        : BASE_URL + '/api/settings/smtp/test';
-    box.style.display = 'none';
-    box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';
-    box.style.display = 'block';
-    try {
-        const r = await apiFetch(url, { method: 'POST' });
-        let html = '<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">';
-        for (const step of (r.steps || [])) {
-            html += `<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem .75rem;border-bottom:1px solid var(--border)">
-                <span style="font-size:1rem">${step.ok ? '✅' : '❌'}</span>
-                <strong style="min-width:140px;flex-shrink:0">${step.label}</strong>
-                <code style="font-size:.75rem;color:var(--text-muted)">${step.detail}</code>
-            </div>`;
-        }
-        html += '</div>';
-        if (!r.ok && r.error) {
-            html += `<p style="color:var(--danger);margin-top:.5rem;font-size:.85rem">❌ ${r.error}</p>`;
-        } else if (r.ok) {
-            const msg = sendReal
-                ? '✅ Email envoyé ! Vérifiez votre boîte de réception (et les spams).'
-                : '✅ Connexion SMTP réussie !';
-            html += `<p style="color:var(--success);margin-top:.5rem;font-size:.85rem">${msg}</p>`;
-        }
-        box.innerHTML = html;
-    } catch(e) {
-        box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
-    }
-}
 async function sendInvitation() {
     const email = document.getElementById('invite-email').value.trim();
     if (!email) { Dialog.toast('Entrez une adresse email.', 'error'); return; }
@@ -422,24 +511,125 @@ async function sendInvitation() {
         Dialog.toast(r.error || 'Erreur lors de l\'envoi.', 'error');
     }
 }
-function toggleTemplate(type) {
-    const body = document.querySelector('#tpl-' + type + ' .template-body');
-    body.style.display = body.style.display === 'none' ? 'block' : 'none';
-}
-async function saveTemplate(type) {
-    const subject = document.getElementById('tpl-subject-' + type).value;
-    const body = document.getElementById('tpl-body-' + type).value;
-    const r = await apiFetch(BASE_URL + '/api/settings/email-template', {
-        method: 'POST',
-        body: JSON.stringify({ type, subject, body })
+// ── City autocomplete ──────────────────────────────────────────
+(function () {
+    const input = document.getElementById('city-ac-input');
+    const list  = document.getElementById('city-ac-list');
+    if (!input) return;
+
+    let timer = null;
+    let activeIdx = -1;
+
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        const q = input.value.trim();
+        if (q.length < 2) { hide(); return; }
+        timer = setTimeout(() => fetchCities(q), 280);
     });
-    if (r.success) Dialog.toast('Template enregistré !');
-    else Dialog.toast(r.error || 'Erreur.', 'error');
+
+    input.addEventListener('keydown', e => {
+        const items = list.querySelectorAll('li');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); setActive(activeIdx + 1, items); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(activeIdx - 1, items); }
+        else if (e.key === 'Enter' && activeIdx >= 0) { e.preventDefault(); items[activeIdx].click(); }
+        else if (e.key === 'Escape') { hide(); }
+    });
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#city-ac-wrap')) hide();
+    });
+
+    async function fetchCities(q) {
+        try {
+            const url = 'https://geocoding-api.open-meteo.com/v1/search?name=' +
+                encodeURIComponent(q) + '&count=6&language=fr&format=json';
+            const res  = await fetch(url);
+            const data = await res.json();
+            render(data.results || []);
+        } catch (_) { hide(); }
+    }
+
+    function render(results) {
+        if (!results.length) { hide(); return; }
+        activeIdx = -1;
+        list.innerHTML = '';
+        results.forEach(r => {
+            const parts = [r.name];
+            if (r.admin1) parts.push(r.admin1);
+            if (r.country) parts.push(r.country);
+            const label = parts.join(', ');
+            const li = document.createElement('li');
+            li.className = 'city-ac-item';
+            li.innerHTML = '<span class="city-ac-name">' + esc(r.name) + '</span>' +
+                           '<span class="city-ac-sub">' + esc(parts.slice(1).join(', ')) + '</span>';
+            li.addEventListener('mousedown', e => { e.preventDefault(); select(r.name); });
+            list.appendChild(li);
+        });
+        list.style.display = 'block';
+    }
+
+    function select(name) {
+        input.value = name;
+        hide();
+    }
+
+    function setActive(idx, items) {
+        items.forEach(i => i.classList.remove('active'));
+        activeIdx = Math.max(0, Math.min(idx, items.length - 1));
+        items[activeIdx].classList.add('active');
+        input.value = items[activeIdx].querySelector('.city-ac-name').textContent;
+    }
+
+    function hide() { list.style.display = 'none'; activeIdx = -1; }
+
+    function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+})();
+
+// ── Suppression de compte ───────────────────────────────────────
+const DAM_IS_ADMIN = <?= $user['role'] === 'admin' ? 'true' : 'false' ?>;
+const DAM_OTHER_MEMBERS = <?= json_encode(array_values(array_map(
+    fn($m) => ['id' => $m['id'], 'name' => $m['name']],
+    array_filter($members, fn($m) => (int)$m['id'] !== (int)$user['id'])
+))) ?>;
+
+function openDeleteAccountModal() {
+    document.getElementById('dam-confirm-text').value = '';
+    document.getElementById('dam-admin-choice').style.display = 'none';
+    document.getElementById('dam-simple-notice').style.display = 'none';
+
+    if (DAM_IS_ADMIN && DAM_OTHER_MEMBERS.length > 0) {
+        const sel = document.getElementById('dam-transfer-target');
+        sel.innerHTML = DAM_OTHER_MEMBERS.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+        document.getElementById('dam-admin-choice').style.display = '';
+    } else {
+        document.getElementById('dam-simple-text').textContent = DAM_IS_ADMIN
+            ? "Vous êtes le seul membre de cette famille : la suppression de votre compte supprimera aussi toute la famille et ses données."
+            : "Votre compte et les données que vous avez créées seront définitivement supprimés.";
+        document.getElementById('dam-simple-notice').style.display = '';
+    }
+    openModal('delete-account-modal');
 }
-async function resetTemplate(type) {
-    if (!await Dialog.confirm('Réinitialiser ce template avec la valeur par défaut ?')) return;
-    const r = await apiFetch(BASE_URL + '/api/settings/email-template/' + type + '/reset', { method: 'POST', body: '{}' });
-    if (r.success) location.reload();
+
+async function confirmDeleteAccount() {
+    if (document.getElementById('dam-confirm-text').value.trim().toUpperCase() !== 'SUPPRIMER') {
+        Dialog.toast('Tapez SUPPRIMER pour confirmer.', 'error');
+        return;
+    }
+    const body = {};
+    if (DAM_IS_ADMIN && DAM_OTHER_MEMBERS.length > 0) {
+        const action = document.querySelector('input[name="dam-action"]:checked').value;
+        body.action = action;
+        if (action === 'transfer') body.transfer_to_user_id = document.getElementById('dam-transfer-target').value;
+    }
+    const r = await apiFetch(BASE_URL + '/settings/delete-account', { method: 'POST', body: JSON.stringify(body) });
+    if (r.success) {
+        window.location.href = r.redirect || (BASE_URL + '/login');
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
 }
 </script>
 <?php

@@ -7,9 +7,25 @@ function openTransactionModal() {
     document.getElementById('tx-amount').value = '';
     document.getElementById('tx-date').value = new Date().toISOString().slice(0,10);
     document.getElementById('tx-category').value = '';
+    document.getElementById('tx-category-hint').textContent = '';
     document.getElementById('tx-notes').value = '';
     document.getElementById('tx-type-expense').checked = true;
     openModal('transaction-modal');
+}
+
+// Saisie assistée : suggère une catégorie déjà utilisée pour un titre similaire.
+async function suggestTxCategory() {
+    const title = document.getElementById('tx-title').value.trim();
+    const hint = document.getElementById('tx-category-hint');
+    if (!title) { hint.textContent = ''; return; }
+
+    const result = await apiFetch(`${BASE_URL}/api/budget/suggest-category?title=${encodeURIComponent(title)}`);
+    if (result.suggestion) {
+        document.getElementById('tx-category').value = result.suggestion.category_id;
+        hint.textContent = `(suggéré : ${result.suggestion.icon} ${result.suggestion.name})`;
+    } else {
+        hint.textContent = '';
+    }
 }
 
 async function saveTransaction() {

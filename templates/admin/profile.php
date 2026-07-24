@@ -4,7 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profil administrateur — FamilyBoard</title>
+    <script>
+    (function () {
+        try {
+            var stored = localStorage.getItem('fb-theme');
+            var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+    })();
+    </script>
+    <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon-192.png" type="image/png">
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css?v=<?= APP_VERSION ?>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
 </head>
 <body class="admin-body">
 <div class="admin-layout">
@@ -21,6 +34,7 @@
         </ul>
         <div class="admin-sidebar-footer">
             <a href="<?= BASE_URL ?>/" style="font-size:.8rem;color:var(--text-muted)">← Site</a>
+            <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème" style="margin-left:.5rem"><span class="theme-icon-sun">☀️</span><span class="theme-icon-moon">🌙</span></button>
             <a href="<?= BASE_URL ?>/admin/logout" class="btn btn-danger btn-sm" style="margin-left:auto">Déconnexion</a>
         </div>
     </nav>
@@ -45,7 +59,7 @@
                 <h3>Informations de connexion</h3>
             </div>
             <div style="padding:1.25rem">
-                <form method="POST" action="<?= BASE_URL ?>/admin/profile">
+                <form method="POST" action="<?= BASE_URL ?>/admin/profile"><?= \App\Core\Csrf::field() ?>
 
                     <div class="form-group">
                         <label>Nom d'utilisateur actuel</label>

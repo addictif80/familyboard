@@ -71,19 +71,21 @@ class OcrHelper
 
     // ── File storage (shared by Warranty and Document) ───────────────────────
 
-    public static function saveUploadedFile(array $file, string $subDir, int $familyId): array
+    public static function saveUploadedFile(array $file, string $subDir, int $familyId, ?array $allowedMimes = null, int $maxSize = 20 * 1024 * 1024): array
     {
-        $allowedMimes = [
-            'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf',
-        ];
-        if (!in_array($file['type'], $allowedMimes, true)) {
+        $allowedMimes ??= ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+        // Blobs from MediaRecorder report a type like "audio/webm;codecs=opus" — compare on the base mime only.
+        $mimeBase = strtolower(trim(explode(';', $file['type'])[0]));
+        if (!in_array($mimeBase, $allowedMimes, true)) {
             throw new \RuntimeException('Type de fichier non autorisé.');
         }
-        if ($file['size'] > 20 * 1024 * 1024) {
-            throw new \RuntimeException('Fichier trop volumineux (max 20 Mo).');
+        if ($file['size'] > $maxSize) {
+            throw new \RuntimeException('Fichier trop volumineux (max ' . round($maxSize / 1024 / 1024) . ' Mo).');
         }
 
-        $ext      = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        // Le Content-Type et le nom envoyés par le client sont falsifiables : on ne
+        // dérive jamais l'extension stockée du nom de fichier fourni par le client.
+        $ext      = self::extensionForMime($mimeBase);
         $filename = bin2hex(random_bytes(16)) . '.' . $ext;
         $dir      = BASE_PATH . '/storage/' . $subDir . '/' . $familyId;
         if (!is_dir($dir)) mkdir($dir, 0755, true);
@@ -96,9 +98,33 @@ class OcrHelper
         return [
             '/storage/' . $subDir . '/' . $familyId . '/' . $filename,
             $file['name'],
-            $file['type'],
+            $mimeBase,
         ];
     }
+
+    private static function extensionForMime(string $mime): string
+    {
+        return match ($mime) {
+            'audio/webm' => 'webm',
+            'audio/ogg'  => 'ogg',
+            'audio/mp4', 'audio/x-m4a' => 'm4a',
+            'audio/mpeg' => 'mp3',
+            'audio/wav', 'audio/x-wav' => 'wav',
+            'audio/aac'  => 'aac',
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/webp' => 'webp',
+            'image/gif'  => 'gif',
+            'application/pdf' => 'pdf',
+            default      => 'bin',
+        };
+    }
+
+    /** MIME whitelist for browser-recorded voice notes (MediaRecorder output varies by browser). */
+    public const VOICE_MIMES = [
+        'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
+        'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/aac',
+    ];
 
     // ── Document classifier ──────────────────────────────────────────────────
 

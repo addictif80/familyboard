@@ -118,6 +118,46 @@ ob_start();
                     <option value="yearly">Annuelle</option>
                 </select>
             </div>
+            <?php if (!empty($custodySchedules)): ?>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="event-custody-toggle" onchange="document.getElementById('event-custody-select-wrap').style.display = this.checked ? '' : 'none'">
+                    Garde alternée
+                </label>
+                <div id="event-custody-select-wrap" style="display:none;margin-top:.4rem">
+                    <select id="event-custody-schedule">
+                        <option value="">Sélectionner un enfant…</option>
+                        <?php foreach ($custodySchedules as $cs): ?>
+                            <option value="<?= (int)$cs['id'] ?>"><?= htmlspecialchars($cs['child_name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small class="form-hint">Cet évènement sera visible par le co-parent à accès restreint de cet enfant.</small>
+                </div>
+            </div>
+            <?php endif; ?>
+            <details class="form-group" id="event-more-info">
+                <summary>Ajouter plus d'infos</summary>
+                <div class="form-group">
+                    <label>Nom du professionnel</label>
+                    <input type="text" id="event-professional" placeholder="Dr Martin, Garage Dupont…">
+                </div>
+                <div class="form-group">
+                    <label>Adresse</label>
+                    <div class="city-autocomplete" id="event-location-wrap">
+                        <input type="text" id="event-location-input" autocomplete="off" placeholder="Tapez une adresse…">
+                        <ul class="city-ac-dropdown" id="event-location-list" style="display:none"></ul>
+                        <input type="hidden" id="event-location-lat">
+                        <input type="hidden" id="event-location-lng">
+                    </div>
+                    <div id="event-location-preview" style="display:none">
+                        <iframe id="event-location-map" class="event-location-map" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                        <div class="event-location-links">
+                            <a id="event-location-gmaps" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">📍 Google Maps</a>
+                            <a id="event-location-waze" href="#" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">🚗 Waze</a>
+                        </div>
+                    </div>
+                </div>
+            </details>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('event-modal')">Annuler</button>

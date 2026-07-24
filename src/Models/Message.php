@@ -33,17 +33,24 @@ class Message
         );
     }
 
-    public static function create(int $familyId, int $userId, string $content): int
-    {
+    public static function create(
+        int $familyId, int $userId, string $content,
+        ?string $audioPath = null, ?string $audioOriginal = null, ?string $audioMime = null, ?int $audioDuration = null
+    ): int {
         return Database::insert(
-            'INSERT INTO messages (family_id, user_id, content) VALUES (?,?,?)',
-            [$familyId, $userId, $content]
+            'INSERT INTO messages (family_id, user_id, content, audio_path, audio_original, audio_mime, audio_duration) VALUES (?,?,?,?,?,?,?)',
+            [$familyId, $userId, $content, $audioPath, $audioOriginal, $audioMime, $audioDuration]
         );
     }
 
     public static function delete(int $id): void
     {
         Database::execute('DELETE FROM messages WHERE id=?', [$id]);
+    }
+
+    public static function findById(int $id, int $familyId): ?array
+    {
+        return Database::fetch('SELECT * FROM messages WHERE id=? AND family_id=?', [$id, $familyId]);
     }
 
     public static function getLastId(int $familyId): int
