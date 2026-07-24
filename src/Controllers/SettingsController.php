@@ -3,6 +3,8 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\AccountDeletion;
+use App\Models\Custody;
+use App\Models\CustodyActivityLog;
 use App\Models\DataExport;
 use App\Models\User;
 use App\Models\Family;
@@ -23,6 +25,7 @@ class SettingsController extends BaseController
         $emailLogs = ($user['role'] === 'admin') ? EmailLog::getByFamily($user['family_id'], 30) : [];
         $sitterLinks = SitterLink::getByFamily($user['family_id']);
         $kioskLinks = ($user['role'] === 'admin') ? KioskLink::getByFamily($user['family_id']) : [];
+        $coparentsForNotify = ($user['role'] === 'admin') ? Custody::getCoparentUsersForFamily($user['family_id']) : [];
         require BASE_PATH . '/templates/settings/index.php';
     }
 
@@ -213,6 +216,61 @@ class SettingsController extends BaseController
             $user = Session::user();
             Notification::markAllRead($user['id']);
             return ['success' => true];
+        });
+    }
+
+    /**
+     * Un admin de famille envoie une notification à ses membres. Si "inclure le co-parent"
+     * est coché, les comptes ayant un accès garde partagée à cette famille (custody_access)
+     * sont notifiés en plus, et l'envoi est journalisé dans le journal d'activité de la garde
+     * partagée (immuable) pour chaque planning concerné.
+     */
+    public function sendNotification(array $params): void
+    {
+        $this->requireAdmin();
+        $this->json(function () {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $title = trim($data['title'] ?? '');
+            $message = trim($data['message'] ?? '');
+            $includeCoparent = !empty($data['include_coparent']);
+
+            if (!$title || !$message) {
+                return ['success' => false, 'error' => 'Titre et message requis.'];
+            }
+            if (mb_strlen($title) > 150 || mb_strlen($message) > 2000) {
+                return ['success' => false, 'error' => 'Texte trop long.'];
+            }
+
+            $familyId = (int)$user['family_id'];
+
+            $recipients = [];
+            foreach (User::getByFamily($familyId) as $m) {
+                if ((int)$m['id'] === (int)$user['id']) continue;
+                if ($m['role'] === 'coparent' && !$includeCoparent) continue;
+                $recipients[(int)$m['id']] = true;
+            }
+
+            $coparents = $includeCoparent ? Custody::getCoparentUsersForFamily($familyId) : [];
+            foreach ($coparents as $cp) {
+                if ((int)$cp['id'] !== (int)$user['id']) $recipients[(int)$cp['id']] = true;
+            }
+
+            foreach (array_keys($recipients) as $uid) {
+                Notification::create($uid, 'family_admin', $title, $message, BASE_URL . '/');
+            }
+
+            if ($includeCoparent) {
+                $scheduleIds = [];
+                foreach ($coparents as $cp) {
+                    foreach ($cp['schedule_ids'] as $sid) $scheduleIds[$sid] = true;
+                }
+                foreach (array_keys($scheduleIds) as $sid) {
+                    CustodyActivityLog::record($sid, $user['id'], 'notification_sent', mb_strimwidth("$title — $message", 0, 150, '…'));
+                }
+            }
+
+            return ['success' => true, 'count' => count($recipients)];
         });
     }
 

@@ -286,6 +286,7 @@ $router->post('/admin/smtp/send-test', [AdminController::class, 'sendTestEmail']
 $router->post('/admin/email-content', [AdminController::class, 'saveEmailContent']);
 $router->post('/admin/email-content/:type/reset', [AdminController::class, 'resetEmailContent']);
 $router->get('/admin/email-content/:type/preview', [AdminController::class, 'previewEmailContent']);
+$router->post('/admin/notifications/send', [AdminController::class, 'sendSystemNotification']);
 
 // Support (user-facing)
 $router->get('/support', [SupportController::class, 'index']);
@@ -325,6 +326,7 @@ $router->get('/app/android', [SettingsController::class, 'downloadAndroidApk']);
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
 $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
+$router->post('/settings/notify', [SettingsController::class, 'sendNotification']);
 
 // Push notifications
 $router->get('/api/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);

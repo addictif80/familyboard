@@ -137,6 +137,30 @@ class Custody
         );
     }
 
+    /** Co-parents (comptes distincts, qu'ils soient à accès restreint ou membres à part entière
+     *  d'une autre famille) ayant accès à au moins un planning de cette famille, avec la liste
+     *  des plannings concernés pour chacun (utile pour journaliser une notification par planning). */
+    public static function getCoparentUsersForFamily(int $familyId): array
+    {
+        $rows = Database::fetchAll(
+            'SELECT ca.user_id, ca.schedule_id, u.name, u.email
+             FROM custody_access ca
+             JOIN custody_schedules cs ON cs.id = ca.schedule_id
+             JOIN users u ON u.id = ca.user_id
+             WHERE cs.family_id = ?',
+            [$familyId]
+        );
+        $byUser = [];
+        foreach ($rows as $row) {
+            $uid = (int)$row['user_id'];
+            if (!isset($byUser[$uid])) {
+                $byUser[$uid] = ['id' => $uid, 'name' => $row['name'], 'email' => $row['email'], 'schedule_ids' => []];
+            }
+            $byUser[$uid]['schedule_ids'][] = (int)$row['schedule_id'];
+        }
+        return array_values($byUser);
+    }
+
     public static function getAllEventsForFamily(int $familyId, string $start, string $end): array
     {
         $manual = Database::fetchAll(
