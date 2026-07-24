@@ -27,7 +27,7 @@
             <span>🔐 Admin</span>
         </div>
         <ul class="admin-nav">
-            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','ips'=>'🚫 IPs bloquées','push'=>'🔔 Notifications Push','tickets'=>'🎫 Tickets support'] as $t=>$label): ?>
+            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','notifications'=>'📣 Notifications','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP','email'=>'📧 Emails'] as $t=>$label): ?>
             <li><a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a></li>
             <?php endforeach; ?>
             <li class="active"><a href="<?= BASE_URL ?>/admin/profile">👤 Mon profil</a></li>
@@ -52,6 +52,8 @@
             <div class="alert alert-danger" style="margin-bottom:1rem">Les nouveaux mots de passe ne correspondent pas.</div>
         <?php elseif ($error === 'password_short'): ?>
             <div class="alert alert-danger" style="margin-bottom:1rem">Le nouveau mot de passe doit contenir au moins 8 caractères.</div>
+        <?php elseif ($error === 'invalid_email'): ?>
+            <div class="alert alert-danger" style="margin-bottom:1rem">Adresse email invalide.</div>
         <?php endif; ?>
 
         <div class="card" style="max-width:480px">
@@ -71,6 +73,13 @@
                         <label>Nouveau nom d'utilisateur <span style="color:var(--text-muted);font-size:.8rem">(laisser vide pour ne pas changer)</span></label>
                         <input type="text" name="username" autocomplete="username"
                                placeholder="<?= htmlspecialchars($adminUsername) ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email de l'administrateur</label>
+                        <input type="email" name="email" autocomplete="email" value="<?= htmlspecialchars($adminEmail) ?>"
+                               placeholder="admin@exemple.com">
+                        <span style="color:var(--text-muted);font-size:.8rem">Utilisé pour être notifié par email à l'ouverture d'un nouveau ticket de support.</span>
                     </div>
 
                     <hr style="margin:1.25rem 0;border:none;border-top:1px solid var(--border)">
