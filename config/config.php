@@ -2,8 +2,19 @@
 // Application Configuration
 define('APP_NAME', 'FamilyBoard');
 define('BASE_PATH', dirname(__DIR__));
-// Assets version — auto-updates whenever app.css is modified (no manual bump needed)
-define('APP_VERSION', @filemtime(BASE_PATH . '/public/css/app.css') ?: '1');
+// Assets version — auto-updates whenever any CSS/JS asset changes (no manual
+// bump needed). Must cover every file under public/css and public/js, not
+// just app.css: the service worker caches all /public/ assets together under
+// one version-tagged bucket (see sw.js), so a JS-only fix that doesn't bump
+// this value would silently never reach browsers with an already-primed cache.
+$__assetsVersion = 0;
+foreach ([glob(BASE_PATH . '/public/css/*.css') ?: [], glob(BASE_PATH . '/public/js/*.js') ?: []] as $__group) {
+    foreach ($__group as $__file) {
+        $__assetsVersion = max($__assetsVersion, @filemtime($__file) ?: 0);
+    }
+}
+define('APP_VERSION', $__assetsVersion ?: 1);
+unset($__assetsVersion, $__group, $__file);
 
 // Load local overrides FIRST so they take priority
 if (file_exists(__DIR__ . '/config.local.php')) {

@@ -51,7 +51,10 @@
             <span class="logo-icon">🔒</span>
             <span>Garde partagée</span>
         </div>
-        <a href="<?= BASE_URL ?>/logout" class="btn btn-secondary btn-sm">Déconnexion</a>
+        <div style="display:flex;gap:.5rem;align-items:center">
+            <button class="btn btn-secondary btn-sm" onclick="openReportIssueModal()" title="Signaler un problème">🐞 Signaler un problème</button>
+            <a href="<?= BASE_URL ?>/logout" class="btn btn-secondary btn-sm">Déconnexion</a>
+        </div>
     </header>
     <?php $success = \App\Core\Session::getFlash('success'); $error = \App\Core\Session::getFlash('error'); ?>
     <?php if ($success): ?><div class="alert alert-success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
@@ -269,6 +272,7 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
             <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
             <h1 class="page-title"><?= htmlspecialchars($pageTitle ?? '') ?></h1>
             <div class="topbar-actions">
+                <button class="btn-icon" onclick="openReportIssueModal()" title="Signaler un problème">🐞</button>
                 <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème">
                     <span class="theme-icon-sun">☀️</span>
                     <span class="theme-icon-moon">🌙</span>
@@ -313,9 +317,32 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
 </div>
 <?php endif; ?>
 
+<!-- Signaler un problème (disponible sur toutes les pages, y compris l'accès co-parent restreint) -->
+<div class="modal-overlay" id="report-issue-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>🐞 Signaler un problème</h3>
+            <button onclick="closeModal('report-issue-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="color:var(--text-muted);font-size:.85rem">
+                Décrivez brièvement ce qui ne va pas (facultatif) : un diagnostic technique (navigateur, page, cache…) sera joint automatiquement pour le support.
+            </p>
+            <div class="form-group">
+                <textarea id="report-issue-description" rows="3" placeholder="Ex : le calendrier ne s'affiche pas…"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('report-issue-modal')">Annuler</button>
+            <button class="btn btn-primary" id="report-issue-submit-btn" onclick="submitReportIssue()">Envoyer</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const APP_TIMEZONE = <?= json_encode(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Paris') ?>;
+const APP_VERSION = <?= json_encode((string)APP_VERSION) ?>;
 </script>
 <script src="<?= ASSETS_URL ?>/js/app.js?v=<?= APP_VERSION ?>"></script>
 <script>

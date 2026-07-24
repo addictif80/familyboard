@@ -7,10 +7,10 @@ use App\Core\Session;
 class ErrorReportController extends BaseController
 {
     /**
-     * Beacon appelé automatiquement par le JS (window.onerror / unhandledrejection)
-     * dès qu'une erreur technique survient dans le navigateur. Volontairement pas
-     * derrière requireAuth() : doit rester silencieux et sans redirection même
-     * pour un rôle restreint (coparent) ou une session expirée.
+     * Beacon appelé automatiquement par le JS (window.onerror / unhandledrejection
+     * / console.error) dès qu'une erreur technique survient dans le navigateur.
+     * Volontairement pas derrière requireAuth() : doit rester silencieux et sans
+     * redirection même pour un rôle restreint (coparent) ou une session expirée.
      */
     public function report(array $params): void
     {
@@ -30,6 +30,35 @@ class ErrorReportController extends BaseController
                 'line' => $data['line'] ?? null,
             ]);
 
+            return ['success' => true];
+        });
+    }
+
+    /**
+     * Signalement volontaire en un clic ("Signaler un problème"), avec
+     * diagnostic technique (navigateur, cache, page…) joint automatiquement —
+     * pensé pour un utilisateur non technique qui ne peut/sait pas décrire
+     * précisément le bug (ex : "le calendrier ne s'affiche pas").
+     */
+    public function reportManual(array $params): void
+    {
+        if (!Session::isLoggedIn()) {
+            $this->json(fn() => ['success' => false, 'error' => 'Vous devez être connecté pour envoyer un signalement.']);
+            return;
+        }
+
+        $this->json(function () {
+            $data = $this->jsonInput();
+            $description = trim((string)($data['description'] ?? ''));
+
+            $diagnostics = is_array($data['diagnostics'] ?? null) ? $data['diagnostics'] : [];
+            $safeDiagnostics = [];
+            foreach ($diagnostics as $k => $v) {
+                if (!is_string($k) || strlen($k) > 60) continue;
+                $safeDiagnostics[$k] = is_scalar($v) ? mb_strimwidth((string)$v, 0, 300, '…') : null;
+            }
+
+            ErrorReporter::reportManual(mb_strimwidth($description, 0, 1000, '…'), $safeDiagnostics);
             return ['success' => true];
         });
     }

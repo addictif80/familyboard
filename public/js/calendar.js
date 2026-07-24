@@ -197,10 +197,21 @@ function loadEvents() {
     const school    = document.getElementById('school-toggle')?.checked ? 1 : 0;
 
     fetch(`${BASE_URL}/api/calendar/events?start=${start}&end=${end}&custody=${custody}&projects=${projects}&vacations=${vacations}&school=${school}`)
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error('Réponse serveur ' + r.status + ' lors du chargement du calendrier');
+            return r.json();
+        })
         .then(data => {
+            if (!Array.isArray(data)) throw new Error('Réponse invalide du calendrier (pas un tableau)');
             events = data;
             renderCalendar();
+        })
+        .catch(err => {
+            reportClientError('Échec du chargement du calendrier : ' + err.message, { file: 'calendar.js', line: 199 });
+            const container = document.getElementById('calendar');
+            if (container) {
+                container.innerHTML = '<div class="empty-state-card"><p>⚠️ Le calendrier n\'a pas pu être chargé. Rechargez la page ; si le problème persiste, un signalement a été envoyé au support.</p></div>';
+            }
         });
 }
 
