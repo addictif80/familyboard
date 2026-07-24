@@ -239,6 +239,7 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 .main-content {
   margin-left: var(--sidebar-width);
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
