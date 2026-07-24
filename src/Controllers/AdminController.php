@@ -404,10 +404,13 @@ class AdminController extends BaseController
     public function sendSystemNotification(array $params): void
     {
         $this->requireSuperAdmin();
-        $title   = trim($_POST['title'] ?? '');
-        $message = trim($_POST['message'] ?? '');
-        if ($title && $message && mb_strlen($title) <= 150 && mb_strlen($message) <= 2000) {
-            Notification::broadcastToAll($title, $message);
+        $title      = trim($_POST['title'] ?? '');
+        $shortText  = trim($_POST['short_text'] ?? '');
+        $contentHtml = $this->sanitizeHtml(trim($_POST['content'] ?? ''));
+        $contentIsEmpty = trim(strip_tags($contentHtml)) === '';
+
+        if ($title && $shortText && !$contentIsEmpty && mb_strlen($title) <= 150 && mb_strlen($shortText) <= 300) {
+            Notification::broadcastToAll($title, $shortText, $contentHtml);
         }
         $this->redirect('/admin?tab=notifications&msg=notification_sent');
     }

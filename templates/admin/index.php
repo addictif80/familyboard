@@ -16,6 +16,7 @@
     <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon.svg" type="image/svg+xml">
     <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon-192.png" type="image/png">
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css?v=<?= APP_VERSION ?>">
+    <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/quill.snow.css?v=<?= APP_VERSION ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
 </head>
@@ -136,18 +137,48 @@
         <h2>Notification système</h2>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Envoie une notification (push + dans l'application) à <strong>tous les utilisateurs</strong>, toutes familles confondues.
+            Le clic sur la notification (depuis la cloche du site ou le push du navigateur) ouvre une page dédiée
+            affichant le titre, la date et le contenu détaillé.
         </p>
-        <form method="POST" action="<?= BASE_URL ?>/admin/notifications/send" class="card" style="padding:1.25rem;max-width:640px" onsubmit="return confirm('Envoyer cette notification à tous les utilisateurs de toutes les familles ?')"><?= \App\Core\Csrf::field() ?>
+        <form method="POST" action="<?= BASE_URL ?>/admin/notifications/send" class="card" style="padding:1.25rem;max-width:640px" id="system-notify-form" onsubmit="return prepareSystemNotifyForm()"><?= \App\Core\Csrf::field() ?>
             <div class="form-group">
                 <label>Titre</label>
                 <input type="text" name="title" maxlength="150" required>
             </div>
             <div class="form-group">
-                <label>Message</label>
-                <textarea name="message" rows="4" maxlength="2000" required></textarea>
+                <label>Texte court <span style="color:var(--text-muted);font-size:.8rem">(aperçu affiché dans la cloche de notifications et le push)</span></label>
+                <input type="text" name="short_text" maxlength="300" required>
+            </div>
+            <div class="form-group">
+                <label>Contenu détaillé</label>
+                <div class="post-quill-wrap">
+                    <div id="system-notify-quill-editor"></div>
+                </div>
+                <textarea name="content" id="system-notify-content" style="display:none"></textarea>
             </div>
             <button type="submit" class="btn btn-primary">Envoyer à tous les utilisateurs</button>
         </form>
+        <script>
+        (function () {
+            var editor;
+            document.addEventListener('DOMContentLoaded', function () {
+                if (typeof Quill === 'undefined') return;
+                editor = new Quill('#system-notify-quill-editor', {
+                    theme: 'snow',
+                    placeholder: 'Contenu détaillé de la notification…',
+                    modules: { toolbar: [['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['link'], ['clean']] },
+                });
+            });
+            window.prepareSystemNotifyForm = function () {
+                if (editor) document.getElementById('system-notify-content').value = editor.root.innerHTML;
+                if (!editor || editor.getText().trim() === '') {
+                    alert('Le contenu détaillé est requis.');
+                    return false;
+                }
+                return confirm('Envoyer cette notification à tous les utilisateurs de toutes les familles ?');
+            };
+        })();
+        </script>
 
         <?php elseif ($tab === 'impersonation'): ?>
         <h2>Journal d'impersonation</h2>
@@ -327,6 +358,7 @@
     </main>
 </div>
 <script>const BASE_URL = <?= json_encode(BASE_URL) ?>;</script>
+<script src="<?= ASSETS_URL ?>/js/quill.min.js?v=<?= APP_VERSION ?>"></script>
 <script src="<?= ASSETS_URL ?>/js/admin.js?v=<?= APP_VERSION ?>"></script>
 </body>
 </html>
