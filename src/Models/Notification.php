@@ -53,12 +53,20 @@ class Notification
         }
     }
 
-    /** Notification système envoyée par un administrateur à tous les utilisateurs, toutes familles confondues. */
-    public static function broadcastToAll(string $title, string $message, ?string $link = null): int
+    /**
+     * Notification système envoyée par un administrateur à tous les utilisateurs, toutes
+     * familles confondues. Le contenu long (WYSIWYG) est stocké une seule fois dans
+     * system_notifications ; chaque destinataire reçoit une notification pointant vers sa page
+     * dédiée (/notifications/{id}), affichée au clic depuis la cloche du site ou le push navigateur.
+     */
+    public static function broadcastToAll(string $title, string $shortText, string $contentHtml): int
     {
+        $sysId = SystemNotification::create($title, $shortText, $contentHtml);
+        $link  = BASE_URL . '/notifications/' . $sysId;
+
         $userIds = Database::fetchAll('SELECT id FROM users');
         foreach ($userIds as $row) {
-            self::create((int)$row['id'], 'system', $title, $message, $link);
+            self::create((int)$row['id'], 'system', $title, $shortText, $link);
         }
         return count($userIds);
     }
