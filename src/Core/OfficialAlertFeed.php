@@ -30,13 +30,40 @@ class OfficialAlertFeed
         ['name' => 'Ici (France Bleu)', 'url' => 'https://www.francebleu.fr/rss/a-la-une.xml'],
     ];
 
+    /**
+     * 'any' : catégorie retenue si un seul de ces mots-clés apparaît (termes déjà assez
+     * spécifiques pour ne pas avoir besoin de contexte supplémentaire).
+     * 'combo' : [groupeA, groupeB] — retenue seulement si AU MOINS UN mot de groupeA ET AU
+     * MOINS UN mot de groupeB apparaissent tous les deux. Sert pour les mots génériques
+     * ("incendie", "feu") qui, seuls, donneraient trop de faux positifs (explosion sans
+     * rapport, incendie d'entrepôt lors d'une frappe de drone…) — combinés à un mot de
+     * contexte (hectares, évacuation, pompiers…) ils deviennent fiables. Ajouté après
+     * constat que la presse ne dit presque jamais littéralement "feu de forêt" dans ses
+     * titres, même en pleine crise (elle écrit "incendie en Gironde", "le feu se dirige
+     * vers...", "44 000 évacués"…) — voir l'historique de ce fichier.
+     */
     private const KEYWORDS = [
-        'enlevement'   => ['alerte enlevement', 'enfant enleve', 'enfant disparu', 'avis de recherche'],
-        'canicule'     => ['canicule', 'vague de chaleur', 'chaleur extreme', 'vigilance canicule'],
-        'inondation'   => ['inondation', 'crue', 'crues', 'vigilance crues'],
-        'feu_foret'    => ['feu de foret', 'feux de foret', 'incendie de foret', 'incendie de vegetation', 'megafeu', 'feu de vegetation', 'incendie ravage', 'incendies ravagent', 'brasier'],
-        'climatique'   => ['catastrophe naturelle', 'tempete', 'evenement climatique extreme', 'vigilance rouge', 'vigilance orange'],
-        'industrielle' => ['accident industriel', 'usine seveso', 'explosion usine', 'fuite chimique', 'nuage toxique', 'confinement des populations'],
+        'enlevement'   => ['any' => ['alerte enlevement', 'enfant enleve', 'enfant disparu', 'avis de recherche']],
+        'canicule'     => ['any' => ['canicule', 'vague de chaleur', 'chaleur extreme', 'vigilance canicule']],
+        'inondation'   => [
+            'any'   => ['inondation', 'crue', 'crues', 'vigilance crues'],
+            'combo' => [['submersion', 'debordement'], ['fleuve', 'riviere', 'quartier', 'habitants', 'evacu']],
+        ],
+        'feu_foret'    => [
+            'any'   => ['feu de foret', 'feux de foret', 'incendie de foret', 'incendie de vegetation', 'megafeu', 'feu de vegetation', 'incendie ravage', 'incendies ravagent', 'brasier'],
+            'combo' => [
+                ['incendie', 'incendies', 'le feu', 'les feux', 'flammes', 'pyrocumulonimbus'],
+                ['hectares', 'evacu', 'pompiers', 'foret', 'vegetation', 'canadair', 'plan blanc', 'presqu\'ile', 'gironde', 'landes'],
+            ],
+        ],
+        'climatique'   => [
+            'any'   => ['catastrophe naturelle', 'tempete', 'evenement climatique extreme', 'vigilance rouge', 'vigilance orange'],
+            'combo' => [['orages', 'vent violent', 'grele', 'neige', 'verglas'], ['vigilance', 'degats', 'coupure', 'evacu']],
+        ],
+        'industrielle' => [
+            'any'   => ['accident industriel', 'usine seveso', 'explosion usine', 'fuite chimique', 'nuage toxique', 'confinement des populations'],
+            'combo' => [['explosion', 'incendie'], ['usine', 'site industriel', 'distillerie', 'entrepot chimique', 'raffinerie']],
+        ],
     ];
 
     public static function poll(): void
@@ -66,12 +93,8 @@ class OfficialAlertFeed
     {
         $haystack = self::normalize($item['title'] . ' ' . $item['description']);
 
-        foreach (self::KEYWORDS as $category => $keywords) {
-            $matched = false;
-            foreach ($keywords as $kw) {
-                if (str_contains($haystack, self::normalize($kw))) { $matched = true; break; }
-            }
-            if (!$matched) continue;
+        foreach (self::KEYWORDS as $category => $rule) {
+            if (!self::ruleMatches($haystack, $rule)) continue;
 
             if (OfficialAlert::CATEGORIES[$category]['scoped']) {
                 foreach ($cities as $city) {
@@ -83,6 +106,24 @@ class OfficialAlertFeed
                 self::saveAlert($category, $item, $sourceName, null);
             }
         }
+    }
+
+    private static function ruleMatches(string $haystack, array $rule): bool
+    {
+        if (self::containsAny($haystack, $rule['any'] ?? [])) return true;
+        if (isset($rule['combo'])) {
+            [$groupA, $groupB] = $rule['combo'];
+            return self::containsAny($haystack, $groupA) && self::containsAny($haystack, $groupB);
+        }
+        return false;
+    }
+
+    private static function containsAny(string $haystack, array $keywords): bool
+    {
+        foreach ($keywords as $kw) {
+            if (str_contains($haystack, self::normalize($kw))) return true;
+        }
+        return false;
     }
 
     private static function saveAlert(string $category, array $item, string $sourceName, ?string $city): void
