@@ -37,6 +37,9 @@
             <span class="badge badge-<?= $ticket['status'] === 'closed' ? 'ok' : 'warn' ?>">
                 <?= match($ticket['status']) { 'open'=>'🆕 Ouvert','in_progress'=>'💬 En cours','closed'=>'✅ Fermé',default=>$ticket['status'] } ?>
             </span>
+            <?php if (($ticket['source'] ?? 'user') === 'auto'): ?>
+                <span class="badge badge-warn" title="Créé automatiquement suite à une erreur technique">🤖 Signalement automatique</span>
+            <?php endif; ?>
             <?php if ($ticket['status'] !== 'closed'): ?>
             <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/close" style="margin-left:auto"><?= \App\Core\Csrf::field() ?>
                 <button class="btn btn-secondary btn-sm">✅ Fermer le ticket</button>

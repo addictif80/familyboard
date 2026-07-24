@@ -196,7 +196,7 @@
             <?php foreach ($tickets as $t): ?>
             <tr class="<?= $t['status'] === 'closed' ? 'row-muted' : '' ?>">
                 <td><?= $t['id'] ?></td>
-                <td><strong><?= htmlspecialchars($t['subject']) ?></strong></td>
+                <td><strong><?= htmlspecialchars($t['subject']) ?></strong><?php if (($t['source'] ?? 'user') === 'auto'): ?> <span class="badge badge-warn" title="Créé automatiquement suite à une erreur technique">🤖 Auto</span><?php endif; ?></td>
                 <td><?= htmlspecialchars($t['user_name']) ?></td>
                 <td><?= htmlspecialchars($t['family_name']) ?></td>
                 <td><span class="badge badge-<?= $t['status'] === 'closed' ? 'ok' : ($t['status'] === 'in_progress' ? 'warn' : 'new') ?>"><?= match($t['status']) { 'open'=>'🆕 Ouvert','in_progress'=>'💬 En cours','closed'=>'✅ Fermé',default=>$t['status'] } ?></span></td>

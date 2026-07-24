@@ -5,22 +5,6 @@ require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/vendor/autoload.php';
 
 
-// Global exception handler — ensures a clean HTTP response even on fatal errors
-set_exception_handler(function (\Throwable $e) {
-    if (!headers_sent()) {
-        http_response_code(500);
-    }
-    $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
-        || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'));
-    if ($isAjax) {
-        header('Content-Type: application/json');
-        echo json_encode(['error' => $e->getMessage()]);
-    } else {
-        echo '<h1>Erreur interne</h1><p>' . htmlspecialchars($e->getMessage()) . '</p>';
-    }
-    exit;
-});
-
 // Autoloader
 spl_autoload_register(function (string $class) {
     $prefix = 'App\\';
@@ -61,8 +45,44 @@ use App\Controllers\CommLogController;
 use App\Controllers\MealController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
+use App\Controllers\ErrorReportController;
 
 Session::start();
+
+// Global exception handler — ensures a clean HTTP response even on fatal
+// errors, and automatically opens a support ticket in the affected user's
+// name (continuous technical-error monitoring — see App\Core\ErrorReporter).
+set_exception_handler(function (\Throwable $e) {
+    if (!headers_sent()) {
+        http_response_code(500);
+    }
+    \App\Core\ErrorReporter::report('server', $e->getMessage(), [
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+    ]);
+    $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+        || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'));
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => $e->getMessage()]);
+    } else {
+        echo '<h1>Erreur interne</h1><p>' . htmlspecialchars($e->getMessage()) . '</p>';
+    }
+    exit;
+});
+
+// Catches the remaining fatal errors that PHP does not raise as a Throwable
+// (memory exhaustion, parse errors in included files…) so they too trigger
+// an automatic support ticket instead of failing completely silently.
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        \App\Core\ErrorReporter::report('server', $error['message'], [
+            'file' => $error['file'],
+            'line' => $error['line'],
+        ]);
+    }
+});
 
 // ── IP block check (skip admin routes) ──────────────────────
 if (!str_starts_with(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '', (BASE_URL ?: '') . '/admin')) {
@@ -310,6 +330,9 @@ $router->post('/api/notifications/read-all', [SettingsController::class, 'markAl
 $router->get('/api/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);
 $router->post('/api/push/subscribe', [PushController::class, 'subscribe']);
 $router->post('/api/push/unsubscribe', [PushController::class, 'unsubscribe']);
+
+// Remontée automatique d'erreurs techniques (surveillance continue)
+$router->post('/api/errors/report', [ErrorReportController::class, 'report']);
 
 // Warranties
 $router->get('/warranties', [WarrantyController::class, 'index']);
