@@ -52,4 +52,14 @@ class Notification
             }
         }
     }
+
+    /** Notification système envoyée par un administrateur à tous les utilisateurs, toutes familles confondues. */
+    public static function broadcastToAll(string $title, string $message, ?string $link = null): int
+    {
+        $userIds = Database::fetchAll('SELECT id FROM users');
+        foreach ($userIds as $row) {
+            self::create((int)$row['id'], 'system', $title, $message, $link);
+        }
+        return count($userIds);
+    }
 }

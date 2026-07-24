@@ -7,6 +7,7 @@ use App\Core\Session;
 use App\Models\AppSetting;
 use App\Models\EmailContent;
 use App\Models\ImpersonationLog;
+use App\Models\Notification;
 use App\Models\SmtpSettings;
 use App\Models\SupportTicket;
 use App\Models\User;
@@ -388,6 +389,19 @@ class AdminController extends BaseController
         $id = (int)$params['id'];
         SupportTicket::setStatus($id, 'open');
         $this->redirect('/admin/tickets/' . $id);
+    }
+
+    // ── Notifications système (broadcast à tous les utilisateurs) ─
+
+    public function sendSystemNotification(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title   = trim($_POST['title'] ?? '');
+        $message = trim($_POST['message'] ?? '');
+        if ($title && $message && mb_strlen($title) <= 150 && mb_strlen($message) <= 2000) {
+            Notification::broadcastToAll($title, $message);
+        }
+        $this->redirect('/admin?tab=notifications&msg=notification_sent');
     }
 
     // ── Helpers ──────────────────────────────────────────────────

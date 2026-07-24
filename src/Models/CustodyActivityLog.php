@@ -29,6 +29,7 @@ class CustodyActivityLog
         'document_updated'      => 'Document modifié',
         'event_created'         => 'Évènement de calendrier ajouté',
         'event_updated'         => 'Évènement de calendrier modifié',
+        'notification_sent'     => 'Notification envoyée au co-parent',
     ];
 
     public static function isActiveForSchedule(int $scheduleId): bool

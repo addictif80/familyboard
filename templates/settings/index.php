@@ -280,6 +280,37 @@ ob_start();
         </div>
     </div>
 
+    <!-- Family admin: send notification -->
+    <?php if ($user['role'] === 'admin'): ?>
+    <div class="card settings-section">
+        <h3>📣 Envoyer une notification</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Envoyez une notification (push + dans l'application) aux membres de votre famille.
+        </p>
+        <form id="family-notify-form" onsubmit="sendFamilyNotification(event)">
+            <div class="form-group">
+                <label>Titre</label>
+                <input type="text" id="notify-title" maxlength="150" required>
+            </div>
+            <div class="form-group">
+                <label>Message</label>
+                <textarea id="notify-message" rows="3" maxlength="2000" required></textarea>
+            </div>
+            <?php if (!empty($coparentsForNotify)): ?>
+            <label style="display:flex;align-items:flex-start;gap:.55rem;margin-bottom:1rem;cursor:pointer;font-size:.85rem">
+                <input type="checkbox" id="notify-include-coparent" style="width:16px;height:16px;margin-top:.15rem;flex:none">
+                <span>
+                    Inclure le co-parent (<?= htmlspecialchars(implode(', ', array_column($coparentsForNotify, 'name'))) ?>) —
+                    dans ce cas, cet envoi sera journalisé de façon <strong>immuable</strong> dans le journal d'activité de la garde partagée.
+                </span>
+            </label>
+            <?php endif; ?>
+            <button type="submit" class="btn btn-primary">Envoyer</button>
+        </form>
+        <div id="family-notify-result" style="margin-top:.75rem"></div>
+    </div>
+    <?php endif; ?>
+
     <!-- Sitter access -->
     <?php $_disabledModsForSitter = \App\Models\Family::getDisabledModules($family ?? []); ?>
     <?php if (!in_array('sitter', $_disabledModsForSitter)): ?>

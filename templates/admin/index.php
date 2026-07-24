@@ -27,7 +27,7 @@
             <span>🔐 Admin</span>
         </div>
         <ul class="admin-nav">
-            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP','email'=>'📧 Emails'] as $t=>$label): ?>
+            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','notifications'=>'📣 Notifications','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP','email'=>'📧 Emails'] as $t=>$label): ?>
             <li class="<?= $tab === $t ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
             </li>
@@ -44,12 +44,13 @@
     <!-- Content -->
     <main class="admin-content">
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['blocked','unblocked','smtp_saved','email_saved']) ? 'success' : 'info' ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['blocked','unblocked','smtp_saved','email_saved','notification_sent']) ? 'success' : 'info' ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
-                    'blocked'     => 'Utilisateur bloqué.',
-                    'unblocked'   => 'Utilisateur débloqué.',
-                    'smtp_saved'  => 'Configuration SMTP enregistrée.',
-                    'email_saved' => 'Contenu de l\'email enregistré.',
+                    'blocked'             => 'Utilisateur bloqué.',
+                    'unblocked'           => 'Utilisateur débloqué.',
+                    'smtp_saved'          => 'Configuration SMTP enregistrée.',
+                    'email_saved'         => 'Contenu de l\'email enregistré.',
+                    'notification_sent'   => 'Notification envoyée à tous les utilisateurs.',
                     default       => ''
                 } ?>
             </div>
@@ -130,6 +131,23 @@
             <?php endforeach; ?>
             </tbody>
         </table>
+
+        <?php elseif ($tab === 'notifications'): ?>
+        <h2>Notification système</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Envoie une notification (push + dans l'application) à <strong>tous les utilisateurs</strong>, toutes familles confondues.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/notifications/send" class="card" style="padding:1.25rem;max-width:640px" onsubmit="return confirm('Envoyer cette notification à tous les utilisateurs de toutes les familles ?')"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>Titre</label>
+                <input type="text" name="title" maxlength="150" required>
+            </div>
+            <div class="form-group">
+                <label>Message</label>
+                <textarea name="message" rows="4" maxlength="2000" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Envoyer à tous les utilisateurs</button>
+        </form>
 
         <?php elseif ($tab === 'impersonation'): ?>
         <h2>Journal d'impersonation</h2>

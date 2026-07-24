@@ -43,6 +43,38 @@ async function togglePushNotifications() {
 
 refreshPushStatus();
 
+// ---- Envoi d'une notification aux membres de la famille (admin) ----
+async function sendFamilyNotification(evt) {
+    evt.preventDefault();
+    const titleInput = document.getElementById('notify-title');
+    const messageInput = document.getElementById('notify-message');
+    const includeCoparentInput = document.getElementById('notify-include-coparent');
+    const resultEl = document.getElementById('family-notify-result');
+
+    const title = titleInput.value.trim();
+    const message = messageInput.value.trim();
+    if (!title || !message) return;
+
+    const r = await apiFetch(BASE_URL + '/settings/notify', {
+        method: 'POST',
+        body: JSON.stringify({
+            title,
+            message,
+            include_coparent: !!(includeCoparentInput && includeCoparentInput.checked),
+        }),
+    });
+
+    if (!r.success) {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+        return;
+    }
+
+    resultEl.innerHTML = `<div class="alert alert-success">Notification envoyée à ${r.count} membre(s).</div>`;
+    titleInput.value = '';
+    messageInput.value = '';
+    if (includeCoparentInput) includeCoparentInput.checked = false;
+}
+
 // ---- Accès baby-sitter ----
 async function createSitterLink() {
     const labelInput = document.getElementById('sitter-label');
