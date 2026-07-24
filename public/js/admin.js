@@ -31,6 +31,20 @@ function renderSmtpSteps(r) {
     box.innerHTML = html;
 }
 
+async function testMeteoFranceKey() {
+    const box = document.getElementById('meteofrance-test-result');
+    box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';
+    try {
+        const res = await fetch(BASE_URL + '/admin/meteofrance-key/test', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await res.json();
+        box.innerHTML = data.ok
+            ? '<p style="color:var(--success)">✅ Clé valide, l\'API Vigilance a répondu.</p>'
+            : '<p style="color:var(--danger)">❌ ' + (data.error || 'Échec du test.') + '</p>';
+    } catch {
+        box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
+    }
+}
+
 async function testSmtp() {
     const box = document.getElementById('smtp-test-result');
     box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';

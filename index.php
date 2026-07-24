@@ -289,6 +289,8 @@ $router->post('/admin/email-content', [AdminController::class, 'saveEmailContent
 $router->post('/admin/email-content/:type/reset', [AdminController::class, 'resetEmailContent']);
 $router->get('/admin/email-content/:type/preview', [AdminController::class, 'previewEmailContent']);
 $router->post('/admin/notifications/send', [AdminController::class, 'sendSystemNotification']);
+$router->post('/admin/meteofrance-key', [AdminController::class, 'updateMeteoFranceKey']);
+$router->post('/admin/meteofrance-key/test', [AdminController::class, 'testMeteoFranceKey']);
 
 // Support (user-facing)
 $router->get('/support', [SupportController::class, 'index']);
