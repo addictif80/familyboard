@@ -77,4 +77,32 @@ class OfficialAlert
              LIMIT 15'
         );
     }
+
+    /**
+     * Historique (30 jours) des alertes d'une seule catégorie pour une famille : alimente la
+     * page dédiée "S'informer" ouverte depuis le bandeau, filtrée sur la catégorie affichée au
+     * moment du clic. Fenêtre plus large que getActiveForFamily() (7 jours) car cette page est
+     * consultée volontairement, pas affichée en continu.
+     */
+    public static function getActiveForFamilyByCategory(string $category, ?string $city): array
+    {
+        if ($city) {
+            return Database::fetchAll(
+                'SELECT * FROM official_alerts
+                 WHERE category = ?
+                 AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                 AND (city_match IS NULL OR city_match = ?)
+                 ORDER BY published_at DESC, created_at DESC
+                 LIMIT 50',
+                [$category, $city]
+            );
+        }
+        return Database::fetchAll(
+            'SELECT * FROM official_alerts
+             WHERE category = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND city_match IS NULL
+             ORDER BY published_at DESC, created_at DESC
+             LIMIT 50',
+            [$category]
+        );
+    }
 }

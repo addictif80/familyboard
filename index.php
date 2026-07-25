@@ -333,6 +333,7 @@ $router->post('/api/notifications/read-all', [SettingsController::class, 'markAl
 $router->post('/settings/notify', [SettingsController::class, 'sendNotification']);
 $router->get('/notifications/:id', [NotificationController::class, 'show']);
 $router->get('/api/alerts/active', [AlertController::class, 'active']);
+$router->get('/alertes/:category', [AlertController::class, 'category']);
 
 // Push notifications
 $router->get('/api/push/vapid-public-key', [PushController::class, 'vapidPublicKey']);

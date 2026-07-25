@@ -215,7 +215,7 @@ function renderCurrentOfficialAlert() {
         <span class="alert-banner-icon">${a.icon}</span>
         <span class="alert-banner-cat">${escapeHtml(a.label)}</span>
         <span class="alert-banner-title" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</span>
-        <a href="${escapeHtml(a.source_url)}" target="_blank" rel="noopener noreferrer" class="alert-banner-btn">S'informer</a>
+        <a href="${BASE_URL}/alertes/${encodeURIComponent(a.category)}" class="alert-banner-btn">S'informer</a>
     `;
     // Restart the fade-in animation on each rotation
     track.style.animation = 'none';
