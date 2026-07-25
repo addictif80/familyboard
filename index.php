@@ -139,6 +139,9 @@ $router->post('/login', [AuthController::class, 'login']);
 $router->get('/register', [AuthController::class, 'showRegister']);
 $router->post('/register', [AuthController::class, 'register']);
 $router->get('/logout', [AuthController::class, 'logout']);
+$router->get('/login/2fa', [AuthController::class, 'showTwoFactor']);
+$router->post('/login/2fa', [AuthController::class, 'verifyTwoFactor']);
+$router->post('/login/2fa/resend', [AuthController::class, 'resendTwoFactorEmail']);
 
 // Dashboard
 $router->get('/', [DashboardController::class, 'index']);
@@ -331,6 +334,10 @@ $router->get('/api/notifications', [SettingsController::class, 'getNotifications
 $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
 $router->post('/settings/notify', [SettingsController::class, 'sendNotification']);
+$router->post('/settings/2fa/totp/start', [SettingsController::class, 'startTwoFactorTotp']);
+$router->post('/settings/2fa/totp/confirm', [SettingsController::class, 'confirmTwoFactorTotp']);
+$router->post('/settings/2fa/email/enable', [SettingsController::class, 'enableTwoFactorEmail']);
+$router->post('/settings/2fa/disable', [SettingsController::class, 'disableTwoFactor']);
 $router->get('/notifications/:id', [NotificationController::class, 'show']);
 $router->get('/api/alerts/active', [AlertController::class, 'active']);
 $router->get('/alertes/:category', [AlertController::class, 'category']);

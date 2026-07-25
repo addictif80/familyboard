@@ -1,3 +1,72 @@
+// ---- Double authentification (2FA) ----
+function tfaShowStatus(mode) {
+    ['none', 'totp', 'email'].forEach(m => {
+        const el = document.getElementById('tfa-status-' + m);
+        if (el) el.style.display = m === mode ? 'block' : 'none';
+    });
+    document.getElementById('tfa-totp-setup').style.display = 'none';
+}
+
+async function startTfaTotpSetup() {
+    const r = await apiFetch(BASE_URL + '/settings/2fa/totp/start', { method: 'POST' });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+        return;
+    }
+    document.getElementById('tfa-totp-secret').textContent = r.secret;
+    document.getElementById('tfa-totp-code').value = '';
+    document.getElementById('tfa-totp-setup').style.display = 'block';
+    document.getElementById('tfa-totp-setup').dataset.uri = r.uri;
+}
+
+function cancelTfaTotpSetup() {
+    document.getElementById('tfa-totp-setup').style.display = 'none';
+}
+
+async function confirmTfaTotpSetup() {
+    const code = document.getElementById('tfa-totp-code').value.trim();
+    const r = await apiFetch(BASE_URL + '/settings/2fa/totp/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+    });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Code invalide.', 'error');
+        return;
+    }
+    Dialog.toast('Double authentification activée.', 'success');
+    tfaShowStatus('totp');
+}
+
+async function enableTfaEmail() {
+    const r = await apiFetch(BASE_URL + '/settings/2fa/email/enable', { method: 'POST' });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+        return;
+    }
+    Dialog.toast('Double authentification activée par email.', 'success');
+    tfaShowStatus('email');
+}
+
+function openTfaDisableModal() {
+    document.getElementById('tfa-disable-password').value = '';
+    openModal('tfa-disable-modal');
+}
+
+async function confirmTfaDisable() {
+    const password = document.getElementById('tfa-disable-password').value;
+    const r = await apiFetch(BASE_URL + '/settings/2fa/disable', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+    });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+        return;
+    }
+    closeModal('tfa-disable-modal');
+    Dialog.toast('Double authentification désactivée.', 'success');
+    tfaShowStatus('none');
+}
+
 // ---- Push notifications toggle ----
 async function refreshPushStatus() {
     const btn = document.getElementById('push-toggle-btn');

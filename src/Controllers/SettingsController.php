@@ -2,10 +2,12 @@
 namespace App\Controllers;
 
 use App\Core\Session;
+use App\Core\Totp;
 use App\Models\AccountDeletion;
 use App\Models\Custody;
 use App\Models\CustodyActivityLog;
 use App\Models\DataExport;
+use App\Models\TwoFactorAuth;
 use App\Models\User;
 use App\Models\Family;
 use App\Models\Notification;
@@ -26,7 +28,69 @@ class SettingsController extends BaseController
         $sitterLinks = SitterLink::getByFamily($user['family_id']);
         $kioskLinks = ($user['role'] === 'admin') ? KioskLink::getByFamily($user['family_id']) : [];
         $coparentsForNotify = ($user['role'] === 'admin') ? Custody::getCoparentUsersForFamily($user['family_id']) : [];
+        $twoFactorMethod = TwoFactorAuth::getMethod($user['id']);
         require BASE_PATH . '/templates/settings/index.php';
+    }
+
+    // ── Authentification à deux facteurs ────────────────────────────
+
+    /** Démarre l'enrôlement TOTP : génère un secret temporaire (non persisté tant que le code
+     *  n'est pas confirmé) et le place en session le temps de la vérification. */
+    public function startTwoFactorTotp(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $secret = Totp::generateSecret();
+            Session::set('pending_totp_secret', $secret);
+            return [
+                'success' => true,
+                'secret'  => $secret,
+                'uri'     => Totp::provisioningUri($secret, $user['email']),
+            ];
+        });
+    }
+
+    public function confirmTwoFactorTotp(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $secret = Session::get('pending_totp_secret');
+            $code = trim($this->jsonInput()['code'] ?? '');
+            if (!$secret || !Totp::verifyCode($secret, $code)) {
+                return ['success' => false, 'error' => 'Code invalide.'];
+            }
+            TwoFactorAuth::enableTotp((int)$user['id'], $secret);
+            Session::delete('pending_totp_secret');
+            return ['success' => true];
+        });
+    }
+
+    public function enableTwoFactorEmail(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            TwoFactorAuth::enableEmail((int)$user['id']);
+            return ['success' => true];
+        });
+    }
+
+    /** Désactiver la 2FA exige le mot de passe courant : ne pas laisser une session détournée
+     *  (mais sans le mot de passe) désactiver la protection. */
+    public function disableTwoFactor(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $password = $this->jsonInput()['password'] ?? '';
+            if (!User::verify($user['email'], $password)) {
+                return ['success' => false, 'error' => 'Mot de passe incorrect.'];
+            }
+            TwoFactorAuth::disable((int)$user['id']);
+            return ['success' => true];
+        });
     }
 
     public function updateProfile(array $params): void
