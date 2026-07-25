@@ -64,11 +64,14 @@ set_exception_handler(function (\Throwable $e) {
     ]);
     $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
         || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'));
+    // Le message complet (souvent des fragments de requête SQL, des chemins serveur...) est déjà
+    // journalisé ci-dessus via ErrorReporter — inutile et risqué de le renvoyer au navigateur.
+    $publicMessage = APP_DEBUG ? $e->getMessage() : 'Une erreur est survenue. L\'équipe technique a été prévenue.';
     if ($isAjax) {
         header('Content-Type: application/json');
-        echo json_encode(['error' => $e->getMessage()]);
+        echo json_encode(['error' => $publicMessage]);
     } else {
-        echo '<h1>Erreur interne</h1><p>' . htmlspecialchars($e->getMessage()) . '</p>';
+        echo '<h1>Erreur interne</h1><p>' . htmlspecialchars($publicMessage) . '</p>';
     }
     exit;
 });

@@ -7,3 +7,6 @@
 // define('DB_NAME', 'familyboard');
 // define('DB_USER', 'your_user');
 // define('DB_PASS', 'your_password');
+
+// Debug (ne JAMAIS activer en production : affiche le détail des erreurs aux visiteurs)
+// define('APP_DEBUG', true);
