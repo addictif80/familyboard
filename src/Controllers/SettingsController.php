@@ -71,7 +71,7 @@ class SettingsController extends BaseController
             $user = Session::user();
             $secret = Session::get('pending_totp_secret');
             $code = trim($this->jsonInput()['code'] ?? '');
-            if (!$secret || !Totp::verifyCode($secret, $code)) {
+            if (!$secret || !TwoFactorAuth::verifyTotpCode((int)$user['id'], $secret, $code)) {
                 return ['success' => false, 'error' => 'Code invalide.'];
             }
             TwoFactorAuth::enableTotp((int)$user['id'], $secret);

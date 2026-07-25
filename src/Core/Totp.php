@@ -35,14 +35,23 @@ class Totp
     /** Vérifie un code à 6 chiffres, avec une tolérance de ±1 pas (30s) pour l'horloge du téléphone. */
     public static function verifyCode(string $secretBase32, string $code, int $window = 1): bool
     {
+        return self::matchCounter($secretBase32, $code, $window) !== null;
+    }
+
+    /** Comme verifyCode(), mais retourne le pas de temps (compteur HOTP) qui a matché, pour
+     *  permettre à l'appelant de bloquer le rejeu d'un code déjà utilisé (voir
+     *  TwoFactorAuth::verifyTotpCode) — verifyCode() seul ne peut pas empêcher qu'un même code
+     *  intercepté soit soumis plusieurs fois tant qu'il reste dans sa fenêtre de validité. */
+    public static function matchCounter(string $secretBase32, string $code, int $window = 1): ?int
+    {
         $code = preg_replace('/\D/', '', $code);
-        if (strlen($code) !== self::DIGITS) return false;
+        if (strlen($code) !== self::DIGITS) return null;
 
         $counter = intdiv(time(), self::PERIOD);
         for ($i = -$window; $i <= $window; $i++) {
-            if (hash_equals(self::hotp($secretBase32, $counter + $i), $code)) return true;
+            if (hash_equals(self::hotp($secretBase32, $counter + $i), $code)) return $counter + $i;
         }
-        return false;
+        return null;
     }
 
     private static function hotp(string $secretBase32, int $counter): string
