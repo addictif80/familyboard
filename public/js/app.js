@@ -228,6 +228,30 @@ function renderCurrentOfficialAlert() {
 
 loadOfficialAlerts();
 
+// ---- Bandeau d'accompagnement PWA (installation + notifications) ----
+async function checkPwaOnboardingBanner() {
+    const banner = document.getElementById('pwa-onboarding-banner');
+    const text = document.getElementById('pwa-onboarding-text');
+    const link = document.getElementById('pwa-onboarding-link');
+    if (!banner || !text || !link) return;
+
+    if (typeof isStandalonePWA !== 'function' || !isStandalonePWA()) {
+        text.textContent = "📲 Installez FamilyBoard sur votre écran d'accueil pour une meilleure expérience et les notifications.";
+        link.href = BASE_URL + '/settings#pwa-install-section';
+        banner.style.display = 'flex';
+        return;
+    }
+    const { state } = await checkPushStatus();
+    if (state !== 'enabled') {
+        text.textContent = '🔔 Activez les notifications pour ne rien manquer.';
+        link.href = BASE_URL + '/settings#push-notifications-section';
+        banner.style.display = 'flex';
+        return;
+    }
+    banner.style.display = 'none';
+}
+checkPwaOnboardingBanner();
+
 // Add notification styles
 const style = document.createElement('style');
 style.textContent = `

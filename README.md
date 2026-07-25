@@ -197,25 +197,29 @@ Configurez votre serveur SMTP dans **Paramètres → SMTP** pour activer :
 
 ## PWA
 
-L'application peut être installée sur mobile et bureau via **📲 Installer
-l'app** dans la barre latérale. Elle fonctionne en mode hors-ligne partiel
-grâce au Service Worker.
+FamilyBoard est conçu pour être installé comme une application (PWA), sur
+mobile comme sur ordinateur, sans passer par un store. C'est la méthode
+d'installation mise en avant dans l'app — *Paramètres → 📲 Installer
+l'application* propose un bouton d'installation directe (Android/Chrome,
+via `beforeinstallprompt`) ainsi qu'un guide pas-à-pas pour iPhone/iPad
+(Safari → Partager → Sur l'écran d'accueil). Elle fonctionne en mode
+hors-ligne partiel grâce au Service Worker, et les notifications push ne
+sont délivrées sur iOS que depuis l'app installée (jamais depuis un onglet
+Safari classique — contrainte du système, pas de l'app).
 
-## Application Android
+## Application Android native (optionnelle, hors promotion in-app)
 
-Un vrai client Android (`android/`) est disponible en plus de la PWA : c'est
-une app WebView légère qui demande l'adresse de votre serveur au premier
-lancement (celle que vous utilisez déjà dans le navigateur), puis se comporte
-comme une app native (icône, session persistante, upload de fichiers,
-téléchargement des exports/documents).
+Un client Android natif (`android/`) existe en plus de la PWA — une app
+WebView légère qui demande l'adresse de votre serveur au premier lancement.
+Il n'est plus promu dans l'interface (la PWA couvre le même besoin sans
+installation manuelle d'APK) ; il reste disponible pour qui veut le
+compiler soi-même :
 
-- **Téléchargement** : un utilisateur connecté trouve le lien dans
-  *Paramètres → Application Android* (route `/app/android`), qui redirige
-  vers le dernier APK publié sur GitHub Releases.
 - **Build** : `.github/workflows/android-release.yml` compile et publie
-  automatiquement l'APK (déclenchable manuellement ou via un tag `android-vX.Y.Z`).
-- **Signature** : pour produire un APK installable (signé), configurez ces
-  secrets du dépôt GitHub avant de lancer le workflow :
+  l'APK sur GitHub Releases (déclenchable manuellement ou via un tag
+  `android-vX.Y.Z`).
+- **Signature** : pour un APK installable (signé), configurez ces secrets
+  du dépôt GitHub avant de lancer le workflow :
   - `FAMILYBOARD_KEYSTORE_BASE64` — un keystore encodé en base64
     (`keytool -genkeypair -v -keystore release.keystore -alias familyboard -keyalg RSA -keysize 2048 -validity 10000`
     puis `base64 -w0 release.keystore`)
@@ -223,9 +227,6 @@ téléchargement des exports/documents).
 
   Sans ces secrets, le workflow compile quand même mais produit un APK non
   signé (non installable) — utile pour vérifier que le build passe.
-- **URL personnalisée** : si vous préférez héberger l'APK vous-même plutôt
-  que d'utiliser GitHub Releases, définissez `ANDROID_APK_URL` dans
-  `config/config.local.php`.
 
 ## Sécurité
 

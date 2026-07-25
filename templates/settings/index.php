@@ -64,20 +64,35 @@ ob_start();
         </div>
     </div>
 
-    <!-- Application Android -->
-    <div class="card settings-section">
-        <h3>📱 Application Android</h3>
+    <!-- Installer l'application (PWA) -->
+    <div class="card settings-section" id="pwa-install-section">
+        <h3>📲 Installer l'application</h3>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Installez FamilyBoard sur votre téléphone Android. L'application se connecte à
-            l'adresse de votre serveur (celle que vous utilisez déjà dans votre navigateur) —
-            aucune donnée supplémentaire n'est envoyée ailleurs.
+            FamilyBoard s'installe directement depuis votre navigateur, comme une vraie application
+            (icône sur l'écran d'accueil, plein écran, notifications) — sans passer par un store.
         </p>
-        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-            <a href="<?= BASE_URL ?>/app/android" class="btn btn-secondary">⬇️ Télécharger l'APK</a>
+        <p id="pwa-install-status" class="alert alert-success" style="display:none">✅ Application installée sur cet appareil.</p>
+        <button type="button" class="btn btn-primary" id="pwa-install-btn-settings" onclick="installPWA()" style="display:none">📲 Installer l'application</button>
+
+        <div style="margin-top:1rem">
+            <details>
+                <summary style="cursor:pointer;font-weight:600;font-size:.9rem"> Instructions pour iPhone / iPad (Safari)</summary>
+                <ol style="font-size:.85rem;color:var(--text-muted);margin:.6rem 0 0 1.1rem;padding:0">
+                    <li>Ouvrez FamilyBoard dans <strong>Safari</strong> (obligatoire, pas Chrome sur iOS).</li>
+                    <li>Appuyez sur le bouton <strong>Partager</strong> (carré avec une flèche vers le haut).</li>
+                    <li>Choisissez <strong>« Sur l'écran d'accueil »</strong>, puis « Ajouter ».</li>
+                    <li>Ouvrez FamilyBoard depuis cette nouvelle icône (pas depuis Safari) et activez les notifications ci-dessous.</li>
+                </ol>
+            </details>
+            <details style="margin-top:.5rem">
+                <summary style="cursor:pointer;font-weight:600;font-size:.9rem"> Instructions pour Android (Chrome)</summary>
+                <ol style="font-size:.85rem;color:var(--text-muted);margin:.6rem 0 0 1.1rem;padding:0">
+                    <li>Ouvrez FamilyBoard dans <strong>Chrome</strong>.</li>
+                    <li>Appuyez sur le bouton <strong>« Installer l'application »</strong> ci-dessus, ou sur le menu ⋮ puis <strong>« Installer l'application »</strong>.</li>
+                    <li>Ouvrez FamilyBoard depuis l'icône ajoutée et activez les notifications ci-dessous.</li>
+                </ol>
+            </details>
         </div>
-        <p style="color:var(--text-muted);font-size:.75rem;margin-top:.6rem">
-            L'installation depuis un fichier APK nécessite d'autoriser « sources inconnues » pour votre navigateur dans les réglages Android.
-        </p>
     </div>
 
     <!-- Zone dangereuse -->
@@ -264,7 +279,7 @@ ob_start();
     </div>
 
     <!-- Push notifications -->
-    <div class="card settings-section">
+    <div class="card settings-section" id="push-notifications-section">
         <h3>🔔 Notifications push</h3>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Recevez une notification directement sur cet appareil (ordinateur ou mobile) dès qu'un événement

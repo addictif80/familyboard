@@ -255,16 +255,6 @@ class SettingsController extends BaseController
         });
     }
 
-    /** Redirige vers le dernier APK Android publié (nécessite une session active). */
-    public function downloadAndroidApk(array $params): void
-    {
-        $this->requireAuth();
-        $url = defined('ANDROID_APK_URL') ? ANDROID_APK_URL
-            : 'https://github.com/addictif80/familyboard/releases/latest/download/familyboard.apk';
-        header('Location: ' . $url);
-        exit;
-    }
-
     public function getNotifications(array $params): void
     {
         $this->requireAuth();
