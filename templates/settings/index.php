@@ -207,6 +207,55 @@ ob_start();
         </div>
     </div>
 
+    <!-- Authentification à deux facteurs -->
+    <div class="card settings-section">
+        <h3>🔐 Double authentification</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Ajoutez une deuxième étape à la connexion : un code généré par une application
+            d'authentification (recommandé), ou par défaut un code envoyé par email si vous n'en
+            utilisez pas.
+        </p>
+
+        <div id="tfa-status-none" style="display:<?= $twoFactorMethod === null ? 'block' : 'none' ?>">
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <button type="button" class="btn btn-primary" onclick="startTfaTotpSetup()">📱 Utiliser une application</button>
+                <button type="button" class="btn btn-secondary" onclick="enableTfaEmail()">✉️ Utiliser mon email</button>
+            </div>
+        </div>
+
+        <div id="tfa-status-totp" style="display:<?= $twoFactorMethod === 'totp' ? 'block' : 'none' ?>">
+            <p class="alert alert-success" style="margin-bottom:.75rem">Activée via une application d'authentification.</p>
+            <button type="button" class="btn btn-danger btn-sm" onclick="openTfaDisableModal()">Désactiver la double authentification</button>
+        </div>
+
+        <div id="tfa-status-email" style="display:<?= $twoFactorMethod === 'email' ? 'block' : 'none' ?>">
+            <p class="alert alert-success" style="margin-bottom:.75rem">Activée par code envoyé à votre email.</p>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="startTfaTotpSetup()">📱 Passer à une application</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="openTfaDisableModal()">Désactiver</button>
+            </div>
+        </div>
+
+        <!-- Enrôlement TOTP : clé affichée pour saisie manuelle dans l'application -->
+        <div id="tfa-totp-setup" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+            <p style="font-size:.85rem">
+                Dans votre application d'authentification (Google Authenticator, Authy, Ente Auth...),
+                ajoutez un compte manuellement avec la clé ci-dessous, puis saisissez le code généré.
+            </p>
+            <p style="font-family:monospace;font-size:1.05rem;letter-spacing:2px;background:var(--bg-alt);padding:.6rem;border-radius:8px;word-break:break-all" id="tfa-totp-secret"></p>
+            <div class="form-group">
+                <label>Code affiché par l'application</label>
+                <input type="text" id="tfa-totp-code" inputmode="numeric" maxlength="6" placeholder="123456" style="letter-spacing:3px">
+            </div>
+            <div style="display:flex;gap:.5rem">
+                <button type="button" class="btn btn-primary" onclick="confirmTfaTotpSetup()">Confirmer et activer</button>
+                <button type="button" class="btn btn-secondary" onclick="cancelTfaTotpSetup()">Annuler</button>
+            </div>
+        </div>
+
+        <p id="tfa-message" style="font-size:.8rem;margin-top:.5rem"></p>
+    </div>
+
     <!-- Push notifications -->
     <div class="card settings-section">
         <h3>🔔 Notifications push</h3>
@@ -440,6 +489,27 @@ ob_start();
     <?php endif; ?>
     <?php endif; ?>
 
+</div>
+
+<!-- Disable 2FA modal -->
+<div class="modal-overlay" id="tfa-disable-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Désactiver la double authentification</h3>
+            <button onclick="closeModal('tfa-disable-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p>Confirmez votre mot de passe pour désactiver la double authentification.</p>
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <input type="password" id="tfa-disable-password" autocomplete="current-password">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('tfa-disable-modal')">Annuler</button>
+            <button class="btn btn-danger" onclick="confirmTfaDisable()">Désactiver</button>
+        </div>
+    </div>
 </div>
 
 <!-- Delete account modal -->

@@ -1,10 +1,14 @@
 <?php
 namespace App\Controllers;
 
+use App\Core\EmailLayout;
+use App\Core\Mail;
 use App\Core\RememberMe;
 use App\Core\Session;
+use App\Core\Totp;
 use App\Models\Family;
 use App\Models\LoginAttempt;
+use App\Models\TwoFactorAuth;
 use App\Models\User;
 
 class AuthController
@@ -15,6 +19,7 @@ class AuthController
             header('Location: ' . BASE_URL . '/');
             exit;
         }
+        Session::delete('pending_2fa_user_id');
         $error = Session::getFlash('error');
         require BASE_PATH . '/templates/auth/login.php';
     }
@@ -53,9 +58,104 @@ class AuthController
             exit;
         }
 
+        $this->completeLogin($user);
+    }
+
+    /** Termine la connexion — ou, si la 2FA est activée, met la connexion en attente d'un code. */
+    private function completeLogin(array $user): void
+    {
+        $method = TwoFactorAuth::getMethod((int)$user['id']);
+        if ($method === null) {
+            Session::login($user);
+            RememberMe::issue($user['id']);
+            header('Location: ' . BASE_URL . '/');
+            exit;
+        }
+
+        Session::set('pending_2fa_user_id', $user['id']);
+        if ($method === 'email') {
+            $this->sendTwoFactorEmailCode($user);
+        }
+        header('Location: ' . BASE_URL . '/login/2fa');
+        exit;
+    }
+
+    private function sendTwoFactorEmailCode(array $user): void
+    {
+        $code = TwoFactorAuth::issueEmailCode((int)$user['id']);
+        $html = EmailLayout::render(
+            'Votre code de vérification',
+            '<p>Voici votre code de connexion FamilyBoard :</p>'
+            . '<p style="font-size:28px;font-weight:700;letter-spacing:4px">' . htmlspecialchars($code) . '</p>'
+            . '<p>Ce code expire dans 10 minutes. Si vous n\'êtes pas à l\'origine de cette tentative de connexion, ignorez cet email.</p>'
+        );
+        Mail::send((int)$user['family_id'], $user['email'], $user['name'], 'Votre code de vérification FamilyBoard', $html, 'otp_2fa');
+    }
+
+    public function showTwoFactor(array $params): void
+    {
+        $userId = Session::get('pending_2fa_user_id');
+        if (!$userId) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        $method = TwoFactorAuth::getMethod((int)$userId);
+        $error = Session::getFlash('error');
+        $info = Session::getFlash('info');
+        require BASE_PATH . '/templates/auth/two_factor.php';
+    }
+
+    public function verifyTwoFactor(array $params): void
+    {
+        $userId = (int)(Session::get('pending_2fa_user_id') ?? 0);
+        if (!$userId) {
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (LoginAttempt::isLocked('2fa', $ip)) {
+            Session::flash('error', 'Trop de tentatives. Réessayez dans ' . LoginAttempt::minutesUntilUnlock() . ' minutes.');
+            header('Location: ' . BASE_URL . '/login/2fa');
+            exit;
+        }
+
+        $user = User::findById($userId);
+        $method = $user ? TwoFactorAuth::getMethod($userId) : null;
+        $code = trim($_POST['code'] ?? '');
+
+        $ok = false;
+        if ($user && $method === 'totp') {
+            $secret = TwoFactorAuth::getTotpSecret($userId);
+            $ok = $secret !== null && Totp::verifyCode($secret, $code);
+        } elseif ($user && $method === 'email') {
+            $ok = TwoFactorAuth::verifyEmailCode($userId, $code);
+        }
+
+        if (!$ok) {
+            LoginAttempt::record('2fa', $ip);
+            Session::flash('error', 'Code invalide ou expiré.');
+            header('Location: ' . BASE_URL . '/login/2fa');
+            exit;
+        }
+
+        LoginAttempt::clear('2fa', $ip);
+        Session::delete('pending_2fa_user_id');
         Session::login($user);
         RememberMe::issue($user['id']);
         header('Location: ' . BASE_URL . '/');
+        exit;
+    }
+
+    public function resendTwoFactorEmail(array $params): void
+    {
+        $userId = (int)(Session::get('pending_2fa_user_id') ?? 0);
+        $user = $userId ? User::findById($userId) : null;
+        if ($user && TwoFactorAuth::getMethod($userId) === 'email') {
+            $this->sendTwoFactorEmailCode($user);
+            Session::flash('info', 'Un nouveau code a été envoyé.');
+        }
+        header('Location: ' . BASE_URL . '/login/2fa');
         exit;
     }
 
@@ -128,11 +228,7 @@ class AuthController
 
         $userId = User::create($familyId, $name, $email, $password, $role, $color);
         $user = User::findById($userId);
-        Session::login($user);
-        RememberMe::issue($user['id']);
-
-        header('Location: ' . BASE_URL . '/');
-        exit;
+        $this->completeLogin($user);
     }
 
     public function logout(array $params): void
