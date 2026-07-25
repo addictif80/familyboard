@@ -43,13 +43,24 @@ class Notification
         return (int)($row['cnt'] ?? 0);
     }
 
-    public static function notifyFamily(int $familyId, int $excludeUserId, string $type, string $title, string $message, ?string $link = null): void
+    /**
+     * $custodyScheduleId : quand l'évènement concerne un enfant en garde partagée précis (garde,
+     * proposition, journal parental…), passer l'ID du planning concerné pour que les comptes à
+     * accès restreint (role=coparent) ne reçoivent que les évènements pertinents pour eux — ils
+     * ne doivent jamais être notifiés d'un évènement familial générique (mur, chat, document,
+     * calendrier...) sans rapport avec la garde.
+     */
+    public static function notifyFamily(int $familyId, int $excludeUserId, string $type, string $title, string $message, ?string $link = null, ?int $custodyScheduleId = null): void
     {
         $users = User::getByFamily($familyId);
         foreach ($users as $user) {
-            if ($user['id'] !== $excludeUserId) {
-                self::create($user['id'], $type, $title, $message, $link);
+            if ($user['id'] === $excludeUserId) continue;
+            if ($user['role'] === 'coparent') {
+                if ($custodyScheduleId === null || !Custody::userHasAccessToSchedule((int)$user['id'], $custodyScheduleId)) {
+                    continue;
+                }
             }
+            self::create((int)$user['id'], $type, $title, $message, $link);
         }
     }
 

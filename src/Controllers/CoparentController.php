@@ -117,7 +117,7 @@ class CoparentController extends BaseController
                 (int)$schedule['family_id'], $user['id'], 'custody',
                 'Proposition de garde reçue',
                 $user['name'] . ' a proposé des jours de garde pour ' . $schedule['child_name'] . '.',
-                BASE_URL . '/custody'
+                BASE_URL . '/custody', $scheduleId
             );
 
             return ['success' => true, 'created' => $created];
@@ -173,7 +173,7 @@ class CoparentController extends BaseController
 
             Notification::notifyFamily((int)$schedule['family_id'], $user['id'], 'comm_log',
                 'Journal parental', $user['name'] . ' a ajouté ' . ($audioPath ? 'un message vocal' : 'un message') . ' au sujet de ' . $schedule['child_name'] . '.',
-                BASE_URL . '/comm-log');
+                BASE_URL . '/comm-log', $scheduleId);
 
             return [
                 'success' => true,

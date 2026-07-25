@@ -52,15 +52,19 @@ $families = Database::fetchAll('SELECT * FROM families');
 foreach ($families as $family) {
     $familyId = (int)$family['id'];
     $members  = User::getByFamily($familyId);
+    // Ces rappels (calendrier générique, courses, tâches non assignées) ne concernent jamais un
+    // enfant en garde partagée précis — un compte à accès restreint (role=coparent) ne doit donc
+    // pas les recevoir, contrairement à une tâche qui lui a été explicitement assignée.
+    $membersExcludingCoparent = array_values(array_filter($members, fn ($m) => $m['role'] !== 'coparent'));
 
     // Apply family timezone for date calculations
     $tz = $family['timezone'] ?? 'Europe/Paris';
     date_default_timezone_set($tz);
 
-    sendEventReminders($familyId, $members, $appUrl);
-    sendTomorrowEventDigest($familyId, $members, $appUrl);
+    sendEventReminders($familyId, $membersExcludingCoparent, $appUrl);
+    sendTomorrowEventDigest($familyId, $membersExcludingCoparent, $appUrl);
     sendTaskReminders($familyId, $members, $appUrl);
-    sendShoppingReminders($familyId, $members, $appUrl);
+    sendShoppingReminders($familyId, $membersExcludingCoparent, $appUrl);
     sendRecurringAlerts($familyId, $appUrl);
 }
 
@@ -182,13 +186,15 @@ function sendTaskReminders(int $familyId, array $members, string $appUrl): void
     );
 
     foreach ($tasks as $task) {
-        // Send to the assigned user or all members if no assignment
+        // Send to the assigned user (even a coparent, if explicitly assigned) or, if no
+        // assignment, to all members except coparent accounts — this generic reminder is never
+        // scoped to a custody schedule, so it isn't relevant to a restricted coparent account.
         $recipients = [];
         if (!empty($task['assigned_to'])) {
             $assignee = Database::fetch('SELECT * FROM users WHERE id=?', [$task['assigned_to']]);
             if ($assignee) $recipients[] = $assignee;
         } else {
-            $recipients = $members;
+            $recipients = array_filter($members, fn ($m) => $m['role'] !== 'coparent');
         }
 
         foreach ($recipients as $member) {
