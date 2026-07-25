@@ -38,7 +38,15 @@ class DocumentController extends BaseController
             $user   = Session::user();
             $data   = $_POST ?: $this->jsonInput();
             $file   = $_FILES['file'] ?? null;
+            $familyMemberIds = array_map('intval', array_column(User::getByFamily($user['family_id']), 'id'));
             $userId = (int)($data['user_id'] ?? $user['id']);
+            if (!in_array($userId, $familyMemberIds, true)) $userId = $user['id'];
+            if (isset($data['member_ids'])) {
+                $data['member_ids'] = array_values(array_filter(
+                    array_map('intval', (array)$data['member_ids']),
+                    fn($id) => in_array($id, $familyMemberIds, true)
+                ));
+            }
             if (!empty($data['custody_schedule_id'])) {
                 $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
                 if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
@@ -60,7 +68,17 @@ class DocumentController extends BaseController
             $user = Session::user();
             $data = $_POST ?: $this->jsonInput();
             $file = $_FILES['file'] ?? null;
-            if (isset($data['user_id'])) $data['user_id'] = (int)$data['user_id'];
+            $familyMemberIds = array_map('intval', array_column(User::getByFamily($user['family_id']), 'id'));
+            if (isset($data['user_id'])) {
+                $data['user_id'] = (int)$data['user_id'];
+                if (!in_array($data['user_id'], $familyMemberIds, true)) unset($data['user_id']);
+            }
+            if (isset($data['member_ids'])) {
+                $data['member_ids'] = array_values(array_filter(
+                    array_map('intval', (array)$data['member_ids']),
+                    fn($id) => in_array($id, $familyMemberIds, true)
+                ));
+            }
             if (!empty($data['custody_schedule_id'])) {
                 $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
                 if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;

@@ -98,8 +98,15 @@ class AuthController
 
         // Join existing family or create new one
         if ($inviteCode) {
+            $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+            if (LoginAttempt::isLocked('invite', $ip)) {
+                Session::flash('error', 'Trop de tentatives. Réessayez dans ' . LoginAttempt::minutesUntilUnlock() . ' minutes.');
+                header('Location: ' . BASE_URL . '/register');
+                exit;
+            }
             $family = Family::findByInviteCode(strtoupper($inviteCode));
             if (!$family) {
+                LoginAttempt::record('invite', $ip);
                 Session::flash('error', 'Code d\'invitation invalide.');
                 header('Location: ' . BASE_URL . '/register');
                 exit;
