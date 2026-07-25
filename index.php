@@ -51,6 +51,29 @@ use App\Controllers\ErrorReportController;
 
 Session::start();
 
+// En-têtes de sécurité de base, appliqués à toutes les réponses. La CSP autorise le JS/CSS
+// inline ('unsafe-inline') car l'app en dépend massivement (onclick= dans les templates,
+// <script> inline) — une réécriture complète vers des gestionnaires d'évènements externes
+// sortirait du cadre de ce durcissement ; la CSP garde malgré tout de la valeur en bloquant le
+// chargement de script/style/frame depuis un domaine non listé (utile si une XSS venait à
+// injecter une balise <script src="https://evil.example/...">).
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header("Content-Security-Policy: default-src 'self'; "
+    . "script-src 'self' 'unsafe-inline'; "
+    . "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    . "font-src 'self' https://fonts.gstatic.com; "
+    . "img-src 'self' data: blob:; "
+    . "media-src 'self' blob:; "
+    . "connect-src 'self' https://geocoding-api.open-meteo.com https://api.open-meteo.com https://nominatim.openstreetmap.org; "
+    . "frame-src 'self' https://www.openstreetmap.org; "
+    . "worker-src 'self'; "
+    . "object-src 'none'; "
+    . "base-uri 'self'; "
+    . "form-action 'self'; "
+    . "frame-ancestors 'self';");
+
 // Global exception handler — ensures a clean HTTP response even on fatal
 // errors, and automatically opens a support ticket in the affected user's
 // name (continuous technical-error monitoring — see App\Core\ErrorReporter).
@@ -89,22 +112,23 @@ register_shutdown_function(function () {
     }
 });
 
-// ── IP block check (skip admin routes) ──────────────────────
-if (!str_starts_with(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '', (BASE_URL ?: '') . '/admin')) {
-    try {
-        $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
-        $clientIp = trim(explode(',', $clientIp)[0]);
-        if ($clientIp) {
-            $blockedIp = \App\Core\Database::fetch('SELECT reason FROM blocked_ips WHERE ip=? LIMIT 1', [$clientIp]);
-            if ($blockedIp) {
-                http_response_code(403);
-                $reason = $blockedIp['reason'] ?? '';
-                require BASE_PATH . '/templates/blocked.php';
-                exit;
-            }
+// ── IP block check ────────────────────────────────────────────
+// REMOTE_ADDR uniquement (jamais X-Forwarded-For, librement falsifiable par le client et
+// trivialement contournable) — cohérent avec LoginAttempt/ImpersonationLog qui utilisent déjà
+// REMOTE_ADDR partout ailleurs. S'applique aussi à /admin : une IP bloquée par l'admin doit
+// l'être partout, sinon un attaquant bloqué continue de pouvoir marteler /admin/login.
+try {
+    $clientIp = $_SERVER['REMOTE_ADDR'] ?? '';
+    if ($clientIp) {
+        $blockedIp = \App\Core\Database::fetch('SELECT reason FROM blocked_ips WHERE ip=? LIMIT 1', [$clientIp]);
+        if ($blockedIp) {
+            http_response_code(403);
+            $reason = $blockedIp['reason'] ?? '';
+            require BASE_PATH . '/templates/blocked.php';
+            exit;
         }
-    } catch (\Throwable) {}
-}
+    }
+} catch (\Throwable) {}
 
 // Auto-apply any pending SQL migrations
 try {

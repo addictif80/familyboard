@@ -191,7 +191,6 @@ class CameraController extends BaseController
 
         header('Content-Type: application/vnd.apple.mpegurl');
         header('Cache-Control: no-cache, no-store');
-        header('Access-Control-Allow-Origin: *');
         echo $m3u8;
         exit;
     }
@@ -225,7 +224,6 @@ class CameraController extends BaseController
 
         header('Cache-Control: no-cache, no-store');
         header('X-Accel-Buffering: no');
-        header('Access-Control-Allow-Origin: *');
         while (ob_get_level() > 0) ob_end_flush();
 
         $ch = curl_init($segUrl);
