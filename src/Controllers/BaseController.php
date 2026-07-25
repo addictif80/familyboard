@@ -148,6 +148,21 @@ class BaseController
         }
     }
 
+    /** Construit un en-tête Content-Disposition sûr pour un nom de fichier arbitraire (souvent
+     *  fourni par l'utilisateur) : encodage RFC 6266 plutôt qu'un simple addslashes(), qui ne
+     *  protège pas contre tous les caractères pouvant perturber le parsing par certains clients. */
+    protected function contentDispositionHeader(string $filename, string $disposition = 'inline'): string
+    {
+        $ascii = preg_replace('/[^\x20-\x7E]/', '_', $filename);
+        $ascii = str_replace(['"', '\\'], '_', $ascii);
+        return sprintf(
+            "Content-Disposition: %s; filename=\"%s\"; filename*=UTF-8''%s",
+            $disposition,
+            $ascii,
+            rawurlencode($filename)
+        );
+    }
+
     protected function jsonInput(): array
     {
         $raw = file_get_contents('php://input');
