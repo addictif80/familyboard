@@ -346,9 +346,7 @@ ob_start();
         <div class="members-list">
             <?php foreach ($members as $member): ?>
                 <div class="member-item">
-                    <div class="user-avatar" style="background:<?= htmlspecialchars($member['color']) ?>">
-                        <?= mb_substr($member['name'], 0, 1) ?>
-                    </div>
+                    <?= \App\Core\Avatar::html($member['avatar'] ?? null, $member['color'], $member['name']) ?>
                     <div class="member-info">
                         <strong><?= htmlspecialchars($member['name']) ?></strong>
                         <small>

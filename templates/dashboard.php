@@ -80,9 +80,7 @@ ob_start();
                     <ul class="post-preview-list">
                         <?php foreach ($posts as $post): ?>
                             <li class="post-preview-item">
-                                <div class="user-avatar-sm" style="background:<?= htmlspecialchars($post['user_color']) ?>">
-                                    <?= mb_substr($post['user_name'], 0, 1) ?>
-                                </div>
+                                <?= \App\Core\Avatar::html($post['user_avatar'] ?? null, $post['user_color'], $post['user_name'], 'user-avatar-sm') ?>
                                 <div style="flex:1;min-width:0">
                                     <strong><?= htmlspecialchars($post['user_name']) ?></strong>
                                     <?php $plain = mb_substr(strip_tags($post['content']), 0, 100); ?>
