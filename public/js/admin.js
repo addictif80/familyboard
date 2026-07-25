@@ -12,19 +12,26 @@ document.querySelectorAll('.alert').forEach(el => {
 });
 
 // ---- SMTP test (global config) ----
+// La réponse brute d'un serveur SMTP distant (banner, EHLO, AUTH...) est affichée telle quelle
+// dans cette page — un serveur malveillant ou une interception réseau pourrait y glisser du HTML.
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function renderSmtpSteps(r) {
     const box = document.getElementById('smtp-test-result');
     let html = '<div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:.5rem">';
     for (const step of (r.steps || [])) {
         html += `<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem .75rem;border-bottom:1px solid var(--border)">
             <span style="font-size:1rem">${step.ok ? '✅' : '❌'}</span>
-            <strong style="min-width:140px;flex-shrink:0">${step.label}</strong>
-            <code style="font-size:.75rem;color:var(--text-muted)">${step.detail}</code>
+            <strong style="min-width:140px;flex-shrink:0">${escapeHtml(step.label)}</strong>
+            <code style="font-size:.75rem;color:var(--text-muted)">${escapeHtml(step.detail)}</code>
         </div>`;
     }
     html += '</div>';
     if (r.error) {
-        html += `<p style="color:var(--danger);margin-top:.5rem;font-size:.85rem">❌ ${r.error}</p>`;
+        html += `<p style="color:var(--danger);margin-top:.5rem;font-size:.85rem">❌ ${escapeHtml(r.error)}</p>`;
     } else if (r.ok) {
         html += '<p style="color:var(--success);margin-top:.5rem;font-size:.85rem">✅ Succès.</p>';
     }
@@ -39,7 +46,7 @@ async function testMeteoFranceKey() {
         const data = await res.json();
         box.innerHTML = data.ok
             ? '<p style="color:var(--success)">✅ Clé valide, l\'API Vigilance a répondu.</p>'
-            : '<p style="color:var(--danger)">❌ ' + (data.error || 'Échec du test.') + '</p>';
+            : '<p style="color:var(--danger)">❌ ' + escapeHtml(data.error || 'Échec du test.') + '</p>';
     } catch {
         box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
     }
