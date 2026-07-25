@@ -59,6 +59,16 @@ class InvitationController extends BaseController
         // Check if email already has an account
         $existing = User::findByEmail($invitation['email']);
         if ($existing) {
+            // Le lien d'invitation ne prouve que la possession de la boîte mail, pas du mot de
+            // passe du compte existant — sans cette vérification, quiconque ouvre ce lien
+            // pourrait se connecter sur ce compte et déclencher la migration de famille
+            // ci-dessous sans jamais prouver qu'il en est le titulaire.
+            if (!password_verify($password, $existing['password'])) {
+                Session::flash('error', 'Un compte existe déjà avec cet email. Mot de passe incorrect.');
+                header('Location: ' . BASE_URL . '/invite/' . $token);
+                exit;
+            }
+
             if ($isCoparent) {
                 // Pont inter-familles : on ne touche pas à la famille/au rôle
                 // existants de ce compte, on ajoute seulement l'accès aux
@@ -71,11 +81,17 @@ class InvitationController extends BaseController
                 // compte existait déjà (rattaché à une autre famille).
                 CustodyActivityLog::activate((int)$existing['id'], $scheduleIds);
             } else {
-                // Move to this family
+                // Rejoint la famille en tant que membre à part entière : le rôle est
+                // explicitement remis à "member", sinon un administrateur de son ancienne
+                // famille garderait ce rôle et deviendrait automatiquement administrateur de
+                // la nouvelle famille qui l'invite.
                 \App\Core\Database::execute(
-                    'UPDATE users SET family_id=? WHERE id=?',
+                    "UPDATE users SET family_id=?, role='member' WHERE id=?",
                     [$invitation['family_id'], $existing['id']]
                 );
+                // Recharger le compte : $existing contient encore l'ancien family_id/role, or
+                // Session::login() les copie tels quels dans la session.
+                $existing = User::findById((int)$existing['id']);
             }
             Invitation::markUsed($token);
             Session::login($existing);
