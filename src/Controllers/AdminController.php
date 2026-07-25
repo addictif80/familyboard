@@ -159,7 +159,12 @@ class AdminController extends BaseController
             'tickets'     => SupportTicket::countOpen(),
         ];
         $families     = Database::fetchAll('SELECT f.*, COUNT(u.id) as member_count FROM families f LEFT JOIN users u ON u.family_id=f.id GROUP BY f.id ORDER BY f.created_at DESC');
-        $users        = Database::fetchAll('SELECT u.*, f.name as family_name FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC');
+        // Colonnes explicites (jamais SELECT u.*) : évite qu'un futur ajout de colonne sensible
+        // (mot de passe, secret TOTP...) ne se retrouve exposé sans y penser dans ce tableau.
+        $users        = Database::fetchAll(
+            'SELECT u.id, u.family_id, u.name, u.email, u.role, u.blocked_at, u.blocked_reason, u.created_at, f.name as family_name
+             FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC'
+        );
         $blockedIps   = Database::fetchAll('SELECT * FROM blocked_ips ORDER BY created_at DESC');
         $tickets      = SupportTicket::getAll();
         $smtp         = SmtpSettings::get();

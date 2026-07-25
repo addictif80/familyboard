@@ -62,7 +62,7 @@ class BaseController
             header('Location: ' . BASE_URL . '/');
             exit;
         }
-        Session::set('user', $user);
+        Session::set('user', Session::sanitizeUser($user));
 
         $tfaStatus = \App\Models\TwoFactorAuth::getPolicyStatus((int)$user['id']);
         if (!empty($tfaStatus['blocked']) && !$this->isTwoFactorSetupPath()) {

@@ -95,7 +95,19 @@ class Session
         }
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['family_id'] = $user['family_id'];
-        $_SESSION['user'] = $user;
+        $_SESSION['user'] = self::sanitizeUser($user);
         $_SESSION['login_at'] = time();
+    }
+
+    /**
+     * Retire du tableau utilisateur les colonnes qui n'ont jamais besoin de vivre en session
+     * (hash de mot de passe, secret TOTP...) — la session PHP est stockée sur disque (ou un
+     * backend de session), autant limiter ce qu'elle contient au strict nécessaire pour
+     * l'affichage courant plutôt que de dupliquer toute la ligne `users`.
+     */
+    public static function sanitizeUser(array $user): array
+    {
+        unset($user['password'], $user['totp_secret']);
+        return $user;
     }
 }
