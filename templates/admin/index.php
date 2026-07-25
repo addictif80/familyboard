@@ -200,7 +200,16 @@
         <form method="POST" action="<?= BASE_URL ?>/admin/meteofrance-key" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
             <div class="form-group">
                 <label>Clé API Vigilance Météo-France</label>
-                <input type="text" name="api_key" value="<?= htmlspecialchars($meteoFranceApiKey) ?>" placeholder="Laisser vide pour désactiver ce complément" autocomplete="off">
+                <?php if ($meteoFranceApiKey): ?>
+                    <input type="text" value="•••••••••••••• <?= htmlspecialchars(substr($meteoFranceApiKey, -4)) ?>" disabled>
+                    <input type="hidden" name="keep_existing" value="1">
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer ou désactiver la clé</summary>
+                        <input type="text" name="api_key" placeholder="Nouvelle clé (laisser vide pour désactiver)" autocomplete="off" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="text" name="api_key" placeholder="Laisser vide pour désactiver ce complément" autocomplete="off">
+                <?php endif; ?>
             </div>
             <div style="display:flex;gap:.5rem;align-items:center">
                 <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
@@ -336,7 +345,7 @@
                 </div>
                 <div class="form-group">
                     <label>Mot de passe</label>
-                    <input type="password" name="smtp_pass" value="<?= htmlspecialchars($smtp['password'] ?? '') ?>">
+                    <input type="password" name="smtp_pass" placeholder="<?= !empty($smtp['password']) ? '•••••••• (laisser vide pour conserver)' : '' ?>" autocomplete="new-password">
                 </div>
             </div>
             <div class="form-row">

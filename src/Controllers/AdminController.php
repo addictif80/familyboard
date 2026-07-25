@@ -233,11 +233,17 @@ class AdminController extends BaseController
     public function updateSmtp(array $params): void
     {
         $this->requireSuperAdmin();
+        // Le mot de passe n'est jamais réaffiché dans le formulaire (il ne doit pas apparaître en
+        // clair dans le code source de la page) — champ vide = conserver le mot de passe actuel.
+        $password = $_POST['smtp_pass'] ?? '';
+        if ($password === '') {
+            $password = SmtpSettings::get()['password'] ?? '';
+        }
         SmtpSettings::save([
             'host'       => $_POST['smtp_host'] ?? '',
             'port'       => (int)($_POST['smtp_port'] ?? 587),
             'username'   => $_POST['smtp_user'] ?? '',
-            'password'   => $_POST['smtp_pass'] ?? '',
+            'password'   => $password,
             'from_email' => $_POST['smtp_from_email'] ?? '',
             'from_name'  => $_POST['smtp_from_name'] ?? '',
             'encryption' => $_POST['smtp_encryption'] ?? 'tls',
@@ -436,7 +442,14 @@ class AdminController extends BaseController
     public function updateMeteoFranceKey(array $params): void
     {
         $this->requireSuperAdmin();
-        AppSetting::set('meteofrance_api_key', trim($_POST['api_key'] ?? ''));
+        $newKey = trim($_POST['api_key'] ?? '');
+        // Le champ vide + keep_existing=1 signifie "le panneau de modification n'a pas été
+        // ouvert", pas "désactiver la clé" — sinon recharger la page suffirait à l'effacer.
+        if ($newKey === '' && !empty($_POST['keep_existing'])) {
+            $this->redirect('/admin?tab=notifications&msg=meteofrance_saved');
+            return;
+        }
+        AppSetting::set('meteofrance_api_key', $newKey);
         $this->redirect('/admin?tab=notifications&msg=meteofrance_saved');
     }
 
