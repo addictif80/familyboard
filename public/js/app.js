@@ -160,12 +160,15 @@ function loadNotifications() {
                 return;
             }
             list.innerHTML = unread.map(n => `
-                <div class="notif-item notif-unread" onclick="readNotif(${n.id}, '${n.link || '#'}')">
+                <div class="notif-item notif-unread" data-notif-id="${n.id}" data-notif-link="${escapeHtml(n.link || '#')}">
                     <div class="notif-title">${escapeHtml(n.title)}</div>
                     <div class="notif-msg">${escapeHtml(n.message)}</div>
                     <div class="notif-time">${formatTime(n.created_at)}</div>
                 </div>
             `).join('');
+            list.querySelectorAll('.notif-item').forEach(el => {
+                el.addEventListener('click', () => readNotif(el.dataset.notifId, el.dataset.notifLink));
+            });
         });
 }
 

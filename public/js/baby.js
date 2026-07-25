@@ -674,7 +674,7 @@ var BabyApp = (() => {
         }
         el.innerHTML = `<div class="info-grid">
             ${b.birth_date ? `<div class="info-item"><label>Date</label><span>${formatDate(b.birth_date)}</span></div>` : ''}
-            ${b.birth_time ? `<div class="info-item"><label>Heure</label><span>${b.birth_time.slice(0,5)}</span></div>` : ''}
+            ${b.birth_time ? `<div class="info-item"><label>Heure</label><span>${escHtml(b.birth_time.slice(0,5))}</span></div>` : ''}
             ${b.birth_weight ? `<div class="info-item"><label>Poids</label><span>${b.birth_weight} kg</span></div>` : ''}
             ${b.birth_height ? `<div class="info-item"><label>Taille</label><span>${b.birth_height} cm</span></div>` : ''}
             ${b.birth_details ? `<div class="info-item full"><label>Détails</label><span>${escHtml(b.birth_details)}</span></div>` : ''}

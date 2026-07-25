@@ -182,7 +182,7 @@ function renderProjCalendar() {
         dayEvts.slice(0,3).forEach(e => {
             html += `<div class="cal-event" style="background:${e.color||'#4A90D9'}"
                 onclick="window.location='${BASE_URL}/projects/${e.extendedProps.project_id}'"
-                title="${e.title.replace(/"/g,'&quot;')}">📋 ${e.title}</div>`;
+                title="${escapeHtml(e.title)}">📋 ${escapeHtml(e.title)}</div>`;
         });
         if (dayEvts.length > 3) html += `<div class="cal-more">+${dayEvts.length-3}</div>`;
         html += `</div></div>`;
