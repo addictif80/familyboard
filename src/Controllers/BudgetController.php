@@ -140,6 +140,7 @@ class BudgetController extends BaseController
             $user = Session::user();
             $data = $this->jsonInput();
             $userId = isset($data['user_id']) ? (int)$data['user_id'] : $user['id'];
+            if (!User::belongsToFamily($userId, $user['family_id'])) $userId = $user['id'];
             $id = Budget::createRecurring($user['family_id'], $userId, $data);
             return ['success' => true, 'id' => $id];
         });
@@ -153,7 +154,11 @@ class BudgetController extends BaseController
             $id   = (int)$params['id'];
             $item = Budget::getRecurringItem($id);
             if (!$item || $item['family_id'] !== $user['family_id']) return ['success' => false];
-            Budget::updateRecurring($id, $this->jsonInput());
+            $data = $this->jsonInput();
+            if (!isset($data['user_id']) || !User::belongsToFamily((int)$data['user_id'], $user['family_id'])) {
+                $data['user_id'] = $item['user_id'];
+            }
+            Budget::updateRecurring($id, $data);
             return ['success' => true];
         });
     }

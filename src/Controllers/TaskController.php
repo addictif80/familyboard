@@ -67,12 +67,12 @@ class TaskController extends BaseController
             $list = TaskList::getById($listId);
             if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
             $data = $this->jsonInput();
+            if (!empty($data['assigned_to']) && !User::belongsToFamily((int)$data['assigned_to'], $user['family_id'])) {
+                unset($data['assigned_to']);
+            }
             $taskId = TaskList::createTask($listId, $user['id'], $data);
-            if ($data['assigned_to'] && (int)$data['assigned_to'] !== $user['id']) {
-                $assignee = \App\Models\User::findById((int)$data['assigned_to']);
-                if ($assignee) {
-                    Notification::create($assignee['id'], 'task', 'Tâche assignée', $user['name'] . ' vous a assigné : ' . $data['title'], BASE_URL . '/tasks?list=' . $listId);
-                }
+            if (!empty($data['assigned_to']) && (int)$data['assigned_to'] !== $user['id']) {
+                Notification::create((int)$data['assigned_to'], 'task', 'Tâche assignée', $user['name'] . ' vous a assigné : ' . $data['title'], BASE_URL . '/tasks?list=' . $listId);
             }
             return ['success' => true, 'task' => TaskList::getTask($taskId)];
         });
@@ -125,6 +125,9 @@ class TaskController extends BaseController
             $list = TaskList::getById($task['list_id']);
             if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
             $data = $this->jsonInput();
+            if (!empty($data['assigned_to']) && !User::belongsToFamily((int)$data['assigned_to'], $user['family_id'])) {
+                unset($data['assigned_to']);
+            }
             TaskList::updateTask($taskId, $data);
 
             $newAssignee = (int)($data['assigned_to'] ?? 0);

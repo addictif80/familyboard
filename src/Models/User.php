@@ -28,6 +28,17 @@ class User
         return Database::fetchAll('SELECT id, name, email, role, avatar, color, created_at FROM users WHERE family_id = ? ORDER BY name', [$familyId]);
     }
 
+    /**
+     * Vérifie qu'un ID utilisateur reçu du client (ex. assigned_to, user_id) appartient bien à
+     * la famille courante avant de s'en servir (assignation de tâche, notification...) — sans
+     * ce contrôle, un utilisateur peut cibler n'importe quel compte d'une autre famille en
+     * devinant un ID (les ID sont séquentiels).
+     */
+    public static function belongsToFamily(int $userId, int $familyId): bool
+    {
+        return (bool)Database::fetch('SELECT 1 FROM users WHERE id = ? AND family_id = ?', [$userId, $familyId]);
+    }
+
     public static function update(int $id, array $data): void
     {
         $allowed = ['name', 'email', 'avatar', 'color'];

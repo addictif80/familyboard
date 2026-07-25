@@ -123,7 +123,8 @@ class CustodyController extends BaseController
             $data = $this->jsonInput();
             $schedule = Custody::getScheduleById((int)$data['schedule_id']);
             if (!$schedule || $schedule['family_id'] !== $user['family_id']) return ['success' => false];
-            $id = Custody::createEvent($data['schedule_id'], $data['parent_user_id'] ?? $user['id'], $data);
+            $parentUserId = $this->resolveCustodyParent($data['parent_user_id'] ?? null, $user, (int)$data['schedule_id']);
+            $id = Custody::createEvent($data['schedule_id'], $parentUserId, $data);
             CustodyActivityLog::record((int)$data['schedule_id'], $user['id'], 'custody_event_created', $data['notes'] ?? null);
             Notification::notifyFamily($user['family_id'], $user['id'], 'custody', 'Garde mise à jour', 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.', BASE_URL . '/custody');
             return ['success' => true, 'id' => $id];
@@ -138,10 +139,29 @@ class CustodyController extends BaseController
             $id = (int)$params['id'];
             $event = Custody::getEvent($id);
             if (!$event || $event['family_id'] !== $user['family_id']) return ['success' => false];
-            Custody::updateEvent($id, $this->jsonInput());
+            $data = $this->jsonInput();
+            if (isset($data['parent_user_id'])) {
+                $data['parent_user_id'] = $this->resolveCustodyParent($data['parent_user_id'], $user, (int)$event['schedule_id']);
+            }
+            Custody::updateEvent($id, $data);
             CustodyActivityLog::record((int)$event['schedule_id'], $user['id'], 'custody_event_updated');
             return ['success' => true];
         });
+    }
+
+    /**
+     * Valide le parent assigné à un évènement de garde : soit un membre de la famille, soit un
+     * co-parent explicitement autorisé sur ce planning via custody_access (cas normal d'un
+     * parent séparé rattaché à un autre compte famille) — jamais un ID arbitraire fourni par le
+     * client sans lien avec ce planning.
+     */
+    private function resolveCustodyParent(mixed $parentUserId, array $user, int $scheduleId): int
+    {
+        $id = (int)($parentUserId ?? $user['id']);
+        if ($id === $user['id']) return $id;
+        if (User::belongsToFamily($id, $user['family_id'])) return $id;
+        if (Custody::userHasAccessToSchedule($id, $scheduleId)) return $id;
+        return $user['id'];
     }
 
     public function deleteEvent(array $params): void

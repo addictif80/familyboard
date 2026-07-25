@@ -44,6 +44,12 @@
 
     <!-- Content -->
     <main class="admin-content">
+        <?php if (\App\Models\AppSetting::get('admin_password_hash') === null && ADMIN_PASS === 'changeme'): ?>
+            <div class="alert alert-error" style="margin-bottom:1rem">
+                ⚠️ Le mot de passe administrateur est encore la valeur par défaut (<code>changeme</code>).
+                <a href="<?= BASE_URL ?>/admin/profile">Changez-le immédiatement</a>.
+            </div>
+        <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
             <div class="alert alert-<?= in_array($msg, ['blocked','unblocked','smtp_saved','email_saved','notification_sent','meteofrance_saved']) ? 'success' : 'info' ?>" style="margin-bottom:1rem">
                 <?= match($msg) {

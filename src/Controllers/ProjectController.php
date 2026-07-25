@@ -122,6 +122,9 @@ class ProjectController extends BaseController
             $project = Project::getById($projectId);
             if (!$project || $project['family_id'] !== $user['family_id']) return ['success' => false];
             $data = $this->jsonInput();
+            if (!empty($data['assigned_to']) && !User::belongsToFamily((int)$data['assigned_to'], $user['family_id'])) {
+                unset($data['assigned_to']);
+            }
             $taskId = Project::createTask($projectId, $user['id'], $data);
             return ['success' => true, 'task' => Project::getTask($taskId)];
         });
@@ -135,7 +138,11 @@ class ProjectController extends BaseController
             $id = (int)$params['id'];
             $task = Project::getTask($id);
             if (!$task || $task['family_id'] !== $user['family_id']) return ['success' => false];
-            Project::updateTask($id, $this->jsonInput());
+            $data = $this->jsonInput();
+            if (!empty($data['assigned_to']) && !User::belongsToFamily((int)$data['assigned_to'], $user['family_id'])) {
+                unset($data['assigned_to']);
+            }
+            Project::updateTask($id, $data);
             return ['success' => true, 'task' => Project::getTask($id)];
         });
     }
