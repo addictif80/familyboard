@@ -126,10 +126,10 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   display: flex;
   flex-direction: column;
   position: fixed;
-  top: 0; left: 0; bottom: 0;
+  top: var(--banners-h, 0px); left: 0; bottom: 0;
   z-index: 100;
   overflow-y: auto;
-  transition: transform .25s ease;
+  transition: transform .25s ease, top .15s ease;
   border-right: 1px solid rgba(255,255,255,.04);
 }
 
@@ -255,7 +255,7 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   gap: 1rem;
   border-bottom: 1px solid var(--border);
   position: sticky;
-  top: 0;
+  top: var(--banners-h, 0px);
   z-index: 50;
   min-width: 0;
   overflow: hidden;
@@ -515,10 +515,10 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .input-readonly { background: var(--bg); color: var(--text-muted); }
 
 /* ---- Impersonation banner ---- */
+#top-banners { position: sticky; top: 0; z-index: 500; }
 .impersonation-banner {
     display: flex; align-items: center; justify-content: center; gap: .75rem; flex-wrap: wrap;
     background: #b45309; color: #fff; padding: .5rem 1rem; font-size: .85rem; text-align: center;
-    position: sticky; top: 0; z-index: 500;
 }
 .impersonation-banner a.btn-sm { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.5); }
 .impersonation-banner a.btn-sm:hover { background: rgba(255,255,255,.32); }

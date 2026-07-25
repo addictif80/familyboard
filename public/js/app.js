@@ -183,6 +183,21 @@ function markAllRead() {
         .then(() => loadNotifications());
 }
 
+// ---- Keep sidebar/topbar clear of the stacked top banners ----
+(function () {
+    const banners = document.getElementById('top-banners');
+    if (!banners) return;
+    const sync = () => {
+        document.documentElement.style.setProperty('--banners-h', banners.offsetHeight + 'px');
+    };
+    sync();
+    if (typeof ResizeObserver === 'function') {
+        new ResizeObserver(sync).observe(banners);
+    } else {
+        window.addEventListener('resize', sync);
+    }
+})();
+
 // ---- Official alerts banner (veille informationnelle) ----
 let officialAlerts = [];
 let officialAlertIndex = 0;

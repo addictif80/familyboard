@@ -36,6 +36,7 @@
 </head>
 <body>
 
+<div id="top-banners">
 <?php if (\App\Core\Session::isLoggedIn() && !empty($_SESSION['impersonation'])): ?>
 <div class="impersonation-banner">
     🕵️ Connecté en tant que <strong><?= htmlspecialchars(\App\Core\Session::user()['name'] ?? '') ?></strong> (accès support admin)
@@ -58,6 +59,7 @@
     <a href="<?= BASE_URL ?>/settings#pwa-install-section" id="pwa-onboarding-link" class="btn btn-sm">Voir comment faire</a>
 </div>
 <?php endif; ?>
+</div>
 
 <?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
 <!-- Compte à accès restreint : pas de sidebar complète, seulement l'essentiel. -->
