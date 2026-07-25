@@ -1,3 +1,15 @@
+// ---- Déconnexion de tous les appareils ----
+async function confirmLogoutAllDevices() {
+    const ok = await Dialog.confirm('Déconnecter tous les appareils, y compris celui-ci ? Vous devrez vous reconnecter.');
+    if (!ok) return;
+    const r = await apiFetch(BASE_URL + '/settings/logout-all-devices', { method: 'POST' });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+        return;
+    }
+    window.location.href = BASE_URL + '/logout';
+}
+
 // ---- Double authentification (2FA) ----
 function tfaShowStatus(mode) {
     ['none', 'totp', 'email'].forEach(m => {
@@ -16,7 +28,17 @@ async function startTfaTotpSetup() {
     document.getElementById('tfa-totp-secret').textContent = r.secret;
     document.getElementById('tfa-totp-code').value = '';
     document.getElementById('tfa-totp-setup').style.display = 'block';
-    document.getElementById('tfa-totp-setup').dataset.uri = r.uri;
+
+    const qrEl = document.getElementById('tfa-totp-qrcode');
+    qrEl.innerHTML = '';
+    if (typeof qrcode === 'function') {
+        // La clé ne quitte jamais le navigateur : le QR code est généré localement,
+        // pas via un service tiers (qui verrait le secret 2FA en clair).
+        const qr = qrcode(0, 'M');
+        qr.addData(r.uri);
+        qr.make();
+        qrEl.innerHTML = qr.createSvgTag(5);
+    }
 }
 
 function cancelTfaTotpSetup() {

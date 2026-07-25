@@ -1,6 +1,6 @@
 <?php
 $pageTitle = 'Paramètres';
-$extraJs = ['settings.js'];
+$extraJs = ['vendor/qrcode.min.js', 'settings.js'];
 ob_start();
 ?>
 <div class="settings-container">
@@ -42,6 +42,12 @@ ob_start();
             </div>
             <button type="submit" class="btn btn-primary">Enregistrer</button>
         </form>
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="confirmLogoutAllDevices()">🔌 Déconnecter tous les appareils</button>
+            <p style="color:var(--text-muted);font-size:.78rem;margin-top:.4rem">
+                Met fin à toutes vos connexions actives (navigateurs, PWA installées) — y compris celle-ci, vous devrez vous reconnecter.
+            </p>
+        </div>
     </div>
 
     <!-- Mes données -->
@@ -239,10 +245,11 @@ ob_start();
         <!-- Enrôlement TOTP : clé affichée pour saisie manuelle dans l'application -->
         <div id="tfa-totp-setup" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
             <p style="font-size:.85rem">
-                Dans votre application d'authentification (Google Authenticator, Authy, Ente Auth...),
-                ajoutez un compte manuellement avec la clé ci-dessous, puis saisissez le code généré.
+                Scannez ce QR code avec votre application d'authentification (Google Authenticator, Authy,
+                Ente Auth...), ou ajoutez le compte manuellement avec la clé affichée en dessous.
             </p>
-            <p style="font-family:monospace;font-size:1.05rem;letter-spacing:2px;background:var(--bg-alt);padding:.6rem;border-radius:8px;word-break:break-all" id="tfa-totp-secret"></p>
+            <div id="tfa-totp-qrcode" style="display:flex;justify-content:center;margin:.75rem 0"></div>
+            <p style="font-family:monospace;font-size:1.05rem;letter-spacing:2px;background:var(--bg-alt);padding:.6rem;border-radius:8px;word-break:break-all;text-align:center" id="tfa-totp-secret"></p>
             <div class="form-group">
                 <label>Code affiché par l'application</label>
                 <input type="text" id="tfa-totp-code" inputmode="numeric" maxlength="6" placeholder="123456" style="letter-spacing:3px">

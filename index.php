@@ -294,6 +294,7 @@ $router->get('/admin/email-content/:type/preview', [AdminController::class, 'pre
 $router->post('/admin/notifications/send', [AdminController::class, 'sendSystemNotification']);
 $router->post('/admin/meteofrance-key', [AdminController::class, 'updateMeteoFranceKey']);
 $router->post('/admin/meteofrance-key/test', [AdminController::class, 'testMeteoFranceKey']);
+$router->post('/admin/2fa-policy', [AdminController::class, 'updateTwoFactorPolicy']);
 
 // Support (user-facing)
 $router->get('/support', [SupportController::class, 'index']);
@@ -338,6 +339,7 @@ $router->post('/settings/2fa/totp/start', [SettingsController::class, 'startTwoF
 $router->post('/settings/2fa/totp/confirm', [SettingsController::class, 'confirmTwoFactorTotp']);
 $router->post('/settings/2fa/email/enable', [SettingsController::class, 'enableTwoFactorEmail']);
 $router->post('/settings/2fa/disable', [SettingsController::class, 'disableTwoFactor']);
+$router->post('/settings/logout-all-devices', [SettingsController::class, 'logoutAllDevices']);
 $router->get('/notifications/:id', [NotificationController::class, 'show']);
 $router->get('/api/alerts/active', [AlertController::class, 'active']);
 $router->get('/alertes/:category', [AlertController::class, 'category']);

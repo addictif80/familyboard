@@ -51,7 +51,7 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['blocked','unblocked','smtp_saved','email_saved','notification_sent','meteofrance_saved']) ? 'success' : 'info' ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['blocked','unblocked','smtp_saved','email_saved','notification_sent','meteofrance_saved','2fa_policy_saved']) ? 'success' : 'info' ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
@@ -59,6 +59,7 @@
                     'email_saved'         => 'Contenu de l\'email enregistré.',
                     'notification_sent'   => 'Notification envoyée à tous les utilisateurs.',
                     'meteofrance_saved'   => 'Clé API Météo-France enregistrée.',
+                    '2fa_policy_saved'    => 'Politique de double authentification enregistrée.',
                     default       => ''
                 } ?>
             </div>
@@ -208,6 +209,23 @@
                 <?php endif; ?>
             </div>
             <div id="meteofrance-test-result" style="margin-top:.75rem"></div>
+        </form>
+
+        <h2 style="margin-top:2rem">Sécurité — Double authentification</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Si activé, tout utilisateur sans double authentification voit un message l'invitant à
+            l'activer (application ou email, à son choix) pendant le délai de grâce ci-dessous ;
+            passé ce délai, l'accès à l'application est bloqué jusqu'à activation.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/2fa-policy" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label><input type="checkbox" name="require_2fa_all" value="1" <?= $require2faAll ? 'checked' : '' ?>> Exiger la double authentification pour tous les utilisateurs</label>
+            </div>
+            <div class="form-group">
+                <label>Délai de grâce (jours) avant blocage</label>
+                <input type="number" name="require_2fa_grace_days" min="0" max="90" value="<?= (int)$require2faGraceDays ?>" style="max-width:120px">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
         </form>
 
         <?php elseif ($tab === 'impersonation'): ?>

@@ -76,5 +76,6 @@ class Session
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['family_id'] = $user['family_id'];
         $_SESSION['user'] = $user;
+        $_SESSION['login_at'] = time();
     }
 }

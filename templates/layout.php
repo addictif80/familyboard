@@ -43,6 +43,15 @@
 </div>
 <?php endif; ?>
 
+<?php if (\App\Core\Session::isLoggedIn()):
+    $_tfaStatus = \App\Models\TwoFactorAuth::getPolicyStatus((int)\App\Core\Session::user()['id']);
+    if (!empty($_tfaStatus['enforced']) && empty($_tfaStatus['blocked'])): ?>
+<div class="impersonation-banner" style="background:#B8860B">
+    🔐 La double authentification devient obligatoire dans <strong><?= (int)$_tfaStatus['days_left'] ?> jour<?= $_tfaStatus['days_left'] > 1 ? 's' : '' ?></strong>.
+    <a href="<?= BASE_URL ?>/settings" class="btn btn-sm">Activer maintenant</a>
+</div>
+<?php endif; endif; ?>
+
 <?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
 <!-- Compte à accès restreint : pas de sidebar complète, seulement l'essentiel. -->
 <div class="coparent-shell">

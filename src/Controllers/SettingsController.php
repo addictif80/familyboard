@@ -32,6 +32,19 @@ class SettingsController extends BaseController
         require BASE_PATH . '/templates/settings/index.php';
     }
 
+    /** Déconnecte tous les appareils : révoque les jetons "se souvenir de moi" et invalide
+     *  toute session déjà ouverte (y compris celle-ci — l'appelant doit rediriger vers /logout). */
+    public function logoutAllDevices(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            \App\Core\Database::execute('UPDATE users SET force_logout_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s'), $user['id']]);
+            \App\Models\AuthToken::deleteForUser((int)$user['id']);
+            return ['success' => true];
+        });
+    }
+
     // ── Authentification à deux facteurs ────────────────────────────
 
     /** Démarre l'enrôlement TOTP : génère un secret temporaire (non persisté tant que le code
