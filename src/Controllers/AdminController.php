@@ -68,6 +68,7 @@ class AdminController extends BaseController
 
         if ($ok) {
             \App\Models\LoginAttempt::clear('admin', $ip);
+            session_regenerate_id(true); // anti-fixation, cf. App\Core\Session::login()
             $_SESSION['admin_logged_in'] = true;
             header('Location: ' . BASE_URL . '/admin');
         } else {
