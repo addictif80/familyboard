@@ -594,6 +594,15 @@ async function collectDiagnostics() {
             diag['Caches PWA'] = keys.join(', ') || '(aucun)';
         }
     } catch { /* best-effort diagnostic only */ }
+    try {
+        diag['Mode d\'affichage'] = isStandalonePWA() ? 'standalone (installée)' : 'navigateur (non installée)';
+        diag['Permission notifications'] = ('Notification' in window) ? Notification.permission : 'API absente';
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            const reg = await navigator.serviceWorker.getRegistration();
+            const sub = reg ? await reg.pushManager.getSubscription() : null;
+            diag['Abonnement push'] = sub ? 'actif (' + sub.endpoint.slice(0, 40) + '…)' : 'aucun';
+        }
+    } catch { /* best-effort diagnostic only */ }
     return diag;
 }
 
