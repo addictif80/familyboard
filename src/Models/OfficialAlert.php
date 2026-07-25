@@ -20,6 +20,27 @@ class OfficialAlert
         return (bool)Database::fetch('SELECT 1 FROM official_alerts WHERE dedupe_key=?', [$key]);
     }
 
+    /**
+     * Vrai si une alerte de la même catégorie (et, si fournie, de la même ville) a déjà été
+     * enregistrée dans les dernières $hours heures. Sert à éviter de renvoyer une notification
+     * push par article de presse quand plusieurs médias couvrent le même évènement en cours
+     * (ex. 5 articles sur un même incendie en une après-midi) : l'alerte est toujours stockée
+     * et visible dans la bannière, seule la notification est limitée à une par période.
+     */
+    public static function wasNotifiedRecently(string $category, ?string $city, int $hours = 12): bool
+    {
+        if ($city === null) {
+            return (bool)Database::fetch(
+                'SELECT 1 FROM official_alerts WHERE category=? AND city_match IS NULL AND created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)',
+                [$category, $hours]
+            );
+        }
+        return (bool)Database::fetch(
+            'SELECT 1 FROM official_alerts WHERE category=? AND city_match=? AND created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)',
+            [$category, $city, $hours]
+        );
+    }
+
     public static function create(
         string $category,
         string $title,

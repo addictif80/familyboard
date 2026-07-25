@@ -126,10 +126,16 @@ class OfficialAlertFeed
         return false;
     }
 
+    /** Délai minimum entre deux notifications push pour une même catégorie (et ville) : évite
+     *  qu'un même évènement couvert par plusieurs articles déclenche une rafale de pushs. */
+    private const NOTIFY_COOLDOWN_HOURS = 12;
+
     private static function saveAlert(string $category, array $item, string $sourceName, ?string $city): void
     {
         $dedupeKey = md5(($item['guid'] ?: $item['link']) . '|' . ($city ?? ''));
         if (OfficialAlert::existsByDedupeKey($dedupeKey)) return;
+
+        $shouldNotify = !OfficialAlert::wasNotifiedRecently($category, $city, self::NOTIFY_COOLDOWN_HOURS);
 
         $summary = mb_strimwidth(trim(strip_tags($item['description'])), 0, 300, '…');
         OfficialAlert::create(
@@ -143,7 +149,9 @@ class OfficialAlertFeed
             $item['pubDate']
         );
 
-        self::notifyConcernedFamilies($category, $item['title'], $item['link'], $city);
+        if ($shouldNotify) {
+            self::notifyConcernedFamilies($category, $item['title'], $item['link'], $city);
+        }
     }
 
     private static function notifyConcernedFamilies(string $category, string $title, string $sourceUrl, ?string $city): void
