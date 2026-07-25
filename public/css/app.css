@@ -212,8 +212,63 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   border-top: 1px solid rgba(255,255,255,.07);
 }
 
-.sidebar-footer .nav-link { border-radius: var(--radius-sm); }
-.sidebar-footer .nav-link .user-avatar { box-shadow: 0 0 0 2px rgba(255,255,255,.12); }
+/* ---- User menu (popover triggered from the sidebar footer) ---- */
+.user-menu { position: relative; }
+
+.user-menu-trigger {
+  display: flex; align-items: center; gap: .65rem;
+  width: 100%; padding: .45rem .55rem;
+  background: none; border: none; cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background .15s;
+}
+.user-menu-trigger:hover, .user-menu-trigger.open { background: rgba(255,255,255,.06); }
+.user-menu-trigger .user-avatar { box-shadow: 0 0 0 2px rgba(255,255,255,.12); }
+
+.user-menu-identity {
+  display: flex; flex-direction: column; align-items: flex-start; gap: .05rem;
+  min-width: 0; flex: 1; text-align: left;
+}
+.user-menu-name {
+  font-size: .85rem; font-weight: 600; color: var(--sidebar-text-active);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.user-menu-role { font-size: .72rem; color: var(--sidebar-text); }
+
+.user-menu-caret {
+  font-size: .7rem; color: var(--sidebar-text); flex: none;
+  transition: transform .15s;
+}
+.user-menu-trigger.open .user-menu-caret { transform: rotate(180deg); }
+
+.user-menu-popover {
+  position: absolute;
+  bottom: calc(100% + 8px); left: 0; right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow), 0 8px 30px rgba(0,0,0,.18);
+  z-index: 200;
+  flex-direction: column;
+  padding: .4rem;
+  gap: .1rem;
+  overflow: hidden;
+}
+
+.user-menu-item {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .55rem .65rem;
+  border-radius: var(--radius-sm);
+  font-size: .85rem; font-weight: 500;
+  color: var(--text);
+  background: none; border: none; width: 100%; text-align: left; cursor: pointer;
+  transition: background .15s;
+}
+.user-menu-item:hover { background: var(--bg); }
+.user-menu-item-icon { font-size: 1rem; width: 1.3rem; text-align: center; flex: none; }
+.user-menu-item-danger { color: var(--danger-text, var(--danger)); }
+
+.user-menu-divider { height: 1px; background: var(--border); margin: .3rem .1rem; }
 
 .push-cta-btn {
   background: rgba(201,154,68,.15) !important;
