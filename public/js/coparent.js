@@ -418,6 +418,52 @@ async function cpCreateFamily() {
     }
 }
 
+// ── Notifications push ───────────────────────────────────────────────────
+
+async function cpRefreshPushStatus() {
+    const btn = document.getElementById('cp-push-toggle-btn');
+    const status = document.getElementById('cp-push-status');
+    if (!btn || !status) return;
+
+    const { state, message } = await checkPushStatus();
+
+    status.textContent = message;
+    status.classList.toggle('push-status-warn', state === 'ios-not-installed' || state === 'blocked' || state === 'not-enabled');
+
+    switch (state) {
+        case 'unsupported':
+        case 'blocked':
+            btn.disabled = true;
+            btn.textContent = 'Activer les notifications push';
+            break;
+        case 'ios-not-installed':
+            btn.disabled = false;
+            btn.textContent = 'Activer les notifications push';
+            break;
+        case 'enabled':
+            btn.disabled = false;
+            btn.textContent = 'Désactiver les notifications push';
+            break;
+        default: // not-enabled
+            btn.disabled = false;
+            btn.textContent = 'Activer les notifications push';
+    }
+}
+
+async function cpTogglePushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+        await unsubscribeFromPush();
+    } else {
+        await subscribeToPush();
+    }
+    cpRefreshPushStatus();
+}
+
+cpRefreshPushStatus();
+
 // ── Init ──────────────────────────────────────────────────────────────────
 
 if (cpCurrentScheduleId) {

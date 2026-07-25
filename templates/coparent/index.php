@@ -40,6 +40,7 @@ ob_start();
     <button class="coparent-tab" data-panel="cp-panel-documents" onclick="cpShowTab('cp-panel-documents')">🗂️ Documents</button>
     <button class="coparent-tab" data-panel="cp-panel-events" onclick="cpShowTab('cp-panel-events')">📆 Évènements</button>
     <button class="coparent-tab" data-panel="cp-panel-activity" onclick="cpShowTab('cp-panel-activity')">📜 Journal d'activité</button>
+    <button class="coparent-tab" data-panel="cp-panel-notifications" onclick="cpShowTab('cp-panel-notifications')">🔔 Notifications</button>
 </div>
 
 <div class="coparent-panel active" id="cp-panel-calendar">
@@ -127,6 +128,21 @@ ob_start();
             Historique horodaté (fuseau de la famille) et IP de toutes les actions liées à cet enfant, des deux côtés — visible par les deux parents.
         </p>
         <div id="cp-activity-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+    </div>
+</div>
+
+<div class="coparent-panel" id="cp-panel-notifications">
+    <div class="card" style="padding:1.25rem">
+        <h3 style="margin-top:0">🔔 Notifications push</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Recevez une notification directement sur cet appareil (ordinateur ou mobile) dès qu'un
+            évènement concerne cette garde partagée (nouveau message, document, évènement…), même
+            quand l'application est fermée.
+        </p>
+        <button type="button" class="btn btn-primary" id="cp-push-toggle-btn" onclick="cpTogglePushNotifications()">
+            Activer les notifications push
+        </button>
+        <p id="cp-push-status" class="push-status" style="font-size:.8rem;margin-top:.5rem"></p>
     </div>
 </div>
 
