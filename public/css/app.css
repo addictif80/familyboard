@@ -339,8 +339,22 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 }
 .alert-banner-btn:hover { opacity: .88; }
 
-@media (max-width: 760px) {
-  .alert-banner { display: none !important; }
+/* En dessous de 768px (mobile/PWA), le topbar n'a pas la place d'aligner titre + bandeau +
+   icônes sur une seule ligne : le bandeau passe sur sa propre ligne pleine largeur, sous le
+   titre, plutôt que d'être masqué (les alertes doivent rester visibles sur mobile aussi). */
+@media (max-width: 768px) {
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: var(--topbar-height);
+    padding: .55rem .75rem;
+    row-gap: .45rem;
+  }
+  .alert-banner {
+    order: 3;
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
 }
 
 .theme-toggle-btn {
