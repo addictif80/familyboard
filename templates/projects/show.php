@@ -75,7 +75,7 @@ ob_start();
                             <div class="task-body" onclick="openEditProjectTask(<?= htmlspecialchars(json_encode($task)) ?>)">
                                 <span><?= htmlspecialchars($task['title']) ?></span>
                                 <?php if ($task['assigned_name']): ?>
-                                    <span class="tag" style="background:<?= htmlspecialchars($task['assigned_color']) ?>20;color:<?= htmlspecialchars($task['assigned_color']) ?>"><?= htmlspecialchars($task['assigned_name']) ?></span>
+                                    <span class="tag" style="background:<?= htmlspecialchars($task['assigned_color']) ?>20;color:<?= htmlspecialchars($task['assigned_color']) ?>"><?= \App\Core\Avatar::html($task['assigned_avatar'] ?? null, $task['assigned_color'], $task['assigned_name'], 'user-avatar-xs') ?><?= htmlspecialchars($task['assigned_name']) ?></span>
                                 <?php endif; ?>
                             </div>
                             <button class="btn-icon-sm" onclick="deleteProjectTask(<?= $task['id'] ?>)">🗑</button>

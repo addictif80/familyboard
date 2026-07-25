@@ -59,7 +59,7 @@ $totalDocs = array_sum($typeCounts);
         <?php foreach ($members as $m): ?>
             <button class="doc-filter-chip small <?= $filterUser === (int)$m['id'] ? 'active' : '' ?>"
                     onclick="filterByUser(<?= $m['id'] ?>)">
-                <span class="user-avatar-xs" style="background:<?= htmlspecialchars($m['color']) ?>"><?= mb_substr($m['name'],0,1) ?></span>
+                <?= \App\Core\Avatar::html($m['avatar'] ?? null, $m['color'], $m['name'], 'user-avatar-xs') ?>
                 <?= htmlspecialchars($m['name']) ?>
             </button>
         <?php endforeach; ?>
@@ -114,8 +114,7 @@ $totalDocs = array_sum($typeCounts);
                 <div class="doc-card-footer">
                     <div class="doc-card-members">
                         <?php foreach ($doc['members'] as $m): ?>
-                            <div class="user-avatar-xs" style="background:<?= htmlspecialchars($m['color']) ?>"
-                                 title="<?= htmlspecialchars($m['name']) ?>"><?= mb_substr($m['name'],0,1) ?></div>
+                            <?= \App\Core\Avatar::html($m['avatar'] ?? null, $m['color'], $m['name'], 'user-avatar-xs', $m['name']) ?>
                         <?php endforeach; ?></div>
                     <?php if ($doc['file_path']): ?>
                         <a href="<?= BASE_URL ?>/documents/file/<?= $doc['id'] ?>" target="_blank"
@@ -193,7 +192,7 @@ $totalDocs = array_sum($typeCounts);
                         <?php foreach ($members as $m): ?>
                         <label class="member-pick-item">
                             <input type="checkbox" class="doc-member-cb" value="<?= (int)$m['id'] ?>">
-                            <span class="user-avatar-xs" style="background:<?= htmlspecialchars($m['color']) ?>"><?= mb_substr($m['name'],0,1) ?></span>
+                            <?= \App\Core\Avatar::html($m['avatar'] ?? null, $m['color'], $m['name'], 'user-avatar-xs') ?>
                             <?= htmlspecialchars($m['name']) ?>
                         </label>
                         <?php endforeach; ?>

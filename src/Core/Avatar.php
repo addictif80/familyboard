@@ -8,15 +8,16 @@ namespace App\Core;
  */
 class Avatar
 {
-    public static function html(?string $avatarPath, ?string $color, ?string $name, string $class = 'user-avatar'): string
+    public static function html(?string $avatarPath, ?string $color, ?string $name, string $class = 'user-avatar', ?string $title = null): string
     {
         $class = htmlspecialchars($class);
         $colorAttr = htmlspecialchars($color ?: '#4A90D9');
+        $titleAttr = $title !== null ? ' title="' . htmlspecialchars($title) . '"' : '';
         if ($avatarPath) {
             $src = htmlspecialchars(BASE_URL . $avatarPath);
-            return "<div class=\"$class\" style=\"background:$colorAttr\"><img src=\"$src\" alt=\"\"></div>";
+            return "<div class=\"$class\" style=\"background:$colorAttr\"$titleAttr><img src=\"$src\" alt=\"\"></div>";
         }
         $initial = htmlspecialchars(mb_substr((string)$name, 0, 1));
-        return "<div class=\"$class\" style=\"background:$colorAttr\">$initial</div>";
+        return "<div class=\"$class\" style=\"background:$colorAttr\"$titleAttr>$initial</div>";
     }
 }

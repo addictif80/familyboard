@@ -43,7 +43,7 @@ class TaskList
     public static function getTasks(int $listId): array
     {
         return Database::fetchAll(
-            'SELECT t.*, u.name as creator_name, a.name as assigned_name, a.color as assigned_color
+            'SELECT t.*, u.name as creator_name, a.name as assigned_name, a.color as assigned_color, a.avatar as assigned_avatar
              FROM tasks t
              JOIN users u ON u.id=t.user_id
              LEFT JOIN users a ON a.id=t.assigned_to
