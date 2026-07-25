@@ -61,10 +61,7 @@ function appendMessage(msg, own) {
     div.className = 'message-row ' + (isOwn ? 'own' : '');
     div.setAttribute('data-id', msg.id);
 
-    const avatar = !isOwn ? `
-        <div class="user-avatar-sm" style="background:${escapeHtml(msg.user_color)}" title="${escapeHtml(msg.user_name)}">
-            ${escapeHtml(msg.user_name[0])}
-        </div>` : '';
+    const avatar = !isOwn ? avatarHtml(msg.user_avatar, msg.user_color, msg.user_name, 'user-avatar-sm', msg.user_name) : '';
 
     const author = !isOwn ? `<div class="message-author" style="color:${escapeHtml(msg.user_color)}">${escapeHtml(msg.user_name)}</div>` : '';
 

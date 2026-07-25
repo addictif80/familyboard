@@ -410,6 +410,20 @@ function safeColor(c, fallback = '#4A90D9') {
     return typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : fallback;
 }
 
+// Rendu JS du badge utilisateur (photo si dispo, sinon initiale) — pendant côté client du
+// helper PHP App\Core\Avatar::html(), pour les éléments ajoutés dynamiquement (chat, mur...)
+// sans recharger la page.
+function avatarHtml(avatarPath, color, name, className = 'user-avatar', title = '') {
+    const cls = escapeHtml(className);
+    const bg = safeColor(color);
+    const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+    if (avatarPath) {
+        return `<div class="${cls}" style="background:${bg}"${titleAttr}><img src="${escapeHtml(BASE_URL + avatarPath)}" alt=""></div>`;
+    }
+    const initial = escapeHtml((name || '').substring(0, 1));
+    return `<div class="${cls}" style="background:${bg}"${titleAttr}>${initial}</div>`;
+}
+
 // Month/day-name formatting shared by every month-grid view (calendar, custody, coparent).
 const _intlMonth = new Intl.DateTimeFormat('fr-FR', { month: 'long', timeZone: APP_TIMEZONE });
 const _intlDay   = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', timeZone: APP_TIMEZONE });

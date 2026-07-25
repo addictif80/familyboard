@@ -53,9 +53,7 @@ async function loadCurrentLocations() {
     }
     list.innerHTML = current.map(c => `
         <div class="member-item">
-            <div class="user-avatar" style="background:${c.user_color}">
-                ${c.user_avatar ? `<img src="${BASE_URL}${c.user_avatar}" alt="">` : escapeHtml(c.user_name).charAt(0)}
-            </div>
+            ${avatarHtml(c.user_avatar, c.user_color, c.user_name)}
             <div class="member-info">
                 <strong>${escapeHtml(c.user_name)}</strong>
                 <small>${c.place_name ? '📍 ' + escapeHtml(c.place_name) : 'Position partagée'} · ${formatTime(c.created_at)}${c.note ? ' · ' + escapeHtml(c.note) : ''}</small>

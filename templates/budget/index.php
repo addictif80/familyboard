@@ -81,7 +81,7 @@ ob_start();
                         <td><?= $r['category_icon'] ? htmlspecialchars($r['category_icon']) . ' ' : '' ?><?= htmlspecialchars($r['category_name'] ?? '—') ?></td>
                         <td>
                             <div style="display:flex;align-items:center;gap:.4rem">
-                                <div class="user-avatar user-avatar-xs" style="background:<?= htmlspecialchars($r['user_color']) ?>"><?= mb_substr($r['user_name'],0,1) ?></div>
+                                <?= \App\Core\Avatar::html($r['user_avatar'] ?? null, $r['user_color'], $r['user_name'], 'user-avatar user-avatar-xs') ?>
                                 <?= htmlspecialchars($r['user_name']) ?>
                             </div>
                         </td>

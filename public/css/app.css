@@ -635,7 +635,11 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 }
 .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .user-avatar-sm { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: .75rem; flex-shrink: 0; overflow: hidden; }
+.user-avatar-sm img, .user-avatar-lg img { width: 100%; height: 100%; object-fit: cover; }
 .user-avatar-lg { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1.5rem; flex-shrink: 0; overflow: hidden; }
+/* Petit badge rond utilisé inline dans une étiquette texte (assigné à, membre d'un document…) */
+.user-avatar-xs { width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: .6rem; flex-shrink: 0; overflow: hidden; vertical-align: -3px; margin-right: .3rem; }
+.user-avatar-xs img { width: 100%; height: 100%; object-fit: cover; }
 
 /* ---- Wall ---- */
 .wall-container { max-width: 680px; margin: 0 auto; }
@@ -897,6 +901,7 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 
 /* Multi-avatar row on doc cards */
 .doc-card-members { display: flex; flex-wrap: wrap; gap: .15rem; }
+.doc-card-members .user-avatar-xs { margin-right: 0; }
 
 /* ── 2D-Doc scanner ────────────────────────────────────────────────────── */
 .twodoc-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }

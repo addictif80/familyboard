@@ -22,7 +22,7 @@ class Document
         }
 
         $whereStr = implode(' AND ', $where);
-        $select   = 'SELECT d.*, u.name as user_name, u.color as user_color FROM documents d JOIN users u ON u.id = d.user_id';
+        $select   = 'SELECT d.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar FROM documents d JOIN users u ON u.id = d.user_id';
 
         if ($search !== '') {
             try {
@@ -56,7 +56,7 @@ class Document
     public static function findById(int $id, int $familyId): ?array
     {
         $row = Database::fetch(
-            'SELECT d.*, u.name as user_name, u.color as user_color
+            'SELECT d.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
              FROM documents d JOIN users u ON u.id = d.user_id
              WHERE d.id = ? AND d.family_id = ?',
             [$id, $familyId]
@@ -81,7 +81,7 @@ class Document
     public static function getExpiringsSoon(int $familyId, int $days = 60): array
     {
         $rows = Database::fetchAll(
-            'SELECT d.*, u.name as user_name, u.color as user_color
+            'SELECT d.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
              FROM documents d JOIN users u ON u.id=d.user_id
              WHERE d.family_id=?
                AND d.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
@@ -177,7 +177,7 @@ class Document
         if (empty($scheduleIds)) return [];
         $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
         $rows = Database::fetchAll(
-            "SELECT d.*, u.name as user_name, u.color as user_color
+            "SELECT d.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
              FROM documents d JOIN users u ON u.id = d.user_id
              WHERE d.custody_schedule_id IN ($ph)
              ORDER BY d.created_at DESC",
@@ -206,7 +206,7 @@ class Document
         $ph     = implode(',', array_fill(0, count($docIds), '?'));
 
         $memberRows = Database::fetchAll(
-            "SELECT dm.document_id, u.id, u.name, u.color
+            "SELECT dm.document_id, u.id, u.name, u.color, u.avatar
              FROM document_members dm JOIN users u ON u.id = dm.user_id
              WHERE dm.document_id IN ($ph)
              ORDER BY u.name",
@@ -216,9 +216,10 @@ class Document
         $byDoc = [];
         foreach ($memberRows as $mr) {
             $byDoc[$mr['document_id']][] = [
-                'id'    => (int)$mr['id'],
-                'name'  => $mr['name'],
-                'color' => $mr['color'],
+                'id'     => (int)$mr['id'],
+                'name'   => $mr['name'],
+                'color'  => $mr['color'],
+                'avatar' => $mr['avatar'],
             ];
         }
 
@@ -227,9 +228,10 @@ class Document
             // Fallback: if junction table empty (pre-migration row), use user_id
             if (empty($row['members']) && !empty($row['user_name'])) {
                 $row['members'] = [[
-                    'id'    => (int)$row['user_id'],
-                    'name'  => $row['user_name'],
-                    'color' => $row['user_color'],
+                    'id'     => (int)$row['user_id'],
+                    'name'   => $row['user_name'],
+                    'color'  => $row['user_color'],
+                    'avatar' => $row['user_avatar'] ?? null,
                 ]];
             }
         }

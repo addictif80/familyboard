@@ -342,7 +342,7 @@ function openDocDetail(item) {
         item.issue_date  && ['Émis le',     fmtDate(item.issue_date)],
         item.expiry_date && ['Expire le',   fmtDate(item.expiry_date) + expiryBadge(item)],
         (item.members && item.members.length) && ['Appartient à', item.members.map(m =>
-            `<span class="user-avatar-xs" style="background:${escapeHtml(m.color)}" title="${escapeHtml(m.name)}">${escapeHtml(m.name.charAt(0))}</span> ${escapeHtml(m.name)}`
+            `${avatarHtml(m.avatar, m.color, m.name, 'user-avatar-xs', m.name)} ${escapeHtml(m.name)}`
         ).join('&nbsp; ')],
         item.tags        && ['Tags',        escapeHtml(item.tags)],
         item.notes       && ['Notes',       escapeHtml(item.notes)],

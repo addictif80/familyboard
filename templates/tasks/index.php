@@ -53,7 +53,7 @@ ob_start();
                             <span class="task-title"><?= htmlspecialchars($task['title']) ?></span>
                             <div class="task-meta">
                                 <?php if ($task['assigned_name']): ?>
-                                    <span class="tag" style="background:<?= htmlspecialchars($task['assigned_color']) ?>20;color:<?= htmlspecialchars($task['assigned_color']) ?>"><?= htmlspecialchars($task['assigned_name']) ?></span>
+                                    <span class="tag" style="background:<?= htmlspecialchars($task['assigned_color']) ?>20;color:<?= htmlspecialchars($task['assigned_color']) ?>"><?= \App\Core\Avatar::html($task['assigned_avatar'], $task['assigned_color'], $task['assigned_name'], 'user-avatar-xs') ?><?= htmlspecialchars($task['assigned_name']) ?></span>
                                 <?php endif; ?>
                                 <?php if ($task['due_date']): ?>
                                     <span class="tag <?= $task['due_date'] < date('Y-m-d') && !$task['is_completed'] ? 'tag-overdue' : '' ?>">

@@ -106,7 +106,7 @@ async function addComment(postId) {
         const div = document.createElement('div');
         div.className = 'comment-item';
         div.innerHTML = `
-            <div class="user-avatar-sm" style="background:${escapeHtml(c.user_color)}">${escapeHtml(c.user_name[0])}</div>
+            ${avatarHtml(c.user_avatar, c.user_color, c.user_name, 'user-avatar-sm')}
             <div class="comment-body">
                 <strong>${escapeHtml(c.user_name)}</strong>
                 <p>${escapeHtml(c.content).replace(/\n/g,'<br>')}</p>

@@ -134,6 +134,7 @@ class WallController extends BaseController
                 'id' => $commentId,
                 'user_name' => $user['name'],
                 'user_color' => $user['color'],
+                'user_avatar' => $user['avatar'],
                 'content' => $content,
                 'created_at' => date('Y-m-d H:i:s'),
             ]];

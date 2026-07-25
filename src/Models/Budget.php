@@ -122,7 +122,7 @@ class Budget
     public static function getRecurring(int $familyId): array
     {
         return Database::fetchAll(
-            'SELECT br.*, u.name as user_name, u.color as user_color,
+            'SELECT br.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar,
                     bc.name as category_name, bc.icon as category_icon, bc.color as category_color
              FROM budget_recurring br
              JOIN users u ON u.id = br.user_id
