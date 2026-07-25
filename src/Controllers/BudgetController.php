@@ -53,6 +53,9 @@ class BudgetController extends BaseController
         $this->json(function () {
             $user = Session::user();
             $data = $this->jsonInput();
+            if (!empty($data['category_id']) && !Budget::categoryBelongsToFamily((int)$data['category_id'], $user['family_id'])) {
+                $data['category_id'] = null;
+            }
             $id = Budget::createTransaction($user['family_id'], $user['id'], $data);
             return ['success' => true, 'id' => $id];
         });
@@ -66,7 +69,11 @@ class BudgetController extends BaseController
             $id = (int)$params['id'];
             $tx = Budget::getTransaction($id);
             if (!$tx || $tx['family_id'] !== $user['family_id']) return ['success' => false];
-            Budget::updateTransaction($id, $this->jsonInput());
+            $data = $this->jsonInput();
+            if (!empty($data['category_id']) && !Budget::categoryBelongsToFamily((int)$data['category_id'], $user['family_id'])) {
+                $data['category_id'] = null;
+            }
+            Budget::updateTransaction($id, $data);
             return ['success' => true];
         });
     }
@@ -141,6 +148,9 @@ class BudgetController extends BaseController
             $data = $this->jsonInput();
             $userId = isset($data['user_id']) ? (int)$data['user_id'] : $user['id'];
             if (!User::belongsToFamily($userId, $user['family_id'])) $userId = $user['id'];
+            if (!empty($data['category_id']) && !Budget::categoryBelongsToFamily((int)$data['category_id'], $user['family_id'])) {
+                $data['category_id'] = null;
+            }
             $id = Budget::createRecurring($user['family_id'], $userId, $data);
             return ['success' => true, 'id' => $id];
         });
@@ -157,6 +167,9 @@ class BudgetController extends BaseController
             $data = $this->jsonInput();
             if (!isset($data['user_id']) || !User::belongsToFamily((int)$data['user_id'], $user['family_id'])) {
                 $data['user_id'] = $item['user_id'];
+            }
+            if (!empty($data['category_id']) && !Budget::categoryBelongsToFamily((int)$data['category_id'], $user['family_id'])) {
+                $data['category_id'] = $item['category_id'];
             }
             Budget::updateRecurring($id, $data);
             return ['success' => true];

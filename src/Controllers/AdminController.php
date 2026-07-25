@@ -68,6 +68,7 @@ class AdminController extends BaseController
 
         if ($ok) {
             \App\Models\LoginAttempt::clear('admin', $ip);
+            session_regenerate_id(true); // anti-fixation, cf. App\Core\Session::login()
             $_SESSION['admin_logged_in'] = true;
             header('Location: ' . BASE_URL . '/admin');
         } else {
@@ -158,7 +159,12 @@ class AdminController extends BaseController
             'tickets'     => SupportTicket::countOpen(),
         ];
         $families     = Database::fetchAll('SELECT f.*, COUNT(u.id) as member_count FROM families f LEFT JOIN users u ON u.family_id=f.id GROUP BY f.id ORDER BY f.created_at DESC');
-        $users        = Database::fetchAll('SELECT u.*, f.name as family_name FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC');
+        // Colonnes explicites (jamais SELECT u.*) : évite qu'un futur ajout de colonne sensible
+        // (mot de passe, secret TOTP...) ne se retrouve exposé sans y penser dans ce tableau.
+        $users        = Database::fetchAll(
+            'SELECT u.id, u.family_id, u.name, u.email, u.role, u.blocked_at, u.blocked_reason, u.created_at, f.name as family_name
+             FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC'
+        );
         $blockedIps   = Database::fetchAll('SELECT * FROM blocked_ips ORDER BY created_at DESC');
         $tickets      = SupportTicket::getAll();
         $smtp         = SmtpSettings::get();
@@ -232,11 +238,17 @@ class AdminController extends BaseController
     public function updateSmtp(array $params): void
     {
         $this->requireSuperAdmin();
+        // Le mot de passe n'est jamais réaffiché dans le formulaire (il ne doit pas apparaître en
+        // clair dans le code source de la page) — champ vide = conserver le mot de passe actuel.
+        $password = $_POST['smtp_pass'] ?? '';
+        if ($password === '') {
+            $password = SmtpSettings::get()['password'] ?? '';
+        }
         SmtpSettings::save([
             'host'       => $_POST['smtp_host'] ?? '',
             'port'       => (int)($_POST['smtp_port'] ?? 587),
             'username'   => $_POST['smtp_user'] ?? '',
-            'password'   => $_POST['smtp_pass'] ?? '',
+            'password'   => $password,
             'from_email' => $_POST['smtp_from_email'] ?? '',
             'from_name'  => $_POST['smtp_from_name'] ?? '',
             'encryption' => $_POST['smtp_encryption'] ?? 'tls',
@@ -435,7 +447,14 @@ class AdminController extends BaseController
     public function updateMeteoFranceKey(array $params): void
     {
         $this->requireSuperAdmin();
-        AppSetting::set('meteofrance_api_key', trim($_POST['api_key'] ?? ''));
+        $newKey = trim($_POST['api_key'] ?? '');
+        // Le champ vide + keep_existing=1 signifie "le panneau de modification n'a pas été
+        // ouvert", pas "désactiver la clé" — sinon recharger la page suffirait à l'effacer.
+        if ($newKey === '' && !empty($_POST['keep_existing'])) {
+            $this->redirect('/admin?tab=notifications&msg=meteofrance_saved');
+            return;
+        }
+        AppSetting::set('meteofrance_api_key', $newKey);
         $this->redirect('/admin?tab=notifications&msg=meteofrance_saved');
     }
 

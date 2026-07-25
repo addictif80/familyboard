@@ -35,11 +35,12 @@ class Mail
         $host   = $s['host'];
         $prefix = $s['encryption'] === 'ssl' ? 'ssl://' : '';
 
-        // Allow self-signed certs (common on shared/internal SMTP servers)
+        // Vérification TLS activée par défaut : la désactiver exposerait les identifiants SMTP
+        // (AUTH LOGIN) à une interception réseau (MITM) sur CHAQUE email envoyé.
         $ctx = stream_context_create(['ssl' => [
-            'verify_peer'       => false,
-            'verify_peer_name'  => false,
-            'allow_self_signed' => true,
+            'verify_peer'       => true,
+            'verify_peer_name'  => true,
+            'allow_self_signed' => false,
         ]]);
 
         $errno  = 0;
@@ -181,7 +182,7 @@ class Mail
         $steps  = [];
 
         $ctx = stream_context_create(['ssl' => [
-            'verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true,
+            'verify_peer' => true, 'verify_peer_name' => true, 'allow_self_signed' => false,
         ]]);
 
         $errno = 0; $errstr = '';
@@ -275,9 +276,9 @@ class Mail
         $prefix = $s['encryption'] === 'ssl' ? 'ssl://' : '';
 
         $ctx = stream_context_create(['ssl' => [
-            'verify_peer'       => false,
-            'verify_peer_name'  => false,
-            'allow_self_signed' => true,
+            'verify_peer'       => true,
+            'verify_peer_name'  => true,
+            'allow_self_signed' => false,
         ]]);
 
         $errno  = 0;

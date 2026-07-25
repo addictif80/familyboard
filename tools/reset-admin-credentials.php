@@ -4,6 +4,15 @@
  * Run once from CLI: php tools/reset-admin-credentials.php
  * DELETE THIS FILE afterwards.
  */
+
+// Garde de défense en profondeur : ce script ne doit jamais être exécutable via le web (un
+// .htaccess bloque déjà l'accès direct au dossier tools/, mais toutes les configurations
+// serveur ne respectent pas .htaccess — ex. Nginx sans traduction équivalente).
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit('Accès refusé : ce script ne peut être exécuté qu\'en ligne de commande.');
+}
+
 define('BASE_PATH', dirname(__DIR__));
 require BASE_PATH . '/config/config.php';
 require BASE_PATH . '/src/Core/Database.php';

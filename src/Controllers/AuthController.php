@@ -5,7 +5,6 @@ use App\Core\EmailLayout;
 use App\Core\Mail;
 use App\Core\RememberMe;
 use App\Core\Session;
-use App\Core\Totp;
 use App\Models\Family;
 use App\Models\LoginAttempt;
 use App\Models\TwoFactorAuth;
@@ -127,7 +126,7 @@ class AuthController
         $ok = false;
         if ($user && $method === 'totp') {
             $secret = TwoFactorAuth::getTotpSecret($userId);
-            $ok = $secret !== null && Totp::verifyCode($secret, $code);
+            $ok = $secret !== null && TwoFactorAuth::verifyTotpCode($userId, $secret, $code);
         } elseif ($user && $method === 'email') {
             $ok = TwoFactorAuth::verifyEmailCode($userId, $code);
         }

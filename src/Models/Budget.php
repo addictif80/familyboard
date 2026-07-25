@@ -11,6 +11,14 @@ class Budget
         return Database::fetchAll('SELECT * FROM budget_categories WHERE family_id=? ORDER BY name', [$familyId]);
     }
 
+    /** À valider avant d'accepter un category_id reçu du client (transaction, item récurrent) —
+     *  sinon une famille peut faire pointer sa propre transaction vers la catégorie d'une autre
+     *  famille et en afficher le nom/icône/couleur dans sa propre vue budget. */
+    public static function categoryBelongsToFamily(int $categoryId, int $familyId): bool
+    {
+        return (bool)Database::fetch('SELECT 1 FROM budget_categories WHERE id=? AND family_id=?', [$categoryId, $familyId]);
+    }
+
     public static function createCategory(int $familyId, string $name, string $color = '#4A90D9', string $icon = '💰'): int
     {
         return Database::insert('INSERT INTO budget_categories (family_id, name, color, icon) VALUES (?,?,?,?)', [$familyId, $name, $color, $icon]);

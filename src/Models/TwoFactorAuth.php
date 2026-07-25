@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use App\Core\Database;
+use App\Core\Totp;
 
 class TwoFactorAuth
 {
@@ -17,6 +18,21 @@ class TwoFactorAuth
     {
         $row = Database::fetch('SELECT totp_secret FROM users WHERE id = ?', [$userId]);
         return $row['totp_secret'] ?? null;
+    }
+
+    /** Vérifie un code TOTP ET empêche son rejeu : un code déjà accepté pour ce pas de temps (ou
+     *  un pas antérieur) n'est plus jamais réaccepté, même s'il reste dans la fenêtre ±1 pas. */
+    public static function verifyTotpCode(int $userId, string $secret, string $code): bool
+    {
+        $counter = Totp::matchCounter($secret, $code);
+        if ($counter === null) return false;
+
+        $row = Database::fetch('SELECT last_totp_counter FROM users WHERE id = ?', [$userId]);
+        $last = $row['last_totp_counter'] ?? null;
+        if ($last !== null && $counter <= (int)$last) return false;
+
+        Database::execute('UPDATE users SET last_totp_counter = ? WHERE id = ?', [$counter, $userId]);
+        return true;
     }
 
     /** Active l'authentification par application : révoque aussi les sessions "se souvenir de

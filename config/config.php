@@ -54,3 +54,7 @@ define('SESSION_LIFETIME', 86400 * 30); // 30 days
 // Admin credentials (override in config.local.php)
 if (!defined('ADMIN_USER')) define('ADMIN_USER', getenv('ADMIN_USER') ?: 'admin');
 if (!defined('ADMIN_PASS')) define('ADMIN_PASS', getenv('ADMIN_PASS') ?: 'changeme');
+
+// Désactivé par défaut : le détail d'une exception (souvent des fragments de requête SQL, des
+// chemins serveur...) ne doit jamais atteindre le navigateur d'un visiteur en production.
+if (!defined('APP_DEBUG')) define('APP_DEBUG', getenv('APP_DEBUG') === '1');

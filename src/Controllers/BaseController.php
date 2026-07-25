@@ -62,7 +62,7 @@ class BaseController
             header('Location: ' . BASE_URL . '/');
             exit;
         }
-        Session::set('user', $user);
+        Session::set('user', Session::sanitizeUser($user));
 
         $tfaStatus = \App\Models\TwoFactorAuth::getPolicyStatus((int)$user['id']);
         if (!empty($tfaStatus['blocked']) && !$this->isTwoFactorSetupPath()) {
@@ -146,6 +146,21 @@ class BaseController
             http_response_code(500);
             echo json_encode(['error' => $e->getMessage()]);
         }
+    }
+
+    /** Construit un en-tête Content-Disposition sûr pour un nom de fichier arbitraire (souvent
+     *  fourni par l'utilisateur) : encodage RFC 6266 plutôt qu'un simple addslashes(), qui ne
+     *  protège pas contre tous les caractères pouvant perturber le parsing par certains clients. */
+    protected function contentDispositionHeader(string $filename, string $disposition = 'inline'): string
+    {
+        $ascii = preg_replace('/[^\x20-\x7E]/', '_', $filename);
+        $ascii = str_replace(['"', '\\'], '_', $ascii);
+        return sprintf(
+            "Content-Disposition: %s; filename=\"%s\"; filename*=UTF-8''%s",
+            $disposition,
+            $ascii,
+            rawurlencode($filename)
+        );
     }
 
     protected function jsonInput(): array

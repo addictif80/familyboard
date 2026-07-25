@@ -87,7 +87,7 @@ class CommLogController extends BaseController
 
         header('Content-Type: ' . ($msg['audio_mime'] ?: 'audio/webm'));
         header('Content-Length: ' . filesize($path));
-        header('Content-Disposition: inline; filename="' . addslashes($msg['audio_original'] ?: basename($path)) . '"');
+        header($this->contentDispositionHeader($msg['audio_original'] ?: basename($path)));
         header('Cache-Control: private, max-age=3600');
         header('Accept-Ranges: bytes');
         readfile($path);

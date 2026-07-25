@@ -68,7 +68,7 @@ class RememberMe
             'expires'  => $expires,
             'path'     => (BASE_URL ?: '') . '/',
             'httponly' => true,
-            'secure'   => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+            'secure'   => Session::isHttps(),
             'samesite' => 'Lax',
         ]);
         $_COOKIE[self::COOKIE_NAME] = $value;

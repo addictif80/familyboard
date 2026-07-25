@@ -82,6 +82,11 @@ class OcrHelper
         if ($file['size'] > $maxSize) {
             throw new \RuntimeException('Fichier trop volumineux (max ' . round($maxSize / 1024 / 1024) . ' Mo).');
         }
+        // Le Content-Type déclaré par le client n'est qu'un en-tête de requête, entièrement
+        // falsifiable — on vérifie le contenu réel du fichier avant de lui faire confiance.
+        if (!self::realMimeMatches($file['tmp_name'], $mimeBase)) {
+            throw new \RuntimeException('Le contenu du fichier ne correspond pas au type annoncé.');
+        }
 
         // Le Content-Type et le nom envoyés par le client sont falsifiables : on ne
         // dérive jamais l'extension stockée du nom de fichier fourni par le client.
@@ -100,6 +105,34 @@ class OcrHelper
             $file['name'],
             $mimeBase,
         ];
+    }
+
+    /**
+     * Vérifie le contenu réel du fichier via mime_content_type() (libmagic) plutôt que de faire
+     * confiance au Content-Type déclaré par le client. Tolérance pour les conteneurs ambigus
+     * (webm/ogg/mp4 audio-only sont parfois rapportés sans le préfixe audio/ selon la version de
+     * libmagic) et vérification supplémentaire par getimagesize() pour les images.
+     */
+    private static function realMimeMatches(string $tmpPath, string $declaredMime): bool
+    {
+        $real = @mime_content_type($tmpPath) ?: '';
+        if (str_starts_with($declaredMime, 'image/')) {
+            return $real === $declaredMime && @getimagesize($tmpPath) !== false;
+        }
+        if ($declaredMime === 'application/pdf') {
+            return $real === 'application/pdf';
+        }
+        $audioEquivalences = [
+            'audio/webm'  => ['audio/webm', 'video/webm'],
+            'audio/ogg'   => ['audio/ogg', 'application/ogg', 'video/ogg'],
+            'audio/mp4'   => ['audio/mp4', 'video/mp4'],
+            'audio/x-m4a' => ['audio/mp4', 'video/mp4', 'audio/x-m4a'],
+            'audio/mpeg'  => ['audio/mpeg'],
+            'audio/wav'   => ['audio/wav', 'audio/x-wav', 'audio/vnd.wave'],
+            'audio/x-wav' => ['audio/wav', 'audio/x-wav', 'audio/vnd.wave'],
+            'audio/aac'   => ['audio/aac', 'audio/x-aac'],
+        ];
+        return in_array($real, $audioEquivalences[$declaredMime] ?? [$declaredMime], true);
     }
 
     private static function extensionForMime(string $mime): string

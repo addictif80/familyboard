@@ -62,8 +62,8 @@ class CustodyController extends BaseController
                 'start'            => $data['recurrence_start'] ?? null,
                 'handover_weekday' => $data['handover_weekday'] ?? null,
                 'extra_weekday'    => $data['extra_weekday'] ?? null,
-                'parent1_id'       => $data['recurrence_parent1_id'] ?? null,
-                'parent2_id'       => $data['recurrence_parent2_id'] ?? null,
+                'parent1_id'       => $this->resolveScheduleParentId($data['recurrence_parent1_id'] ?? null, $user['family_id']),
+                'parent2_id'       => $this->resolveScheduleParentId($data['recurrence_parent2_id'] ?? null, $user['family_id']),
                 'parent1_label'    => $data['recurrence_parent1_label'] ?? null,
                 'parent1_color'    => $data['recurrence_parent1_color'] ?? '#4A90D9',
                 'parent2_label'    => $data['recurrence_parent2_label'] ?? null,
@@ -88,8 +88,8 @@ class CustodyController extends BaseController
                 'start'            => $data['recurrence_start'] ?? null,
                 'handover_weekday' => $data['handover_weekday'] ?? null,
                 'extra_weekday'    => $data['extra_weekday'] ?? null,
-                'parent1_id'       => $data['recurrence_parent1_id'] ?? null,
-                'parent2_id'       => $data['recurrence_parent2_id'] ?? null,
+                'parent1_id'       => $this->resolveScheduleParentId($data['recurrence_parent1_id'] ?? null, $user['family_id'], $id),
+                'parent2_id'       => $this->resolveScheduleParentId($data['recurrence_parent2_id'] ?? null, $user['family_id'], $id),
                 'parent1_label'    => $data['recurrence_parent1_label'] ?? null,
                 'parent1_color'    => $data['recurrence_parent1_color'] ?? '#4A90D9',
                 'parent2_label'    => $data['recurrence_parent2_label'] ?? null,
@@ -155,6 +155,22 @@ class CustodyController extends BaseController
      * parent séparé rattaché à un autre compte famille) — jamais un ID arbitraire fourni par le
      * client sans lien avec ce planning.
      */
+    /**
+     * Valide le parent1_id/parent2_id d'un planning (garde partagée) : soit un membre de la
+     * famille, soit (à l'édition d'un planning existant) un co-parent déjà autorisé via
+     * custody_access — jamais un ID arbitraire, qui exposerait le nom/couleur d'un utilisateur
+     * d'une autre famille dans ce planning. Retourne null si non fourni ou invalide (au lieu de
+     * imposer une valeur par défaut : ce champ est optionnel).
+     */
+    private function resolveScheduleParentId(mixed $parentId, int $familyId, ?int $scheduleId = null): ?int
+    {
+        if ($parentId === null || $parentId === '') return null;
+        $id = (int)$parentId;
+        if (User::belongsToFamily($id, $familyId)) return $id;
+        if ($scheduleId !== null && Custody::userHasAccessToSchedule($id, $scheduleId)) return $id;
+        return null;
+    }
+
     private function resolveCustodyParent(mixed $parentUserId, array $user, int $scheduleId): int
     {
         $id = (int)($parentUserId ?? $user['id']);

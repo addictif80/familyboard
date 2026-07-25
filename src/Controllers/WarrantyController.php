@@ -80,7 +80,7 @@ class WarrantyController extends BaseController
 
         header('Content-Type: ' . $mime);
         header('Content-Length: ' . filesize($path));
-        header('Content-Disposition: inline; filename="' . addslashes($name) . '"');
+        header($this->contentDispositionHeader($name));
         header('Cache-Control: private, max-age=3600');
         readfile($path);
         exit;

@@ -12,15 +12,24 @@ class User
 
     public static function findByEmail(string $email): ?array
     {
-        return Database::fetch('SELECT * FROM users WHERE email = ?', [$email]);
+        // Normalisé explicitement plutôt que de dépendre uniquement de la collation de la
+        // colonne `email` (insensible à la casse aujourd'hui) : une future migration de
+        // collation ou de moteur de base ne doit pas pouvoir réintroduire une confusion de
+        // compte entre "User@x.com" et "user@x.com".
+        return Database::fetch('SELECT * FROM users WHERE email = ?', [self::normalizeEmail($email)]);
     }
 
     public static function create(int $familyId, string $name, string $email, string $password, string $role = 'member', string $color = '#4A90D9'): int
     {
         return Database::insert(
             'INSERT INTO users (family_id, name, email, password, role, color) VALUES (?, ?, ?, ?, ?, ?)',
-            [$familyId, $name, $email, password_hash($password, PASSWORD_DEFAULT), $role, $color]
+            [$familyId, $name, self::normalizeEmail($email), password_hash($password, PASSWORD_DEFAULT), $role, $color]
         );
+    }
+
+    public static function normalizeEmail(string $email): string
+    {
+        return mb_strtolower(trim($email));
     }
 
     public static function getByFamily(int $familyId): array
@@ -47,7 +56,7 @@ class User
         foreach ($allowed as $field) {
             if (isset($data[$field])) {
                 $sets[] = "$field = ?";
-                $params[] = $data[$field];
+                $params[] = $field === 'email' ? self::normalizeEmail($data[$field]) : $data[$field];
             }
         }
         if (!$sets) return;
