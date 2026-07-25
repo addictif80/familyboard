@@ -2,7 +2,6 @@
 namespace App\Core;
 
 use App\Models\AppSetting;
-use App\Models\Notification;
 use App\Models\OfficialAlert;
 
 /**
@@ -150,14 +149,22 @@ class OfficialAlertFeed
         );
 
         if ($shouldNotify) {
-            self::notifyConcernedFamilies($category, $item['title'], $item['link'], $city);
+            self::notifyConcernedFamilies($category, $item['title'], $city);
         }
     }
 
-    private static function notifyConcernedFamilies(string $category, string $title, string $sourceUrl, ?string $city): void
+    /**
+     * Envoie uniquement une notification push (pas d'entrée dans la cloche de notifications) :
+     * la cloche sert aux notifications actionnables (tâches, courses, évènements...), les
+     * alertes officielles ont leur propre bandeau + page dédiée "S'informer" par catégorie
+     * (voir AlertController::category), qui fait double emploi avec la cloche si on y ajoute
+     * aussi une entrée par article.
+     */
+    private static function notifyConcernedFamilies(string $category, string $title, ?string $city): void
     {
         $label = OfficialAlert::CATEGORIES[$category]['label'] ?? $category;
         $notifMsg = mb_strimwidth($title, 0, 150, '…');
+        $link = BASE_URL . '/alertes/' . urlencode($category);
 
         try {
             if ($city === null) {
@@ -169,7 +176,7 @@ class OfficialAlertFeed
                 );
             }
             foreach ($userIds as $row) {
-                Notification::create((int)$row['id'], 'official_alert', $label, $notifMsg, $sourceUrl);
+                Push::sendToUser((int)$row['id'], $label, $notifMsg, $link);
             }
         } catch (\Throwable $e) {
             error_log('OfficialAlertFeed notify error: ' . $e->getMessage());
@@ -250,7 +257,7 @@ class OfficialAlertFeed
             date('Y-m-d H:i:s')
         );
 
-        self::notifyConcernedFamilies($category, $title, $sourceUrl, $city);
+        self::notifyConcernedFamilies($category, $title, $city);
     }
 
     /**

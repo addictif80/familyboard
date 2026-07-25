@@ -32,4 +32,23 @@ class AlertController extends BaseController
             }, $alerts)];
         });
     }
+
+    /** Page dédiée listant l'historique d'une seule catégorie, ouverte via "S'informer" du bandeau. */
+    public function category(array $params): void
+    {
+        $this->requireAuth(true);
+        $category = (string)($params['category'] ?? '');
+        $meta = OfficialAlert::CATEGORIES[$category] ?? null;
+        if (!$meta) {
+            header('Location: ' . BASE_URL . '/');
+            exit;
+        }
+
+        $user = Session::user();
+        $family = Family::findById((int)$user['family_id']);
+        $city = trim((string)($family['weather_city'] ?? '')) ?: null;
+        $alerts = OfficialAlert::getActiveForFamilyByCategory($category, $city);
+
+        require BASE_PATH . '/templates/alerts/category.php';
+    }
 }
