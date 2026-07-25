@@ -59,4 +59,40 @@ class TwoFactorAuth
         Database::execute('DELETE FROM two_factor_codes WHERE id = ?', [$row['id']]);
         return true;
     }
+
+    /**
+     * Statut de la politique "2FA obligatoire" (réglage admin global) pour un utilisateur donné.
+     * Amorce paresseusement le délai de grâce individuel (two_factor_required_notice_at) la
+     * première fois qu'on constate que la politique s'applique à lui sans qu'il ait de méthode
+     * active — chaque utilisateur a donc son propre décompte à partir du moment où il est
+     * concerné, pas depuis l'activation globale par l'admin.
+     *
+     * @return array{enforced: bool, blocked?: bool, days_left?: int}
+     */
+    public static function getPolicyStatus(int $userId): array
+    {
+        $requireAll = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
+        if (!$requireAll || self::getMethod($userId) !== null) {
+            return ['enforced' => false];
+        }
+
+        $graceDays = max(0, (int)(AppSetting::get('require_2fa_grace_days') ?? '7'));
+        $row = Database::fetch('SELECT two_factor_required_notice_at FROM users WHERE id = ?', [$userId]);
+        $noticeAt = $row['two_factor_required_notice_at'] ?? null;
+        if ($noticeAt === null) {
+            $noticeAt = gmdate('Y-m-d H:i:s');
+            Database::execute('UPDATE users SET two_factor_required_notice_at = ? WHERE id = ?', [$noticeAt, $userId]);
+        }
+
+        // Les colonnes DATETIME de la base sont stockées en UTC (voir DateHelper::fromUtc) ;
+        // il faut parser explicitement en UTC, sinon strtotime() utiliserait le fuseau horaire
+        // par défaut de PHP (celui de la famille, ex. Europe/Paris) et décalerait l'échéance.
+        $noticeTs = (new \DateTime($noticeAt, new \DateTimeZone('UTC')))->getTimestamp();
+        $deadline = $noticeTs + $graceDays * 86400;
+        return [
+            'enforced'  => true,
+            'blocked'   => time() >= $deadline,
+            'days_left' => max(0, (int)ceil(($deadline - time()) / 86400)),
+        ];
+    }
 }

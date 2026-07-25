@@ -164,8 +164,21 @@ class AdminController extends BaseController
         $smtp         = SmtpSettings::get();
         $emailContents = EmailContent::getAll();
         $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
+        $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
+        $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
 
         require BASE_PATH . '/templates/admin/index.php';
+    }
+
+    // ── Politique de sécurité globale : 2FA obligatoire ────────────
+
+    public function updateTwoFactorPolicy(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('require_2fa_all', !empty($_POST['require_2fa_all']) ? '1' : '0');
+        $days = max(0, (int)($_POST['require_2fa_grace_days'] ?? 7));
+        AppSetting::set('require_2fa_grace_days', (string)$days);
+        $this->redirect('/admin?tab=notifications&msg=2fa_policy_saved');
     }
 
     // ── Contenu des emails (global, système) ──────────────────────

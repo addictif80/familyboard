@@ -43,6 +43,22 @@
 </div>
 <?php endif; ?>
 
+<?php if (\App\Core\Session::isLoggedIn()):
+    $_tfaStatus = \App\Models\TwoFactorAuth::getPolicyStatus((int)\App\Core\Session::user()['id']);
+    if (!empty($_tfaStatus['enforced']) && empty($_tfaStatus['blocked'])): ?>
+<div class="impersonation-banner" style="background:#B8860B">
+    🔐 La double authentification devient obligatoire dans <strong><?= (int)$_tfaStatus['days_left'] ?> jour<?= $_tfaStatus['days_left'] > 1 ? 's' : '' ?></strong>.
+    <a href="<?= BASE_URL ?>/settings" class="btn btn-sm">Activer maintenant</a>
+</div>
+<?php endif; endif; ?>
+
+<?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) !== 'coparent'): ?>
+<div class="impersonation-banner" id="pwa-onboarding-banner" style="background:#2E6E4A;display:none">
+    <span id="pwa-onboarding-text"></span>
+    <a href="<?= BASE_URL ?>/settings#pwa-install-section" id="pwa-onboarding-link" class="btn btn-sm">Voir comment faire</a>
+</div>
+<?php endif; ?>
+
 <?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
 <!-- Compte à accès restreint : pas de sidebar complète, seulement l'essentiel. -->
 <div class="coparent-shell">
@@ -359,17 +375,25 @@ let deferredPrompt;
 window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferredPrompt = e;
-    const btn = document.getElementById('pwa-install-btn');
-    if (btn) btn.style.display = 'flex';
+    ['pwa-install-btn', 'pwa-install-btn-settings'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.style.display = id === 'pwa-install-btn' ? 'flex' : 'inline-block';
+    });
 });
 function installPWA() {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     deferredPrompt.userChoice.then(() => {
         deferredPrompt = null;
-        const btn = document.getElementById('pwa-install-btn');
-        if (btn) btn.style.display = 'none';
+        ['pwa-install-btn', 'pwa-install-btn-settings'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.style.display = 'none';
+        });
     });
+}
+if (typeof isStandalonePWA === 'function' && isStandalonePWA()) {
+    const statusEl = document.getElementById('pwa-install-status');
+    if (statusEl) statusEl.style.display = 'block';
 }
 </script>
 <?php if (isset($extraJs)): ?>

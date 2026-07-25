@@ -37,6 +37,22 @@ class BaseController
             require BASE_PATH . '/templates/blocked.php';
             exit;
         }
+        // Déconnexion globale demandée après l'établissement de cette session ("déconnecter tous
+        // les appareils") : la session en cours doit être invalidée elle aussi.
+        if (!empty($user['force_logout_at'])) {
+            $forceLogoutTs = (new \DateTime($user['force_logout_at'], new \DateTimeZone('UTC')))->getTimestamp();
+            if ((int)(Session::get('login_at') ?? 0) < $forceLogoutTs) {
+                \App\Core\RememberMe::clear();
+                Session::destroy();
+                if ($this->isAjax()) {
+                    http_response_code(401);
+                    echo json_encode(['error' => 'Session déconnectée à distance.']);
+                    exit;
+                }
+                header('Location: ' . BASE_URL . '/login');
+                exit;
+            }
+        }
         if (!$allowCoparent && $user['role'] === 'coparent') {
             if ($this->isAjax()) {
                 http_response_code(403);
@@ -48,6 +64,18 @@ class BaseController
         }
         Session::set('user', $user);
 
+        $tfaStatus = \App\Models\TwoFactorAuth::getPolicyStatus((int)$user['id']);
+        if (!empty($tfaStatus['blocked']) && !$this->isTwoFactorSetupPath()) {
+            if ($this->isAjax()) {
+                http_response_code(403);
+                echo json_encode(['error' => "La double authentification est obligatoire. Activez-la dans Paramètres pour continuer.", 'code' => 'two_factor_required']);
+                exit;
+            }
+            Session::flash('error', 'La double authentification est désormais obligatoire. Activez-la ci-dessous pour continuer.');
+            header('Location: ' . BASE_URL . '/settings');
+            exit;
+        }
+
         // Les appels fetch() JS envoient X-Requested-With/Accept (vérifié par isAjax()), ce qui
         // bloque déjà les soumissions de <form> cross-origin classiques vers ces endpoints ; le
         // jeton CSRF protège en plus les formulaires HTML POST natifs (listes, profil, mur...).
@@ -56,6 +84,17 @@ class BaseController
             echo 'Jeton de sécurité invalide ou expiré. Rechargez la page et réessayez.';
             exit;
         }
+    }
+
+    /** Chemins toujours accessibles même bloqué par la politique 2FA obligatoire : la page de
+     *  paramètres (pour l'activer), ses propres routes 2FA, et la déconnexion. */
+    private function isTwoFactorSetupPath(): bool
+    {
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+        foreach ([BASE_URL . '/settings', BASE_URL . '/logout'] as $allowed) {
+            if ($path === $allowed || str_starts_with($path, $allowed . '/')) return true;
+        }
+        return false;
     }
 
     protected function requireModule(string $slug): void
