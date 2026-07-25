@@ -5,6 +5,19 @@ ob_start();
 ?>
 <div class="settings-container">
 
+    <div class="settings-tabs">
+        <button type="button" class="settings-tab-btn" data-tab="compte" onclick="switchSettingsTab('compte')">👤 Mon compte</button>
+        <button type="button" class="settings-tab-btn" data-tab="app" onclick="switchSettingsTab('app')">📲 Application</button>
+        <button type="button" class="settings-tab-btn" data-tab="famille" onclick="switchSettingsTab('famille')">👨‍👩‍👧 Famille</button>
+        <button type="button" class="settings-tab-btn" data-tab="acces" onclick="switchSettingsTab('acces')">🔗 Accès partagés</button>
+        <?php if (!empty($emailLogs)): ?>
+        <button type="button" class="settings-tab-btn" data-tab="historique" onclick="switchSettingsTab('historique')">📨 Historique</button>
+        <?php endif; ?>
+    </div>
+
+    <!-- ═══ Onglet : Mon compte ═══ -->
+    <div class="settings-tab-panel" data-tab="compte">
+
     <!-- Profile -->
     <div class="card settings-section">
         <h3>👤 Mon profil</h3>
@@ -50,6 +63,56 @@ ob_start();
         </div>
     </div>
 
+    <!-- Authentification à deux facteurs -->
+    <div class="card settings-section">
+        <h3>🔐 Double authentification</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Ajoutez une deuxième étape à la connexion : un code généré par une application
+            d'authentification (recommandé), ou par défaut un code envoyé par email si vous n'en
+            utilisez pas.
+        </p>
+
+        <div id="tfa-status-none" style="display:<?= $twoFactorMethod === null ? 'block' : 'none' ?>">
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <button type="button" class="btn btn-primary" onclick="startTfaTotpSetup()">📱 Utiliser une application</button>
+                <button type="button" class="btn btn-secondary" onclick="enableTfaEmail()">✉️ Utiliser mon email</button>
+            </div>
+        </div>
+
+        <div id="tfa-status-totp" style="display:<?= $twoFactorMethod === 'totp' ? 'block' : 'none' ?>">
+            <p class="alert alert-success" style="margin-bottom:.75rem">Activée via une application d'authentification.</p>
+            <button type="button" class="btn btn-danger btn-sm" onclick="openTfaDisableModal()">Désactiver la double authentification</button>
+        </div>
+
+        <div id="tfa-status-email" style="display:<?= $twoFactorMethod === 'email' ? 'block' : 'none' ?>">
+            <p class="alert alert-success" style="margin-bottom:.75rem">Activée par code envoyé à votre email.</p>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="startTfaTotpSetup()">📱 Passer à une application</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="openTfaDisableModal()">Désactiver</button>
+            </div>
+        </div>
+
+        <!-- Enrôlement TOTP : clé affichée pour saisie manuelle dans l'application -->
+        <div id="tfa-totp-setup" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+            <p style="font-size:.85rem">
+                Scannez ce QR code avec votre application d'authentification (Google Authenticator, Authy,
+                Ente Auth...), ou ajoutez le compte manuellement avec la clé affichée en dessous.
+            </p>
+            <div id="tfa-totp-qrcode" style="display:flex;justify-content:center;margin:.75rem 0"></div>
+            <p style="font-family:monospace;font-size:1.05rem;letter-spacing:2px;background:var(--bg-alt);padding:.6rem;border-radius:8px;word-break:break-all;text-align:center" id="tfa-totp-secret"></p>
+            <div class="form-group">
+                <label>Code affiché par l'application</label>
+                <input type="text" id="tfa-totp-code" inputmode="numeric" maxlength="6" placeholder="123456" style="letter-spacing:3px">
+            </div>
+            <div style="display:flex;gap:.5rem">
+                <button type="button" class="btn btn-primary" onclick="confirmTfaTotpSetup()">Confirmer et activer</button>
+                <button type="button" class="btn btn-secondary" onclick="cancelTfaTotpSetup()">Annuler</button>
+            </div>
+        </div>
+
+        <p id="tfa-message" style="font-size:.8rem;margin-top:.5rem"></p>
+    </div>
+
     <!-- Mes données -->
     <div class="card settings-section">
         <h3>📁 Mes données</h3>
@@ -63,6 +126,26 @@ ob_start();
             <?php endif; ?>
         </div>
     </div>
+
+    <!-- Zone dangereuse -->
+    <div class="card settings-section" style="border:1px solid var(--danger)">
+        <h3 style="color:var(--danger)">⚠️ Zone dangereuse</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Supprimer votre compte est définitif et irréversible.
+            <?php if ($user['role'] === 'admin' && count($members) > 1): ?>
+                En tant qu'administrateur, vous devrez transférer ce rôle à un autre membre ou supprimer toute la famille.
+            <?php elseif ($user['role'] === 'admin'): ?>
+                Vous êtes le seul membre de cette famille : supprimer votre compte supprimera aussi toute la famille et ses données.
+            <?php endif; ?>
+        </p>
+        <button type="button" class="btn btn-danger" onclick="openDeleteAccountModal()">🗑 Supprimer mon compte</button>
+    </div>
+
+    </div>
+    <!-- ═══ /Onglet : Mon compte ═══ -->
+
+    <!-- ═══ Onglet : Application ═══ -->
+    <div class="settings-tab-panel" data-tab="app">
 
     <!-- Installer l'application (PWA) -->
     <div class="card settings-section" id="pwa-install-section">
@@ -95,19 +178,24 @@ ob_start();
         </div>
     </div>
 
-    <!-- Zone dangereuse -->
-    <div class="card settings-section" style="border:1px solid var(--danger)">
-        <h3 style="color:var(--danger)">⚠️ Zone dangereuse</h3>
+    <!-- Push notifications -->
+    <div class="card settings-section" id="push-notifications-section">
+        <h3>🔔 Notifications push</h3>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Supprimer votre compte est définitif et irréversible.
-            <?php if ($user['role'] === 'admin' && count($members) > 1): ?>
-                En tant qu'administrateur, vous devrez transférer ce rôle à un autre membre ou supprimer toute la famille.
-            <?php elseif ($user['role'] === 'admin'): ?>
-                Vous êtes le seul membre de cette famille : supprimer votre compte supprimera aussi toute la famille et ses données.
-            <?php endif; ?>
+            Recevez une notification directement sur cet appareil (ordinateur ou mobile) dès qu'un événement
+            vous concerne, même quand l'application est fermée.
         </p>
-        <button type="button" class="btn btn-danger" onclick="openDeleteAccountModal()">🗑 Supprimer mon compte</button>
+        <button type="button" class="btn btn-primary" id="push-toggle-btn" onclick="togglePushNotifications()">
+            Activer les notifications push
+        </button>
+        <p id="push-status" class="push-status" style="font-size:.8rem;margin-top:.5rem"></p>
     </div>
+
+    </div>
+    <!-- ═══ /Onglet : Application ═══ -->
+
+    <!-- ═══ Onglet : Famille ═══ -->
+    <div class="settings-tab-panel" data-tab="famille">
 
     <!-- Family settings (admin only) -->
     <?php if ($user['role'] === 'admin'): ?>
@@ -228,71 +316,7 @@ ob_start();
         </div>
     </div>
 
-    <!-- Authentification à deux facteurs -->
-    <div class="card settings-section">
-        <h3>🔐 Double authentification</h3>
-        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Ajoutez une deuxième étape à la connexion : un code généré par une application
-            d'authentification (recommandé), ou par défaut un code envoyé par email si vous n'en
-            utilisez pas.
-        </p>
-
-        <div id="tfa-status-none" style="display:<?= $twoFactorMethod === null ? 'block' : 'none' ?>">
-            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-                <button type="button" class="btn btn-primary" onclick="startTfaTotpSetup()">📱 Utiliser une application</button>
-                <button type="button" class="btn btn-secondary" onclick="enableTfaEmail()">✉️ Utiliser mon email</button>
-            </div>
-        </div>
-
-        <div id="tfa-status-totp" style="display:<?= $twoFactorMethod === 'totp' ? 'block' : 'none' ?>">
-            <p class="alert alert-success" style="margin-bottom:.75rem">Activée via une application d'authentification.</p>
-            <button type="button" class="btn btn-danger btn-sm" onclick="openTfaDisableModal()">Désactiver la double authentification</button>
-        </div>
-
-        <div id="tfa-status-email" style="display:<?= $twoFactorMethod === 'email' ? 'block' : 'none' ?>">
-            <p class="alert alert-success" style="margin-bottom:.75rem">Activée par code envoyé à votre email.</p>
-            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="startTfaTotpSetup()">📱 Passer à une application</button>
-                <button type="button" class="btn btn-danger btn-sm" onclick="openTfaDisableModal()">Désactiver</button>
-            </div>
-        </div>
-
-        <!-- Enrôlement TOTP : clé affichée pour saisie manuelle dans l'application -->
-        <div id="tfa-totp-setup" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
-            <p style="font-size:.85rem">
-                Scannez ce QR code avec votre application d'authentification (Google Authenticator, Authy,
-                Ente Auth...), ou ajoutez le compte manuellement avec la clé affichée en dessous.
-            </p>
-            <div id="tfa-totp-qrcode" style="display:flex;justify-content:center;margin:.75rem 0"></div>
-            <p style="font-family:monospace;font-size:1.05rem;letter-spacing:2px;background:var(--bg-alt);padding:.6rem;border-radius:8px;word-break:break-all;text-align:center" id="tfa-totp-secret"></p>
-            <div class="form-group">
-                <label>Code affiché par l'application</label>
-                <input type="text" id="tfa-totp-code" inputmode="numeric" maxlength="6" placeholder="123456" style="letter-spacing:3px">
-            </div>
-            <div style="display:flex;gap:.5rem">
-                <button type="button" class="btn btn-primary" onclick="confirmTfaTotpSetup()">Confirmer et activer</button>
-                <button type="button" class="btn btn-secondary" onclick="cancelTfaTotpSetup()">Annuler</button>
-            </div>
-        </div>
-
-        <p id="tfa-message" style="font-size:.8rem;margin-top:.5rem"></p>
-    </div>
-
-    <!-- Push notifications -->
-    <div class="card settings-section" id="push-notifications-section">
-        <h3>🔔 Notifications push</h3>
-        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Recevez une notification directement sur cet appareil (ordinateur ou mobile) dès qu'un événement
-            vous concerne, même quand l'application est fermée.
-        </p>
-        <button type="button" class="btn btn-primary" id="push-toggle-btn" onclick="togglePushNotifications()">
-            Activer les notifications push
-        </button>
-        <p id="push-status" class="push-status" style="font-size:.8rem;margin-top:.5rem"></p>
-    </div>
-
     <!-- Modules (admin only) -->
-    <?php if ($user['role'] === 'admin'): ?>
     <?php $_disabledMods = \App\Models\Family::getDisabledModules($family ?? []); ?>
     <div class="card settings-section">
         <h3>🧩 Modules actifs</h3>
@@ -382,6 +406,12 @@ ob_start();
     </div>
     <?php endif; ?>
 
+    </div>
+    <!-- ═══ /Onglet : Famille ═══ -->
+
+    <!-- ═══ Onglet : Accès partagés ═══ -->
+    <div class="settings-tab-panel" data-tab="acces">
+
     <!-- Sitter access -->
     <?php $_disabledModsForSitter = \App\Models\Family::getDisabledModules($family ?? []); ?>
     <?php if (!in_array('sitter', $_disabledModsForSitter)): ?>
@@ -470,8 +500,14 @@ ob_start();
     </div>
     <?php endif; ?>
 
-    <!-- Email logs -->
+    </div>
+    <!-- ═══ /Onglet : Accès partagés ═══ -->
+
     <?php if (!empty($emailLogs)): ?>
+    <!-- ═══ Onglet : Historique ═══ -->
+    <div class="settings-tab-panel" data-tab="historique">
+
+    <!-- Email logs -->
     <div class="card settings-section">
         <h3>📨 Historique des emails</h3>
         <div class="email-log-table">
@@ -508,7 +544,9 @@ ob_start();
             </table>
         </div>
     </div>
-    <?php endif; ?>
+
+    </div>
+    <!-- ═══ /Onglet : Historique ═══ -->
     <?php endif; ?>
 
 </div>
@@ -579,6 +617,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+// ── Onglets ──────────────────────────────────────────────────────
+function switchSettingsTab(tab) {
+    document.querySelectorAll('.settings-tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tab === tab));
+    document.querySelectorAll('.settings-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    if (history.replaceState) history.replaceState(null, '', '#tab-' + tab);
+}
+(function () {
+    // Un lien externe (ex. le bandeau d'installation PWA) peut cibler directement un élément
+    // à l'intérieur d'un onglet (#pwa-install-section) : ouvrir l'onglet correspondant avant
+    // de faire défiler jusqu'à l'ancre, sinon l'élément reste caché par display:none.
+    const hash = location.hash.replace('#', '');
+    let targetTab = 'compte';
+    if (hash.startsWith('tab-')) {
+        targetTab = hash.slice(4);
+    } else if (hash) {
+        const el = document.getElementById(hash);
+        const panel = el && el.closest('.settings-tab-panel');
+        if (panel) targetTab = panel.dataset.tab;
+    }
+    switchSettingsTab(targetTab);
+    if (hash && !hash.startsWith('tab-')) {
+        const el = document.getElementById(hash);
+        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
+})();
+
 function copyCode(code) {
     navigator.clipboard.writeText(code).then(() => Dialog.toast('Code copié !'));
 }

@@ -1059,6 +1059,14 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 /* ---- Settings ---- */
 .settings-container { max-width: 700px; display: flex; flex-direction: column; gap: 1.5rem; }
 .settings-section { }
+.settings-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .25rem; }
+.settings-tab-btn {
+    background: var(--card-bg); color: var(--text-muted); border: 1px solid var(--border);
+    border-radius: 999px; padding: .45rem .9rem; font-size: .85rem; cursor: pointer; white-space: nowrap;
+}
+.settings-tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.settings-tab-panel { display: none; flex-direction: column; gap: 1.5rem; }
+.settings-tab-panel.active { display: flex; }
 .settings-section h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
 .push-status { color: var(--text-muted); }
 .push-status-warn { color: var(--warning-text); background: var(--warning-bg); padding: .5rem .7rem; border-radius: var(--radius-sm); }
