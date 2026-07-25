@@ -5,7 +5,9 @@ ob_start();
 ?>
 <div class="content-header">
     <h2>🎥 Caméras IP</h2>
+    <?php if ($user['role'] === 'admin'): ?>
     <button class="btn btn-primary" onclick="openCameraModal()">+ Ajouter une caméra</button>
+    <?php endif; ?>
 </div>
 
 <?php if (empty($cameras)): ?>
@@ -14,7 +16,9 @@ ob_start();
     <h3>Aucune caméra configurée</h3>
     <p>Ajoutez vos caméras IP pour afficher leurs flux en direct.<br>
     Renseignez l'URL du flux (MJPEG, snapshot, HLS) directement dans le formulaire.</p>
+    <?php if ($user['role'] === 'admin'): ?>
     <button class="btn btn-primary" onclick="openCameraModal()">+ Ajouter une caméra</button>
+    <?php endif; ?>
 </div>
 <?php else: ?>
 <div class="cameras-grid">
@@ -77,7 +81,9 @@ ob_start();
 
         <!-- Actions -->
         <div class="cam-footer">
+            <?php if ($user['role'] === 'admin'): ?>
             <button class="btn btn-secondary btn-sm" onclick="openEditCameraModal(<?= htmlspecialchars(json_encode($cam)) ?>)">✏️ Modifier</button>
+            <?php endif; ?>
             <button class="btn btn-danger btn-sm" onclick="deleteCamera(<?= $cam['id'] ?>)">🗑</button>
         </div>
     </div>

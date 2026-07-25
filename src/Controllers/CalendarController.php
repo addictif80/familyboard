@@ -309,7 +309,9 @@ class CalendarController extends BaseController
 
     public function addCalDAV(array $params): void
     {
-        $this->requireAuth();
+        // La synchronisation déclenche une requête HTTP serveur vers une URL fournie par le
+        // client (SSRF potentiel vers le réseau interne) — réservé aux admins de la famille.
+        $this->requireAdmin();
         $this->json(function () {
             $user = Session::user();
             $data = $this->jsonInput();

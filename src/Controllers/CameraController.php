@@ -18,7 +18,11 @@ class CameraController extends BaseController
 
     public function create(array $params): void
     {
-        $this->requireAuth();
+        // Le flux (stream_url) est transmis à ffmpeg via go2rtc, qui accepte de nombreux
+        // schémas d'URL au-delà de RTSP : sans restriction, n'importe quel membre pourrait faire
+        // pointer une "caméra" vers une adresse réseau arbitraire et lire la réponse via le proxy
+        // (SSRF), pas seulement configurer sa propre caméra.
+        $this->requireAdmin();
         $this->json(function () {
             $user = Session::user();
             $id = Camera::create($user['family_id'], $user['id'], $this->jsonInput());
@@ -28,7 +32,7 @@ class CameraController extends BaseController
 
     public function update(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAdmin();
         $this->json(function () use ($params) {
             $user = Session::user();
             $id   = (int)$params['id'];
