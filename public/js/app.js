@@ -132,6 +132,17 @@ function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
 }
 
+// User menu (sidebar footer popover)
+let userMenuOpen = false;
+
+function toggleUserMenu() {
+    const popover = document.getElementById('user-menu-popover');
+    if (!popover) return;
+    userMenuOpen = !userMenuOpen;
+    popover.style.display = userMenuOpen ? 'flex' : 'none';
+    document.getElementById('user-menu-trigger')?.classList.toggle('open', userMenuOpen);
+}
+
 // Notifications
 let notifOpen = false;
 
@@ -286,6 +297,12 @@ document.addEventListener('click', function(e) {
     if (panel && notifOpen && !panel.contains(e.target) && !e.target.closest('.btn-icon')) {
         notifOpen = false;
         panel.style.display = 'none';
+    }
+    const userMenu = document.getElementById('user-menu');
+    if (userMenu && userMenuOpen && !userMenu.contains(e.target)) {
+        userMenuOpen = false;
+        document.getElementById('user-menu-popover').style.display = 'none';
+        document.getElementById('user-menu-trigger')?.classList.remove('open');
     }
 });
 

@@ -262,24 +262,38 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
         </ul>
 
         <div class="sidebar-footer">
-            <a href="<?= BASE_URL ?>/support" class="nav-link <?= str_contains($currentPath, '/support') ? 'active' : '' ?>" title="Support">
-                <span class="nav-icon">🎫</span>
-                <span class="nav-label">Support</span>
-            </a>
-            <button id="pwa-install-btn" onclick="installPWA()" class="nav-link" style="display:none;background:none;border:none;width:100%;cursor:pointer;text-align:left" title="Installer l'application">
-                <span class="nav-icon">📲</span>
-                <span class="nav-label">Installer l'app</span>
-            </button>
-            <a href="<?= BASE_URL ?>/settings" class="nav-link <?= str_contains($currentPath, '/settings') ? 'active' : '' ?>">
-                <div class="user-avatar" style="background:<?= htmlspecialchars($currentUser['color']) ?>">
-                    <?php if ($currentUser['avatar']): ?>
-                        <img src="<?= BASE_URL . htmlspecialchars($currentUser['avatar']) ?>" alt="">
-                    <?php else: ?>
-                        <?= mb_substr($currentUser['name'], 0, 1) ?>
-                    <?php endif; ?>
+            <div class="user-menu" id="user-menu">
+                <button type="button" class="user-menu-trigger" id="user-menu-trigger" onclick="toggleUserMenu()">
+                    <div class="user-avatar" style="background:<?= htmlspecialchars($currentUser['color']) ?>">
+                        <?php if ($currentUser['avatar']): ?>
+                            <img src="<?= BASE_URL . htmlspecialchars($currentUser['avatar']) ?>" alt="">
+                        <?php else: ?>
+                            <?= mb_substr($currentUser['name'], 0, 1) ?>
+                        <?php endif; ?>
+                    </div>
+                    <span class="user-menu-identity">
+                        <span class="user-menu-name"><?= htmlspecialchars($currentUser['name']) ?></span>
+                        <span class="user-menu-role"><?= ['admin' => 'Administrateur', 'coparent' => 'Co-parent'][$currentUser['role']] ?? 'Membre' ?></span>
+                    </span>
+                    <span class="user-menu-caret">▾</span>
+                </button>
+
+                <div class="user-menu-popover" id="user-menu-popover" style="display:none">
+                    <a href="<?= BASE_URL ?>/settings" class="user-menu-item">
+                        <span class="user-menu-item-icon">⚙️</span> Paramètres
+                    </a>
+                    <button type="button" id="pwa-install-btn" onclick="installPWA()" class="user-menu-item" style="display:none">
+                        <span class="user-menu-item-icon">📲</span> Installer l'app
+                    </button>
+                    <a href="<?= BASE_URL ?>/support" class="user-menu-item">
+                        <span class="user-menu-item-icon">🎫</span> Support
+                    </a>
+                    <div class="user-menu-divider"></div>
+                    <a href="<?= BASE_URL ?>/logout" class="user-menu-item user-menu-item-danger">
+                        <span class="user-menu-item-icon">🚪</span> Déconnexion
+                    </a>
                 </div>
-                <span class="nav-label"><?= htmlspecialchars($currentUser['name']) ?></span>
-            </a>
+            </div>
         </div>
     </nav>
 
@@ -304,7 +318,6 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                         <span class="badge" id="notif-badge"><?= $unreadCount ?></span>
                     <?php endif; ?>
                 </button>
-                <a href="<?= BASE_URL ?>/logout" class="btn-icon" title="Déconnexion">🚪</a>
             </div>
         </header>
 
