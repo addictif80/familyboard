@@ -199,26 +199,76 @@ class BaseController
         return $color && preg_match('/^#[0-9a-fA-F]{3,8}$/', $color) ? $color : $fallback;
     }
 
+    /** Raison du dernier rejet de uploadImage() (null si succès, ou si rien n'a été soumis) —
+     *  les appelants qui veulent renvoyer un message précis à l'utilisateur (plutôt que de
+     *  laisser un envoi refusé passer inaperçu, ex. un format non supporté) lisent cette
+     *  propriété juste après l'appel. */
+    protected ?string $lastUploadError = null;
+
     protected function uploadImage(string $field): ?string
     {
-        if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) return null;
+        $this->lastUploadError = null;
+        if (!isset($_FILES[$field]) || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) return null;
+        if ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
+            $this->lastUploadError = 'Envoi du fichier interrompu ou trop volumineux.';
+            return null;
+        }
         $file = $_FILES[$field];
-        if ($file['size'] > UPLOAD_MAX_SIZE) return null;
+        if ($file['size'] > UPLOAD_MAX_SIZE) {
+            $this->lastUploadError = 'Fichier trop volumineux (' . round(UPLOAD_MAX_SIZE / 1024 / 1024) . ' Mo maximum).';
+            return null;
+        }
 
         // Ne jamais faire confiance au Content-Type ou au nom de fichier fournis par le
         // client (trivialement falsifiables) : on inspecte le contenu réel du fichier.
         $realType = @mime_content_type($file['tmp_name']) ?: '';
         $extByType = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
-        if (!in_array($realType, ALLOWED_IMAGE_TYPES, true) || !isset($extByType[$realType])) return null;
-        if (@getimagesize($file['tmp_name']) === false) return null;
+
+        // Les photos iPhone récentes sont par défaut au format HEIC/HEIF, jamais accepté par
+        // ALLOWED_IMAGE_TYPES : converti en JPEG si l'extension Imagick le permet, plutôt que de
+        // rejeter silencieusement l'immense majorité des photos envoyées depuis un iPhone. Le
+        // fichier converti n'est plus "l'upload" au sens strict de PHP (move_uploaded_file ne
+        // l'accepterait pas) — on le déplace donc explicitement avec rename() dans ce cas précis.
+        $convertedPath = null;
+        if (in_array($realType, ['image/heic', 'image/heif'], true) && class_exists(\Imagick::class)) {
+            try {
+                $convertedPath = tempnam(sys_get_temp_dir(), 'heic') . '.jpg';
+                $img = new \Imagick($file['tmp_name']);
+                $img->setImageFormat('jpeg');
+                $img->writeImage($convertedPath);
+                $img->destroy();
+                $realType = 'image/jpeg';
+            } catch (\Throwable) {
+                @unlink($convertedPath);
+                $this->lastUploadError = "Impossible de convertir cette photo (HEIC). Réessayez avec un JPEG/PNG.";
+                return null;
+            }
+        }
+
+        if (!in_array($realType, ALLOWED_IMAGE_TYPES, true) || !isset($extByType[$realType])) {
+            if ($convertedPath) @unlink($convertedPath);
+            $this->lastUploadError = in_array($realType, ['image/heic', 'image/heif'], true)
+                ? "Format HEIC (photo iPhone) non supporté par ce serveur — réglez l'appareil photo sur \"Le plus compatible\" (JPEG) ou convertissez la photo avant l'envoi."
+                : 'Format d\'image non supporté (JPEG, PNG, GIF ou WEBP uniquement).';
+            return null;
+        }
+        $sourcePath = $convertedPath ?: $file['tmp_name'];
+        if (@getimagesize($sourcePath) === false) {
+            if ($convertedPath) @unlink($convertedPath);
+            $this->lastUploadError = 'Fichier image invalide ou corrompu.';
+            return null;
+        }
 
         $filename = bin2hex(random_bytes(16)) . '.' . $extByType[$realType];
         $dest = UPLOAD_DIR . $filename;
 
         if (!is_dir(UPLOAD_DIR)) mkdir(UPLOAD_DIR, 0755, true);
-        if (move_uploaded_file($file['tmp_name'], $dest)) {
+        $moved = $convertedPath ? rename($convertedPath, $dest) : move_uploaded_file($file['tmp_name'], $dest);
+        if ($moved) {
             return '/public/uploads/' . $filename;
         }
+        if ($convertedPath) @unlink($convertedPath);
+        $this->lastUploadError = 'Échec de l\'enregistrement du fichier sur le serveur.';
         return null;
     }
 }
