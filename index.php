@@ -100,15 +100,30 @@ set_exception_handler(function (\Throwable $e) {
 });
 
 // Catches the remaining fatal errors that PHP does not raise as a Throwable
-// (memory exhaustion, parse errors in included files…) so they too trigger
-// an automatic support ticket instead of failing completely silently.
+// (memory exhaustion, max execution time, parse errors in included files…)
+// so they too trigger a support ticket AND a clean response, instead of
+// leaving the browser with PHP/the server's own bare error output — which
+// is otherwise indistinguishable from the request never having reached the
+// app at all (e.g. a body-size limit rejected upstream by the web server).
 register_shutdown_function(function () {
     $error = error_get_last();
-    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
-        \App\Core\ErrorReporter::report('server', $error['message'], [
-            'file' => $error['file'],
-            'line' => $error['line'],
-        ]);
+    if (!$error || !in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        return;
+    }
+    \App\Core\ErrorReporter::report('server', $error['message'], [
+        'file' => $error['file'],
+        'line' => $error['line'],
+    ]);
+    if (headers_sent()) return;
+    http_response_code(500);
+    $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+        || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'));
+    $publicMessage = APP_DEBUG ? $error['message'] : 'Une erreur est survenue. L\'équipe technique a été prévenue.';
+    if ($isAjax) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => $publicMessage]);
+    } else {
+        echo '<h1>Erreur interne</h1><p>' . htmlspecialchars($publicMessage) . '</p>';
     }
 });
 
