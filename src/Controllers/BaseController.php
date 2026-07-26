@@ -210,7 +210,20 @@ class BaseController
         $this->lastUploadError = null;
         if (!isset($_FILES[$field]) || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) return null;
         if ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
-            $this->lastUploadError = 'Envoi du fichier interrompu ou trop volumineux.';
+            // Détaillé par code plutôt qu'un message générique unique : la taille max autorisée
+            // par le serveur (upload_max_filesize/post_max_size) et une coupure réseau en cours
+            // d'envoi demandent des actions différentes de la part de l'utilisateur/l'admin.
+            $this->lastUploadError = match ($_FILES[$field]['error']) {
+                UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE =>
+                    'Fichier trop volumineux pour la configuration actuelle du serveur (upload_max_filesize/post_max_size).',
+                UPLOAD_ERR_PARTIAL =>
+                    'Envoi interrompu (connexion coupée en cours d\'envoi) — réessayez.',
+                UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE =>
+                    'Erreur serveur : impossible d\'écrire le fichier temporaire.',
+                UPLOAD_ERR_EXTENSION =>
+                    'Envoi bloqué par une extension PHP du serveur.',
+                default => 'Erreur d\'envoi inconnue (code ' . $_FILES[$field]['error'] . ').',
+            };
             return null;
         }
         $file = $_FILES[$field];
