@@ -113,6 +113,10 @@ class SettingsController extends BaseController
         $name = trim($_POST['name'] ?? '');
         $color = $this->safeColor($_POST['color'] ?? null);
         $avatar = $this->uploadImage('avatar');
+        // Un envoi d'avatar rejeté (format non supporté, fichier trop lourd…) ne doit pas passer
+        // pour une mise à jour réussie — sans quoi rien ne prévient l'utilisateur que sa photo
+        // n'a en réalité pas changé.
+        $avatarError = $this->lastUploadError;
 
         $data = ['name' => $name ?: $user['name'], 'color' => $color];
         if ($avatar) $data['avatar'] = $avatar;
@@ -123,7 +127,11 @@ class SettingsController extends BaseController
             User::updatePassword($user['id'], $password);
         }
 
-        Session::flash('success', 'Profil mis à jour.');
+        if ($avatarError) {
+            Session::flash('error', 'Profil mis à jour, mais la photo n\'a pas pu être changée : ' . $avatarError);
+        } else {
+            Session::flash('success', 'Profil mis à jour.');
+        }
         header('Location: ' . BASE_URL . '/settings');
         exit;
     }
