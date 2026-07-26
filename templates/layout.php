@@ -88,6 +88,8 @@ $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $unreadCount = \App\Models\Notification::getUnreadCount($currentUser['id']);
 $family = \App\Models\Family::findById($currentUser['family_id']);
 $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
+$_hasCustodyAccess = \App\Models\Custody::getSchedulesForUser($currentUser['id']);
+$_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
 ?>
 <div class="app-wrapper">
     <!-- Sidebar -->
@@ -107,111 +109,7 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                     <span class="nav-label">Tableau de bord</span>
                 </a>
             </li>
-            <?php if (!in_array('wall', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/wall') && !str_contains($currentPath, '/family-wall') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/wall" class="nav-link">
-                    <span class="nav-icon">📸</span>
-                    <span class="nav-label">Mur familial</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('albums', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/albums" class="nav-link">
-                    <span class="nav-icon">🖼️</span>
-                    <span class="nav-label">Albums photo</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('calendar', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/calendar" class="nav-link">
-                    <span class="nav-icon">📅</span>
-                    <span class="nav-label">Calendrier</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('custody', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/custody') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/custody" class="nav-link">
-                    <span class="nav-icon">👶</span>
-                    <span class="nav-label">Garde alternée</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (\App\Models\Custody::getSchedulesForUser($currentUser['id'])): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/coparent') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/coparent" class="nav-link">
-                    <span class="nav-icon">🔒</span>
-                    <span class="nav-label">Garde partagée</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('tasks', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/tasks') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/tasks" class="nav-link">
-                    <span class="nav-icon">✅</span>
-                    <span class="nav-label">Tâches & Courses</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('chat', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/chat" class="nav-link">
-                    <span class="nav-icon">💬</span>
-                    <span class="nav-label">Chat familial</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('budget', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/budget') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/budget" class="nav-link">
-                    <span class="nav-icon">💰</span>
-                    <span class="nav-label">Budget</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('projects', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/projects') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/projects" class="nav-link">
-                    <span class="nav-icon">📋</span>
-                    <span class="nav-label">Projets</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('contacts', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/contacts') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/contacts" class="nav-link">
-                    <span class="nav-icon">📒</span>
-                    <span class="nav-label">Répertoire</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('warranties', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/warranties') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/warranties" class="nav-link">
-                    <span class="nav-icon">🛡️</span>
-                    <span class="nav-label">Garanties</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('documents', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/documents') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/documents" class="nav-link">
-                    <span class="nav-icon">🗂️</span>
-                    <span class="nav-label">Documents</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('cameras', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/cameras') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/cameras" class="nav-link">
-                    <span class="nav-icon">🎥</span>
-                    <span class="nav-label">Caméras</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('family-wall', $_disabledModules)): ?>
+            <?php if ($_navEnabled('family-wall')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/family-wall') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/family-wall" class="nav-link">
                     <span class="nav-icon">📺</span>
@@ -219,31 +117,79 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (!in_array('baby', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/baby') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/baby" class="nav-link">
-                    <span class="nav-icon">🍼</span>
-                    <span class="nav-label">Bébé</span>
+
+            <?php if ($_navEnabled('wall') || $_navEnabled('albums') || $_navEnabled('chat') || $_navEnabled('calendar') || $_navEnabled('contacts') || $_navEnabled('meals')): ?>
+            <li class="nav-section-label">Vie de famille</li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('wall')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/wall') && !str_contains($currentPath, '/family-wall') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/wall" class="nav-link">
+                    <span class="nav-icon">📸</span>
+                    <span class="nav-label">Mur familial</span>
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (!in_array('location', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/location" class="nav-link">
-                    <span class="nav-icon">📍</span>
-                    <span class="nav-label">Position</span>
+            <?php if ($_navEnabled('albums')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/albums" class="nav-link">
+                    <span class="nav-icon">🖼️</span>
+                    <span class="nav-label">Albums photo</span>
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (!in_array('emergency', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/emergency') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/emergency" class="nav-link">
-                    <span class="nav-icon">🚑</span>
-                    <span class="nav-label">Fiches urgence</span>
+            <?php if ($_navEnabled('chat')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/chat" class="nav-link">
+                    <span class="nav-icon">💬</span>
+                    <span class="nav-label">Chat familial</span>
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (!in_array('comm_log', $_disabledModules)): ?>
+            <?php if ($_navEnabled('calendar')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/calendar" class="nav-link">
+                    <span class="nav-icon">📅</span>
+                    <span class="nav-label">Calendrier</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('contacts')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/contacts') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/contacts" class="nav-link">
+                    <span class="nav-icon">📒</span>
+                    <span class="nav-label">Répertoire</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('meals')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/meals') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/meals" class="nav-link">
+                    <span class="nav-icon">🍽️</span>
+                    <span class="nav-label">Repas</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('custody') || $_hasCustodyAccess || $_navEnabled('comm_log')): ?>
+            <li class="nav-section-label">Garde partagée</li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('custody')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/custody') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/custody" class="nav-link">
+                    <span class="nav-icon">👶</span>
+                    <span class="nav-label">Garde alternée</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_hasCustodyAccess): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/coparent') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/coparent" class="nav-link">
+                    <span class="nav-icon">🔒</span>
+                    <span class="nav-label">Garde partagée</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('comm_log')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/comm-log') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/comm-log" class="nav-link">
                     <span class="nav-icon">📝</span>
@@ -251,11 +197,83 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (!in_array('meals', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/meals') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/meals" class="nav-link">
-                    <span class="nav-icon">🍽️</span>
-                    <span class="nav-label">Repas</span>
+
+            <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties')): ?>
+            <li class="nav-section-label">Organisation</li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('tasks')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/tasks') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/tasks" class="nav-link">
+                    <span class="nav-icon">✅</span>
+                    <span class="nav-label">Tâches & Courses</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('projects')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/projects') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/projects" class="nav-link">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-label">Projets</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('budget')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/budget') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/budget" class="nav-link">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-label">Budget</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('documents')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/documents') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/documents" class="nav-link">
+                    <span class="nav-icon">🗂️</span>
+                    <span class="nav-label">Documents</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('warranties')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/warranties') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/warranties" class="nav-link">
+                    <span class="nav-icon">🛡️</span>
+                    <span class="nav-label">Garanties</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('baby') || $_navEnabled('location') || $_navEnabled('emergency') || $_navEnabled('cameras')): ?>
+            <li class="nav-section-label">Suivi & sécurité</li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('baby')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/baby') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/baby" class="nav-link">
+                    <span class="nav-icon">🍼</span>
+                    <span class="nav-label">Bébé</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('location')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/location" class="nav-link">
+                    <span class="nav-icon">📍</span>
+                    <span class="nav-label">Position</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('emergency')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/emergency') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/emergency" class="nav-link">
+                    <span class="nav-icon">🚑</span>
+                    <span class="nav-label">Fiches urgence</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('cameras')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/cameras') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/cameras" class="nav-link">
+                    <span class="nav-icon">🎥</span>
+                    <span class="nav-label">Caméras</span>
                 </a>
             </li>
             <?php endif; ?>
