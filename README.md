@@ -89,6 +89,23 @@ calendrier, projets…) auxquels il n'a pas de rapport.
 - PHP 8.1+
 - MySQL 5.7+ ou MariaDB 10.4+ (JSON, FULLTEXT, InnoDB)
 - Apache avec `mod_rewrite` activé (ou Nginx)
+- **Extension PHP `imagick` avec délégué HEIC/HEIF (`libheif`) — optionnelle
+  mais recommandée.** Sans elle, une photo envoyée directement au format
+  HEIC (réglage par défaut de l'appareil photo iPhone depuis iOS 11 —
+  avatar, mur familial, albums…) est refusée avec un message explicite
+  demandant de changer ce réglage ou de convertir la photo à la main. Avec
+  elle, la conversion en JPEG est automatique et invisible pour
+  l'utilisateur. Sur Debian/Ubuntu :
+  ```bash
+  # Vérifier si le support HEIC est déjà présent
+  identify -list format | grep -i heic
+
+  # Si absent : installer imagemagick + son délégué HEIC, puis l'extension PHP
+  apt install imagemagick libheif-dev
+  apt install php-imagick   # ou pecl install imagick si le paquet distro n'est pas à jour
+
+  systemctl restart php8.1-fpm   # adapter à votre version de PHP
+  ```
 
 ## Installation
 
