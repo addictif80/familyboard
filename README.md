@@ -171,6 +171,13 @@ Un fichier `.htaccess` est déjà présent à la racine.
 server {
     root /var/www/familyboard;
     index index.php;
+    # Sans ça, Nginx rejette lui-même (413/500 selon le proxy) tout upload
+    # dépassant 1 Mo par défaut, avant même que PHP ne voie la requête —
+    # photos, documents, garanties... Doit correspondre à la limite de
+    # l'app (UPLOAD_MAX_SIZE, 20 Mo) ; si FamilyBoard tourne derrière un
+    # reverse proxy (Nginx Proxy Manager, Traefik...), la même limite doit
+    # aussi être relevée là-bas, en plus de ce bloc.
+    client_max_body_size 20M;
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ {
         fastcgi_pass unix:/run/php/php8.1-fpm.sock;
@@ -179,6 +186,12 @@ server {
     }
 }
 ```
+
+> **PHP-FPM** : les directives `php_value` du `.htaccess` (upload PHP) ne
+> s'appliquent qu'à `mod_php`. Un fichier `.user.ini` est déjà fourni à la
+> racine pour couvrir PHP-FPM/CGI (`upload_max_filesize`/`post_max_size`) —
+> son effet est pris en compte après quelques minutes (`user_ini.cache_ttl`),
+> pas instantanément après une modification.
 
 ## Structure du projet
 
