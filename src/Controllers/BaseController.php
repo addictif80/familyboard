@@ -181,16 +181,79 @@ class BaseController
 
     /**
      * Strip HTML to a safe subset (bold, italic, lists, links…).
-     * Removes event handlers and javascript: hrefs.
+     *
+     * Parses via DOMDocument rather than regex on raw text: a regex looking
+     * for the literal string "javascript:" in an href never sees it once the
+     * browser HTML-decodes an entity-obfuscated payload like
+     * `href="javascript&#58;alert(1)"` — DOMDocument decodes entities before
+     * we ever inspect the attribute value, so the check runs on the same
+     * string the browser will actually use.
      */
     protected function sanitizeHtml(string $html): string
     {
-        $allowed = '<p><br><strong><b><em><i><u><s><h2><h3><ul><ol><li><blockquote><a><span><pre><code>';
-        $html = strip_tags($html, $allowed);
-        // Remove event-handler attributes and javascript: hrefs
-        $html = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $html);
-        $html = preg_replace('/href\s*=\s*["\']?\s*javascript:[^"\'>\s]*/i', 'href="#"', $html);
-        return $html;
+        static $allowedTags = ['p','br','strong','b','em','i','u','s','h2','h3','ul','ol','li','blockquote','a','span','pre','code'];
+        static $allowedSchemes = ['http', 'https', 'mailto'];
+
+        if (trim($html) === '') return '';
+
+        $doc = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $doc->loadHTML(
+            '<?xml encoding="utf-8" ?><div>' . $html . '</div>',
+            LIBXML_NOERROR | LIBXML_NOWARNING
+        );
+        libxml_clear_errors();
+
+        $root = $doc->getElementsByTagName('div')->item(0);
+        if (!$root) return '';
+
+        $this->sanitizeNode($doc, $root, $allowedTags, $allowedSchemes);
+
+        $out = '';
+        foreach (iterator_to_array($root->childNodes) as $child) {
+            $out .= $doc->saveHTML($child);
+        }
+        return $out;
+    }
+
+    /** Recursively strips disallowed tags/attributes in place (allowlist-based). */
+    private function sanitizeNode(\DOMDocument $doc, \DOMNode $node, array $allowedTags, array $allowedSchemes): void
+    {
+        foreach (iterator_to_array($node->childNodes) as $child) {
+            if ($child instanceof \DOMText || $child instanceof \DOMCdataSection) {
+                continue;
+            }
+            if (!$child instanceof \DOMElement) {
+                $node->removeChild($child);
+                continue;
+            }
+            if (!in_array(strtolower($child->tagName), $allowedTags, true)) {
+                // Unwrap: keep the text content, drop the tag itself.
+                while ($child->firstChild) {
+                    $node->insertBefore($child->firstChild, $child);
+                }
+                $node->removeChild($child);
+                continue;
+            }
+
+            foreach (iterator_to_array($child->attributes ?? []) as $attr) {
+                if (strtolower($child->tagName) === 'a' && strtolower($attr->name) === 'href') {
+                    $scheme = strtolower((string)parse_url($attr->value, PHP_URL_SCHEME));
+                    $hasScheme = $scheme !== '';
+                    if ($hasScheme && !in_array($scheme, $allowedSchemes, true)) {
+                        $child->removeAttribute($attr->name);
+                    }
+                    continue;
+                }
+                $child->removeAttribute($attr->name);
+            }
+            if (strtolower($child->tagName) === 'a') {
+                $child->setAttribute('rel', 'noopener noreferrer nofollow ugc');
+                $child->setAttribute('target', '_blank');
+            }
+
+            $this->sanitizeNode($doc, $child, $allowedTags, $allowedSchemes);
+        }
     }
 
     /** Valide un code couleur hexadécimal (#rgb, #rrggbb…) ; retourne une valeur par défaut sinon. */

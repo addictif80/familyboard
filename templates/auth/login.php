@@ -14,6 +14,7 @@ ob_start();
     <?php endif; ?>
 
     <form method="POST" action="<?= BASE_URL ?>/login" class="auth-form">
+        <?= \App\Core\Csrf::field() ?>
         <div class="form-group">
             <label>Email</label>
             <input type="email" name="email" required autofocus placeholder="votre@email.fr">

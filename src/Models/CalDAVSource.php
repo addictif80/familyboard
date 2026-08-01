@@ -50,10 +50,11 @@ class CalDAVSource
         // Un calendrier CalDAV est un service externe (Google, iCloud, Nextcloud...), jamais une
         // adresse interne : on refuse tout ce qui ne résout pas vers une IP publique, pour éviter
         // qu'une URL de calendrier ne serve à faire sonder le réseau local par le serveur (SSRF).
-        if (!self::isSafePublicUrl($url)) return [];
+        $pinnedIp = self::safePublicIp($url);
+        if ($pinnedIp === null) return [];
 
         if (function_exists('curl_init')) {
-            $data = self::curlGet($url, $source['username'] ?? null, $source['password'] ?? null);
+            $data = self::curlGet($url, $source['username'] ?? null, $source['password'] ?? null, $pinnedIp);
         } else {
             $ctx = stream_context_create([
                 'http' => [
@@ -73,34 +74,45 @@ class CalDAVSource
     }
 
     /** Rejette les schémas non-HTTP(S) et toute résolution DNS vers une plage privée/loopback/
-     *  link-local — cette vérification doit être refaite après chaque redirection potentielle
-     *  (CURLOPT_FOLLOWLOCATION), donc pas suffisante seule : voir aussi le callback CURLOPT_ dans
-     *  curlGet() qui revalide l'IP de connexion réelle. */
-    private static function isSafePublicUrl(string $url): bool
+     *  link-local, et retourne l'IP publique validée (ou null si le contrôle échoue). Le
+     *  résultat est ensuite épinglé sur la requête réelle (CURLOPT_RESOLVE, voir curlGet()) :
+     *  sans ça, un domaine attaquant avec un TTL DNS très court pourrait présenter une IP
+     *  publique à ce moment précis, puis une IP interne au moment de curl_exec() (DNS
+     *  rebinding) — refaire la résolution DNS dans curl_init($url) n'offrirait aucune garantie
+     *  que c'est la même IP qui a été validée ici. */
+    private static function safePublicIp(string $url): ?string
     {
         $parts = parse_url($url);
         if (!$parts || !in_array($parts['scheme'] ?? '', ['http', 'https'], true) || empty($parts['host'])) {
-            return false;
+            return null;
         }
         $host = $parts['host'];
         $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : (gethostbyname($host) !== $host ? gethostbyname($host) : null);
-        if ($ip === null) return false;
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+        if ($ip === null) return null;
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false ? $ip : null;
     }
 
-    private static function curlGet(string $url, ?string $user, ?string $pass): string|false
+    private static function curlGet(string $url, ?string $user, ?string $pass, string $pinnedIp): string|false
     {
+        $parts = parse_url($url);
+        $scheme = $parts['scheme'] ?? 'https';
+        $port = $parts['port'] ?? ($scheme === 'https' ? 443 : 80);
+        $host = $parts['host'];
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             // Pas de redirection automatique : une redirection HTTP pourrait pointer vers une
             // adresse interne alors que l'URL d'origine, elle, a passé la vérification
-            // isSafePublicUrl() — on préfère ne pas suivre plutôt que rouvrir la faille.
+            // safePublicIp() — on préfère ne pas suivre plutôt que rouvrir la faille.
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_TIMEOUT        => 20,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_USERAGENT      => 'FamilyBoard/1.0',
+            // Épingle la connexion sur l'IP déjà validée par safePublicIp() plutôt que de
+            // laisser curl refaire sa propre résolution DNS (fenêtre de DNS rebinding).
+            CURLOPT_RESOLVE        => ["$host:$port:$pinnedIp"],
         ]);
         if ($user) {
             curl_setopt($ch, CURLOPT_USERPWD, $user . ':' . ($pass ?? ''));

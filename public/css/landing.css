@@ -25,6 +25,8 @@
   box-shadow: 0 4px 14px rgba(201,154,68,.35);
 }
 .landing-nav-actions { display: flex; align-items: center; gap: .6rem; }
+.landing-nav-link { color: var(--text-muted); text-decoration: none; font-size: .88rem; font-weight: 500; padding: 0 .3rem; }
+.landing-nav-link:hover { color: var(--text); }
 .theme-toggle-landing {
   background: none; border: 1px solid var(--border); cursor: pointer; border-radius: var(--radius-sm);
   width: 2.3rem; height: 2.3rem; display: flex; align-items: center; justify-content: center; font-size: 1rem; color: var(--text);

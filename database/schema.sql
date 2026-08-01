@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS families (
     invite_code      VARCHAR(20)   NOT NULL UNIQUE,
     timezone         VARCHAR(50)   NOT NULL DEFAULT 'Europe/Paris',
     weather_city     VARCHAR(100)  NULL DEFAULT NULL,
-    go2rtc_url       VARCHAR(255)  NULL DEFAULT NULL,
     strix_url        VARCHAR(255)  NULL DEFAULT NULL,
     disabled_modules        JSON          NULL DEFAULT NULL,
     caldav_sync_interval    SMALLINT      NULL DEFAULT NULL,
@@ -376,26 +375,6 @@ CREATE TABLE IF NOT EXISTS document_members (
 -- Rattache les documents existants à leur propriétaire
 INSERT IGNORE INTO document_members (document_id, user_id)
 SELECT id, user_id FROM documents WHERE user_id IS NOT NULL;
-
--- ── Caméras IP ────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS cameras (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    family_id   INT          NOT NULL,
-    user_id     INT          NOT NULL,
-    name        VARCHAR(150) NOT NULL,
-    host        VARCHAR(255) NOT NULL,
-    stream_url  TEXT         NULL DEFAULT NULL,
-    stream_type ENUM('mjpeg','snapshot','hls','rtsp','other') NOT NULL DEFAULT 'other',
-    username    VARCHAR(100) NULL DEFAULT NULL,
-    password    VARCHAR(255) NULL DEFAULT NULL,
-    model       VARCHAR(150) NULL DEFAULT NULL,
-    notes       TEXT         NULL DEFAULT NULL,
-    sort_order  INT          NOT NULL DEFAULT 0,
-    created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id)   REFERENCES users(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- ── Invitations & e-mails ─────────────────────────────────────
 CREATE TABLE IF NOT EXISTS invitation_tokens (
     id         INT AUTO_INCREMENT PRIMARY KEY,
@@ -470,7 +449,6 @@ CREATE TABLE IF NOT EXISTS notifications (
 ALTER TABLE families ADD COLUMN IF NOT EXISTS timezone         VARCHAR(50)  NOT NULL DEFAULT 'Europe/Paris';
 ALTER TABLE families ADD COLUMN IF NOT EXISTS weather_city     VARCHAR(100) NULL DEFAULT NULL;
 ALTER TABLE families ADD COLUMN IF NOT EXISTS strix_url        VARCHAR(255) NULL DEFAULT NULL;
-ALTER TABLE families ADD COLUMN IF NOT EXISTS go2rtc_url       VARCHAR(255) NULL DEFAULT NULL;
 ALTER TABLE families ADD COLUMN IF NOT EXISTS disabled_modules     JSON     NULL DEFAULT NULL;
 ALTER TABLE families ADD COLUMN IF NOT EXISTS caldav_sync_interval SMALLINT NULL DEFAULT NULL;
 

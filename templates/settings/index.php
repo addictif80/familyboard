@@ -51,7 +51,11 @@ ob_start();
             </div>
             <div class="form-group">
                 <label>Nouveau mot de passe (laisser vide pour ne pas changer)</label>
-                <input type="password" name="password" minlength="6" placeholder="••••••••">
+                <input type="password" name="password" minlength="8" placeholder="••••••••" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label>Mot de passe actuel (requis uniquement pour changer le mot de passe)</label>
+                <input type="password" name="current_password" placeholder="••••••••" autocomplete="current-password">
             </div>
             <button type="submit" class="btn btn-primary">Enregistrer</button>
         </form>
@@ -257,16 +261,6 @@ ob_start();
                         Zone détectée d'après votre ville : <strong>Zone <?= htmlspecialchars($suggestedZone) ?></strong>.
                     <?php endif; ?>
                     Zone A : Lyon, Bordeaux, Grenoble… · Zone B : Marseille, Nantes, Lille… · Zone C : Paris, Toulouse, Montpellier…
-                </small>
-            </div>
-            <div class="form-group">
-                <label>🎥 URL go2rtc (lecture RTSP en direct)</label>
-                <input type="url" name="go2rtc_url"
-                       value="<?= htmlspecialchars($family['go2rtc_url'] ?? '') ?>"
-                       placeholder="http://192.168.1.10:1984">
-                <small style="color:var(--text-muted)">
-                    Le flux passe par PHP — <code>http://127.0.0.1:1984</code> fonctionne si go2rtc tourne sur le même serveur.<br>
-                    Démarrer avec Docker : <code>docker run -d --network=host alexxit/go2rtc</code>
                 </small>
             </div>
             <div class="form-group">

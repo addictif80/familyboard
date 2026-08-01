@@ -4,3 +4,4 @@ public/uploads/*
 *.log
 .DS_Store
 /vendor/
+/storage/app_key.bin

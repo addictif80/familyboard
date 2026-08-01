@@ -362,184 +362,6 @@ $todayStr = date('Y-m-d');
     /* ── Cursor hide ── */
     body.no-cursor, body.no-cursor * { cursor: none !important; }
 
-    /* ── Camera wall button ── */
-    .fw-cam-btn {
-        background: rgba(255,255,255,.15);
-        color: #fff;
-        border: 1px solid rgba(255,255,255,.3);
-        border-radius: 7px;
-        padding: .3rem .7rem;
-        font-size: .8rem;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: all .15s;
-    }
-    .fw-cam-btn:hover, .fw-cam-btn.active {
-        background: rgba(255,255,255,.3);
-        border-color: rgba(255,255,255,.7);
-    }
-
-    /* ── Camera panel overlay ── */
-    #fw-cam-panel {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,.92);
-        z-index: 500;
-        flex-direction: column;
-    }
-    #fw-cam-panel.open { display: flex; }
-
-    .fw-cam-panel-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: .75rem 1.25rem;
-        border-bottom: 1px solid rgba(255,255,255,.12);
-        flex-shrink: 0;
-    }
-    .fw-cam-panel-title {
-        color: #fff;
-        font-size: 1rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: .5rem;
-    }
-    .fw-cam-panel-close {
-        background: none;
-        border: 1px solid rgba(255,255,255,.3);
-        color: #fff;
-        border-radius: 6px;
-        padding: .3rem .75rem;
-        cursor: pointer;
-        font-size: .82rem;
-    }
-    .fw-cam-panel-close:hover { background: rgba(255,255,255,.12); }
-
-    .fw-cam-panel-grid {
-        flex: 1;
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: .75rem;
-        padding: .75rem 1.25rem;
-        overflow-y: auto;
-        align-content: start;
-    }
-
-    .fw-cam-tile {
-        background: #111;
-        border-radius: 10px;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        border: 1px solid rgba(255,255,255,.08);
-    }
-    .fw-cam-tile-header {
-        padding: .4rem .65rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: rgba(255,255,255,.05);
-    }
-    .fw-cam-tile-name {
-        color: #fff;
-        font-size: .8rem;
-        font-weight: 600;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .fw-cam-tile-expand {
-        background: rgba(255,255,255,.12);
-        border: none;
-        color: #fff;
-        border-radius: 4px;
-        padding: .15rem .4rem;
-        cursor: pointer;
-        font-size: .8rem;
-        flex-shrink: 0;
-        margin-left: .5rem;
-    }
-    .fw-cam-tile-expand:hover { background: rgba(255,255,255,.25); }
-
-    .fw-cam-tile-preview {
-        position: relative;
-        background: #000;
-        min-height: 180px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .fw-cam-tile-preview img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        display: block;
-    }
-    .fw-cam-tile-status {
-        color: rgba(255,255,255,.65);
-        font-size: .78rem;
-        text-align: center;
-        padding: .5rem;
-    }
-    .fw-cam-tile-status span { display: block; font-size: 1.3rem; margin-bottom: .2rem; }
-
-    /* ── Camera fullscreen modal ── */
-    #fw-cam-fs {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,.97);
-        z-index: 600;
-        flex-direction: column;
-    }
-    #fw-cam-fs.open { display: flex; }
-
-    .fw-cam-fs-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: .6rem 1.25rem;
-        flex-shrink: 0;
-    }
-    .fw-cam-fs-title {
-        color: #fff;
-        font-size: 1.1rem;
-        font-weight: 600;
-    }
-    .fw-cam-fs-close {
-        background: none;
-        border: 1px solid rgba(255,255,255,.35);
-        color: #fff;
-        border-radius: 6px;
-        padding: .3rem .8rem;
-        cursor: pointer;
-        font-size: .85rem;
-    }
-    .fw-cam-fs-close:hover { background: rgba(255,255,255,.12); }
-
-    .fw-cam-fs-body {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        padding: 0 1rem 1rem;
-    }
-    .fw-cam-fs-body video,
-    .fw-cam-fs-body img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain;
-        border-radius: 8px;
-    }
-    .fw-cam-fs-loading {
-        color: rgba(255,255,255,.6);
-        font-size: 1rem;
-        text-align: center;
-    }
-
     /* ── Responsive ── */
     @media (max-width: 960px) {
         .fw-grid { grid-template-columns: 1.5fr 1.5fr; overflow-y: auto; }
@@ -574,9 +396,6 @@ $todayStr = date('Y-m-d');
                 <span id="fwWTemp"></span>
                 <span class="fw-weather-city" id="fwWCity"></span>
             </div>
-            <?php if (!empty($wallCameras)): ?>
-            <button class="fw-cam-btn" id="fwCamBtn" onclick="toggleWallCams()">🎥 Caméras</button>
-            <?php endif; ?>
             <a href="<?= BASE_URL ?>/" class="fw-exit">← Retour</a>
         </div>
     </header>
@@ -780,49 +599,10 @@ $todayStr = date('Y-m-d');
 
 </div><!-- .fw-wrap -->
 
-<?php if (!empty($wallCameras)): ?>
-<!-- ══ PANNEAU CAMÉRAS ══════════════════════════════════════ -->
-<div id="fw-cam-panel">
-    <div class="fw-cam-panel-header">
-        <div class="fw-cam-panel-title">🎥 Caméras en direct</div>
-        <button class="fw-cam-panel-close" onclick="closeWallCams()">✕ Fermer</button>
-    </div>
-    <div class="fw-cam-panel-grid" id="fw-cam-grid">
-        <?php foreach ($wallCameras as $cam): ?>
-        <div class="fw-cam-tile" id="fw-tile-<?= $cam['id'] ?>">
-            <div class="fw-cam-tile-header">
-                <span class="fw-cam-tile-name"><?= htmlspecialchars($cam['name']) ?></span>
-                <button class="fw-cam-tile-expand"
-                        title="Plein écran avec son"
-                        onclick="openWallCamFs(<?= $cam['id'] ?>, <?= htmlspecialchars(json_encode($cam['name'])) ?>)">⛶</button>
-            </div>
-            <div class="fw-cam-tile-preview" id="fw-preview-<?= $cam['id'] ?>">
-                <div class="fw-cam-tile-status" id="fw-status-<?= $cam['id'] ?>">
-                    <span>⏳</span>Connexion…
-                </div>
-            </div>
-        </div>
-        <?php endforeach; ?>
-    </div>
-</div>
-
-<!-- ══ CAMÉRA PLEIN ÉCRAN (avec son HLS) ══════════════════ -->
-<div id="fw-cam-fs">
-    <div class="fw-cam-fs-header">
-        <span class="fw-cam-fs-title" id="fw-cam-fs-title">Caméra</span>
-        <button class="fw-cam-fs-close" onclick="closeWallCamFs()">✕ Fermer</button>
-    </div>
-    <div class="fw-cam-fs-body" id="fw-cam-fs-body">
-        <div class="fw-cam-fs-loading">⏳ Chargement…</div>
-    </div>
-</div>
-<?php endif; ?>
-
 <script>
 const BASE_URL     = <?= json_encode(BASE_URL) ?>;
 const APP_TIMEZONE = <?= json_encode(APP_TIMEZONE) ?>;
 const WALL_WEATHER_CITY = <?= json_encode($weatherCity ?? '') ?>;
-const WALL_CAMERAS = <?= json_encode(array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name']], $wallCameras ?? [])) ?>;
 </script>
 <script src="<?= ASSETS_URL ?>/js/app.js?v=<?= APP_VERSION ?>"></script>
 <script src="<?= ASSETS_URL ?>/js/family-wall.js?v=<?= APP_VERSION ?>"></script>

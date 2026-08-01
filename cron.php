@@ -29,6 +29,8 @@ use App\Models\EmailContent;
 use App\Models\EmailLog;
 use App\Models\CalDAVSource;
 use App\Models\Notification;
+use App\Models\LocationCheckin;
+use App\Models\SupportTicket;
 use App\Core\EmailLayout;
 
 $appUrl = (getenv('APP_URL') ?: 'https://board.abhd.fr') . BASE_URL;
@@ -66,6 +68,16 @@ foreach ($families as $family) {
     sendTaskReminders($familyId, $members, $appUrl);
     sendShoppingReminders($familyId, $membersExcludingCoparent, $appUrl);
     sendRecurringAlerts($familyId, $appUrl);
+}
+
+// Purges RGPD (minimisation / durée de conservation) — voir LocationCheckin::purgeExpired()
+// et SupportTicket::purgeClosedOlderThan() pour le raisonnement.
+try {
+    $purgedLocations = LocationCheckin::purgeExpired();
+    $purgedTickets = SupportTicket::purgeClosedOlderThan();
+    echo "  → Purge RGPD : $purgedLocations check-in(s) position, $purgedTickets ticket(s) support clos anciens" . PHP_EOL;
+} catch (\Throwable $e) {
+    error_log('Purge RGPD error: ' . $e->getMessage());
 }
 
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;

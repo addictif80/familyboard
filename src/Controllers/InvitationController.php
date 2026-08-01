@@ -36,6 +36,11 @@ class InvitationController extends BaseController
     public function accept(array $params): void
     {
         $token = $params['token'] ?? '';
+        if (!\App\Core\Csrf::verify()) {
+            Session::flash('error', 'Session expirée, veuillez réessayer.');
+            header('Location: ' . BASE_URL . '/invite/' . $token);
+            exit;
+        }
         $invitation = Invitation::getByToken($token);
         if (!$invitation) {
             header('Location: ' . BASE_URL . '/login');
@@ -45,8 +50,14 @@ class InvitationController extends BaseController
         $name     = trim($_POST['name'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        if (!$name || strlen($password) < 6) {
-            Session::flash('error', 'Nom requis et mot de passe minimum 6 caractères.');
+        if (!$name || !$password) {
+            Session::flash('error', 'Nom et mot de passe requis.');
+            header('Location: ' . BASE_URL . '/invite/' . $token);
+            exit;
+        }
+
+        if (empty($_POST['accept_terms'])) {
+            Session::flash('error', 'Vous devez accepter les CGU et la politique de confidentialité.');
             header('Location: ' . BASE_URL . '/invite/' . $token);
             exit;
         }
@@ -100,6 +111,11 @@ class InvitationController extends BaseController
         }
 
         // Create new account
+        if (strlen($password) < 8) {
+            Session::flash('error', 'Le mot de passe doit faire au moins 8 caractères.');
+            header('Location: ' . BASE_URL . '/invite/' . $token);
+            exit;
+        }
         $colors = ['#4A90D9', '#E74C3C', '#27AE60', '#F39C12', '#8E44AD', '#16A085'];
         $color = $colors[array_rand($colors)];
         $role = $isCoparent ? 'coparent' : 'member';

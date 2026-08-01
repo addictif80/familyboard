@@ -14,6 +14,7 @@ ob_start();
     <?php endif; ?>
 
     <form method="POST" action="<?= BASE_URL ?>/register" class="auth-form">
+        <?= \App\Core\Csrf::field() ?>
         <div class="form-group">
             <label>Votre prénom / nom</label>
             <input type="text" name="name" required autofocus placeholder="Marie Dupont">
@@ -23,8 +24,8 @@ ob_start();
             <input type="email" name="email" required placeholder="votre@email.fr">
         </div>
         <div class="form-group">
-            <label>Mot de passe (min. 6 caractères)</label>
-            <input type="password" name="password" required minlength="6" placeholder="••••••••">
+            <label>Mot de passe (min. 8 caractères)</label>
+            <input type="password" name="password" required minlength="8" placeholder="••••••••" autocomplete="new-password">
         </div>
 
         <hr class="divider">
@@ -55,6 +56,16 @@ ob_start();
                 <label>Code d'invitation</label>
                 <input type="text" name="invite_code" placeholder="XXXXXXXX" value="<?= htmlspecialchars($inviteCode ?? '') ?>" id="invite-code-input" style="text-transform:uppercase;letter-spacing:2px">
             </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="form-group">
+            <label class="radio-option" style="align-items:flex-start">
+                <input type="checkbox" name="accept_terms" value="1" required style="margin-top:.2rem">
+                <span>J'accepte les <a href="<?= BASE_URL ?>/cgu" target="_blank">conditions générales d'utilisation</a>
+                    et la <a href="<?= BASE_URL ?>/confidentialite" target="_blank">politique de confidentialité</a> de cette instance.</span>
+            </label>
         </div>
 
         <button type="submit" class="btn btn-primary btn-full">S'inscrire</button>

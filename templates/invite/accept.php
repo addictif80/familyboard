@@ -42,13 +42,21 @@ ob_start();
         <?php endif; ?>
 
         <form method="POST" action="<?= BASE_URL ?>/invite/<?= htmlspecialchars($invitation['token']) ?>">
+            <?= \App\Core\Csrf::field() ?>
             <div class="form-group">
                 <label>Votre prénom / nom</label>
                 <input type="text" name="name" required autofocus placeholder="Marie Dupont" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
             </div>
             <div class="form-group">
                 <label>Créer un mot de passe</label>
-                <input type="password" name="password" required minlength="6" placeholder="Minimum 6 caractères">
+                <input type="password" name="password" required placeholder="Mot de passe existant, ou nouveau mot de passe (min. 8 caractères)" autocomplete="current-password">
+            </div>
+            <div class="form-group">
+                <label class="radio-option" style="align-items:flex-start">
+                    <input type="checkbox" name="accept_terms" value="1" required style="margin-top:.2rem">
+                    <span>J'accepte les <a href="<?= BASE_URL ?>/cgu" target="_blank">conditions générales d'utilisation</a>
+                        et la <a href="<?= BASE_URL ?>/confidentialite" target="_blank">politique de confidentialité</a> de cette instance.</span>
+                </label>
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%">
                 <?= $isCoparent ? "Activer l'accès" : 'Rejoindre la famille' ?>

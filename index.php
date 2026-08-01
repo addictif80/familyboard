@@ -19,6 +19,7 @@ use App\Core\Session;
 use App\Core\Router;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
+use App\Controllers\LegalController;
 use App\Controllers\CalendarController;
 use App\Controllers\WallController;
 use App\Controllers\AlbumController;
@@ -36,7 +37,6 @@ use App\Controllers\SupportController;
 use App\Controllers\WarrantyController;
 use App\Controllers\DocumentController;
 use App\Controllers\FamilyWallController;
-use App\Controllers\CameraController;
 use App\Controllers\BabyController;
 use App\Controllers\PushController;
 use App\Controllers\LocationController;
@@ -184,6 +184,11 @@ $router->get('/logout', [AuthController::class, 'logout']);
 $router->get('/login/2fa', [AuthController::class, 'showTwoFactor']);
 $router->post('/login/2fa', [AuthController::class, 'verifyTwoFactor']);
 $router->post('/login/2fa/resend', [AuthController::class, 'resendTwoFactorEmail']);
+
+// Pages publiques (accessibles sans compte)
+$router->get('/confidentialite', [LegalController::class, 'privacy']);
+$router->get('/cgu', [LegalController::class, 'terms']);
+$router->get('/faq', [LegalController::class, 'faq']);
 
 // Dashboard
 $router->get('/', [DashboardController::class, 'index']);
@@ -337,6 +342,8 @@ $router->post('/admin/notifications/send', [AdminController::class, 'sendSystemN
 $router->post('/admin/meteofrance-key', [AdminController::class, 'updateMeteoFranceKey']);
 $router->post('/admin/meteofrance-key/test', [AdminController::class, 'testMeteoFranceKey']);
 $router->post('/admin/2fa-policy', [AdminController::class, 'updateTwoFactorPolicy']);
+$router->post('/admin/legal', [AdminController::class, 'updateLegalContent']);
+$router->post('/admin/legal/:type/reset', [AdminController::class, 'resetLegalContent']);
 
 // Support (user-facing)
 $router->get('/support', [SupportController::class, 'index']);
@@ -352,16 +359,6 @@ $router->post('/api/contacts', [ContactController::class, 'create']);
 $router->post('/api/contacts/:id', [ContactController::class, 'update']);
 $router->post('/api/contacts/:id/delete', [ContactController::class, 'delete']);
 $router->post('/api/contacts/:id/avatar', [ContactController::class, 'uploadAvatar']);
-
-// Cameras
-$router->get('/cameras', [CameraController::class, 'index']);
-$router->post('/api/cameras', [CameraController::class, 'create']);
-$router->post('/api/cameras/:id', [CameraController::class, 'update']);
-$router->post('/api/cameras/:id/delete', [CameraController::class, 'delete']);
-$router->post('/api/cameras/:id/go2rtc',         [CameraController::class, 'go2rtcRegister']);
-$router->get('/api/cameras/:id/go2rtc',          [CameraController::class, 'go2rtcStream']);
-$router->get('/api/cameras/:id/go2rtc/hls',      [CameraController::class, 'go2rtcHls']);
-$router->get('/api/cameras/:id/go2rtc/hls/seg',  [CameraController::class, 'go2rtcHlsSeg']);
 
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);
@@ -452,6 +449,8 @@ $router->post('/api/location/clear', [LocationController::class, 'clear']);
 // Emergency cards (fiches urgence)
 $router->get('/emergency', [EmergencyController::class, 'index']);
 $router->post('/api/emergency', [EmergencyController::class, 'save']);
+$router->post('/api/emergency/:id/regenerate-token', [EmergencyController::class, 'regenerateToken']);
+$router->get('/api/emergency/:id/access-log', [EmergencyController::class, 'accessLog']);
 $router->get('/emergency/public/:token', [EmergencyController::class, 'publicView']);
 
 // Journal parental (communication horodatée, immuable)

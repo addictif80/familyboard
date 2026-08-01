@@ -32,6 +32,7 @@
             <span><?= APP_NAME ?></span>
         </div>
         <div class="landing-nav-actions">
+            <a href="<?= BASE_URL ?>/faq" class="landing-nav-link">FAQ</a>
             <button class="theme-toggle-landing" onclick="toggleTheme()" title="Changer de thème" aria-label="Changer de thème">🌓</button>
             <a href="<?= BASE_URL ?>/login" class="btn btn-secondary">Se connecter</a>
             <a href="<?= BASE_URL ?>/register" class="btn btn-primary">Créer ma famille</a>
@@ -187,11 +188,6 @@
             'Recherche plein texte instantanée',
             'Partage ciblé pour un enfant en garde alternée',
         ]],
-        ['id' => 'cameras', 'icon' => '🎥', 'title' => 'Caméras', 'tagline' => 'Vos caméras IP, réunies dans une seule vue.', 'points' => [
-            'Compatible flux MJPEG, snapshot, HLS et RTSP (via go2rtc)',
-            'Accès rapide depuis le tableau de bord',
-            'Vos identifiants restent privés, jamais partagés à des tiers',
-        ]],
         ['id' => 'baby', 'icon' => '🍼', 'title' => 'Bébé & grossesse', 'tagline' => 'Le quotidien de bébé, suivi par les deux parents.', 'points' => [
             'Biberons, sommeil et changes en un geste',
             'Suivi de grossesse partagé',
@@ -322,6 +318,7 @@
 
     <footer class="landing-footer">
         <p>&copy; <?= date('Y') ?> <?= APP_NAME ?> — <a href="<?= BASE_URL ?>/login">Se connecter</a> · <a href="<?= BASE_URL ?>/register">Créer ma famille</a></p>
+        <p><a href="<?= BASE_URL ?>/faq">FAQ</a> · <a href="<?= BASE_URL ?>/confidentialite">Confidentialité</a> · <a href="<?= BASE_URL ?>/cgu">CGU</a></p>
     </footer>
 </div>
 <script src="<?= ASSETS_URL ?>/js/app.js?v=<?= APP_VERSION ?>"></script>
