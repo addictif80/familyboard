@@ -6,15 +6,11 @@ $sections = [
     'Généralités' => [
         [
             "Qu'est-ce que FamilyBoard ?",
-            "FamilyBoard est une application web familiale — l'équivalent libre et auto-hébergé de FamilyWall. Elle réunit calendrier partagé, mur familial, tâches, budget, garde alternée, documents et une dizaine d'autres modules dans un seul espace privé pour votre famille.",
+            "FamilyBoard est un service d'organisation familiale — l'équivalent de FamilyWall. Il réunit calendrier partagé, mur familial, tâches, budget, garde alternée, documents et une dizaine d'autres modules dans un seul espace privé pour votre famille.",
         ],
         [
-            "Est-ce gratuit ?",
-            "FamilyBoard est un logiciel libre. Le coût éventuel dépend uniquement de la personne ou de l'organisation qui héberge cette instance précise (hébergement du serveur) — l'application elle-même n'a pas de licence payante ni d'abonnement intégré.",
-        ],
-        [
-            "Mes données sont-elles hébergées par une grande entreprise ?",
-            "Non. FamilyBoard est auto-hébergé : cette instance tourne sur un serveur choisi par son administrateur, pas sur une infrastructure commune à tous les utilisateurs de FamilyBoard dans le monde. Les détails (responsable du traitement, contact) sont dans la " . "<a href=\"" . BASE_URL . "/confidentialite\">politique de confidentialité</a>.",
+            "Qui gère mes données ?",
+            "FamilyBoard est édité et opéré par son administrateur, qui est responsable du traitement de vos données au sens du RGPD. Les détails (identité, contact, finalités) sont dans la " . "<a href=\"" . BASE_URL . "/confidentialite\">politique de confidentialité</a>.",
         ],
         [
             "Puis-je installer FamilyBoard comme une application sur mon téléphone ?",
@@ -132,11 +128,11 @@ $sections = [
         ],
         [
             "Qu'est-ce que la double authentification (2FA) ?",
-            "Une couche de sécurité supplémentaire au moment de la connexion, par code d'application d'authentification (TOTP) ou par code envoyé par e-mail. Activable depuis Paramètres → Sécurité ; l'administrateur système peut aussi la rendre obligatoire pour toute l'instance, avec un délai de grâce avant blocage.",
+            "Une couche de sécurité supplémentaire au moment de la connexion, par code d'application d'authentification (TOTP) ou par code envoyé par e-mail. Activable depuis Paramètres → Sécurité ; l'administrateur système peut aussi la rendre obligatoire pour tous les utilisateurs du service, avec un délai de grâce avant blocage.",
         ],
         [
             "Que se passe-t-il si je perds l'accès à mon appareil 2FA ?",
-            "Contactez l'administrateur de votre famille ou le support de l'instance : une désactivation manuelle de la 2FA peut être nécessaire pour retrouver l'accès.",
+            "Contactez l'administrateur de votre famille ou le support : une désactivation manuelle de la 2FA peut être nécessaire pour retrouver l'accès.",
         ],
         [
             "Comment signaler un problème technique ?",
