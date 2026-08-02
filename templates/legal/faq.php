@@ -50,7 +50,11 @@ $sections = [
     'Vie de famille' => [
         [
             "📸 Mur familial",
-            "Un fil d'actualité privé pour publier des messages et des photos, réagir avec des emoji et commenter — comme un réseau social, mais réservé à votre famille.",
+            "Un vrai petit réseau social réservé à votre famille (hors accès co-parent). Chaque publication est soit personnelle — visible seulement par les membres qui vous suivent, une fois votre demande d'abonnement acceptée —, soit « au nom de la famille » — visible par tous, mais soumise à la validation d'un administrateur avant publication. Réactions, commentaires, et partage direct de vos propres photos d'album sur le mur.",
+        ],
+        [
+            "✉️ Messages privés",
+            "Une conversation à deux n'est possible qu'entre membres qui se suivent mutuellement — pas de message privé non sollicité. Distinct du Chat familial, qui reste une messagerie de groupe visible par toute la famille.",
         ],
         [
             "🖼️ Albums photo",

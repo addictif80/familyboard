@@ -136,7 +136,8 @@ class DashboardController extends \App\Controllers\BaseController
             case 'calendar':
                 return ['events' => Event::getUpcoming($familyId)];
             case 'wall':
-                return ['posts' => Post::getByFamily($familyId, 5)];
+                $visibleAuthorIds = \App\Models\Follow::getVisibleAuthorIds((int)$user['id']);
+                return ['posts' => Post::getVisibleForUser($familyId, (int)$user['id'], $visibleAuthorIds, 5)];
             case 'tasks':
                 $lists = TaskList::getByFamily($familyId);
                 $pending = [];

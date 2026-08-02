@@ -708,6 +708,11 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 
 /* ---- Wall ---- */
 .wall-container { max-width: 680px; margin: 0 auto; }
+.wall-toolbar { display: flex; gap: .6rem; justify-content: flex-end; margin-bottom: 1rem; flex-wrap: wrap; }
+.post-type-select { padding: .4rem .6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: .82rem; }
+.member-row { display: flex; align-items: center; gap: .6rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+.member-row:last-child { border-bottom: none; }
+.member-row-name { flex: 1; font-size: .88rem; display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
 .post-form-card { margin-bottom: 1rem; }
 .post-input-row { display: flex; gap: .75rem; align-items: flex-start; }
 .post-quill-wrap { flex: 1; min-width: 0; }

@@ -73,6 +73,9 @@ class DataExport
         'sondages_crees'         => ['polls', 'user_id'],
         'votes_sondages'         => ['poll_votes', 'user_id'],
         'liens_proposes'         => ['portal_links', 'submitted_by'],
+        'abonnements_suivis'     => ['follows', 'follower_id'],
+        'abonnes'                => ['follows', 'followee_id'],
+        'messages_prives_envoyes'=> ['dm_messages', 'sender_id'],
     ];
 
     /**

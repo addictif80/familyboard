@@ -174,3 +174,15 @@ function albumCopyPublicLink() {
     input.select();
     navigator.clipboard?.writeText(input.value).then(() => Dialog.toast('Lien copié.', 'success'));
 }
+
+// ---- Partage vers le mur familial ----
+
+async function shareToWall(photoId) {
+    const caption = window.prompt('Légende (optionnelle) pour cette publication sur le mur :') || '';
+    const r = await apiFetch(BASE_URL + '/api/wall/share-photo', { method: 'POST', body: JSON.stringify({ photo_id: photoId, caption }) });
+    if (r.success) {
+        Dialog.toast('Photo partagée sur le mur !');
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}

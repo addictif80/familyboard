@@ -46,6 +46,9 @@ ob_start();
             <img src="<?= BASE_URL . htmlspecialchars($photo['image_path']) ?>" alt="" loading="lazy" onclick="albumViewPhoto(this.src)">
             <div class="album-photo-meta">
                 <span title="<?= htmlspecialchars($photoAuthor) ?>" style="color:<?= htmlspecialchars($photoColor) ?>">● <?= htmlspecialchars($photoAuthor) ?></span>
+                <?php if ((int)$photo['user_id'] === (int)$user['id']): ?>
+                    <button class="album-photo-delete" onclick="shareToWall(<?= (int)$photo['id'] ?>)" title="Partager sur le mur">📤</button>
+                <?php endif; ?>
                 <?php if ($canDeletePhoto): ?>
                     <button class="album-photo-delete" onclick="albumDeletePhoto(<?= (int)$photo['id'] ?>, this)" title="Supprimer">✕</button>
                 <?php endif; ?>

@@ -22,6 +22,8 @@ use App\Controllers\DashboardController;
 use App\Controllers\LegalController;
 use App\Controllers\CalendarController;
 use App\Controllers\WallController;
+use App\Controllers\FollowController;
+use App\Controllers\DirectMessageController;
 use App\Controllers\AlbumController;
 use App\Controllers\TaskController;
 use App\Controllers\ChatController;
@@ -218,6 +220,21 @@ $router->post('/api/wall/:id/update', [WallController::class, 'update']);
 $router->post('/api/wall/:id/comment', [WallController::class, 'addComment']);
 $router->post('/api/wall/:id/react', [WallController::class, 'toggleReaction']);
 $router->get('/api/wall/more', [WallController::class, 'loadMore']);
+$router->post('/wall/:id/approve', [WallController::class, 'approve']);
+$router->post('/wall/:id/reject', [WallController::class, 'reject']);
+$router->post('/api/wall/share-photo', [WallController::class, 'sharePhoto']);
+
+// Abonnements (mur familial "réseau social")
+$router->post('/api/follow/request', [FollowController::class, 'request']);
+$router->post('/api/follow/accept', [FollowController::class, 'accept']);
+$router->post('/api/follow/remove', [FollowController::class, 'removeAsFollower']);
+$router->post('/api/follow/remove-follower', [FollowController::class, 'removeFollower']);
+
+// Messages privés (entre membres qui se suivent mutuellement)
+$router->get('/messages', [DirectMessageController::class, 'inbox']);
+$router->get('/messages/:userId', [DirectMessageController::class, 'thread']);
+$router->post('/api/messages/:userId/send', [DirectMessageController::class, 'send']);
+$router->get('/api/messages/:userId/poll', [DirectMessageController::class, 'poll']);
 
 // Albums photo
 $router->get('/albums', [AlbumController::class, 'index']);

@@ -10,7 +10,8 @@ sein du service), installable comme PWA sur mobile et ordinateur.
 |--------|-------------|
 | 🏠 **Tableau de bord** | Vue d'ensemble : prochains événements, tâches en cours, solde du mois |
 | 🖥️ **Vue famille** | Tableau de bord alternatif plein écran : météo, agenda, tâches, budget |
-| 📸 **Mur familial** | Publications, photos, réactions emoji et commentaires |
+| 📸 **Mur familial** | Réseau social interne (hors accès co-parent) : publications personnelles visibles par les abonnés acceptés, ou au nom de la famille validées par un admin ; abonnements mutuels, partage direct des photos d'album |
+| ✉️ **Messages privés** | Conversations 1-à-1 entre membres qui se suivent mutuellement, distinctes du Chat familial (groupe) |
 | 🖼️ **Albums photo** | Albums partagés, y compris avec un co-parent à accès restreint |
 | 📅 **Calendrier partagé** | Événements récurrents, import CalDAV/iCal (Google, Nextcloud, iCloud…) |
 | 👶 **Garde alternée** | Planning de garde par enfant, périodicité automatique, propositions de jours, journal parental, historique d'activité horodaté |
