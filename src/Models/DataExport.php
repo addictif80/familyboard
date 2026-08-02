@@ -38,6 +38,7 @@ class DataExport
         'tickets_support'            => 'support_tickets',
         'liste_cadeaux'              => 'wishlist_items',
         'sondages'                   => 'polls',
+        'portail_liens'              => 'portal_links',
     ];
 
     /**
@@ -71,6 +72,7 @@ class DataExport
         'cadeaux_reserves'       => ['wishlist_items', 'reserved_by'],
         'sondages_crees'         => ['polls', 'user_id'],
         'votes_sondages'         => ['poll_votes', 'user_id'],
+        'liens_proposes'         => ['portal_links', 'submitted_by'],
     ];
 
     /**
@@ -96,6 +98,7 @@ class DataExport
         'comm_log_messages' => 'audio_path',
         'babies'     => 'avatar',
         'contacts'   => 'avatar',
+        'portal_links' => 'image_path',
     ];
 
     /**
@@ -153,7 +156,7 @@ class DataExport
             if ($userId !== null) {
                 if (in_array($table, ['documents', 'warranties', 'posts', 'messages', 'comm_log_messages'], true)) {
                     $ownerCol = 'user_id';
-                } elseif ($table === 'babies' || $table === 'contacts') {
+                } elseif (in_array($table, ['babies', 'contacts', 'portal_links'], true)) {
                     continue; // ressources partagées, non attribuables à un seul membre
                 }
             }

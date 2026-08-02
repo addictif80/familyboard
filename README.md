@@ -21,6 +21,7 @@ sein du service), installable comme PWA sur mobile et ordinateur.
 | 📋 **Projets** | Gestion de projet : tâches kanban, budget, matériaux avec liens |
 | 🛡️ **Garanties** | Suivi des garanties produits avec OCR des factures |
 | 🗂️ **Documents** | Coffre-fort documentaire familial avec OCR et recherche plein texte |
+| 🔗 **Portail de liens** | Cartes avec aperçu du site, titre et nombre de clics ; ajout direct par l'admin, proposition par les membres et par un accès co-parent soumise à validation, lien vérifié automatiquement avant publication |
 | 👶 **Suivi bébé** | Biberons, couches, sommeil, croissance |
 | 🍽️ **Repas** | Planification des repas de la semaine, ingrédients de la semaine ajoutés à la liste de courses en un clic sans doublon |
 | 🎂 **Anniversaires** | Détection automatique (membres, bébés suivis, contacts), compte à rebours sur le tableau de bord, rappel e-mail J-7 |

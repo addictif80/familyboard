@@ -214,7 +214,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties')): ?>
+            <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties') || $_navEnabled('links')): ?>
             <li class="nav-section-label">Organisation</li>
             <?php endif; ?>
             <?php if ($_navEnabled('tasks')): ?>
@@ -254,6 +254,14 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                 <a href="<?= BASE_URL ?>/warranties" class="nav-link">
                     <span class="nav-icon">🛡️</span>
                     <span class="nav-label">Garanties</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('links')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/links') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/links" class="nav-link">
+                    <span class="nav-icon">🔗</span>
+                    <span class="nav-label">Portail de liens</span>
                 </a>
             </li>
             <?php endif; ?>

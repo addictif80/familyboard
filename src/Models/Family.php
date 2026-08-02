@@ -28,6 +28,7 @@ class Family
         'kiosk'       => ['label' => 'Écran mural (kiosque)', 'icon' => '🖥️'],
         'wishlist'    => ['label' => 'Liste de cadeaux',   'icon' => '🎁'],
         'polls'       => ['label' => 'Sondages familiaux', 'icon' => '🗳️'],
+        'links'       => ['label' => 'Portail de liens',   'icon' => '🔗'],
     ];
 
     public static function findById(int $id): ?array

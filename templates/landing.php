@@ -203,6 +203,11 @@
             'Recherche plein texte instantanée',
             'Partage ciblé pour un enfant en garde alternée',
         ]],
+        ['id' => 'links', 'icon' => '🔗', 'title' => 'Portail de liens', 'badge' => 'Nouveau', 'tagline' => 'Tous vos liens utiles, réunis dans de belles cartes.', 'points' => [
+            'Aperçu automatique du site, titre et nombre de clics',
+            'Propositions des membres soumises à validation',
+            'Liens dédiés visibles pour un accès co-parent',
+        ]],
         ['id' => 'baby', 'icon' => '🍼', 'title' => 'Bébé & grossesse', 'tagline' => 'Le quotidien de bébé, suivi par les deux parents.', 'points' => [
             'Biberons, sommeil et changes en un geste',
             'Suivi de grossesse partagé',

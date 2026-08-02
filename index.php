@@ -34,6 +34,7 @@ use App\Controllers\CoparentController;
 use App\Controllers\ContactController;
 use App\Controllers\WishlistController;
 use App\Controllers\PollController;
+use App\Controllers\PortalLinkController;
 use App\Controllers\AdminController;
 use App\Controllers\SupportController;
 use App\Controllers\WarrantyController;
@@ -298,6 +299,17 @@ $router->post('/api/coparent/events', [CoparentController::class, 'eventsCreate'
 $router->get('/api/coparent/albums', [CoparentController::class, 'albumsList']);
 $router->get('/api/coparent/albums/:id', [CoparentController::class, 'albumShow']);
 $router->post('/api/coparent/albums/:id/photos', [CoparentController::class, 'albumPhotoUpload']);
+$router->get('/api/coparent/links', [CoparentController::class, 'linksList']);
+$router->post('/api/coparent/links', [CoparentController::class, 'linksPropose']);
+
+// Portail de liens
+$router->get('/links', [PortalLinkController::class, 'index']);
+$router->post('/api/links', [PortalLinkController::class, 'create']);
+$router->post('/api/links/:id', [PortalLinkController::class, 'update']);
+$router->post('/api/links/:id/approve', [PortalLinkController::class, 'approve']);
+$router->post('/api/links/:id/reject', [PortalLinkController::class, 'reject']);
+$router->post('/api/links/:id/delete', [PortalLinkController::class, 'delete']);
+$router->get('/links/:id/go', [PortalLinkController::class, 'go']);
 
 // Projects
 $router->get('/projects', [ProjectController::class, 'index']);
