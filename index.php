@@ -35,6 +35,7 @@ use App\Controllers\ContactController;
 use App\Controllers\WishlistController;
 use App\Controllers\PollController;
 use App\Controllers\PortalLinkController;
+use App\Controllers\HighlightController;
 use App\Controllers\AdminController;
 use App\Controllers\SupportController;
 use App\Controllers\WarrantyController;
@@ -311,6 +312,9 @@ $router->post('/api/links/:id/reject', [PortalLinkController::class, 'reject']);
 $router->post('/api/links/:id/delete', [PortalLinkController::class, 'delete']);
 $router->get('/links/:id/go', [PortalLinkController::class, 'go']);
 
+// Mises en avant ABHD (redirection publique avec compteur de clic)
+$router->get('/highlights/:id/go', [HighlightController::class, 'go']);
+
 // Projects
 $router->get('/projects', [ProjectController::class, 'index']);
 $router->get('/api/projects/calendar', [ProjectController::class, 'apiCalendar']);
@@ -356,6 +360,9 @@ $router->post('/admin/notifications/send', [AdminController::class, 'sendSystemN
 $router->post('/admin/meteofrance-key', [AdminController::class, 'updateMeteoFranceKey']);
 $router->post('/admin/meteofrance-key/test', [AdminController::class, 'testMeteoFranceKey']);
 $router->post('/admin/2fa-policy', [AdminController::class, 'updateTwoFactorPolicy']);
+$router->post('/admin/highlights', [AdminController::class, 'createHighlight']);
+$router->post('/admin/highlights/:id', [AdminController::class, 'updateHighlight']);
+$router->post('/admin/highlights/:id/delete', [AdminController::class, 'deleteHighlight']);
 $router->post('/admin/legal', [AdminController::class, 'updateLegalContent']);
 $router->post('/admin/legal/:type/reset', [AdminController::class, 'resetLegalContent']);
 

@@ -13,6 +13,10 @@ $sections = [
             "FamilyBoard est édité et opéré par son administrateur, qui est responsable du traitement de vos données au sens du RGPD. Les détails (identité, contact, finalités) sont dans la " . "<a href=\"" . BASE_URL . "/confidentialite\">politique de confidentialité</a>.",
         ],
         [
+            "Y a-t-il de la publicité dans FamilyBoard ?",
+            "Aucune régie publicitaire tierce, aucun tracking, aucune revente de données. Vous pouvez occasionnellement voir un encart présentant un autre service proposé par ABHD (l'éditeur de FamilyBoard) — géré exclusivement par ABHD, sans lien avec une plateforme publicitaire externe.",
+        ],
+        [
             "Puis-je installer FamilyBoard comme une application sur mon téléphone ?",
             "Oui, sans passer par un store : depuis Paramètres → 📲 Installer l'application, un bouton propose l'installation directe (Android/Chrome) ou un guide pas-à-pas (iPhone/iPad via Safari → Partager → Sur l'écran d'accueil). L'app fonctionne ensuite hors-ligne partiellement et peut recevoir des notifications.",
         ],

@@ -10,6 +10,8 @@ ob_start();
     </div>
 <?php else: ?>
 
+<?php $placement = 'coparent'; require BASE_PATH . '/templates/partials/abhd_spotlight.php'; ?>
+
 <?php if ((\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
 <div class="card" style="padding:1.25rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
     <div>

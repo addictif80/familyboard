@@ -101,7 +101,11 @@ Les mots de passe sont chiffrés (bcrypt), les sessions sécurisées, et l'accè
 
 8. Cookies
 
-Seuls des cookies strictement nécessaires au fonctionnement (session, maintien de connexion) sont utilisés — aucun cookie de mesure d'audience ou de publicité.
+Seuls des cookies strictement nécessaires au fonctionnement (session, maintien de connexion) sont utilisés — aucun cookie de mesure d'audience ou de publicité tierce.
+
+9. Mises en avant des autres services ABHD
+
+FamilyBoard peut occasionnellement présenter, sur le tableau de bord, la page d'accueil de certains modules, l'espace co-parent et en pied des e-mails, un encart présentant un autre service proposé par ABHD (éditeur de FamilyBoard). Ce contenu est géré exclusivement par ABHD, jamais par une régie publicitaire tierce ni par un système de tracking : seul un compteur de clics agrégé (sans identification de l'utilisateur) est conservé. Il ne s'agit pas de publicité tierce ni de revente de vos données.
 TXT;
     }
 }
