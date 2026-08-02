@@ -22,6 +22,7 @@ sein du service), installable comme PWA sur mobile et ordinateur.
 | 🛡️ **Garanties** | Suivi des garanties produits avec OCR des factures |
 | 🗂️ **Documents** | Coffre-fort documentaire familial avec OCR et recherche plein texte |
 | 🔗 **Portail de liens** | Cartes avec aperçu du site, titre et nombre de clics ; ajout direct par l'admin, proposition par les membres et par un accès co-parent soumise à validation, lien vérifié automatiquement avant publication |
+| 🏢 **Mises en avant ABHD** | Encarts présentant d'autres services d'ABHD (éditeur de FamilyBoard) — tableau de bord, page d'accueil des modules, vue co-parent, pied des e-mails, et en option une fenêtre modale à la première page vue après connexion ; gérées uniquement par l'administrateur système, sans régie publicitaire tierce ni tracking |
 | 👶 **Suivi bébé** | Biberons, couches, sommeil, croissance |
 | 🍽️ **Repas** | Planification des repas de la semaine, ingrédients de la semaine ajoutés à la liste de courses en un clic sans doublon |
 | 🎂 **Anniversaires** | Détection automatique (membres, bébés suivis, contacts), compte à rebours sur le tableau de bord, rappel e-mail J-7 |

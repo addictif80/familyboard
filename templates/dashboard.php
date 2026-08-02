@@ -17,6 +17,8 @@ ob_start();
     <div class="hero-alert" id="hero-alert" style="display:none"></div>
 </div>
 
+<?php $placement = 'dashboard'; require BASE_PATH . '/templates/partials/abhd_spotlight.php'; ?>
+
 <!-- Widget toolbar -->
 <div class="widget-toolbar">
     <span class="widget-toolbar-title">Widgets</span>

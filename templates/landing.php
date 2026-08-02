@@ -45,7 +45,7 @@
         <p class="hero-subtitle">
             Calendrier, mur de souvenirs, tâches, budget, garde alternée, suivi de bébé...
             FamilyBoard réunit l'essentiel de votre quotidien familial dans une seule application,
-            claire, rapide et sans publicité.
+            claire et rapide.
         </p>
         <div class="hero-actions">
             <a href="<?= BASE_URL ?>/register" class="btn btn-primary">Créer ma famille</a>
@@ -53,7 +53,7 @@
         </div>
         <div class="hero-trust">
             <span>🔒 Vos données restent privées</span>
-            <span>🚫 Aucune publicité</span>
+            <span>🚫 Aucune publicité tierce, aucune revente de données</span>
             <span>⚡ Installable comme une app (PWA)</span>
         </div>
 
@@ -141,7 +141,7 @@
         ['id' => 'chat', 'icon' => '💬', 'title' => 'Chat familial', 'badge' => 'Nouveau', 'tagline' => 'Une messagerie privée, rien que pour votre foyer.', 'points' => [
             'Messages instantanés entre tous les membres de la famille',
             'Nouveau : messages vocaux, enregistrés au micro depuis le navigateur',
-            'Historique complet, sans publicité ni tiers',
+            'Historique complet, aucun accès par un tiers',
         ]],
         ['id' => 'commlog', 'icon' => '📝', 'title' => 'Journal parental', 'badge' => 'Nouveau', 'tagline' => 'Une trace de communication fiable entre parents.', 'points' => [
             'Messages horodatés, jamais modifiables ni supprimables',
@@ -151,7 +151,7 @@
         ['id' => 'wall', 'icon' => '📸', 'title' => 'Mur familial', 'tagline' => 'Le fil d\'actualité de votre foyer, à l\'abri des regards extérieurs.', 'points' => [
             'Partagez photos, souvenirs et petits mots',
             'Réactions et commentaires entre membres',
-            'Aucune donnée revendue, aucune publicité',
+            'Aucune donnée revendue à des tiers',
         ]],
         ['id' => 'wishlist', 'icon' => '🎁', 'title' => 'Liste de cadeaux', 'badge' => 'Nouveau', 'tagline' => 'Fini les cadeaux en double — la surprise reste intacte.', 'points' => [
             'Chacun note ce qui lui ferait plaisir',
@@ -286,14 +286,14 @@
                 <div class="diff-mark">✓</div>
                 <div>
                     <h4>Un design soigné, pas surchargé</h4>
-                    <p>Une interface épurée pensée dans le détail, sans bannières ni pop-ups qui parasitent votre quotidien.</p>
+                    <p>Une interface épurée pensée dans le détail, sans pop-ups qui parasitent votre quotidien.</p>
                 </div>
             </div>
             <div class="diff-item">
                 <div class="diff-mark">✓</div>
                 <div>
-                    <h4>Zéro publicité, zéro revente de données</h4>
-                    <p>FamilyBoard vit de ses abonnements, pas de vos données. Votre vie de famille reste privée.</p>
+                    <h4>Zéro publicité tierce, zéro revente de données</h4>
+                    <p>FamilyBoard vit de ses abonnements, pas de vos données. Votre vie de famille reste privée — aucune régie publicitaire externe, aucun tracking. Vous pouvez occasionnellement voir un encart présentant un autre service d'ABHD, l'éditeur de FamilyBoard.</p>
                 </div>
             </div>
             <div class="diff-item">

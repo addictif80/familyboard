@@ -4,6 +4,7 @@ namespace App\Controllers;
 use App\Core\Database;
 use App\Core\Mail;
 use App\Core\Session;
+use App\Models\AbhdHighlight;
 use App\Models\AppSetting;
 use App\Models\EmailContent;
 use App\Models\LegalContent;
@@ -170,6 +171,7 @@ class AdminController extends BaseController
         $tickets      = SupportTicket::getAll();
         $smtp         = SmtpSettings::get();
         $emailContents = EmailContent::getAll();
+        $highlights = AbhdHighlight::getAll();
         $legalPrivacy = LegalContent::get('privacy');
         $legalTerms   = LegalContent::get('terms');
         $legalPrivacyIsCustom = LegalContent::isCustom('privacy');
@@ -477,6 +479,73 @@ class AdminController extends BaseController
             }
             return ['ok' => true];
         });
+    }
+
+    // ── Mises en avant ABHD (jamais "publicité" dans le code/l'UI) ─────────────
+
+    public function createHighlight(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title = trim($_POST['title'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        if (!$title || !filter_var($url, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $url)) {
+            $this->redirect('/admin?tab=highlights&msg=highlight_invalid');
+            return;
+        }
+        $image = $this->uploadImage('image');
+        AbhdHighlight::create([
+            'title'             => $title,
+            'description'       => trim($_POST['description'] ?? ''),
+            'url'               => $url,
+            'image_path'        => $image,
+            'show_dashboard'    => !empty($_POST['show_dashboard']),
+            'show_module_pages' => !empty($_POST['show_module_pages']),
+            'show_email'        => !empty($_POST['show_email']),
+            'show_coparent'     => !empty($_POST['show_coparent']),
+            'show_modal'        => !empty($_POST['show_modal']),
+            'is_active'         => !empty($_POST['is_active']),
+        ]);
+        $this->redirect('/admin?tab=highlights&msg=highlight_saved');
+    }
+
+    public function updateHighlight(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $highlight = AbhdHighlight::getById((int)($params['id'] ?? 0));
+        if (!$highlight) { $this->redirect('/admin?tab=highlights'); return; }
+
+        $title = trim($_POST['title'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        if (!$title || !filter_var($url, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $url)) {
+            $this->redirect('/admin?tab=highlights&msg=highlight_invalid');
+            return;
+        }
+        $image = $this->uploadImage('image');
+        AbhdHighlight::update($highlight['id'], [
+            'title'             => $title,
+            'description'       => trim($_POST['description'] ?? ''),
+            'url'               => $url,
+            'image_path'        => $image,
+            'show_dashboard'    => !empty($_POST['show_dashboard']),
+            'show_module_pages' => !empty($_POST['show_module_pages']),
+            'show_email'        => !empty($_POST['show_email']),
+            'show_coparent'     => !empty($_POST['show_coparent']),
+            'show_modal'        => !empty($_POST['show_modal']),
+            'is_active'         => !empty($_POST['is_active']),
+        ]);
+        if ($image && $highlight['image_path']) @unlink(BASE_PATH . $highlight['image_path']);
+        $this->redirect('/admin?tab=highlights&msg=highlight_saved');
+    }
+
+    public function deleteHighlight(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $highlight = AbhdHighlight::getById((int)($params['id'] ?? 0));
+        if ($highlight) {
+            if ($highlight['image_path']) @unlink(BASE_PATH . $highlight['image_path']);
+            AbhdHighlight::delete($highlight['id']);
+        }
+        $this->redirect('/admin?tab=highlights&msg=highlight_deleted');
     }
 
     // ── Politique de confidentialité / CGU (éditable, texte brut) ──────────────

@@ -62,6 +62,7 @@
 </div>
 
 <?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
+<?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
 <!-- Compte à accès restreint : pas de sidebar complète, seulement l'essentiel. -->
 <div class="coparent-shell">
     <header class="coparent-topbar">
@@ -91,6 +92,7 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
 $_hasCustodyAccess = \App\Models\Custody::getSchedulesForUser($currentUser['id']);
 $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
 ?>
+<?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
 <div class="app-wrapper">
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
@@ -381,6 +383,17 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
 
         <!-- Page content -->
         <div class="content-area">
+            <?php
+            // Mise en avant ABHD sur la page d'accueil de chaque module — jamais sur les
+            // sous-pages (fiche d'un projet, d'un album…), pour éviter la lassitude.
+            $_moduleHomePaths = ['/wall','/albums','/calendar','/custody','/comm-log','/tasks',
+                '/projects','/budget','/documents','/warranties','/baby','/location','/emergency',
+                '/wishlist','/polls','/links','/contacts','/meals','/chat'];
+            if (in_array(rtrim(substr($currentPath, strlen(BASE_URL)), '/'), $_moduleHomePaths, true)) {
+                $placement = 'module_pages';
+                require BASE_PATH . '/templates/partials/abhd_spotlight.php';
+            }
+            ?>
             <?= $content ?? '' ?>
         </div>
     </div>
