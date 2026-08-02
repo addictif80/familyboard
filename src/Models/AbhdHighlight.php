@@ -33,11 +33,20 @@ class AbhdHighlight
         return $rows ? $rows[array_rand($rows)] : null;
     }
 
+    /** Une mise en avant active au hasard parmi celles cochées "fenêtre modale" — indépendant
+     *  des 4 emplacements ci-dessus, puisqu'une mise en avant peut être en modale sans être
+     *  affichée ailleurs (ou l'inverse). */
+    public static function pickModal(): ?array
+    {
+        $rows = Database::fetchAll('SELECT * FROM abhd_highlights WHERE is_active=1 AND show_modal=1');
+        return $rows ? $rows[array_rand($rows)] : null;
+    }
+
     public static function create(array $data): int
     {
         return Database::insert(
-            'INSERT INTO abhd_highlights (title, description, url, image_path, show_dashboard, show_module_pages, show_email, show_coparent, is_active)
-             VALUES (?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO abhd_highlights (title, description, url, image_path, show_dashboard, show_module_pages, show_email, show_coparent, show_modal, is_active)
+             VALUES (?,?,?,?,?,?,?,?,?,?)',
             [
                 $data['title'],
                 $data['description'] ?: null,
@@ -47,6 +56,7 @@ class AbhdHighlight
                 !empty($data['show_module_pages']) ? 1 : 0,
                 !empty($data['show_email']) ? 1 : 0,
                 !empty($data['show_coparent']) ? 1 : 0,
+                !empty($data['show_modal']) ? 1 : 0,
                 !empty($data['is_active']) ? 1 : 0,
             ]
         );
@@ -54,7 +64,7 @@ class AbhdHighlight
 
     public static function update(int $id, array $data): void
     {
-        $fields = ['title=?', 'description=?', 'url=?', 'show_dashboard=?', 'show_module_pages=?', 'show_email=?', 'show_coparent=?', 'is_active=?'];
+        $fields = ['title=?', 'description=?', 'url=?', 'show_dashboard=?', 'show_module_pages=?', 'show_email=?', 'show_coparent=?', 'show_modal=?', 'is_active=?'];
         $params = [
             $data['title'],
             $data['description'] ?: null,
@@ -63,6 +73,7 @@ class AbhdHighlight
             !empty($data['show_module_pages']) ? 1 : 0,
             !empty($data['show_email']) ? 1 : 0,
             !empty($data['show_coparent']) ? 1 : 0,
+            !empty($data['show_modal']) ? 1 : 0,
             !empty($data['is_active']) ? 1 : 0,
         ];
         if (!empty($data['image_path'])) {

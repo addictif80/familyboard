@@ -97,6 +97,10 @@ class Session
         $_SESSION['family_id'] = $user['family_id'];
         $_SESSION['user'] = self::sanitizeUser($user);
         $_SESSION['login_at'] = time();
+        // Consommé et retiré dès la première page affichée après connexion (voir
+        // templates/layout.php) — jamais réaffiché ensuite tant qu'une nouvelle connexion
+        // n'a pas eu lieu.
+        $_SESSION['highlight_modal_pending'] = true;
     }
 
     /**

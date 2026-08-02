@@ -502,6 +502,7 @@ class AdminController extends BaseController
             'show_module_pages' => !empty($_POST['show_module_pages']),
             'show_email'        => !empty($_POST['show_email']),
             'show_coparent'     => !empty($_POST['show_coparent']),
+            'show_modal'        => !empty($_POST['show_modal']),
             'is_active'         => !empty($_POST['is_active']),
         ]);
         $this->redirect('/admin?tab=highlights&msg=highlight_saved');
@@ -529,6 +530,7 @@ class AdminController extends BaseController
             'show_module_pages' => !empty($_POST['show_module_pages']),
             'show_email'        => !empty($_POST['show_email']),
             'show_coparent'     => !empty($_POST['show_coparent']),
+            'show_modal'        => !empty($_POST['show_modal']),
             'is_active'         => !empty($_POST['is_active']),
         ]);
         if ($image && $highlight['image_path']) @unlink(BASE_PATH . $highlight['image_path']);
