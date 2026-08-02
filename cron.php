@@ -31,6 +31,9 @@ use App\Models\CalDAVSource;
 use App\Models\Notification;
 use App\Models\LocationCheckin;
 use App\Models\SupportTicket;
+use App\Models\Budget;
+use App\Models\Birthday;
+use App\Models\Custody;
 use App\Core\EmailLayout;
 
 $appUrl = (getenv('APP_URL') ?: 'https://board.abhd.fr') . BASE_URL;
@@ -64,11 +67,18 @@ foreach ($families as $family) {
     date_default_timezone_set($tz);
 
     sendEventReminders($familyId, $membersExcludingCoparent, $appUrl);
+    sendBirthdayReminders($familyId, $membersExcludingCoparent, $appUrl);
     sendTomorrowEventDigest($familyId, $membersExcludingCoparent, $appUrl);
     sendTaskReminders($familyId, $members, $appUrl);
     sendShoppingReminders($familyId, $membersExcludingCoparent, $appUrl);
     sendRecurringAlerts($familyId, $appUrl);
+    sendWeeklyDigest($familyId, $family, $membersExcludingCoparent, $appUrl);
 }
+
+// Résumé hebdomadaire des accès de garde partagée (co-parent) — transverse à toutes les
+// familles puisqu'un accès custody_access peut porter sur une famille différente de celle
+// du compte qui le reçoit ; traité une seule fois, hors de la boucle par famille ci-dessus.
+sendCoparentWeeklyDigests($appUrl);
 
 // Purges RGPD (minimisation / durée de conservation) — voir LocationCheckin::purgeExpired()
 // et SupportTicket::purgeClosedOlderThan() pour le raisonnement.
@@ -180,6 +190,52 @@ function sendEventReminders(int $familyId, array $members, string $appUrl): void
                 $rendered['subject'], $html, 'event_reminder');
 
             echo "  → Event reminder sent to {$member['email']} for event #{$event['id']}" . PHP_EOL;
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Birthday reminders: J-7 before a member/baby/contact's birthday
+// ──────────────────────────────────────────────────────────────────────────
+function sendBirthdayReminders(int $familyId, array $members, string $appUrl): void
+{
+    $upcoming = array_filter(\App\Models\Birthday::getUpcoming($familyId, 7), fn($b) => $b['days_until'] === 7);
+    if (!$upcoming) return;
+
+    foreach ($members as $member) {
+        if (empty($member['email'])) continue;
+
+        foreach ($upcoming as $b) {
+            // Une personne n'a pas besoin d'être prévenue que son propre anniversaire approche
+            // via ce canal (elle en est déjà informée par construction) — évite un e-mail
+            // qui casserait la surprise si un cadeau est en préparation via la liste de souhaits.
+            if ($b['type'] === 'user' && $b['id'] === (int)$member['id']) continue;
+
+            // Clé de déduplication propre à cette personne + cette année (un même contact peut
+            // apparaître deux fois dans une fenêtre de 7 jours d'une année sur l'autre, mais
+            // jamais deux fois la même année) — recherchée dans le corps du mail (colonne
+            // `body`), jamais dans le sujet : le sujet est un en-tête affiché tel quel au
+            // destinataire, il ne doit contenir aucun marqueur technique.
+            $key = 'birthday_' . $b['type'] . '_' . $b['id'] . '_' . date('Y');
+            $alreadySent = Database::fetch(
+                'SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ?
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 8 DAY)',
+                [$familyId, 'birthday_reminder', $member['email'], '%' . $key . '%']
+            );
+            if ($alreadySent) continue;
+
+            $rendered = EmailContent::render('birthday_reminder', [
+                'user_name'     => $member['name'],
+                'birthday_name' => $b['name'],
+                'birthday_age'  => (string)$b['age'],
+                'birthday_date' => date('d/m', strtotime($b['date'])),
+            ]);
+            $html = EmailLayout::render($rendered['subject'], $rendered['message_html'])
+                  . "<!-- {$key} -->";
+
+            Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'birthday_reminder');
+
+            echo "  → Birthday reminder sent to {$member['email']} for {$b['name']}" . PHP_EOL;
         }
     }
 }
@@ -427,5 +483,148 @@ function sendTomorrowEventDigest(int $familyId, array $members, string $appUrl):
             $rendered['subject'], $html, 'event_tomorrow_digest');
 
         echo "  → Tomorrow digest sent to {$member['email']} (" . count($events) . " events)" . PHP_EOL;
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Résumé hebdomadaire (dimanche soir) : semaine à venir pour toute la famille
+// ──────────────────────────────────────────────────────────────────────────
+function sendWeeklyDigest(int $familyId, array $family, array $members, string $appUrl): void
+{
+    // Envoyé une fois par semaine, le dimanche en fin d'après-midi/soirée (le cron tourne
+    // toutes les heures — la dédup ci-dessous, sur CURDATE(), garantit qu'un seul envoi a
+    // lieu même si plusieurs passages cron ont lieu après ce seuil le même jour).
+    if ((int)date('N') !== 7 || (int)date('G') < 18) return;
+
+    $weekStart = date('Y-m-d 00:00:00');
+    $weekEnd   = date('Y-m-d 23:59:59', strtotime('+6 days'));
+
+    $events = Database::fetchAll(
+        'SELECT e.* FROM events e WHERE e.family_id=? AND e.start_datetime BETWEEN ? AND ? ORDER BY e.start_datetime',
+        [$familyId, $weekStart, $weekEnd]
+    );
+
+    $lists = TaskList::getByFamily($familyId);
+    $pendingTasks = 0;
+    foreach ($lists as $list) {
+        if ($list['type'] === 'shopping') continue;
+        foreach (TaskList::getTasks((int)$list['id']) as $t) {
+            if (!$t['is_completed']) $pendingTasks++;
+        }
+    }
+
+    $balance = Budget::getSummary($familyId, date('Y-m'));
+    $birthdays = array_filter(Birthday::getUpcoming($familyId, 7), fn($b) => $b['days_until'] <= 6);
+
+    foreach ($members as $member) {
+        if (empty($member['email'])) continue;
+
+        $alreadySent = Database::fetch(
+            "SELECT id FROM email_logs WHERE family_id=? AND type='weekly_digest' AND to_email=? AND DATE(created_at)=CURDATE()",
+            [$familyId, $member['email']]
+        );
+        if ($alreadySent) continue;
+
+        $rendered = EmailContent::render('weekly_digest', [
+            'user_name'   => $member['name'],
+            'family_name' => $family['name'],
+        ]);
+
+        $eventsHtml = empty($events) ? '<em>Aucun événement prévu.</em>' : ('<ul style="margin:4px 0;padding-left:18px">' . implode('', array_map(
+            fn($e) => '<li>' . htmlspecialchars(DateHelper::format($e['start_datetime'], 'D d/m')) . ' — <strong>' . htmlspecialchars($e['title']) . '</strong></li>',
+            $events
+        )) . '</ul>');
+
+        $birthdaysHtml = empty($birthdays) ? '' : ('<p>🎂 ' . implode(', ', array_map(
+            fn($b) => htmlspecialchars($b['name']) . ' (' . ($b['days_until'] === 0 ? "aujourd'hui" : 'dans ' . $b['days_until'] . 'j') . ')',
+            $birthdays
+        )) . '</p>');
+
+        $extra = EmailLayout::box(
+            '<strong>📅 Cette semaine</strong>' . $eventsHtml
+            . '<p>✅ ' . $pendingTasks . ' tâche(s) en attente</p>'
+            . '<p>💰 Solde du mois : ' . number_format($balance['balance'], 2, ',', ' ') . ' €</p>'
+            . $birthdaysHtml
+        );
+
+        $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+            'label' => 'Voir le tableau de bord',
+            'url'   => $appUrl . '/',
+        ], $extra);
+
+        Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'weekly_digest');
+
+        echo "  → Weekly digest sent to {$member['email']}" . PHP_EOL;
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Résumé hebdomadaire — accès co-parent (garde partagée) : UNIQUEMENT le
+// planning de garde et les rendez-vous liés à l'enfant concerné, jamais les
+// données génériques de la famille à laquelle appartient le planning.
+// ──────────────────────────────────────────────────────────────────────────
+function sendCoparentWeeklyDigests(string $appUrl): void
+{
+    if ((int)date('N') !== 7 || (int)date('G') < 18) return;
+
+    $userIds = Database::fetchAll('SELECT DISTINCT user_id FROM custody_access');
+    $weekStart = date('Y-m-d');
+    $weekEnd   = date('Y-m-d', strtotime('+6 days'));
+    $weekStartDt = date('Y-m-d 00:00:00');
+    $weekEndDt   = date('Y-m-d 23:59:59', strtotime('+6 days'));
+
+    foreach ($userIds as $row) {
+        $user = User::findById((int)$row['user_id']);
+        if (!$user || empty($user['email'])) continue;
+
+        $schedules = Custody::getSchedulesForUser((int)$user['id']);
+        if (empty($schedules)) continue;
+
+        $alreadySent = Database::fetch(
+            "SELECT id FROM email_logs WHERE type='weekly_digest_coparent' AND to_email=? AND DATE(created_at)=CURDATE()",
+            [$user['email']]
+        );
+        if ($alreadySent) continue;
+
+        $scheduleIds = array_map(fn($s) => (int)$s['id'], $schedules);
+        $childNames  = implode(', ', array_unique(array_column($schedules, 'child_name')));
+
+        $custodyBlocks = Custody::getAllEventsForSchedules($scheduleIds, $weekStart, $weekEnd);
+        usort($custodyBlocks, fn($a, $b) => $a['start_date'] <=> $b['start_date']);
+
+        $childEvents = Event::getForSchedules($scheduleIds, $weekStartDt, $weekEndDt);
+
+        // Rien à annoncer cette semaine pour cet accès : on n'envoie pas de mail vide.
+        if (empty($custodyBlocks) && empty($childEvents)) continue;
+
+        $planningHtml = empty($custodyBlocks) ? '<em>Aucun planning renseigné pour cette semaine.</em>' : ('<ul style="margin:4px 0;padding-left:18px">' . implode('', array_map(
+            fn($b) => '<li>' . htmlspecialchars(date('d/m', strtotime($b['start_date']))) . ' → ' . htmlspecialchars(date('d/m', strtotime($b['end_date'])))
+                . ' — <strong>' . htmlspecialchars($b['child_name']) . '</strong> chez ' . htmlspecialchars($b['parent_name']) . '</li>',
+            $custodyBlocks
+        )) . '</ul>');
+
+        $eventsHtml = empty($childEvents) ? '' : ('<p><strong>📅 Rendez-vous</strong></p><ul style="margin:4px 0;padding-left:18px">' . implode('', array_map(
+            fn($e) => '<li>' . htmlspecialchars(DateHelper::format($e['start_datetime'], 'D d/m')) . ' — <strong>' . htmlspecialchars($e['title']) . '</strong></li>',
+            $childEvents
+        )) . '</ul>');
+
+        $rendered = EmailContent::render('weekly_digest_coparent', [
+            'user_name'   => $user['name'],
+            'child_names' => $childNames,
+        ]);
+
+        $extra = EmailLayout::box('<strong>👶 Planning de garde</strong>' . $planningHtml . $eventsHtml);
+
+        $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+            'label' => 'Voir l\'accès garde partagée',
+            'url'   => $appUrl . '/coparent',
+        ], $extra);
+
+        // family_id de l'e-mail = celui du destinataire (journalisation), pas celui du
+        // planning consulté — cohérent avec le reste de email_logs qui rattache toujours
+        // un envoi au compte qui le reçoit.
+        Mail::send((int)$user['family_id'], $user['email'], $user['name'], $rendered['subject'], $html, 'weekly_digest_coparent');
+
+        echo "  → Coparent weekly digest sent to {$user['email']} ({$childNames})" . PHP_EOL;
     }
 }

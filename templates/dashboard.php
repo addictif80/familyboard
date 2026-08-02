@@ -158,6 +158,33 @@ ob_start();
                     </div>
                 <?php endforeach; endif; break;
 
+            case 'birthdays': ?>
+                <div class="card-header">
+                    <h3><?= $meta['icon'] ?> <?= $meta['label'] ?></h3>
+                </div>
+                <?php $birthdays = $data['birthdays'] ?? []; ?>
+                <?php if (empty($birthdays)): ?>
+                    <p class="empty-state">Aucun anniversaire dans les 60 prochains jours.</p>
+                <?php else: ?>
+                    <ul class="event-list">
+                        <?php foreach (array_slice($birthdays, 0, 6) as $b): ?>
+                            <li class="event-item">
+                                <span class="event-dot" style="background:<?= htmlspecialchars($b['color']) ?>"></span>
+                                <div class="event-info">
+                                    <strong><?= htmlspecialchars($b['name']) ?></strong>
+                                    <span class="event-date">
+                                        <?php if ($b['days_until'] === 0): ?>
+                                            🎉 Aujourd'hui — <?= $b['age'] ?> ans
+                                        <?php else: ?>
+                                            dans <?= $b['days_until'] ?> j (<?= date('d/m', strtotime($b['date'])) ?>) — <?= $b['age'] ?> ans
+                                        <?php endif; ?>
+                                    </span>
+                                </div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; break;
+
             default: ?>
                 <div class="card-header">
                     <h3><?= $meta['icon'] ?> <?= $meta['label'] ?></h3>

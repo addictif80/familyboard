@@ -118,7 +118,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('wall') || $_navEnabled('albums') || $_navEnabled('chat') || $_navEnabled('calendar') || $_navEnabled('contacts') || $_navEnabled('meals')): ?>
+            <?php if ($_navEnabled('wall') || $_navEnabled('albums') || $_navEnabled('chat') || $_navEnabled('calendar') || $_navEnabled('contacts') || $_navEnabled('meals') || $_navEnabled('wishlist') || $_navEnabled('polls')): ?>
             <li class="nav-section-label">Vie de famille</li>
             <?php endif; ?>
             <?php if ($_navEnabled('wall')): ?>
@@ -169,6 +169,22 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('wishlist')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/wishlist') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/wishlist" class="nav-link">
+                    <span class="nav-icon">🎁</span>
+                    <span class="nav-label">Liste de cadeaux</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('polls')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/polls') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/polls" class="nav-link">
+                    <span class="nav-icon">🗳️</span>
+                    <span class="nav-label">Sondages</span>
+                </a>
+            </li>
+            <?php endif; ?>
 
             <?php if ($_navEnabled('custody') || $_hasCustodyAccess || $_navEnabled('comm_log')): ?>
             <li class="nav-section-label">Garde partagée</li>
@@ -198,7 +214,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties')): ?>
+            <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties') || $_navEnabled('links')): ?>
             <li class="nav-section-label">Organisation</li>
             <?php endif; ?>
             <?php if ($_navEnabled('tasks')): ?>
@@ -238,6 +254,14 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                 <a href="<?= BASE_URL ?>/warranties" class="nav-link">
                     <span class="nav-icon">🛡️</span>
                     <span class="nav-label">Garanties</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('links')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/links') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/links" class="nav-link">
+                    <span class="nav-icon">🔗</span>
+                    <span class="nav-label">Portail de liens</span>
                 </a>
             </li>
             <?php endif; ?>

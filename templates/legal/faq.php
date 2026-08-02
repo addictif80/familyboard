@@ -64,11 +64,23 @@ $sections = [
             "💬 Chat familial",
             "Une messagerie instantanée propre à votre famille, séparée du mur (fil d'actualité) — pour les échanges du quotidien.",
         ],
+        [
+            "🎂 Anniversaires",
+            "FamilyBoard repère automatiquement les anniversaires connus (membres de la famille, enfants suivis, contacts du répertoire) et affiche un compte à rebours sur le tableau de bord, avec un rappel par e-mail 7 jours avant.",
+        ],
+        [
+            "🎁 Liste de cadeaux",
+            "Chacun note ce qui lui ferait plaisir. Les autres membres peuvent réserver un cadeau en secret pour éviter les doublons : la personne concernée ne voit jamais si l'un de ses souhaits est réservé ou déjà acheté, pour préserver la surprise.",
+        ],
+        [
+            "🗳️ Sondages familiaux",
+            "Posez une question à choix multiple à toute la famille (« on mange où ce soir ? », « destination des vacances ? ») et suivez les votes en temps réel.",
+        ],
     ],
     'Organisation' => [
         [
             "✅ Tâches & Courses",
-            "Listes partagées avec assignation, priorités, échéances et rappels automatiques par e-mail pour les tâches en attente depuis plusieurs jours.",
+            "Listes partagées avec assignation, priorités, échéances et rappels automatiques par e-mail pour les tâches en attente depuis plusieurs jours. Depuis le planning repas, les ingrédients des recettes de la semaine peuvent être ajoutés en un clic à la liste de courses, sans doublon.",
         ],
         [
             "💰 Budget partagé",
@@ -81,6 +93,10 @@ $sections = [
         [
             "🛡️ Garanties",
             "Suivi des garanties produits avec reconnaissance automatique du texte des factures (OCR) pour retrouver rapidement date d'achat et durée de garantie.",
+        ],
+        [
+            "🔗 Portail de liens",
+            "Une page de liens utiles pour la famille (portail de l'école, mutuelle, mairie…), présentés sous forme de cartes avec aperçu du site, titre et nombre de clics. L'administrateur de famille ajoute des liens directement ; les autres membres — et un accès co-parent — peuvent en proposer, soumis à validation avant publication. Chaque lien est vérifié automatiquement (accessibilité, adresse autorisée) avant d'être ajouté. Un lien peut être marqué visible pour un accès co-parent, qui reçoit alors uniquement ceux qui le concernent.",
         ],
         [
             "🗂️ Documents",
@@ -125,6 +141,10 @@ $sections = [
         [
             "Comment fonctionnent les notifications ?",
             "Trois canaux : une cloche dans l'application (historique consultable), des notifications push sur votre appareil (à activer depuis Paramètres → Notifications push), et des rappels par e-mail (événements, tâches en attente). Un compte co-parent ne reçoit que les notifications liées à son accès de garde, jamais les notifications génériques d'une famille à laquelle il n'appartient pas.",
+        ],
+        [
+            "Le résumé hebdomadaire",
+            "Chaque dimanche en fin de journée, un e-mail récapitule la semaine à venir : agenda, tâches en attente, solde du mois et anniversaires proches. Un compte disposant d'un accès de garde partagée reçoit à la place (ou en plus, s'il a aussi sa propre famille) un résumé distinct et strictement limité au planning de garde et aux rendez-vous liés à l'enfant concerné.",
         ],
         [
             "Qu'est-ce que la double authentification (2FA) ?",

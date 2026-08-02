@@ -40,6 +40,7 @@ ob_start();
     <button class="coparent-tab" data-panel="cp-panel-documents" onclick="cpShowTab('cp-panel-documents')">🗂️ Documents</button>
     <button class="coparent-tab" data-panel="cp-panel-events" onclick="cpShowTab('cp-panel-events')">📆 Évènements</button>
     <button class="coparent-tab" data-panel="cp-panel-activity" onclick="cpShowTab('cp-panel-activity')">📜 Journal d'activité</button>
+    <button class="coparent-tab" data-panel="cp-panel-links" onclick="cpShowTab('cp-panel-links')">🔗 Liens utiles</button>
     <button class="coparent-tab" data-panel="cp-panel-notifications" onclick="cpShowTab('cp-panel-notifications')">🔔 Notifications</button>
 </div>
 
@@ -128,6 +129,59 @@ ob_start();
             Historique horodaté (fuseau de la famille) et IP de toutes les actions liées à cet enfant, des deux côtés — visible par les deux parents.
         </p>
         <div id="cp-activity-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+    </div>
+</div>
+
+<div class="coparent-panel" id="cp-panel-links">
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+            <h3 style="margin:0">🔗 Liens utiles</h3>
+            <button class="btn btn-primary btn-sm" onclick="cpOpenLinkModal()">+ Proposer un lien</button>
+        </div>
+        <p style="color:var(--text-muted);font-size:.85rem;margin:.5rem 0 0">
+            Liens partagés par la famille et marqués visibles pour votre accès. Une proposition de
+            votre part attend la validation d'un administrateur avant de s'afficher ici.
+        </p>
+    </div>
+    <div class="links-grid" id="cp-links-grid"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+</div>
+
+<!-- Propose link modal -->
+<div class="modal-overlay" id="cp-link-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Proposer un lien</h3>
+            <button onclick="closeModal('cp-link-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <?php if (count($schedules) > 1): ?>
+            <div class="form-group">
+                <label>Concerne</label>
+                <select id="cp-link-schedule">
+                    <?php foreach ($schedules as $s): ?>
+                        <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['child_name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php endif; ?>
+            <div class="form-group">
+                <label>Adresse du site</label>
+                <input type="url" id="cp-link-url" placeholder="https://exemple.fr" required>
+            </div>
+            <div class="form-group">
+                <label>Titre</label>
+                <input type="text" id="cp-link-title" placeholder="Laissez vide pour le détecter automatiquement">
+            </div>
+            <div class="form-group">
+                <label>Description (optionnel)</label>
+                <textarea id="cp-link-description" rows="2"></textarea>
+            </div>
+            <p id="cp-link-modal-error" style="color:var(--danger,#E74C3C);font-size:.82rem;display:none"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" id="cp-link-modal-submit" onclick="cpSubmitLink()">Proposer</button>
+            <button class="btn btn-secondary" onclick="closeModal('cp-link-modal')">Annuler</button>
+        </div>
     </div>
 </div>
 

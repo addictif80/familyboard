@@ -5,7 +5,8 @@ ob_start();
 ?>
 <div class="content-header">
     <h2>🍽️ Planification des repas</h2>
-    <div style="display:flex;gap:.5rem">
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="addWeekIngredientsToShoppingList('<?= $start ?>')">🛒 Ajouter les ingrédients à la liste de courses</button>
         <a href="<?= BASE_URL ?>/meals?start=<?= $prevWeek ?>" class="btn btn-secondary btn-sm">← Semaine préc.</a>
         <a href="<?= BASE_URL ?>/meals?start=<?= $nextWeek ?>" class="btn btn-secondary btn-sm">Semaine suiv. →</a>
     </div>

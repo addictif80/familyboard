@@ -30,6 +30,83 @@ function cpLoadAll() {
     cpLoadDocuments();
     cpLoadEvents();
     cpLoadActivityLog();
+    cpLoadLinks();
+}
+
+// ── Portail de liens ─────────────────────────────────────────────────────
+
+async function cpLoadLinks() {
+    const grid = document.getElementById('cp-links-grid');
+    if (!grid) return;
+    const r = await apiFetch(BASE_URL + '/api/coparent/links');
+    const links = r.links || [];
+    if (!links.length) {
+        grid.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucun lien partagé avec vous pour l\'instant.</p>';
+        return;
+    }
+    grid.innerHTML = links.map(l => {
+        const domain = (() => { try { return new URL(l.url).hostname; } catch (e) { return l.url; } })();
+        const thumb = l.image_path
+            ? `<div class="link-card-thumb has-image" style="background-image:url('${BASE_URL}${l.image_path}')"></div>`
+            : `<div class="link-card-thumb">🔗</div>`;
+        return `<div class="link-card">
+            <a href="${BASE_URL}/links/${l.id}/go" target="_blank" rel="noopener noreferrer">${thumb}</a>
+            <div class="link-card-body">
+                <div class="link-card-title"><a href="${BASE_URL}/links/${l.id}/go" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none">${escapeHtml(l.title)}</a></div>
+                <div class="link-card-domain">🌐 ${escapeHtml(domain)}</div>
+                ${l.description ? `<div class="link-card-desc">${escapeHtml(l.description)}</div>` : ''}
+                <div class="link-card-footer"><span class="link-card-clicks">👆 ${l.click_count} clic(s)</span></div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function cpOpenLinkModal() {
+    document.getElementById('cp-link-url').value = '';
+    document.getElementById('cp-link-title').value = '';
+    document.getElementById('cp-link-description').value = '';
+    document.getElementById('cp-link-modal-error').style.display = 'none';
+    openModal('cp-link-modal');
+}
+
+async function cpSubmitLink() {
+    const url = document.getElementById('cp-link-url').value.trim();
+    const errorEl = document.getElementById('cp-link-modal-error');
+    errorEl.style.display = 'none';
+    if (!url) {
+        errorEl.textContent = 'Le lien est requis.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const scheduleSelect = document.getElementById('cp-link-schedule');
+    const scheduleId = scheduleSelect ? parseInt(scheduleSelect.value) : cpCurrentScheduleId;
+
+    const btn = document.getElementById('cp-link-modal-submit');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Vérification du lien…';
+
+    const r = await apiFetch(BASE_URL + '/api/coparent/links', {
+        method: 'POST',
+        body: JSON.stringify({
+            schedule_id: scheduleId,
+            url,
+            title: document.getElementById('cp-link-title').value.trim(),
+            description: document.getElementById('cp-link-description').value.trim(),
+        }),
+    });
+
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+
+    if (r.success) {
+        closeModal('cp-link-modal');
+        Dialog.toast('Proposition envoyée, en attente de validation.');
+    } else {
+        errorEl.textContent = r.error || 'Erreur.';
+        errorEl.style.display = 'block';
+    }
 }
 
 // ── Albums photo partagés ────────────────────────────────────────────────

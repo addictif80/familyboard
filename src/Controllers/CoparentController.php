@@ -13,7 +13,9 @@ use App\Models\Document;
 use App\Models\Event;
 use App\Models\Family;
 use App\Models\Notification;
+use App\Models\PortalLink;
 use App\Models\User;
+use App\Core\LinkPreview;
 
 /**
  * Vue dédiée pour un accès "garde partagée" restreint : soit un compte
@@ -267,6 +269,68 @@ class CoparentController extends BaseController
             $id = Document::create((int)$schedule['family_id'], $user['id'], $data, $file);
             CustodyActivityLog::record($scheduleId, $user['id'], 'document_uploaded', $data['title'] ?? null);
             return ['success' => true, 'id' => $id];
+        });
+    }
+
+    /** Portail de liens : uniquement ceux marqués visibles pour un accès co-parent, sur les
+     *  familles dont l'utilisateur a effectivement accès à au moins un planning de garde. */
+    public function linksList(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            $schedules = Custody::getSchedulesForUser((int)$user['id']);
+            $familyIds = array_values(array_unique(array_map('intval', array_column($schedules, 'family_id'))));
+            // Respecte la désactivation du module par une famille même pour cet accès restreint —
+            // sans quoi désactiver "Portail de liens" côté famille n'aurait aucun effet ici.
+            $familyIds = array_values(array_filter($familyIds, function ($fid) {
+                $f = Family::findById($fid);
+                return $f && !in_array('links', Family::getDisabledModules($f), true);
+            }));
+            return ['links' => PortalLink::getCoparentVisibleForFamilies($familyIds)];
+        });
+    }
+
+    /** Un accès co-parent peut proposer un lien pour la famille du planning concerné — la
+     *  proposition part toujours en attente de validation par un admin de cette famille, et
+     *  est automatiquement marquée visible pour les accès co-parent (sans quoi elle n'aurait
+     *  jamais d'intérêt pour la personne qui la propose). */
+    public function linksPropose(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $scheduleId = (int)($data['schedule_id'] ?? 0);
+            if (!Custody::userHasAccessToSchedule((int)$user['id'], $scheduleId)) {
+                return ['success' => false, 'error' => 'Accès non autorisé.'];
+            }
+            $schedule = Custody::getScheduleById($scheduleId);
+            $family = Family::findById((int)$schedule['family_id']);
+            if (!$family || in_array('links', Family::getDisabledModules($family), true)) {
+                return ['success' => false, 'error' => 'Le portail de liens est désactivé pour cette famille.'];
+            }
+            $title = trim($data['title'] ?? '');
+            $url = trim($data['url'] ?? '');
+            if (!$url) {
+                return ['success' => false, 'error' => 'Le lien est requis.'];
+            }
+
+            $preview = LinkPreview::fetch($url);
+            if (!$preview['ok']) {
+                return ['success' => false, 'error' => $preview['error']];
+            }
+            if (!$title) $title = $preview['title'];
+
+            PortalLink::create((int)$schedule['family_id'], (int)$user['id'], [
+                'title'               => $title,
+                'url'                 => $url,
+                'description'         => trim($data['description'] ?? ''),
+                'image_path'          => $preview['image_path'],
+                'visible_to_coparent' => true,
+            ], 'pending');
+
+            return ['success' => true];
         });
     }
 

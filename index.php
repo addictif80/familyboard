@@ -32,6 +32,9 @@ use App\Controllers\SettingsController;
 use App\Controllers\InvitationController;
 use App\Controllers\CoparentController;
 use App\Controllers\ContactController;
+use App\Controllers\WishlistController;
+use App\Controllers\PollController;
+use App\Controllers\PortalLinkController;
 use App\Controllers\AdminController;
 use App\Controllers\SupportController;
 use App\Controllers\WarrantyController;
@@ -296,6 +299,17 @@ $router->post('/api/coparent/events', [CoparentController::class, 'eventsCreate'
 $router->get('/api/coparent/albums', [CoparentController::class, 'albumsList']);
 $router->get('/api/coparent/albums/:id', [CoparentController::class, 'albumShow']);
 $router->post('/api/coparent/albums/:id/photos', [CoparentController::class, 'albumPhotoUpload']);
+$router->get('/api/coparent/links', [CoparentController::class, 'linksList']);
+$router->post('/api/coparent/links', [CoparentController::class, 'linksPropose']);
+
+// Portail de liens
+$router->get('/links', [PortalLinkController::class, 'index']);
+$router->post('/api/links', [PortalLinkController::class, 'create']);
+$router->post('/api/links/:id', [PortalLinkController::class, 'update']);
+$router->post('/api/links/:id/approve', [PortalLinkController::class, 'approve']);
+$router->post('/api/links/:id/reject', [PortalLinkController::class, 'reject']);
+$router->post('/api/links/:id/delete', [PortalLinkController::class, 'delete']);
+$router->get('/links/:id/go', [PortalLinkController::class, 'go']);
 
 // Projects
 $router->get('/projects', [ProjectController::class, 'index']);
@@ -359,6 +373,22 @@ $router->post('/api/contacts', [ContactController::class, 'create']);
 $router->post('/api/contacts/:id', [ContactController::class, 'update']);
 $router->post('/api/contacts/:id/delete', [ContactController::class, 'delete']);
 $router->post('/api/contacts/:id/avatar', [ContactController::class, 'uploadAvatar']);
+
+// Liste de cadeaux
+$router->get('/wishlist', [WishlistController::class, 'index']);
+$router->post('/api/wishlist', [WishlistController::class, 'create']);
+$router->post('/api/wishlist/:id', [WishlistController::class, 'update']);
+$router->post('/api/wishlist/:id/delete', [WishlistController::class, 'delete']);
+$router->post('/api/wishlist/:id/reserve', [WishlistController::class, 'reserve']);
+$router->post('/api/wishlist/:id/unreserve', [WishlistController::class, 'unreserve']);
+$router->post('/api/wishlist/:id/purchased', [WishlistController::class, 'markPurchased']);
+
+// Sondages familiaux
+$router->get('/polls', [PollController::class, 'index']);
+$router->post('/api/polls', [PollController::class, 'create']);
+$router->post('/api/polls/:id/vote', [PollController::class, 'vote']);
+$router->post('/api/polls/:id/close', [PollController::class, 'close']);
+$router->post('/api/polls/:id/delete', [PollController::class, 'delete']);
 
 // Settings
 $router->get('/settings', [SettingsController::class, 'index']);
@@ -465,6 +495,7 @@ $router->post('/api/meals/recipes', [MealController::class, 'createRecipe']);
 $router->post('/api/meals/recipes/:id', [MealController::class, 'updateRecipe']);
 $router->post('/api/meals/recipes/:id/delete', [MealController::class, 'deleteRecipe']);
 $router->post('/api/meals/recipes/:id/add-to-shopping-list', [MealController::class, 'addIngredientsToShoppingList']);
+$router->post('/api/meals/add-week-to-shopping-list', [MealController::class, 'addWeekIngredientsToShoppingList']);
 $router->post('/api/meals/plan', [MealController::class, 'setMeal']);
 $router->post('/api/meals/plan/clear', [MealController::class, 'clearMeal']);
 

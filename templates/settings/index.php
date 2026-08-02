@@ -50,6 +50,11 @@ ob_start();
                 <input type="email" value="<?= htmlspecialchars($user['email']) ?>" readonly class="input-readonly">
             </div>
             <div class="form-group">
+                <label>🎂 Date de naissance (optionnel)</label>
+                <input type="date" name="birthday" value="<?= htmlspecialchars($user['birthday'] ?? '') ?>">
+                <small style="color:var(--text-muted)">Permet à votre famille de voir un rappel avant votre anniversaire.</small>
+            </div>
+            <div class="form-group">
                 <label>Nouveau mot de passe (laisser vide pour ne pas changer)</label>
                 <input type="password" name="password" minlength="8" placeholder="••••••••" autocomplete="new-password">
             </div>
