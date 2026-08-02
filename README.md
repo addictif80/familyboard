@@ -88,10 +88,15 @@ calendrier, projets…) auxquels il n'a pas de rapport.
   `/coparent`) — fonctionne installé en PWA comme depuis un onglet navigateur
   classique (sauf iOS, voir [PWA](#pwa)).
 - **Par e-mail (cron)** : rappel d'événement 24h avant, digest du lendemain,
-  tâches et courses en attente depuis 7 jours et plus. Ces rappels génériques
-  ne sont jamais envoyés à un compte co-parent (sauf tâche qui lui a été
-  explicitement assignée), puisqu'ils ne concernent jamais un enfant en garde
-  partagée précis.
+  tâches et courses en attente depuis 7 jours et plus, résumé hebdomadaire le
+  dimanche en fin de journée (semaine à venir : agenda, tâches en attente,
+  solde du mois, anniversaires proches). Ces rappels génériques ne sont
+  jamais envoyés à un compte co-parent (sauf tâche qui lui a été explicitement
+  assignée), puisqu'ils ne concernent jamais un enfant en garde partagée
+  précis — un accès de garde partagée reçoit à la place son propre résumé
+  hebdomadaire, strictement limité au planning de garde et aux rendez-vous
+  liés à l'enfant concerné (jamais les données génériques de l'autre
+  famille).
 - **Diffusion système** : un administrateur système peut notifier tous les
   utilisateurs du service, toutes familles confondues.
 

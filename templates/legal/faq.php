@@ -139,6 +139,10 @@ $sections = [
             "Trois canaux : une cloche dans l'application (historique consultable), des notifications push sur votre appareil (à activer depuis Paramètres → Notifications push), et des rappels par e-mail (événements, tâches en attente). Un compte co-parent ne reçoit que les notifications liées à son accès de garde, jamais les notifications génériques d'une famille à laquelle il n'appartient pas.",
         ],
         [
+            "Le résumé hebdomadaire",
+            "Chaque dimanche en fin de journée, un e-mail récapitule la semaine à venir : agenda, tâches en attente, solde du mois et anniversaires proches. Un compte disposant d'un accès de garde partagée reçoit à la place (ou en plus, s'il a aussi sa propre famille) un résumé distinct et strictement limité au planning de garde et aux rendez-vous liés à l'enfant concerné.",
+        ],
+        [
             "Qu'est-ce que la double authentification (2FA) ?",
             "Une couche de sécurité supplémentaire au moment de la connexion, par code d'application d'authentification (TOTP) ou par code envoyé par e-mail. Activable depuis Paramètres → Sécurité ; l'administrateur système peut aussi la rendre obligatoire pour tous les utilisateurs du service, avec un délai de grâce avant blocage.",
         ],

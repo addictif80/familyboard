@@ -48,6 +48,14 @@ class EmailContent
             'subject' => "🎂 L'anniversaire de {{birthday_name}} approche",
             'message' => "Bonjour {{user_name}},\n\n{{birthday_name}} fête ses {{birthday_age}} ans le {{birthday_date}} !",
         ],
+        'weekly_digest' => [
+            'subject' => '🗓️ Votre semaine avec {{family_name}}',
+            'message' => "Bonjour {{user_name}},\n\nVoici un résumé de la semaine à venir pour {{family_name}} :",
+        ],
+        'weekly_digest_coparent' => [
+            'subject' => '🗓️ La semaine de {{child_names}}',
+            'message' => "Bonjour {{user_name}},\n\nVoici le planning de garde et les rendez-vous de la semaine pour {{child_names}} :",
+        ],
     ];
 
     public static function get(string $type): array
@@ -117,6 +125,8 @@ class EmailContent
             'event_tomorrow_digest'=> 'Récapitulatif des événements du lendemain',
             'wall_post'            => 'Nouveau post sur le mur',
             'birthday_reminder'    => 'Rappel anniversaire (7j avant)',
+            'weekly_digest'         => 'Résumé hebdomadaire (dimanche soir)',
+            'weekly_digest_coparent'=> 'Résumé hebdomadaire — accès co-parent',
             default                => $type,
         };
     }
@@ -133,6 +143,8 @@ class EmailContent
             'event_tomorrow_digest' => ['user_name', 'event_count'],
             'wall_post'             => ['author_name', 'content'],
             'birthday_reminder'     => ['user_name', 'birthday_name', 'birthday_age', 'birthday_date'],
+            'weekly_digest'         => ['user_name', 'family_name'],
+            'weekly_digest_coparent'=> ['user_name', 'child_names'],
             default                 => [],
         };
     }
