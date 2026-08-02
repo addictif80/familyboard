@@ -55,7 +55,7 @@ ob_start();
                 <label class="radio-option" style="align-items:flex-start">
                     <input type="checkbox" name="accept_terms" value="1" required style="margin-top:.2rem">
                     <span>J'accepte les <a href="<?= BASE_URL ?>/cgu" target="_blank">conditions générales d'utilisation</a>
-                        et la <a href="<?= BASE_URL ?>/confidentialite" target="_blank">politique de confidentialité</a> de cette instance.</span>
+                        et la <a href="<?= BASE_URL ?>/confidentialite" target="_blank">politique de confidentialité</a> de FamilyBoard.</span>
                 </label>
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%">

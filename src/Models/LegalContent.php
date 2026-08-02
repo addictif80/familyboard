@@ -40,11 +40,11 @@ class LegalContent
 
         if ($type === 'terms') {
             return <<<TXT
-Dernière mise à jour : à personnaliser par l'administrateur de cette instance.
+Dernière mise à jour : à personnaliser par l'administrateur.
 
 1. Objet
 
-FamilyBoard est un logiciel libre d'organisation familiale, auto-hébergé par l'administrateur de cette instance (ci-après « l'administrateur »). Les présentes conditions régissent l'utilisation de cette instance précise, pas du logiciel FamilyBoard en général.
+FamilyBoard est un service d'organisation familiale édité et opéré par son administrateur, joignable à : {$contact}. Les présentes conditions régissent l'utilisation de ce service.
 
 2. Compte et famille
 
@@ -60,7 +60,7 @@ Le service est fourni « en l'état », sans garantie de disponibilité continue
 
 5. Suspension et suppression de compte
 
-L'administrateur peut suspendre un compte en cas d'usage abusif de l'instance. Chaque utilisateur peut supprimer son propre compte à tout moment depuis les paramètres ; les administrateurs de famille peuvent également supprimer la famille entière et l'ensemble de ses données.
+L'administrateur peut suspendre un compte en cas d'usage abusif du service. Chaque utilisateur peut supprimer son propre compte à tout moment depuis les paramètres ; les administrateurs de famille peuvent également supprimer la famille entière et l'ensemble de ses données.
 
 6. Contact
 
@@ -69,15 +69,15 @@ TXT;
         }
 
         return <<<TXT
-Dernière mise à jour : à personnaliser par l'administrateur de cette instance.
+Dernière mise à jour : à personnaliser par l'administrateur.
 
 1. Responsable du traitement
 
-Cette instance de FamilyBoard est administrée par l'administrateur système de ce serveur, joignable à : {$contact}. C'est cette personne (ou cette organisation), et non les auteurs du logiciel FamilyBoard, qui est responsable du traitement de vos données au sens du RGPD.
+FamilyBoard est un service d'organisation familiale édité et opéré par son administrateur, joignable à : {$contact}. C'est cette personne (ou cette organisation) qui est responsable du traitement de vos données au sens du RGPD.
 
 2. Données collectées et finalités
 
-Selon les modules que votre famille active, l'application peut traiter : identité et contact (nom, e-mail, avatar), contenus familiaux (publications, messages, photos, documents, notes de journal parental), données de planification (calendrier, tâches, budget, garde partagée), données de localisation ponctuelles (partage de position à durée limitée, explicitement déclenché par vous), et données de santé (fiches d'urgence médicales) si vous choisissez de les renseigner. Ces données sont traitées dans le seul but de fournir les fonctionnalités que vous et votre famille utilisez.
+Selon les modules que votre famille active, le service peut traiter : identité et contact (nom, e-mail, avatar), contenus familiaux (publications, messages, photos, documents, notes de journal parental), données de planification (calendrier, tâches, budget, garde partagée), données de localisation ponctuelles (partage de position à durée limitée, explicitement déclenché par vous), et données de santé (fiches d'urgence médicales) si vous choisissez de les renseigner. Ces données sont traitées dans le seul but de fournir les fonctionnalités que vous et votre famille utilisez.
 
 3. Base légale
 

@@ -1,8 +1,8 @@
 # FamilyBoard
 
-Application web familiale open-source — alternative à FamilyWall, développée
-en PHP/MySQL. Auto-hébergeable, multi-familles, installable comme PWA sur
-mobile et ordinateur.
+Application web familiale — alternative à FamilyWall, développée en
+PHP/MySQL. Multi-familles (chaque famille dispose de son espace privé au
+sein du service), installable comme PWA sur mobile et ordinateur.
 
 ## Fonctionnalités
 
@@ -90,7 +90,7 @@ calendrier, projets…) auxquels il n'a pas de rapport.
   explicitement assignée), puisqu'ils ne concernent jamais un enfant en garde
   partagée précis.
 - **Diffusion système** : un administrateur système peut notifier tous les
-  utilisateurs de l'instance, toutes familles confondues.
+  utilisateurs du service, toutes familles confondues.
 
 ## Prérequis
 
