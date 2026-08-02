@@ -130,6 +130,14 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                     <span class="nav-label">Mur familial</span>
                 </a>
             </li>
+            <li class="nav-item <?= str_contains($currentPath, '/messages') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/messages" class="nav-link">
+                    <span class="nav-icon">✉️</span>
+                    <span class="nav-label">Messages privés</span>
+                    <?php $_dmUnread = \App\Models\DirectMessage::getUnreadTotal($currentUser['id']); ?>
+                    <?php if ($_dmUnread > 0): ?><span class="badge"><?= $_dmUnread ?></span><?php endif; ?>
+                </a>
+            </li>
             <?php endif; ?>
             <?php if ($_navEnabled('albums')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>">

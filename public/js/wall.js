@@ -206,3 +206,31 @@ async function loadMorePosts() {
     wallLoading = false;
     btn.textContent = 'Charger plus';
 }
+
+// ---- Abonnements (mur "réseau social") ----
+
+async function requestFollow(userId) {
+    const r = await apiFetch(BASE_URL + '/api/follow/request', { method: 'POST', body: JSON.stringify({ user_id: userId }) });
+    if (r.success) { Dialog.toast('Demande envoyée.'); window.location.reload(); }
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+async function acceptFollow(followerId) {
+    const r = await apiFetch(BASE_URL + '/api/follow/accept', { method: 'POST', body: JSON.stringify({ user_id: followerId }) });
+    if (r.success) window.location.reload();
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+async function removeFollower(followerId) {
+    const r = await apiFetch(BASE_URL + '/api/follow/remove-follower', { method: 'POST', body: JSON.stringify({ user_id: followerId }) });
+    if (r.success) window.location.reload();
+    else Dialog.toast('Erreur.', 'error');
+}
+
+async function unfollow(userId) {
+    const ok = await Dialog.confirm('Se désabonner de ce membre ?');
+    if (!ok) return;
+    const r = await apiFetch(BASE_URL + '/api/follow/remove', { method: 'POST', body: JSON.stringify({ user_id: userId }) });
+    if (r.success) window.location.reload();
+    else Dialog.toast('Erreur.', 'error');
+}

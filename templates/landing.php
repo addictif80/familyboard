@@ -148,10 +148,10 @@
             'Nouveau : messages vocaux, pour un ton plus clair qu\'à l\'écrit',
             'Accusés de lecture pour savoir qui a vu quoi',
         ]],
-        ['id' => 'wall', 'icon' => '📸', 'title' => 'Mur familial', 'tagline' => 'Le fil d\'actualité de votre foyer, à l\'abri des regards extérieurs.', 'points' => [
-            'Partagez photos, souvenirs et petits mots',
-            'Réactions et commentaires entre membres',
-            'Aucune donnée revendue à des tiers',
+        ['id' => 'wall', 'icon' => '📸', 'title' => 'Mur familial', 'badge' => 'Nouveau', 'tagline' => 'Votre propre réseau social, rien que pour la famille.', 'points' => [
+            'Publications personnelles visibles par vos abonnés, ou au nom de la famille (validées par un admin)',
+            'Abonnements mutuels validés par la personne suivie, messages privés une fois l\'abonnement accepté',
+            'Partagez vos photos d\'album directement sur le mur',
         ]],
         ['id' => 'wishlist', 'icon' => '🎁', 'title' => 'Liste de cadeaux', 'badge' => 'Nouveau', 'tagline' => 'Fini les cadeaux en double — la surprise reste intacte.', 'points' => [
             'Chacun note ce qui lui ferait plaisir',

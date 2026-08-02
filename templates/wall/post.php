@@ -3,6 +3,9 @@
         <?= \App\Core\Avatar::html($post['user_avatar'], $post['user_color'], $post['user_name']) ?>
         <div class="post-meta">
             <strong><?= htmlspecialchars($post['user_name']) ?></strong>
+            <?php if (($post['post_type'] ?? 'personal') === 'family'): ?>
+                <span class="badge-custom" title="Publié au nom de la famille">🏠 Famille</span>
+            <?php endif; ?>
             <span class="post-date"><?= \App\Core\DateHelper::fromUtc($post['created_at'], 'd/m/Y \à H:i') ?></span>
         </div>
         <?php if ($post['user_id'] === $user['id'] || $user['role'] === 'admin'): ?>

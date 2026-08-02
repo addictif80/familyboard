@@ -4,6 +4,7 @@ namespace App\Controllers;
 use App\Core\Session;
 use App\Core\Mail;
 use App\Models\Post;
+use App\Models\Follow;
 use App\Models\User;
 use App\Models\Notification;
 use App\Models\EmailContent;
@@ -16,11 +17,29 @@ class WallController extends BaseController
         $this->requireAuth();
         $this->requireModule('wall');
         $user = Session::user();
-        $posts = Post::getByFamily($user['family_id'], 20);
+        $visibleAuthorIds = Follow::getVisibleAuthorIds((int)$user['id']);
+        $posts = Post::getVisibleForUser($user['family_id'], (int)$user['id'], $visibleAuthorIds, 20);
         foreach ($posts as &$post) {
             $post['comments'] = Post::getComments($post['id']);
             $post['user_reaction'] = Post::getUserReaction($post['id'], $user['id']);
         }
+        unset($post);
+
+        $pendingPosts = $user['role'] === 'admin' ? Post::getPendingByFamily($user['family_id']) : [];
+
+        // Panneau "Membres" : qui je suis / qui me suit / demandes en attente, pour gérer les
+        // abonnements directement depuis le mur plutôt que sur une page séparée.
+        $members = array_values(array_filter(
+            User::getByFamily($user['family_id']),
+            fn($m) => (int)$m['id'] !== (int)$user['id'] && $m['role'] !== 'coparent'
+        ));
+        foreach ($members as &$m) {
+            $m['follow_status'] = Follow::status((int)$user['id'], (int)$m['id']);
+            $m['follows_me'] = Follow::isAccepted((int)$m['id'], (int)$user['id']);
+        }
+        unset($m);
+        $pendingFollowRequests = Follow::getPendingForApproval((int)$user['id']);
+
         require BASE_PATH . '/templates/wall/index.php';
     }
 
@@ -44,11 +63,49 @@ class WallController extends BaseController
             exit;
         }
 
-        $postId = Post::create($user['family_id'], $user['id'], $content, $imagePath);
-        Notification::notifyFamily($user['family_id'], $user['id'], 'wall', 'Nouveau post', $user['name'] . ' a publié sur le mur familial.', BASE_URL . '/wall');
+        $postType = ($_POST['post_type'] ?? 'personal') === 'family' ? 'family' : 'personal';
+        // Une publication "au nom de la famille" attend la validation d'un admin — sauf si
+        // c'est justement un admin qui la publie : son approbation est déjà acquise.
+        $status = ($postType === 'family' && $user['role'] !== 'admin') ? 'pending' : 'published';
 
-        // Email notification
-        $members = User::getByFamily($user['family_id']);
+        $postId = Post::create($user['family_id'], (int)$user['id'], $content, $imagePath, $postType, $status);
+
+        if ($status === 'pending') {
+            foreach (User::getByFamily($user['family_id']) as $admin) {
+                if ($admin['role'] !== 'admin') continue;
+                Notification::create((int)$admin['id'], 'wall',
+                    'Publication à valider',
+                    $user['name'] . ' propose une publication au nom de la famille.',
+                    BASE_URL . '/wall');
+            }
+            Session::flash('success', 'Publication envoyée à l\'administrateur pour validation.');
+            header('Location: ' . BASE_URL . '/wall');
+            exit;
+        }
+
+        $this->notifyNewPost($user, $postType, $content);
+
+        header('Location: ' . BASE_URL . '/wall');
+        exit;
+    }
+
+    /** Notifie (cloche + e-mail) les personnes concernées par une publication qui vient
+     *  d'être publiée : toute la famille si "famille", seulement les abonnés acceptés sinon. */
+    private function notifyNewPost(array $user, string $postType, string $content): void
+    {
+        if ($postType === 'family') {
+            Notification::notifyFamily((int)$user['family_id'], (int)$user['id'], 'wall', 'Nouveau post', $user['name'] . ' a publié sur le mur familial.', BASE_URL . '/wall');
+            $recipients = array_values(array_filter(User::getByFamily($user['family_id']), fn($m) => (int)$m['id'] !== (int)$user['id']));
+        } else {
+            $recipients = [];
+            foreach (Follow::getFollowers((int)$user['id']) as $follower) {
+                Notification::create((int)$follower['follower_id'], 'wall', 'Nouveau post', $user['name'] . ' a publié.', BASE_URL . '/wall');
+                $u = User::findById((int)$follower['follower_id']);
+                if ($u) $recipients[] = $u;
+            }
+        }
+
+        if (!$recipients) return;
         $rendered = EmailContent::render('wall_post', [
             'author_name' => $user['name'],
             'content'     => $content,
@@ -57,12 +114,36 @@ class WallController extends BaseController
             'label' => 'Voir le mur',
             'url'   => BASE_URL . '/wall',
         ]);
-        foreach ($members as $member) {
-            if ($member['id'] !== $user['id']) {
-                Mail::notifyUser(array_merge($member, ['family_id' => $user['family_id']]), $rendered['subject'], $html);
-            }
+        foreach ($recipients as $member) {
+            Mail::notifyUser(array_merge($member, ['family_id' => $user['family_id']]), $rendered['subject'], $html);
         }
+    }
 
+    public function approve(array $params): void
+    {
+        $this->requireAdmin();
+        $user = Session::user();
+        $post = Post::getById((int)$params['id']);
+        if ($post && $post['family_id'] === $user['family_id'] && $post['status'] === 'pending') {
+            Post::approve((int)$post['id'], (int)$user['id']);
+            Notification::create((int)$post['user_id'], 'wall', 'Publication validée',
+                'Votre publication au nom de la famille a été publiée.', BASE_URL . '/wall');
+            $this->notifyNewPost(User::findById((int)$post['user_id']), 'family', $post['content']);
+        }
+        header('Location: ' . BASE_URL . '/wall');
+        exit;
+    }
+
+    public function reject(array $params): void
+    {
+        $this->requireAdmin();
+        $user = Session::user();
+        $post = Post::getById((int)$params['id']);
+        if ($post && $post['family_id'] === $user['family_id'] && $post['status'] === 'pending') {
+            Post::reject((int)$post['id'], (int)$user['id']);
+            Notification::create((int)$post['user_id'], 'wall', 'Publication refusée',
+                'Votre publication proposée au nom de la famille n\'a pas été retenue.', BASE_URL . '/wall');
+        }
         header('Location: ' . BASE_URL . '/wall');
         exit;
     }
@@ -119,6 +200,9 @@ class WallController extends BaseController
             if (!$post || $post['family_id'] !== $user['family_id']) {
                 return ['success' => false];
             }
+            if (!Post::isVisibleTo($post, (int)$user['id'], Follow::getVisibleAuthorIds((int)$user['id']))) {
+                return ['success' => false];
+            }
             $content = trim($this->jsonInput()['content'] ?? '');
             if (!$content) return ['success' => false];
 
@@ -151,6 +235,9 @@ class WallController extends BaseController
             if (!$post || $post['family_id'] !== $user['family_id']) {
                 return ['success' => false];
             }
+            if (!Post::isVisibleTo($post, (int)$user['id'], Follow::getVisibleAuthorIds((int)$user['id']))) {
+                return ['success' => false];
+            }
             $action = Post::toggleReaction($postId, $user['id']);
             $count = \App\Core\Database::fetch('SELECT COUNT(*) as c FROM post_reactions WHERE post_id=?', [$postId])['c'];
 
@@ -169,12 +256,49 @@ class WallController extends BaseController
         $this->json(function () {
             $user = Session::user();
             $offset = (int)($_GET['offset'] ?? 0);
-            $posts = Post::getByFamily($user['family_id'], 10, $offset);
+            $visibleAuthorIds = Follow::getVisibleAuthorIds((int)$user['id']);
+            $posts = Post::getVisibleForUser($user['family_id'], (int)$user['id'], $visibleAuthorIds, 10, $offset);
             foreach ($posts as &$post) {
                 $post['comments'] = Post::getComments($post['id']);
                 $post['user_reaction'] = Post::getUserReaction($post['id'], $user['id']);
             }
             return ['posts' => $posts, 'has_more' => count($posts) === 10];
+        });
+    }
+
+    /** Partage une photo d'un de ses propres albums directement sur le mur, en tant que
+     *  nouvelle publication personnelle (jamais celles des autres, même dans un album partagé). */
+    public function sharePhoto(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $photoId = (int)($this->jsonInput()['photo_id'] ?? 0);
+            $photo = \App\Models\AlbumPhoto::getById($photoId);
+            if (!$photo || (int)$photo['user_id'] !== (int)$user['id'] || $photo['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Vous ne pouvez partager que vos propres photos.'];
+            }
+            // Copie physique du fichier plutôt que réutiliser le même chemin : la suppression de
+            // la photo dans l'album (qui efface le fichier disque) ne doit jamais casser
+            // l'image d'une publication déjà partagée sur le mur — les deux doivent pouvoir
+            // vivre et être supprimées indépendamment l'une de l'autre.
+            $sourcePath = BASE_PATH . '/public' . $photo['image_path'];
+            $ext = pathinfo($photo['image_path'], PATHINFO_EXTENSION) ?: 'jpg';
+            $newRelativePath = null;
+            if (is_file($sourcePath)) {
+                $newFilename = bin2hex(random_bytes(16)) . '.' . $ext;
+                if (copy($sourcePath, UPLOAD_DIR . $newFilename)) {
+                    $newRelativePath = '/public/uploads/' . $newFilename;
+                }
+            }
+            if (!$newRelativePath) {
+                return ['success' => false, 'error' => 'Photo introuvable sur le serveur.'];
+            }
+
+            $content = $this->sanitizeHtml(trim($this->jsonInput()['caption'] ?? ''));
+            $postId = Post::create($user['family_id'], (int)$user['id'], $content, $newRelativePath, 'personal', 'published');
+            $this->notifyNewPost($user, 'personal', $content);
+            return ['success' => true, 'post_id' => $postId];
         });
     }
 }

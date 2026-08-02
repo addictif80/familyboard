@@ -5,17 +5,38 @@ use App\Core\Database;
 
 class Post
 {
-    public static function getByFamily(int $familyId, int $limit = 20, int $offset = 0): array
+    /**
+     * Fil visible par $viewerId : les publications "famille" publiées, plus les publications
+     * personnelles publiées de tout auteur que $viewerId suit (ou lui-même). La jointure sur
+     * une liste d'ids passée en paramètre (jamais construite par concaténation de valeurs
+     * utilisateur) reste une requête préparée standard.
+     */
+    public static function getVisibleForUser(int $familyId, int $viewerId, array $visibleAuthorIds, int $limit = 20, int $offset = 0): array
     {
-        $posts = Database::fetchAll(
-            'SELECT p.*, u.name as user_name, u.avatar as user_avatar, u.color as user_color,
+        $authorIds = array_values(array_unique(array_map('intval', $visibleAuthorIds)));
+        $ph = $authorIds ? implode(',', array_fill(0, count($authorIds), '?')) : '0';
+        return Database::fetchAll(
+            "SELECT p.*, u.name as user_name, u.avatar as user_avatar, u.color as user_color,
              (SELECT COUNT(*) FROM post_reactions pr WHERE pr.post_id=p.id) as reaction_count,
              (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id=p.id) as comment_count
              FROM posts p JOIN users u ON u.id=p.user_id
-             WHERE p.family_id=? ORDER BY p.created_at DESC LIMIT ? OFFSET ?',
-            [$familyId, $limit, $offset]
+             WHERE p.family_id=? AND p.status='published'
+               AND (p.post_type='family' OR (p.post_type='personal' AND p.user_id IN ($ph)))
+             ORDER BY p.created_at DESC LIMIT ? OFFSET ?",
+            [$familyId, ...$authorIds, $limit, $offset]
         );
-        return $posts;
+    }
+
+    /** File d'attente des publications "famille" proposées par un membre, à valider par l'admin. */
+    public static function getPendingByFamily(int $familyId): array
+    {
+        return Database::fetchAll(
+            "SELECT p.*, u.name as user_name, u.avatar as user_avatar, u.color as user_color
+             FROM posts p JOIN users u ON u.id=p.user_id
+             WHERE p.family_id=? AND p.post_type='family' AND p.status='pending'
+             ORDER BY p.created_at ASC",
+            [$familyId]
+        );
     }
 
     public static function getById(int $id): ?array
@@ -26,12 +47,30 @@ class Post
         );
     }
 
-    public static function create(int $familyId, int $userId, string $content = '', ?string $imagePath = null): int
+    /** True si $viewerId peut voir cette publication (déjà chargée) selon les règles de visibilité. */
+    public static function isVisibleTo(array $post, int $viewerId, array $visibleAuthorIds): bool
+    {
+        if ($post['status'] !== 'published') return (int)$post['user_id'] === $viewerId;
+        if ($post['post_type'] === 'family') return true;
+        return in_array((int)$post['user_id'], $visibleAuthorIds, true);
+    }
+
+    public static function create(int $familyId, int $userId, string $content, ?string $imagePath, string $postType, string $status): int
     {
         return Database::insert(
-            'INSERT INTO posts (family_id, user_id, content, image_path) VALUES (?,?,?,?)',
-            [$familyId, $userId, $content, $imagePath]
+            'INSERT INTO posts (family_id, user_id, content, image_path, post_type, status) VALUES (?,?,?,?,?,?)',
+            [$familyId, $userId, $content, $imagePath, $postType, $status]
         );
+    }
+
+    public static function approve(int $id, int $reviewerId): void
+    {
+        Database::execute("UPDATE posts SET status='published', reviewed_by=?, reviewed_at=NOW() WHERE id=?", [$reviewerId, $id]);
+    }
+
+    public static function reject(int $id, int $reviewerId): void
+    {
+        Database::execute("UPDATE posts SET status='rejected', reviewed_by=?, reviewed_at=NOW() WHERE id=?", [$reviewerId, $id]);
     }
 
     public static function update(int $id, string $content): void
