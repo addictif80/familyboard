@@ -27,7 +27,7 @@ if ($_modalHighlight):
                     <p style="color:var(--text-muted);font-size:.88rem"><?= htmlspecialchars($_modalHighlight['description']) ?></p>
                 <?php endif; ?>
             </a>
-            <span class="abhd-spotlight-tag">ABHD</span>
+            <span class="abhd-spotlight-tag"><?= htmlspecialchars(parse_url($_modalHighlight['url'], PHP_URL_HOST) ?: $_modalHighlight['url']) ?></span>
         </div>
     </div>
 </div>
