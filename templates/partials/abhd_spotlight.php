@@ -17,7 +17,7 @@ if ($_spotlight):
                 <span class="abhd-spotlight-desc"><?= htmlspecialchars($_spotlight['description']) ?></span>
             <?php endif; ?>
         </span>
-        <span class="abhd-spotlight-tag">ABHD</span>
+        <span class="abhd-spotlight-tag"><?= htmlspecialchars(parse_url($_spotlight['url'], PHP_URL_HOST) ?: $_spotlight['url']) ?></span>
     </span>
 </a>
 <?php endif; unset($_spotlight); ?>
