@@ -1360,17 +1360,20 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
    listes de filtrage génériques des bloqueurs publicitaires ciblent ces motifs même pour du
    contenu qui n'est pas une régie tierce) ─────────────────────────────────────────────── */
 .abhd-spotlight {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 1rem;
+    display: block;
     width: 100%; box-sizing: border-box;
     background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: .85rem 1.1rem; margin-bottom: 1.1rem;
+    overflow: hidden; margin-bottom: 1.1rem;
     text-decoration: none; color: inherit;
     transition: box-shadow .15s, transform .15s;
 }
 .abhd-spotlight:hover { box-shadow: 0 6px 20px rgba(0,0,0,.1); transform: translateY(-1px); }
 .abhd-spotlight-img {
-    max-width: 100%; width: auto; height: auto; max-height: 72px;
-    object-fit: contain; border-radius: 8px; flex-shrink: 0;
+    display: block; width: 100%; height: auto;
+}
+.abhd-spotlight-footer {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem;
+    padding: .75rem 1.1rem;
 }
 .abhd-spotlight-text { display: flex; flex-direction: column; gap: .15rem; flex: 1; min-width: 180px; }
 .abhd-spotlight-title { font-size: .92rem; color: var(--text); }

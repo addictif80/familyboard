@@ -10,12 +10,14 @@ if ($_spotlight):
     <?php if ($_spotlight['image_path']): ?>
         <img class="abhd-spotlight-img" src="<?= htmlspecialchars(BASE_URL . $_spotlight['image_path']) ?>" alt="<?= htmlspecialchars($_spotlight['title']) ?>">
     <?php endif; ?>
-    <span class="abhd-spotlight-text">
-        <strong class="abhd-spotlight-title"><?= htmlspecialchars($_spotlight['title']) ?></strong>
-        <?php if ($_spotlight['description']): ?>
-            <span class="abhd-spotlight-desc"><?= htmlspecialchars($_spotlight['description']) ?></span>
-        <?php endif; ?>
+    <span class="abhd-spotlight-footer">
+        <span class="abhd-spotlight-text">
+            <strong class="abhd-spotlight-title"><?= htmlspecialchars($_spotlight['title']) ?></strong>
+            <?php if ($_spotlight['description']): ?>
+                <span class="abhd-spotlight-desc"><?= htmlspecialchars($_spotlight['description']) ?></span>
+            <?php endif; ?>
+        </span>
+        <span class="abhd-spotlight-tag">ABHD</span>
     </span>
-    <span class="abhd-spotlight-tag">ABHD</span>
 </a>
 <?php endif; unset($_spotlight); ?>
