@@ -92,15 +92,17 @@ HTML;
         $base = self::baseUrl();
         $url = $base . '/highlights/' . (int)$h['id'] . '/go';
         $img = $h['image_path']
-            ? '<img src="' . htmlspecialchars($base . $h['image_path'], ENT_QUOTES, 'UTF-8') . '" alt="" style="max-width:100%;height:auto;max-height:60px;display:block;margin:0 auto 8px;border-radius:6px">'
+            ? '<img src="' . htmlspecialchars($base . $h['image_path'], ENT_QUOTES, 'UTF-8') . '" alt="" width="100%" style="width:100%;max-width:100%;height:auto;display:block;border-radius:8px 8px 0 0">'
             : '';
 
         return '
-    <div style="margin-top:18px;padding:14px 16px;border:1px solid #E6DFD1;border-radius:10px;text-align:center">
+    <div style="margin-top:18px;border:1px solid #E6DFD1;border-radius:10px;overflow:hidden;text-align:center">
         <a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" style="text-decoration:none;color:#23201B;display:block">
             ' . $img . '
-            <strong style="font-size:13px">' . htmlspecialchars($h['title'], ENT_QUOTES, 'UTF-8') . '</strong>
-            ' . ($h['description'] ? '<div style="font-size:12px;color:#7C7568;margin-top:2px">' . htmlspecialchars($h['description'], ENT_QUOTES, 'UTF-8') . '</div>' : '') . '
+            <div style="padding:12px 16px">
+                <strong style="font-size:13px">' . htmlspecialchars($h['title'], ENT_QUOTES, 'UTF-8') . '</strong>
+                ' . ($h['description'] ? '<div style="font-size:12px;color:#7C7568;margin-top:2px">' . htmlspecialchars($h['description'], ENT_QUOTES, 'UTF-8') . '</div>' : '') . '
+            </div>
         </a>
     </div>';
     }
