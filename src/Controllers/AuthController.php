@@ -25,6 +25,11 @@ class AuthController
 
     public function login(array $params): void
     {
+        if (!\App\Core\Csrf::verify()) {
+            Session::flash('error', 'Session expirée, veuillez réessayer.');
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
@@ -35,7 +40,8 @@ class AuthController
             exit;
         }
 
-        if (LoginAttempt::isLocked('user', $ip)) {
+        $acctKey = LoginAttempt::accountKey($email);
+        if (LoginAttempt::isLocked('user', $ip) || LoginAttempt::isLocked('user', $acctKey)) {
             Session::flash('error', 'Trop de tentatives. Réessayez dans ' . LoginAttempt::minutesUntilUnlock() . ' minutes.');
             header('Location: ' . BASE_URL . '/login');
             exit;
@@ -44,11 +50,13 @@ class AuthController
         $user = User::verify($email, $password);
         if (!$user) {
             LoginAttempt::record('user', $ip);
+            LoginAttempt::record('user', $acctKey);
             Session::flash('error', 'Email ou mot de passe incorrect.');
             header('Location: ' . BASE_URL . '/login');
             exit;
         }
         LoginAttempt::clear('user', $ip);
+        LoginAttempt::clear('user', $acctKey);
 
         // Check if account is blocked
         if (!empty($user['blocked_at'])) {
@@ -106,6 +114,11 @@ class AuthController
 
     public function verifyTwoFactor(array $params): void
     {
+        if (!\App\Core\Csrf::verify()) {
+            Session::flash('error', 'Session expirée, veuillez réessayer.');
+            header('Location: ' . BASE_URL . '/login/2fa');
+            exit;
+        }
         $userId = (int)(Session::get('pending_2fa_user_id') ?? 0);
         if (!$userId) {
             header('Location: ' . BASE_URL . '/login');
@@ -113,7 +126,8 @@ class AuthController
         }
 
         $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-        if (LoginAttempt::isLocked('2fa', $ip)) {
+        $acctKey = 'acct:' . $userId;
+        if (LoginAttempt::isLocked('2fa', $ip) || LoginAttempt::isLocked('2fa', $acctKey)) {
             Session::flash('error', 'Trop de tentatives. Réessayez dans ' . LoginAttempt::minutesUntilUnlock() . ' minutes.');
             header('Location: ' . BASE_URL . '/login/2fa');
             exit;
@@ -133,12 +147,13 @@ class AuthController
 
         if (!$ok) {
             LoginAttempt::record('2fa', $ip);
+            LoginAttempt::record('2fa', $acctKey);
             Session::flash('error', 'Code invalide ou expiré.');
             header('Location: ' . BASE_URL . '/login/2fa');
             exit;
         }
-
         LoginAttempt::clear('2fa', $ip);
+        LoginAttempt::clear('2fa', $acctKey);
         Session::delete('pending_2fa_user_id');
         Session::login($user);
         RememberMe::issue($user['id']);
@@ -148,6 +163,10 @@ class AuthController
 
     public function resendTwoFactorEmail(array $params): void
     {
+        if (!\App\Core\Csrf::verify()) {
+            header('Location: ' . BASE_URL . '/login/2fa');
+            exit;
+        }
         $userId = (int)(Session::get('pending_2fa_user_id') ?? 0);
         $user = $userId ? User::findById($userId) : null;
         if ($user && TwoFactorAuth::getMethod($userId) === 'email') {
@@ -171,6 +190,11 @@ class AuthController
 
     public function register(array $params): void
     {
+        if (!\App\Core\Csrf::verify()) {
+            Session::flash('error', 'Session expirée, veuillez réessayer.');
+            header('Location: ' . BASE_URL . '/register');
+            exit;
+        }
         $name = trim($_POST['name'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
@@ -183,14 +207,34 @@ class AuthController
             exit;
         }
 
-        if (strlen($password) < 6) {
-            Session::flash('error', 'Le mot de passe doit faire au moins 6 caractères.');
+        if (empty($_POST['accept_terms'])) {
+            Session::flash('error', 'Vous devez accepter les CGU et la politique de confidentialité pour créer un compte.');
             header('Location: ' . BASE_URL . '/register');
             exit;
         }
 
-        if (User::findByEmail($email)) {
-            Session::flash('error', 'Cet email est déjà utilisé.');
+        if (strlen($password) < 8) {
+            Session::flash('error', 'Le mot de passe doit faire au moins 8 caractères.');
+            header('Location: ' . BASE_URL . '/register');
+            exit;
+        }
+
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (LoginAttempt::isLocked('register', $ip)) {
+            Session::flash('error', 'Trop de tentatives. Réessayez dans ' . LoginAttempt::minutesUntilUnlock() . ' minutes.');
+            header('Location: ' . BASE_URL . '/register');
+            exit;
+        }
+
+        $existing = User::findByEmail($email);
+        if ($existing) {
+            // Message volontairement neutre : révéler "cet email est déjà utilisé" permettrait
+            // à quiconque de découvrir qui a un compte FamilyBoard en testant des adresses en
+            // masse (risque concret ici vu l'usage co-parent en contexte de séparation). Le
+            // titulaire du compte existant est prévenu par e-mail de la tentative à sa place.
+            LoginAttempt::record('register', $ip);
+            self::notifyExistingAccountOfRegistrationAttempt($existing);
+            Session::flash('error', 'Impossible de créer ce compte. Si vous avez déjà un compte avec cette adresse, connectez-vous plutôt.');
             header('Location: ' . BASE_URL . '/register');
             exit;
         }
@@ -228,6 +272,23 @@ class AuthController
         $userId = User::create($familyId, $name, $email, $password, $role, $color);
         $user = User::findById($userId);
         $this->completeLogin($user);
+    }
+
+    /** Prévient le titulaire d'un compte existant qu'une inscription a été tentée avec son
+     *  adresse — best-effort, ne doit jamais faire échouer/ralentir la réponse au formulaire. */
+    private static function notifyExistingAccountOfRegistrationAttempt(array $existing): void
+    {
+        try {
+            $html = EmailLayout::render(
+                'Tentative de création de compte',
+                '<p>Quelqu\'un a tenté de créer un compte FamilyBoard avec votre adresse e-mail.</p>'
+                . '<p>Si c\'est vous, connectez-vous simplement avec votre compte existant. '
+                . 'Si ce n\'est pas vous, aucune action n\'est requise : votre compte n\'a pas été modifié.</p>'
+            );
+            Mail::send((int)$existing['family_id'], $existing['email'], $existing['name'], 'Tentative de création de compte — FamilyBoard', $html, 'security');
+        } catch (\Throwable $e) {
+            error_log('notifyExistingAccountOfRegistrationAttempt failed: ' . $e->getMessage());
+        }
     }
 
     public function logout(array $params): void

@@ -1,6 +1,7 @@
 <?php
 namespace App\Models;
 
+use App\Core\Crypto;
 use App\Core\Database;
 use App\Core\Totp;
 
@@ -17,7 +18,14 @@ class TwoFactorAuth
     public static function getTotpSecret(int $userId): ?string
     {
         $row = Database::fetch('SELECT totp_secret FROM users WHERE id = ?', [$userId]);
-        return $row['totp_secret'] ?? null;
+        if (empty($row['totp_secret'])) return null;
+        $secret = Crypto::decrypt($row['totp_secret']);
+        // Migration transparente : un secret encore en clair (installation antérieure au
+        // chiffrement) est re-sauvegardé chiffré dès qu'on le relit, sans action de l'utilisateur.
+        if ($secret !== null && !str_starts_with($row['totp_secret'], 'v1:')) {
+            Database::execute('UPDATE users SET totp_secret = ? WHERE id = ?', [Crypto::encrypt($secret), $userId]);
+        }
+        return $secret;
     }
 
     /** Vérifie un code TOTP ET empêche son rejeu : un code déjà accepté pour ce pas de temps (ou
@@ -39,7 +47,7 @@ class TwoFactorAuth
      *  moi" existantes pour forcer une re-vérification 2FA sur tous les appareils déjà connectés. */
     public static function enableTotp(int $userId, string $secret): void
     {
-        Database::execute('UPDATE users SET two_factor_method = ?, totp_secret = ? WHERE id = ?', ['totp', $secret, $userId]);
+        Database::execute('UPDATE users SET two_factor_method = ?, totp_secret = ? WHERE id = ?', ['totp', Crypto::encrypt($secret), $userId]);
         AuthToken::deleteForUser($userId);
     }
 

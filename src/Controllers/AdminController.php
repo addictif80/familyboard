@@ -6,6 +6,7 @@ use App\Core\Mail;
 use App\Core\Session;
 use App\Models\AppSetting;
 use App\Models\EmailContent;
+use App\Models\LegalContent;
 use App\Core\OfficialAlertFeed;
 use App\Models\ImpersonationLog;
 use App\Models\Notification;
@@ -169,6 +170,10 @@ class AdminController extends BaseController
         $tickets      = SupportTicket::getAll();
         $smtp         = SmtpSettings::get();
         $emailContents = EmailContent::getAll();
+        $legalPrivacy = LegalContent::get('privacy');
+        $legalTerms   = LegalContent::get('terms');
+        $legalPrivacyIsCustom = LegalContent::isCustom('privacy');
+        $legalTermsIsCustom   = LegalContent::isCustom('terms');
         $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
@@ -472,6 +477,30 @@ class AdminController extends BaseController
             }
             return ['ok' => true];
         });
+    }
+
+    // ── Politique de confidentialité / CGU (éditable, texte brut) ──────────────
+
+    public function updateLegalContent(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $type = $_POST['type'] ?? '';
+        if (!isset(LegalContent::TYPES[$type])) {
+            $this->redirect('/admin?tab=legal');
+            return;
+        }
+        LegalContent::set($type, trim($_POST['content'] ?? ''));
+        $this->redirect('/admin?tab=legal&msg=legal_saved');
+    }
+
+    public function resetLegalContent(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $type = $params['type'] ?? '';
+        if (isset(LegalContent::TYPES[$type])) {
+            LegalContent::set($type, '');
+        }
+        $this->redirect('/admin?tab=legal&msg=legal_reset');
     }
 
     // ── Helpers ──────────────────────────────────────────────────

@@ -242,7 +242,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('baby') || $_navEnabled('location') || $_navEnabled('emergency') || $_navEnabled('cameras')): ?>
+            <?php if ($_navEnabled('baby') || $_navEnabled('location') || $_navEnabled('emergency')): ?>
             <li class="nav-section-label">Suivi & sécurité</li>
             <?php endif; ?>
             <?php if ($_navEnabled('baby')): ?>
@@ -266,14 +266,6 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                 <a href="<?= BASE_URL ?>/emergency" class="nav-link">
                     <span class="nav-icon">🚑</span>
                     <span class="nav-label">Fiches urgence</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('cameras')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/cameras') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/cameras" class="nav-link">
-                    <span class="nav-icon">🎥</span>
-                    <span class="nav-label">Caméras</span>
                 </a>
             </li>
             <?php endif; ?>
@@ -305,6 +297,12 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                     </button>
                     <a href="<?= BASE_URL ?>/support" class="user-menu-item">
                         <span class="user-menu-item-icon">🎫</span> Support
+                    </a>
+                    <a href="<?= BASE_URL ?>/faq" class="user-menu-item">
+                        <span class="user-menu-item-icon">❓</span> FAQ
+                    </a>
+                    <a href="<?= BASE_URL ?>/confidentialite" class="user-menu-item">
+                        <span class="user-menu-item-icon">📜</span> Confidentialité & CGU
                     </a>
                     <div class="user-menu-divider"></div>
                     <a href="<?= BASE_URL ?>/logout" class="user-menu-item user-menu-item-danger">

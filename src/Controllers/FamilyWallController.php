@@ -2,7 +2,6 @@
 namespace App\Controllers;
 
 use App\Core\Session;
-use App\Models\Camera;
 use App\Models\Event;
 use App\Models\Custody;
 use App\Models\TaskList;
@@ -19,12 +18,6 @@ class FamilyWallController extends BaseController
         $familyId = $user['family_id'];
         $family   = Family::findById($familyId);
         $weatherCity = $family['weather_city'] ?? '';
-
-        // RTSP cameras available for the wall panel
-        $wallCameras = array_values(array_filter(
-            Camera::getByFamily($familyId),
-            fn($c) => $c['stream_type'] === 'rtsp' && !empty($c['stream_url'])
-        ));
 
         [
             'byDate'         => $byDate,

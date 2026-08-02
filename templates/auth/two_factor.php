@@ -23,6 +23,7 @@ ob_start();
     <?php endif; ?>
 
     <form method="POST" action="<?= BASE_URL ?>/login/2fa" class="auth-form">
+        <?= \App\Core\Csrf::field() ?>
         <div class="form-group">
             <label>Code de vérification</label>
             <input type="text" name="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" required autofocus placeholder="123456" style="letter-spacing:4px;font-size:1.3rem;text-align:center">
@@ -32,6 +33,7 @@ ob_start();
 
     <?php if ($method === 'email'): ?>
         <form method="POST" action="<?= BASE_URL ?>/login/2fa/resend" style="margin-top:.5rem">
+            <?= \App\Core\Csrf::field() ?>
             <button type="submit" class="btn btn-secondary btn-full btn-sm">Renvoyer le code</button>
         </form>
     <?php endif; ?>

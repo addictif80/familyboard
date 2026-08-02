@@ -35,3 +35,30 @@ function showEmergencyQr(token) {
     document.getElementById('emergency-qr-link').textContent = url;
     openModal('emergency-qr-modal');
 }
+
+async function regenerateEmergencyLink(cardId) {
+    const ok = await Dialog.confirm("Régénérer le lien ? L'ancien lien (QR code déjà imprimé, envoyé...) cessera immédiatement de fonctionner.");
+    if (!ok) return;
+    const r = await apiFetch(BASE_URL + '/api/emergency/' + cardId + '/regenerate-token', { method: 'POST', body: '{}' });
+    if (r.success) {
+        Dialog.toast('Nouveau lien généré.');
+        setTimeout(() => window.location.reload(), 600);
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}
+
+async function viewEmergencyAccessLog(cardId) {
+    const r = await apiFetch(BASE_URL + '/api/emergency/' + cardId + '/access-log');
+    const body = document.getElementById('emergency-log-body');
+    if (!r.success) {
+        body.innerHTML = '<p>' + (r.error || 'Erreur.') + '</p>';
+    } else if (!r.log.length) {
+        body.innerHTML = '<p style="color:var(--text-muted)">Aucune consultation enregistrée pour l\'instant.</p>';
+    } else {
+        body.innerHTML = '<table class="table"><thead><tr><th>Date</th><th>Adresse IP</th></tr></thead><tbody>'
+            + r.log.map(e => `<tr><td>${new Date(e.accessed_at.replace(' ', 'T') + 'Z').toLocaleString('fr-FR')}</td><td>${e.ip || '—'}</td></tr>`).join('')
+            + '</tbody></table>';
+    }
+    openModal('emergency-log-modal');
+}

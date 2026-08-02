@@ -10,3 +10,9 @@
 
 // Debug (ne JAMAIS activer en production : affiche le détail des erreurs aux visiteurs)
 // define('APP_DEBUG', true);
+
+// Clé de chiffrement applicative (secrets 2FA au repos). Recommandée en production —
+// sans elle une clé est générée automatiquement dans storage/app_key.bin (fonctionne,
+// mais ne survit pas à une suppression de storage/). Générer par exemple avec :
+//   php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+// define('APP_ENCRYPTION_KEY', 'votre-clé-générée');

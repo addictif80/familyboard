@@ -18,7 +18,6 @@ class Family
         'contacts'    => ['label' => 'Répertoire',        'icon' => '📒'],
         'warranties'  => ['label' => 'Garanties',         'icon' => '🛡️'],
         'documents'   => ['label' => 'Documents',         'icon' => '🗂️'],
-        'cameras'     => ['label' => 'Caméras',           'icon' => '🎥'],
         'family-wall' => ['label' => 'Écran mural',       'icon' => '📺'],
         'baby'        => ['label' => 'Bébé',               'icon' => '🍼'],
         'location'    => ['label' => 'Position',          'icon' => '📍'],
@@ -58,12 +57,11 @@ class Family
         $syncInterval = in_array($syncInterval, $allowedIntervals, true) ? $syncInterval : null;
 
         Database::execute(
-            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, go2rtc_url=?, school_zone=?, caldav_sync_interval=? WHERE id=?',
+            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, school_zone=?, caldav_sync_interval=? WHERE id=?',
             [
                 $name,
                 $settings['timezone'] ?: null,
                 isset($settings['weather_city']) ? (trim($settings['weather_city']) ?: null) : null,
-                isset($settings['go2rtc_url'])   ? (trim($settings['go2rtc_url'])   ?: null) : null,
                 $schoolZone,
                 $syncInterval,
                 $id,

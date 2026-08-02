@@ -122,13 +122,33 @@ class SettingsController extends BaseController
         if ($avatar) $data['avatar'] = $avatar;
         User::update($user['id'], $data);
 
+        $passwordError = null;
         $password = $_POST['password'] ?? '';
-        if ($password && strlen($password) >= 6) {
-            User::updatePassword($user['id'], $password);
+        if ($password) {
+            // Le mot de passe actuel est exigé pour changer le mot de passe : sans ça, un
+            // détournement de session (XSS, poste partagé laissé ouvert...) suffirait à
+            // prendre le contrôle définitif du compte sans jamais connaître le mot de passe.
+            $currentPassword = $_POST['current_password'] ?? '';
+            if (!User::verify($user['email'], $currentPassword)) {
+                $passwordError = 'Mot de passe actuel incorrect — le mot de passe n\'a pas été changé.';
+            } elseif (strlen($password) < 8) {
+                $passwordError = 'Le nouveau mot de passe doit faire au moins 8 caractères.';
+            } else {
+                User::updatePassword($user['id'], $password);
+                // Invalide toutes les autres sessions/appareils ("se souvenir de moi" inclus) :
+                // un attaquant qui avait un accès parallèle ne doit pas le conserver après que
+                // la victime a changé son mot de passe. La session courante reste active en
+                // avançant son propre login_at au-delà du nouveau force_logout_at.
+                \App\Core\Database::execute('UPDATE users SET force_logout_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s'), $user['id']]);
+                \App\Models\AuthToken::deleteForUser((int)$user['id']);
+                Session::set('login_at', time());
+            }
         }
 
         if ($avatarError) {
             Session::flash('error', 'Profil mis à jour, mais la photo n\'a pas pu être changée : ' . $avatarError);
+        } elseif ($passwordError) {
+            Session::flash('error', 'Profil mis à jour. ' . $passwordError);
         } else {
             Session::flash('success', 'Profil mis à jour.');
         }
@@ -146,7 +166,6 @@ class SettingsController extends BaseController
         if ($name) Family::update($user['family_id'], $name, [
             'timezone'             => $tz,
             'weather_city'         => trim($_POST['weather_city']         ?? ''),
-            'go2rtc_url'           => trim($_POST['go2rtc_url']           ?? ''),
             'school_zone'          => trim($_POST['school_zone']          ?? ''),
             'caldav_sync_interval' => trim($_POST['caldav_sync_interval'] ?? ''),
         ]);

@@ -11,15 +11,14 @@ class AccountDeletion
     {
         $filePaths = self::userFilePaths($userId);
 
-        // project_materials.user_id et cameras.user_id n'ont pas de ON DELETE en base (ce sont des
-        // ressources partagées de la famille) : on les réassigne au lieu de casser la suppression.
+        // project_materials.user_id n'a pas de ON DELETE en base (ce sont des
+        // ressources partagées de la famille) : on le réassigne au lieu de casser la suppression.
         $fallback = Database::fetch(
             "SELECT id FROM users WHERE family_id=? AND id!=? ORDER BY (role='admin') DESC, id LIMIT 1",
             [$familyId, $userId]
         );
         if ($fallback) {
             Database::execute('UPDATE project_materials SET user_id=? WHERE user_id=?', [$fallback['id'], $userId]);
-            Database::execute('UPDATE cameras SET user_id=? WHERE user_id=?', [$fallback['id'], $userId]);
         }
 
         Database::execute('DELETE FROM users WHERE id=?', [$userId]);

@@ -5,6 +5,16 @@ use App\Core\Database;
 
 class SupportTicket
 {
+    /** RGPD (durée de conservation) : un ticket clos depuis longtemps (diagnostics techniques,
+     *  échanges avec l'utilisateur) n'a plus d'utilité opérationnelle passé un délai raisonnable. */
+    public static function purgeClosedOlderThan(int $months = 18): int
+    {
+        return Database::execute(
+            "DELETE FROM support_tickets WHERE status='closed' AND updated_at < DATE_SUB(NOW(), INTERVAL ? MONTH)",
+            [$months]
+        );
+    }
+
     // ── Tickets ─────────────────────────────────────────────────
 
     public static function getAll(): array

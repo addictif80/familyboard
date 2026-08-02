@@ -9,7 +9,7 @@ mobile et ordinateur.
 | Module | Description |
 |--------|-------------|
 | 🏠 **Tableau de bord** | Vue d'ensemble : prochains événements, tâches en cours, solde du mois |
-| 🖥️ **Vue famille** | Tableau de bord alternatif plein écran : météo, caméras, agenda, tâches, budget |
+| 🖥️ **Vue famille** | Tableau de bord alternatif plein écran : météo, agenda, tâches, budget |
 | 📸 **Mur familial** | Publications, photos, réactions emoji et commentaires |
 | 🖼️ **Albums photo** | Albums partagés, y compris avec un co-parent à accès restreint |
 | 📅 **Calendrier partagé** | Événements récurrents, import CalDAV/iCal (Google, Nextcloud, iCloud…) |
@@ -28,13 +28,21 @@ mobile et ordinateur.
 | 🚑 **Fiches urgence** | Fiches médicales/urgence consultables via un lien public (sans compte) |
 | 🧑‍🍼 **Accès baby-sitter** | Lien temporaire donnant un accès limité (agenda, contacts, fiches urgence) |
 | 🌩️ **Veille informationnelle** | Alertes officielles (canicule, inondation, feu de forêt…) par zone géographique |
-| 🎥 **Caméras IP** | Visualisation des flux RTSP/MJPEG/HLS via proxy PHP (go2rtc) |
-| 📺 **Écran mural** | Affichage plein écran pour télévision via lien kiosque : agenda, tâches, budget, caméras en direct |
+| 📺 **Écran mural** | Affichage plein écran pour télévision via lien kiosque : agenda, tâches, budget |
 | 🔔 **Notifications** | Cloche en app + notifications push (web push), avec rappels par e-mail (tâches, courses, événements) |
 | 🎫 **Support** | Tickets de support envoyés à l'administrateur système, avec pièces jointes de diagnostic |
 | 🧩 **Modules** | Chaque famille peut activer/désactiver les modules indépendamment |
 | ✉️ **E-mails** | Notifications SMTP personnalisées avec templates modifiables par famille |
 | 👥 **Multi-familles** | Invitation par code ou par e-mail, rôles admin/membre/co-parent |
+| ❓ **FAQ** | Page publique détaillant chaque fonctionnalité (`/faq`) |
+| 📜 **Contenu légal** | Politique de confidentialité et CGU éditables par l'administrateur système (`/confidentialite`, `/cgu`), acceptation obligatoire à l'inscription |
+
+> **Module Caméras IP retiré.** Il permettait à tout admin de famille (y compris
+> un compte tout juste auto-inscrit) de faire pointer le serveur vers une
+> adresse réseau interne arbitraire (SSRF) via `go2rtc_url`/`stream_url`, sans
+> mitigation possible tant que l'inscription est ouverte au public. Une
+> réintroduction future nécessiterait une liste blanche d'hôtes de confiance
+> gérée par l'administrateur système, pas par l'admin de famille.
 
 ## Garde partagée et accès co-parent
 
@@ -242,28 +250,6 @@ activer ou désactiver les modules qu'elle utilise. Un module désactivé
 disparaît de la navigation et redirige vers le tableau de bord si l'URL est
 accédée directement. Tous les modules sont activés par défaut.
 
-## Caméras IP et flux RTSP
-
-| Type | Description |
-|------|-------------|
-| `mjpeg` | Flux Motion JPEG — lecture directe dans le navigateur |
-| `snapshot` | Image JPEG rafraîchie toutes les 5 secondes |
-| `hls` | Flux HLS via player hls.js intégré |
-| `rtsp` | Flux RTSP via **go2rtc** — proxy PHP, sans accès direct depuis le navigateur |
-
-### Configurer go2rtc
-
-```bash
-docker run -d --network=host alexxit/go2rtc
-```
-
-Renseignez l'URL dans **Paramètres → Famille** : `http://127.0.0.1:1984`
-si go2rtc tourne sur le même serveur.
-
-Le flux passe entièrement par PHP (MJPEG pour les vignettes, HLS avec
-audio pour le plein écran) — go2rtc n'a pas besoin d'être accessible
-depuis le navigateur.
-
 ## Calendriers CalDAV
 
 | Service | URL exemple |
@@ -340,8 +326,54 @@ compiler soi-même :
   invité ailleurs comme simple membre ne devienne pas administrateur de la
   famille qui l'invite).
 - **Sessions PHP sécurisées** (régénération de l'ID à la connexion,
-  protection contre la fixation de session).
-- **Mots de passe hashés** avec bcrypt.
-- **Validation des uploads** (type MIME, taille maximale).
-- **Échappement systématique des sorties HTML** (`htmlspecialchars`).
+  protection contre la fixation de session, cookies `HttpOnly`/`Secure`/`SameSite=Lax`).
+- **Mots de passe hashés** avec bcrypt (minimum 8 caractères) ; changement de
+  mot de passe soumis à la saisie du mot de passe actuel, et déconnexion
+  automatique de tous les autres appareils/sessions à chaque changement.
+- **Secret TOTP chiffré au repos** (`APP_KEY`, voir ci-dessous) — une fuite de
+  la seule base de données ne suffit pas à régénérer des codes 2FA valides.
+- **Anti brute-force par IP *et* par compte** sur la connexion, la 2FA et
+  l'espace admin — un attaquant distribué sur plusieurs IP ne peut pas
+  contourner la limite en visant un compte précis.
+- **CSRF** : jeton vérifié sur tous les formulaires POST classiques, y
+  compris pré-authentification (connexion, inscription, acceptation
+  d'invitation).
+- **Invitations sécurisées** : token à usage unique, expirant après 7 jours ;
+  si l'e-mail invité correspond à un compte déjà existant, le mot de passe de
+  ce compte est vérifié avant toute action, et son rôle est explicitement
+  remis à "membre" lors d'un changement de famille (pour qu'un administrateur
+  invité ailleurs comme simple membre ne devienne pas administrateur de la
+  famille qui l'invite).
+- **Inscription sans énumération de compte** : un e-mail déjà utilisé ne
+  produit pas de message distinctif ; le titulaire du compte existant est
+  prévenu par e-mail de la tentative.
+- **Fiches d'urgence publiques journalisées** : chaque consultation du lien
+  public (sans compte) est enregistrée (date, IP), et le lien peut être
+  régénéré à tout moment par la famille pour révoquer un ancien lien.
+- **Purges automatiques (RGPD)** : positions partagées expirées et tickets de
+  support clos anciens supprimés périodiquement par le cron.
+- **Anti-SSRF** sur les sources CalDAV externes (liste blanche de schéma,
+  résolution DNS filtrée contre les plages privées/loopback, IP validée
+  épinglée sur la requête réelle pour éviter le DNS rebinding).
+- **Validation des uploads** (type MIME vérifié sur le contenu réel, pas
+  seulement déclaré ; taille maximale).
+- **Échappement systématique des sorties HTML** (`htmlspecialchars`) ; le
+  contenu enrichi (mur familial) est nettoyé via une liste blanche de
+  tags/attributs appliquée après décodage des entités (DOM), pas par regex
+  sur texte brut.
 - **Requêtes préparées PDO** (protection injection SQL).
+- **Politique de confidentialité et CGU** éditables par l'administrateur
+  système (`/admin` → Contenu légal), acceptation obligatoire à l'inscription.
+
+### Variable d'environnement `APP_KEY`
+
+Recommandée en production, sert à chiffrer les secrets 2FA (TOTP) au repos :
+
+```
+APP_KEY=une-chaine-longue-et-aleatoire
+```
+
+Sans elle, une clé est générée automatiquement dans `storage/app_key.bin` —
+fonctionne sans configuration, mais ne survit pas à une suppression du
+dossier `storage/` (les secrets déjà chiffrés deviendraient illisibles, ce
+qui forcerait les utilisateurs concernés à réactiver leur 2FA).
