@@ -120,6 +120,13 @@ class SettingsController extends BaseController
 
         $data = ['name' => $name ?: $user['name'], 'color' => $color];
         if ($avatar) $data['avatar'] = $avatar;
+        $birthday = trim($_POST['birthday'] ?? '');
+        if ($birthday !== '') {
+            $d = \DateTime::createFromFormat('Y-m-d', $birthday);
+            $data['birthday'] = ($d && $d->format('Y-m-d') === $birthday && $d < new \DateTime()) ? $birthday : null;
+        } else {
+            $data['birthday'] = null;
+        }
         User::update($user['id'], $data);
 
         $passwordError = null;

@@ -118,7 +118,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('wall') || $_navEnabled('albums') || $_navEnabled('chat') || $_navEnabled('calendar') || $_navEnabled('contacts') || $_navEnabled('meals')): ?>
+            <?php if ($_navEnabled('wall') || $_navEnabled('albums') || $_navEnabled('chat') || $_navEnabled('calendar') || $_navEnabled('contacts') || $_navEnabled('meals') || $_navEnabled('wishlist') || $_navEnabled('polls')): ?>
             <li class="nav-section-label">Vie de famille</li>
             <?php endif; ?>
             <?php if ($_navEnabled('wall')): ?>
@@ -166,6 +166,22 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                 <a href="<?= BASE_URL ?>/meals" class="nav-link">
                     <span class="nav-icon">🍽️</span>
                     <span class="nav-label">Repas</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('wishlist')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/wishlist') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/wishlist" class="nav-link">
+                    <span class="nav-icon">🎁</span>
+                    <span class="nav-label">Liste de cadeaux</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('polls')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/polls') ? 'active' : '' ?>">
+                <a href="<?= BASE_URL ?>/polls" class="nav-link">
+                    <span class="nav-icon">🗳️</span>
+                    <span class="nav-label">Sondages</span>
                 </a>
             </li>
             <?php endif; ?>

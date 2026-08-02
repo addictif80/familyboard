@@ -47,6 +47,15 @@ async function addIngredientsToShoppingList(id) {
     }
 }
 
+async function addWeekIngredientsToShoppingList(start) {
+    const r = await apiFetch(BASE_URL + '/api/meals/add-week-to-shopping-list', { method: 'POST', body: JSON.stringify({ start }) });
+    if (r.success) {
+        Dialog.toast(r.added + ' ingrédient(s) ajouté(s) à la liste de courses !');
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}
+
 let currentMealDate = null;
 let currentMealType = null;
 

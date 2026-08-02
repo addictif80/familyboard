@@ -44,6 +44,10 @@ class EmailContent
             'subject' => 'Nouveau post de {{author_name}}',
             'message' => "{{author_name}} a publié sur le mur familial :\n\n{{content}}",
         ],
+        'birthday_reminder' => [
+            'subject' => "🎂 L'anniversaire de {{birthday_name}} approche",
+            'message' => "Bonjour {{user_name}},\n\n{{birthday_name}} fête ses {{birthday_age}} ans le {{birthday_date}} !",
+        ],
     ];
 
     public static function get(string $type): array
@@ -112,6 +116,7 @@ class EmailContent
             'budget_recurring'     => 'Rappel prélèvement/virement récurrent',
             'event_tomorrow_digest'=> 'Récapitulatif des événements du lendemain',
             'wall_post'            => 'Nouveau post sur le mur',
+            'birthday_reminder'    => 'Rappel anniversaire (7j avant)',
             default                => $type,
         };
     }
@@ -127,6 +132,7 @@ class EmailContent
             'budget_recurring'      => ['user_name', 'type_label', 'title', 'amount', 'due_date'],
             'event_tomorrow_digest' => ['user_name', 'event_count'],
             'wall_post'             => ['author_name', 'content'],
+            'birthday_reminder'     => ['user_name', 'birthday_name', 'birthday_age', 'birthday_date'],
             default                 => [],
         };
     }

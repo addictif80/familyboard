@@ -50,7 +50,7 @@ class User
 
     public static function update(int $id, array $data): void
     {
-        $allowed = ['name', 'email', 'avatar', 'color'];
+        $allowed = ['name', 'email', 'avatar', 'color', 'birthday'];
         $sets = [];
         $params = [];
         foreach ($allowed as $field) {

@@ -26,6 +26,8 @@ class Family
         'meals'       => ['label' => 'Repas',              'icon' => '🍽️'],
         'sitter'      => ['label' => 'Accès baby-sitter',  'icon' => '👶'],
         'kiosk'       => ['label' => 'Écran mural (kiosque)', 'icon' => '🖥️'],
+        'wishlist'    => ['label' => 'Liste de cadeaux',   'icon' => '🎁'],
+        'polls'       => ['label' => 'Sondages familiaux', 'icon' => '🗳️'],
     ];
 
     public static function findById(int $id): ?array

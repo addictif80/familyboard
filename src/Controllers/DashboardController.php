@@ -7,6 +7,7 @@ use App\Models\Post;
 use App\Models\Custody;
 use App\Models\TaskList;
 use App\Models\Baby;
+use App\Models\Birthday;
 use App\Models\Family;
 use App\Core\Session;
 
@@ -21,6 +22,7 @@ class DashboardController extends \App\Controllers\BaseController
         'budget'    => ['label' => 'Budget',            'icon' => '💰'],
         'projects'  => ['label' => 'Projets',           'icon' => '📋'],
         'baby'      => ['label' => 'Bébé',              'icon' => '🍼'],
+        'birthdays' => ['label' => 'Anniversaires',     'icon' => '🎂'],
     ];
 
     public function index(array $params): void
@@ -160,6 +162,8 @@ class DashboardController extends \App\Controllers\BaseController
                     ];
                 }
                 return ['babies' => $babyData];
+            case 'birthdays':
+                return ['birthdays' => Birthday::getUpcoming($familyId, 60)];
             default:
                 return [];
         }

@@ -64,6 +64,7 @@ foreach ($families as $family) {
     date_default_timezone_set($tz);
 
     sendEventReminders($familyId, $membersExcludingCoparent, $appUrl);
+    sendBirthdayReminders($familyId, $membersExcludingCoparent, $appUrl);
     sendTomorrowEventDigest($familyId, $membersExcludingCoparent, $appUrl);
     sendTaskReminders($familyId, $members, $appUrl);
     sendShoppingReminders($familyId, $membersExcludingCoparent, $appUrl);
@@ -180,6 +181,52 @@ function sendEventReminders(int $familyId, array $members, string $appUrl): void
                 $rendered['subject'], $html, 'event_reminder');
 
             echo "  → Event reminder sent to {$member['email']} for event #{$event['id']}" . PHP_EOL;
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Birthday reminders: J-7 before a member/baby/contact's birthday
+// ──────────────────────────────────────────────────────────────────────────
+function sendBirthdayReminders(int $familyId, array $members, string $appUrl): void
+{
+    $upcoming = array_filter(\App\Models\Birthday::getUpcoming($familyId, 7), fn($b) => $b['days_until'] === 7);
+    if (!$upcoming) return;
+
+    foreach ($members as $member) {
+        if (empty($member['email'])) continue;
+
+        foreach ($upcoming as $b) {
+            // Une personne n'a pas besoin d'être prévenue que son propre anniversaire approche
+            // via ce canal (elle en est déjà informée par construction) — évite un e-mail
+            // qui casserait la surprise si un cadeau est en préparation via la liste de souhaits.
+            if ($b['type'] === 'user' && $b['id'] === (int)$member['id']) continue;
+
+            // Clé de déduplication propre à cette personne + cette année (un même contact peut
+            // apparaître deux fois dans une fenêtre de 7 jours d'une année sur l'autre, mais
+            // jamais deux fois la même année) — recherchée dans le corps du mail (colonne
+            // `body`), jamais dans le sujet : le sujet est un en-tête affiché tel quel au
+            // destinataire, il ne doit contenir aucun marqueur technique.
+            $key = 'birthday_' . $b['type'] . '_' . $b['id'] . '_' . date('Y');
+            $alreadySent = Database::fetch(
+                'SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ?
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 8 DAY)',
+                [$familyId, 'birthday_reminder', $member['email'], '%' . $key . '%']
+            );
+            if ($alreadySent) continue;
+
+            $rendered = EmailContent::render('birthday_reminder', [
+                'user_name'     => $member['name'],
+                'birthday_name' => $b['name'],
+                'birthday_age'  => (string)$b['age'],
+                'birthday_date' => date('d/m', strtotime($b['date'])),
+            ]);
+            $html = EmailLayout::render($rendered['subject'], $rendered['message_html'])
+                  . "<!-- {$key} -->";
+
+            Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'birthday_reminder');
+
+            echo "  → Birthday reminder sent to {$member['email']} for {$b['name']}" . PHP_EOL;
         }
     }
 }

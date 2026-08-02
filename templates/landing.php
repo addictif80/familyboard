@@ -153,6 +153,21 @@
             'Réactions et commentaires entre membres',
             'Aucune donnée revendue, aucune publicité',
         ]],
+        ['id' => 'wishlist', 'icon' => '🎁', 'title' => 'Liste de cadeaux', 'badge' => 'Nouveau', 'tagline' => 'Fini les cadeaux en double — la surprise reste intacte.', 'points' => [
+            'Chacun note ce qui lui ferait plaisir',
+            'Réservation secrète : invisible pour la personne concernée',
+            'Suivi des cadeaux déjà achetés par la famille',
+        ]],
+        ['id' => 'polls', 'icon' => '🗳️', 'title' => 'Sondages familiaux', 'badge' => 'Nouveau', 'tagline' => 'Décidez ensemble, en quelques secondes.', 'points' => [
+            'Question à choix multiple, résultats en temps réel',
+            'Idéal pour les petites décisions du quotidien',
+            'Clôturable par son auteur ou un administrateur',
+        ]],
+        ['id' => 'birthdays', 'icon' => '🎂', 'title' => 'Anniversaires', 'badge' => 'Nouveau', 'tagline' => 'Plus aucun anniversaire oublié.', 'points' => [
+            'Détection automatique depuis les membres, enfants et contacts',
+            'Compte à rebours sur le tableau de bord',
+            'Rappel par e-mail 7 jours avant',
+        ]],
         ['id' => 'familywall', 'icon' => '📺', 'title' => 'Écran mural', 'tagline' => 'Affichez l\'essentiel de votre organisation sur un écran fixe.', 'points' => [
             'Vue calendrier, tâches et météo en un coup d\'œil',
             'Idéal sur une tablette ou un écran dans la cuisine',
@@ -205,7 +220,7 @@
         ]],
         ['id' => 'meals', 'icon' => '🍽️', 'title' => 'Repas & recettes', 'tagline' => 'Planifiez la semaine sans y penser.', 'points' => [
             'Planning des repas en glisser-déposer',
-            'Recettes transformées en listes de courses en un clic',
+            'Toute une semaine de recettes ajoutée à la liste de courses en un clic, sans doublon',
             'Idées de repas partagées par toute la famille',
         ]],
     ];

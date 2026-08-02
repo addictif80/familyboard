@@ -36,6 +36,8 @@ class DataExport
         'lieux_enregistres'          => 'saved_places',
         'pointages_position'         => 'location_checkins',
         'tickets_support'            => 'support_tickets',
+        'liste_cadeaux'              => 'wishlist_items',
+        'sondages'                   => 'polls',
     ];
 
     /**
@@ -65,6 +67,10 @@ class DataExport
         'recettes_creees'        => ['recipes', 'created_by'],
         'plans_repas_crees'      => ['meal_plans', 'created_by'],
         'tickets_support'        => ['support_tickets', 'user_id'],
+        'souhaits_crees'         => ['wishlist_items', 'user_id'],
+        'cadeaux_reserves'       => ['wishlist_items', 'reserved_by'],
+        'sondages_crees'         => ['polls', 'user_id'],
+        'votes_sondages'         => ['poll_votes', 'user_id'],
     ];
 
     /**
@@ -77,6 +83,8 @@ class DataExport
         'depenses_projet'     => ['project_expenses', 'projects', 'project_id'],
         'commentaires_mur'    => ['post_comments', 'posts', 'post_id'],
         'periodes_garde'      => ['custody_events', 'custody_schedules', 'schedule_id'],
+        'options_sondages'    => ['poll_options', 'polls', 'poll_id'],
+        'votes_sondages'      => ['poll_votes', 'polls', 'poll_id'],
     ];
 
     /** [table, colonne(s) contenant un chemin de fichier] pour la copie des pièces jointes. */

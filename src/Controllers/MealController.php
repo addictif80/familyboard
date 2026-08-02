@@ -121,6 +121,46 @@ class MealController extends BaseController
         });
     }
 
+    /** Ajoute les ingrédients de toutes les recettes planifiées sur une semaine, sans doublon
+     *  entre recettes ni avec les articles déjà présents dans la liste de courses. */
+    public function addWeekIngredientsToShoppingList(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $start = trim($this->jsonInput()['start'] ?? '');
+            if (!$start || !\DateTime::createFromFormat('Y-m-d', $start)) {
+                return ['success' => false, 'error' => 'Semaine invalide.'];
+            }
+
+            $week = MealPlan::getWeek($user['family_id'], $start);
+            $recipeIds = array_unique(array_filter(array_map(fn($m) => $m['recipe_id'] ?? null, $week)));
+
+            $ingredients = [];
+            foreach ($recipeIds as $recipeId) {
+                $recipe = Recipe::getById((int)$recipeId);
+                if (!$recipe || $recipe['family_id'] !== $user['family_id']) continue;
+                foreach (Recipe::ingredientLines($recipe) as $line) {
+                    $ingredients[mb_strtolower($line)] = $line;
+                }
+            }
+            if (!$ingredients) {
+                return ['success' => false, 'error' => 'Aucune recette planifiée cette semaine.'];
+            }
+
+            $listId = $this->getOrCreateShoppingList($user['family_id'], $user['id']);
+            $existingTitles = array_map(fn($t) => mb_strtolower(trim($t['title'])), TaskList::getTasks($listId));
+
+            $added = 0;
+            foreach ($ingredients as $key => $line) {
+                if (in_array($key, $existingTitles, true)) continue;
+                TaskList::createTask($listId, $user['id'], ['title' => $line]);
+                $added++;
+            }
+            return ['success' => true, 'added' => $added, 'list_id' => $listId];
+        });
+    }
+
     private function getOrCreateShoppingList(int $familyId, int $userId): int
     {
         $existing = Database::fetch(

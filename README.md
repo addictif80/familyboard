@@ -22,7 +22,10 @@ sein du service), installable comme PWA sur mobile et ordinateur.
 | 🛡️ **Garanties** | Suivi des garanties produits avec OCR des factures |
 | 🗂️ **Documents** | Coffre-fort documentaire familial avec OCR et recherche plein texte |
 | 👶 **Suivi bébé** | Biberons, couches, sommeil, croissance |
-| 🍽️ **Repas** | Planification des repas de la semaine |
+| 🍽️ **Repas** | Planification des repas de la semaine, ingrédients de la semaine ajoutés à la liste de courses en un clic sans doublon |
+| 🎂 **Anniversaires** | Détection automatique (membres, bébés suivis, contacts), compte à rebours sur le tableau de bord, rappel e-mail J-7 |
+| 🎁 **Liste de cadeaux** | Souhaits par membre, réservation secrète entre proches pour éviter les doublons sans casser la surprise |
+| 🗳️ **Sondages familiaux** | Question à choix multiple, résultats en temps réel, clôture par l'auteur ou un admin |
 | 📍 **Localisation** | Partage de position et lieux enregistrés |
 | 📇 **Répertoire** | Contacts familiaux et professionnels partagés |
 | 🚑 **Fiches urgence** | Fiches médicales/urgence consultables via un lien public (sans compte) |
