@@ -109,6 +109,11 @@ class PortalLink
         );
     }
 
+    public static function updatePreviewImage(int $id, string $imagePath): void
+    {
+        Database::execute('UPDATE portal_links SET image_path=? WHERE id=?', [$imagePath, $id]);
+    }
+
     public static function approve(int $id, int $reviewerId): void
     {
         Database::execute(

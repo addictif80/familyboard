@@ -54,7 +54,12 @@ function _linkCard(array $l, bool $isAdmin, bool $showStatus): string
                         <button class="btn btn-danger btn-sm" onclick="rejectLink(<?= (int)$l['id'] ?>)">✕</button>
                     </span>
                 <?php elseif ($isAdmin): ?>
-                    <button class="btn btn-danger btn-sm" onclick="deleteLink(<?= (int)$l['id'] ?>)">🗑️</button>
+                    <span style="display:flex;gap:.3rem">
+                        <?php if (empty($l['image_path'])): ?>
+                            <button class="btn btn-secondary btn-sm" title="Réessayer de récupérer l'image du site" onclick="refreshLinkPreview(<?= (int)$l['id'] ?>)">🔄</button>
+                        <?php endif; ?>
+                        <button class="btn btn-danger btn-sm" onclick="deleteLink(<?= (int)$l['id'] ?>)">🗑️</button>
+                    </span>
                 <?php endif; ?>
             </div>
         </div>

@@ -577,9 +577,16 @@
                 </div>
                 <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
             </form>
-            <form method="POST" action="<?= BASE_URL ?>/admin/links/<?= (int)$l['id'] ?>/delete" style="margin-top:.5rem" onsubmit="return confirmSubmit(this,'Supprimer ce lien certifié pour toutes les familles ?')"><?= \App\Core\Csrf::field() ?>
-                <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
-            </form>
+            <div style="display:flex;gap:.5rem;margin-top:.5rem">
+                <?php if (empty($l['image_path'])): ?>
+                <form method="POST" action="<?= BASE_URL ?>/admin/links/<?= (int)$l['id'] ?>/refresh-preview"><?= \App\Core\Csrf::field() ?>
+                    <button type="submit" class="btn btn-secondary btn-sm" title="Réessayer de récupérer l'image du site">🔄 Réessayer l'image</button>
+                </form>
+                <?php endif; ?>
+                <form method="POST" action="<?= BASE_URL ?>/admin/links/<?= (int)$l['id'] ?>/delete" onsubmit="return confirmSubmit(this,'Supprimer ce lien certifié pour toutes les familles ?')"><?= \App\Core\Csrf::field() ?>
+                    <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
+                </form>
+            </div>
         </div>
         <?php endforeach; ?>
         <?php if (empty($certifiedLinks)): ?>

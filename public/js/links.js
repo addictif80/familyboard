@@ -70,3 +70,9 @@ async function deleteLink(id) {
     if (r.success) window.location.reload();
     else Dialog.toast(r.error || 'Erreur.', 'error');
 }
+
+async function refreshLinkPreview(id) {
+    const r = await apiFetch(BASE_URL + '/api/links/' + id + '/refresh-preview', { method: 'POST', body: '{}' });
+    if (r.success) window.location.reload();
+    else Dialog.toast(r.error || "Impossible de récupérer une image pour ce site.", 'error');
+}
