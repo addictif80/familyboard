@@ -329,6 +329,9 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                     <button type="button" id="pwa-install-btn" onclick="installPWA()" class="user-menu-item" style="display:none">
                         <span class="user-menu-item-icon">📲</span> Installer l'app
                     </button>
+                    <a href="<?= BASE_URL ?>/aide" class="user-menu-item">
+                        <span class="user-menu-item-icon">🧭</span> Guide d'utilisation
+                    </a>
                     <a href="<?= BASE_URL ?>/support" class="user-menu-item">
                         <span class="user-menu-item-icon">🎫</span> Support
                     </a>
