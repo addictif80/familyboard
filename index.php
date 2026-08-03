@@ -20,6 +20,7 @@ use App\Core\Router;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\LegalController;
+use App\Controllers\HelpController;
 use App\Controllers\CalendarController;
 use App\Controllers\WallController;
 use App\Controllers\FollowController;
@@ -195,6 +196,9 @@ $router->post('/login/2fa/resend', [AuthController::class, 'resendTwoFactorEmail
 $router->get('/confidentialite', [LegalController::class, 'privacy']);
 $router->get('/cgu', [LegalController::class, 'terms']);
 $router->get('/faq', [LegalController::class, 'faq']);
+
+// Guide d'utilisation (réservé aux utilisateurs connectés)
+$router->get('/aide', [HelpController::class, 'index']);
 
 // Dashboard
 $router->get('/', [DashboardController::class, 'index']);
