@@ -136,7 +136,12 @@ class PortalLinkController extends BaseController
         }
 
         $allowed = false;
-        if ($user['role'] !== 'coparent' && $link['family_id'] === $user['family_id']) {
+        if ($link['family_id'] === null) {
+            // Lien certifié diffusé par l'administrateur système à toutes les familles —
+            // pas de restriction de famille, seule la case "visible co-parent" s'applique
+            // encore à un accès restreint.
+            $allowed = $user['role'] !== 'coparent' || (bool)$link['visible_to_coparent'];
+        } elseif ($user['role'] !== 'coparent' && $link['family_id'] === $user['family_id']) {
             $allowed = true;
         } elseif ($link['visible_to_coparent']) {
             $accessibleFamilyIds = array_column(Custody::getSchedulesForUser((int)$user['id']), 'family_id');

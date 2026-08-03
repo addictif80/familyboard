@@ -104,7 +104,7 @@ $sections = [
         ],
         [
             "🔗 Portail de liens",
-            "Une page de liens utiles pour la famille (portail de l'école, mutuelle, mairie…), présentés sous forme de cartes avec aperçu du site, titre et nombre de clics. L'administrateur de famille ajoute des liens directement ; les autres membres — et un accès co-parent — peuvent en proposer, soumis à validation avant publication. Chaque lien est vérifié automatiquement (accessibilité, adresse autorisée) avant d'être ajouté. Un lien peut être marqué visible pour un accès co-parent, qui reçoit alors uniquement ceux qui le concernent.",
+            "Une page de liens utiles pour la famille (portail de l'école, mutuelle, mairie…), présentés sous forme de cartes avec aperçu du site, titre et nombre de clics. L'administrateur de famille ajoute des liens directement ; les autres membres — et un accès co-parent — peuvent en proposer, soumis à validation avant publication. Chaque lien est vérifié automatiquement (accessibilité, adresse autorisée) avant d'être ajouté. Un lien peut être marqué visible pour un accès co-parent, qui reçoit alors uniquement ceux qui le concernent. L'administrateur système peut également y ajouter des liens « Certifiés », diffusés d'un coup à toutes les familles du service, qu'aucune famille ne peut modifier ni supprimer.",
         ],
         [
             "🗂️ Documents",
