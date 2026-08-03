@@ -18,21 +18,28 @@ class LinkPreview
     private const MAX_HTML_BYTES  = 500_000;
     private const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 
+    private const MAX_REDIRECTS = 4;
+
     /** @return array{ok:bool, error?:string, title?:?string, image_path?:?string} */
     public static function fetch(string $url): array
     {
-        $ip = self::safePublicIp($url);
-        if ($ip === null) {
+        if (self::safePublicIp($url) === null) {
             return ['ok' => false, 'error' => "Cette adresse n'est pas autorisée (schéma non http/https ou adresse réseau interne)."];
         }
 
-        $html = self::curlGet($url, $ip, self::MAX_HTML_BYTES);
-        if ($html === null) {
-            return ['ok' => false, 'error' => "Le site n'a pas répondu (indisponible, trop lent, ou erreur HTTP)."];
+        $page = self::fetchFollowingRedirects($url, self::MAX_HTML_BYTES);
+        if ($page === null) {
+            return ['ok' => false, 'error' => "Le site n'a pas répondu (indisponible, trop lent, redirection non autorisée, ou erreur HTTP)."];
         }
 
-        $title = self::extractTitle($html) ?? parse_url($url, PHP_URL_HOST) ?? $url;
-        $imageUrl = self::extractPreviewImageUrl($html, $url);
+        $html = $page['body'];
+        $finalUrl = $page['url'];
+
+        $title = self::extractTitle($html) ?? parse_url($finalUrl, PHP_URL_HOST) ?? $url;
+        // Beaucoup de sites institutionnels (impots.gouv.fr, caf.fr...) ne publient aucune
+        // balise og:image/twitter:image : on retombe sur leur favicon plutôt que de laisser
+        // la carte sans aucune image.
+        $imageUrl = self::extractPreviewImageUrl($html, $finalUrl) ?? self::extractFaviconUrl($html, $finalUrl);
 
         // Chemin web relatif au format déjà utilisé par tous les autres uploads de l'app
         // (BaseController::uploadImage) : '/public/uploads/<fichier>', jamais un chemin absolu
@@ -40,6 +47,31 @@ class LinkPreview
         $imagePath = $imageUrl ? self::downloadImage($imageUrl) : null;
 
         return ['ok' => true, 'title' => mb_substr(trim($title), 0, 255), 'image_path' => $imagePath];
+    }
+
+    /**
+     * Suit les redirections HTTP (courantes : apex -> www, http -> https) sans jamais
+     * activer CURLOPT_FOLLOWLOCATION — chaque saut est revalidé individuellement par
+     * safePublicIp() pour empêcher qu'une redirection ne serve à contourner la protection
+     * anti-SSRF (ex: redirection vers une IP interne).
+     *
+     * @return array{body:string, url:string}|null
+     */
+    private static function fetchFollowingRedirects(string $url, int $maxBytes, int $hopsLeft = self::MAX_REDIRECTS): ?array
+    {
+        if ($hopsLeft <= 0) return null;
+
+        $ip = self::safePublicIp($url);
+        if ($ip === null) return null;
+
+        $res = self::curlGet($url, $ip, $maxBytes);
+
+        if ($res['status'] >= 300 && $res['status'] < 400 && $res['redirect']) {
+            return self::fetchFollowingRedirects($res['redirect'], $maxBytes, $hopsLeft - 1);
+        }
+        if ($res['body'] === null) return null;
+
+        return ['body' => $res['body'], 'url' => $url];
     }
 
     private static function safePublicIp(string $url): ?string
@@ -54,9 +86,11 @@ class LinkPreview
         return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false ? $ip : null;
     }
 
-    private static function curlGet(string $url, string $pinnedIp, int $maxBytes): ?string
+    /** @return array{body:?string, status:int, redirect:?string} */
+    private static function curlGet(string $url, string $pinnedIp, int $maxBytes): array
     {
-        if (!function_exists('curl_init')) return null;
+        $result = ['body' => null, 'status' => 0, 'redirect' => null];
+        if (!function_exists('curl_init')) return $result;
 
         $parts = parse_url($url);
         $scheme = $parts['scheme'] ?? 'https';
@@ -71,9 +105,9 @@ class LinkPreview
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_USERAGENT      => 'FamilyBoard-LinkPreview/1.0',
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; FamilyBoard-LinkPreview/1.0)',
             CURLOPT_RESOLVE        => ["$host:$port:$pinnedIp"],
-            CURLOPT_HTTPHEADER     => ['Accept: text/html'],
+            CURLOPT_HTTPHEADER     => ['Accept: text/html,image/*;q=0.8,*/*;q=0.5'],
             // Coupe le transfert dès qu'on a assez lu — évite de télécharger des pages/fichiers
             // de plusieurs dizaines de Mo juste pour en extraire le <title>.
             CURLOPT_WRITEFUNCTION  => function ($ch, $chunk) use (&$buffer, $maxBytes) {
@@ -82,13 +116,17 @@ class LinkPreview
             },
         ]);
         curl_exec($ch);
-        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $redirect = curl_getinfo($ch, CURLINFO_REDIRECT_URL) ?: null;
         $err = curl_errno($ch);
         curl_close($ch);
 
-        if ($err !== 0 && $err !== CURLE_WRITE_ERROR) return null; // WRITE_ERROR = coupure volontaire ci-dessus
-        if ($status < 200 || $status >= 400) return null;
-        return $buffer;
+        if ($err !== 0 && $err !== CURLE_WRITE_ERROR) return $result; // WRITE_ERROR = coupure volontaire ci-dessus
+
+        $result['status'] = $status;
+        $result['redirect'] = $redirect;
+        if ($status >= 200 && $status < 300) $result['body'] = $buffer;
+        return $result;
     }
 
     private static function extractTitle(string $html): ?string
@@ -116,13 +154,36 @@ class LinkPreview
         return null;
     }
 
+    private static function extractFaviconUrl(string $html, string $pageUrl): ?string
+    {
+        $base = parse_url($pageUrl);
+        $origin = ($base['scheme'] ?? 'https') . '://' . ($base['host'] ?? '');
+
+        if (preg_match('/<link[^>]+rel=["\'](?:shortcut icon|icon|apple-touch-icon)["\'][^>]+href=["\']([^"\']+)["\']/i', $html, $m)
+            || preg_match('/<link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\'](?:shortcut icon|icon|apple-touch-icon)["\']/i', $html, $m)) {
+            $iconUrl = html_entity_decode(trim($m[1]), ENT_QUOTES, 'UTF-8');
+            if (!parse_url($iconUrl, PHP_URL_SCHEME)) {
+                $iconUrl = str_starts_with($iconUrl, '//') ? ($base['scheme'] ?? 'https') . ':' . $iconUrl : $origin . '/' . ltrim($iconUrl, '/');
+            }
+            return $iconUrl;
+        }
+
+        // Dernier recours : l'emplacement conventionnel /favicon.ico à la racine du domaine.
+        // downloadImage() vérifiera le contenu réel — s'il n'existe pas, il n'y aura simplement pas d'image.
+        return $origin . '/favicon.ico';
+    }
+
     private static function downloadImage(string $imageUrl): ?string
     {
-        $ip = self::safePublicIp($imageUrl);
-        if ($ip === null) return null;
+        if (self::safePublicIp($imageUrl) === null) return null;
 
-        $data = self::curlGet($imageUrl, $ip, self::MAX_IMAGE_BYTES);
-        if (!$data || strlen($data) > self::MAX_IMAGE_BYTES) return null;
+        // Les URLs d'og:image pointent souvent vers un CDN via une redirection
+        // (ex: domaine principal -> cdn.domaine.fr) : chaque saut est revalidé
+        // par fetchFollowingRedirects()/safePublicIp(), pas de contournement SSRF possible.
+        $page = self::fetchFollowingRedirects($imageUrl, self::MAX_IMAGE_BYTES);
+        if ($page === null) return null;
+        $data = $page['body'];
+        if (strlen($data) > self::MAX_IMAGE_BYTES) return null;
 
         // Vérifie le contenu réel (pas seulement l'extension/le Content-Type déclaré par le
         // serveur distant) avant de l'écrire sur le disque — même exigence que pour un upload
