@@ -380,6 +380,9 @@ $router->post('/admin/2fa-policy', [AdminController::class, 'updateTwoFactorPoli
 $router->post('/admin/highlights', [AdminController::class, 'createHighlight']);
 $router->post('/admin/highlights/:id', [AdminController::class, 'updateHighlight']);
 $router->post('/admin/highlights/:id/delete', [AdminController::class, 'deleteHighlight']);
+$router->post('/admin/links', [AdminController::class, 'createCertifiedLink']);
+$router->post('/admin/links/:id', [AdminController::class, 'updateCertifiedLink']);
+$router->post('/admin/links/:id/delete', [AdminController::class, 'deleteCertifiedLink']);
 $router->post('/admin/legal', [AdminController::class, 'updateLegalContent']);
 $router->post('/admin/legal/:type/reset', [AdminController::class, 'resetLegalContent']);
 

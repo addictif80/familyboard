@@ -5,6 +5,7 @@ use App\Core\Database;
 use App\Core\Mail;
 use App\Core\Session;
 use App\Models\AbhdHighlight;
+use App\Models\PortalLink;
 use App\Models\AppSetting;
 use App\Models\EmailContent;
 use App\Models\LegalContent;
@@ -172,6 +173,7 @@ class AdminController extends BaseController
         $smtp         = SmtpSettings::get();
         $emailContents = EmailContent::getAll();
         $highlights = AbhdHighlight::getAll();
+        $certifiedLinks = PortalLink::getCertified();
         $legalPrivacy = LegalContent::get('privacy');
         $legalTerms   = LegalContent::get('terms');
         $legalPrivacyIsCustom = LegalContent::isCustom('privacy');
@@ -546,6 +548,67 @@ class AdminController extends BaseController
             AbhdHighlight::delete($highlight['id']);
         }
         $this->redirect('/admin?tab=highlights&msg=highlight_deleted');
+    }
+
+    // ── Liens certifiés (portail de liens de TOUTES les familles) ──────────────
+
+    public function createCertifiedLink(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title = trim($_POST['title'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        if (!$url) {
+            $this->redirect('/admin?tab=links&msg=link_invalid');
+            return;
+        }
+
+        $preview = \App\Core\LinkPreview::fetch($url);
+        if (!$preview['ok']) {
+            $this->redirect('/admin?tab=links&msg=link_unreachable');
+            return;
+        }
+        if (!$title) $title = $preview['title'];
+
+        PortalLink::createCertified([
+            'title'               => $title,
+            'url'                 => $url,
+            'description'         => trim($_POST['description'] ?? ''),
+            'image_path'          => $preview['image_path'],
+            'visible_to_coparent' => !empty($_POST['visible_to_coparent']),
+        ]);
+        $this->redirect('/admin?tab=links&msg=link_saved');
+    }
+
+    public function updateCertifiedLink(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $link = PortalLink::getById((int)($params['id'] ?? 0));
+        if (!$link || empty($link['certified'])) { $this->redirect('/admin?tab=links'); return; }
+
+        $title = trim($_POST['title'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        if (!$title || !$url) {
+            $this->redirect('/admin?tab=links&msg=link_invalid');
+            return;
+        }
+        PortalLink::updateCertified($link['id'], [
+            'title'               => $title,
+            'url'                 => $url,
+            'description'         => trim($_POST['description'] ?? ''),
+            'visible_to_coparent' => !empty($_POST['visible_to_coparent']),
+        ]);
+        $this->redirect('/admin?tab=links&msg=link_saved');
+    }
+
+    public function deleteCertifiedLink(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $link = PortalLink::getById((int)($params['id'] ?? 0));
+        if ($link && !empty($link['certified'])) {
+            if ($link['image_path']) @unlink(BASE_PATH . $link['image_path']);
+            PortalLink::delete($link['id']);
+        }
+        $this->redirect('/admin?tab=links&msg=link_deleted');
     }
 
     // ── Politique de confidentialité / CGU (éditable, texte brut) ──────────────

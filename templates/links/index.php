@@ -16,6 +16,8 @@ function _linkCard(array $l, bool $isAdmin, bool $showStatus): string
     <div class="link-card">
         <?php if ($showStatus && $l['status'] !== 'approved'): ?>
             <span class="link-card-status status-<?= $l['status'] ?>"><?= $l['status'] === 'pending' ? 'En attente' : 'Refusé' ?></span>
+        <?php elseif (!empty($l['certified'])): ?>
+            <span class="link-card-status" style="background:var(--primary)" title="Ajouté par l'administrateur système">✓ Certifié</span>
         <?php endif; ?>
         <?php if (!empty($l['visible_to_coparent'])): ?>
             <span class="link-card-coparent-badge" title="Visible par un accès co-parent">🔒</span>
@@ -44,7 +46,9 @@ function _linkCard(array $l, bool $isAdmin, bool $showStatus): string
             <?php endif; ?>
             <div class="link-card-footer">
                 <span class="link-card-clicks">👆 <?= (int)$l['click_count'] ?> clic(s)</span>
-                <?php if ($isAdmin && $l['status'] === 'pending'): ?>
+                <?php if (!empty($l['certified'])): ?>
+                    <!-- Géré uniquement par l'administrateur système, depuis /admin. -->
+                <?php elseif ($isAdmin && $l['status'] === 'pending'): ?>
                     <span style="display:flex;gap:.3rem">
                         <button class="btn btn-primary btn-sm" onclick="approveLink(<?= (int)$l['id'] ?>)">✓</button>
                         <button class="btn btn-danger btn-sm" onclick="rejectLink(<?= (int)$l['id'] ?>)">✕</button>
