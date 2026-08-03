@@ -327,6 +327,7 @@ $router->post('/api/links/:id', [PortalLinkController::class, 'update']);
 $router->post('/api/links/:id/approve', [PortalLinkController::class, 'approve']);
 $router->post('/api/links/:id/reject', [PortalLinkController::class, 'reject']);
 $router->post('/api/links/:id/delete', [PortalLinkController::class, 'delete']);
+$router->post('/api/links/:id/refresh-preview', [PortalLinkController::class, 'refreshPreview']);
 $router->get('/links/:id/go', [PortalLinkController::class, 'go']);
 
 // Mises en avant ABHD (redirection publique avec compteur de clic)
@@ -383,6 +384,7 @@ $router->post('/admin/highlights/:id/delete', [AdminController::class, 'deleteHi
 $router->post('/admin/links', [AdminController::class, 'createCertifiedLink']);
 $router->post('/admin/links/:id', [AdminController::class, 'updateCertifiedLink']);
 $router->post('/admin/links/:id/delete', [AdminController::class, 'deleteCertifiedLink']);
+$router->post('/admin/links/:id/refresh-preview', [AdminController::class, 'refreshCertifiedLinkPreview']);
 $router->post('/admin/legal', [AdminController::class, 'updateLegalContent']);
 $router->post('/admin/legal/:type/reset', [AdminController::class, 'resetLegalContent']);
 

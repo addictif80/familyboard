@@ -122,6 +122,30 @@ class PortalLinkController extends BaseController
         });
     }
 
+    /** Relance la vérification/aperçu (titre + image) d'un lien déjà ajouté — utile pour les
+     *  liens créés avant l'amélioration de la détection d'image, ou dont le site a changé. */
+    public function refreshPreview(array $params): void
+    {
+        $this->requireAdmin();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $link = PortalLink::getById((int)$params['id']);
+            if (!$link || $link['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Lien introuvable.'];
+            }
+            $preview = LinkPreview::fetch($link['url']);
+            if (!$preview['ok']) {
+                return ['success' => false, 'error' => $preview['error']];
+            }
+            if (!$preview['image_path']) {
+                return ['success' => false, 'error' => "Aucune image trouvée sur ce site."];
+            }
+            if ($link['image_path']) @unlink(BASE_PATH . $link['image_path']);
+            PortalLink::updatePreviewImage($link['id'], $preview['image_path']);
+            return ['success' => true, 'link' => PortalLink::getById($link['id'])];
+        });
+    }
+
     /** Clic depuis une carte : comptabilise puis redirige — accessible aux membres de la
      *  famille comme à un accès co-parent dont le planning correspond à cette famille. */
     public function go(array $params): void

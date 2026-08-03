@@ -611,6 +611,24 @@ class AdminController extends BaseController
         $this->redirect('/admin?tab=links&msg=link_deleted');
     }
 
+    /** Relance la vérification/aperçu (titre + image) d'un lien certifié déjà ajouté — utile
+     *  pour les liens créés avant l'amélioration de la détection d'image. */
+    public function refreshCertifiedLinkPreview(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $link = PortalLink::getById((int)($params['id'] ?? 0));
+        if (!$link || empty($link['certified'])) { $this->redirect('/admin?tab=links'); return; }
+
+        $preview = \App\Core\LinkPreview::fetch($link['url']);
+        if (!$preview['ok'] || !$preview['image_path']) {
+            $this->redirect('/admin?tab=links&msg=link_unreachable');
+            return;
+        }
+        if ($link['image_path']) @unlink(BASE_PATH . $link['image_path']);
+        PortalLink::updatePreviewImage($link['id'], $preview['image_path']);
+        $this->redirect('/admin?tab=links&msg=link_saved');
+    }
+
     // ── Politique de confidentialité / CGU (éditable, texte brut) ──────────────
 
     public function updateLegalContent(array $params): void
