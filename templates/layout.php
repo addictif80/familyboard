@@ -326,6 +326,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
         </ul>
+        <div class="sidebar-content-results" id="sidebar-content-results"></div>
 
         <div class="sidebar-footer">
             <div class="user-menu" id="user-menu">

@@ -27,6 +27,23 @@ class Post
         );
     }
 
+    /** Comme getVisibleForUser(), avec un filtre texte en plus — pour la recherche globale.
+     *  Réutilise exactement les mêmes conditions de visibilité, jamais une variante allégée. */
+    public static function searchVisible(int $familyId, int $viewerId, array $visibleAuthorIds, string $query, int $limit = 5): array
+    {
+        $authorIds = array_values(array_unique(array_map('intval', $visibleAuthorIds)));
+        $ph = $authorIds ? implode(',', array_fill(0, count($authorIds), '?')) : '0';
+        return Database::fetchAll(
+            "SELECT p.*, u.name as user_name
+             FROM posts p JOIN users u ON u.id=p.user_id
+             WHERE p.family_id=? AND p.status='published'
+               AND (p.post_type='family' OR (p.post_type='personal' AND p.user_id IN ($ph)))
+               AND p.content LIKE ?
+             ORDER BY p.created_at DESC LIMIT ?",
+            [$familyId, ...$authorIds, $query, $limit]
+        );
+    }
+
     /** File d'attente des publications "famille" proposées par un membre, à valider par l'admin. */
     public static function getPendingByFamily(int $familyId): array
     {

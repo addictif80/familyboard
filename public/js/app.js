@@ -182,6 +182,20 @@ function toggleSidebar() {
 
     const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+    // Recherche dans le contenu r\u00e9el (t\u00e2ches, \u00e9v\u00e9nements, contacts, documents...), pas
+    // seulement les pages/modules \u2014 voir SearchController::search(). Annule la requ\u00eate
+    // pr\u00e9c\u00e9dente si une nouvelle frappe arrive avant la r\u00e9ponse, pour ne jamais afficher un
+    // r\u00e9sultat p\u00e9rim\u00e9 plus r\u00e9cent que ce que l'utilisateur a tap\u00e9 depuis.
+    let __searchAbort = null;
+    function fetchContentResults(query) {
+        if (query.length < 2) return Promise.resolve([]);
+        if (__searchAbort) __searchAbort.abort();
+        __searchAbort = new AbortController();
+        return apiFetch(BASE_URL + '/api/search?q=' + encodeURIComponent(query), { signal: __searchAbort.signal })
+            .then(d => (d.results || []).map(r => ({ label: r.label, icon: r.icon, href: BASE_URL + r.url, group: r.group })))
+            .catch(() => []);
+    }
+
     function openNavSearchImpl() {
         if (!document.getElementById('sidebar')) return;
         if (!window.__navSearchIndex) window.__navSearchIndex = buildNavSearchIndex();
@@ -198,18 +212,33 @@ function toggleSidebar() {
         const results = overlay.querySelector('.nav-search-results');
         let selected = 0;
         let shown = [];
+        let requestToken = 0;
 
-        const render = () => {
-            const q = normalize(input.value.trim());
-            shown = !q ? window.__navSearchIndex : window.__navSearchIndex.filter(it => normalize(it.label).includes(q));
+        const paint = (items, loading) => {
+            shown = items;
             selected = 0;
-            results.innerHTML = shown.length
-                ? shown.map((it, i) => `
-                    <a href="${it.href}" class="nav-search-item ${i === 0 ? 'selected' : ''}" data-idx="${i}">
-                        <span class="nav-icon">${it.icon}</span><span>${it.label}</span>
-                        <span class="nav-search-item-group">${it.group}</span>
-                    </a>`).join('')
-                : `<div class="nav-search-empty">Aucun résultat.</div>`;
+            const rows = items.map((it, i) => `
+                <a href="${it.href}" class="nav-search-item ${i === 0 ? 'selected' : ''}" data-idx="${i}">
+                    <span class="nav-icon">${escapeHtml(it.icon)}</span><span>${escapeHtml(it.label)}</span>
+                    <span class="nav-search-item-group">${escapeHtml(it.group)}</span>
+                </a>`).join('');
+            results.innerHTML = rows || (loading ? '' : `<div class="nav-search-empty">Aucun résultat.</div>`);
+        };
+        let debounceTimer = null;
+        const render = () => {
+            const raw = input.value.trim();
+            const q = normalize(raw);
+            const navMatches = !q ? window.__navSearchIndex : window.__navSearchIndex.filter(it => normalize(it.label).includes(q));
+            paint(navMatches, raw.length >= 2);
+
+            clearTimeout(debounceTimer);
+            const token = ++requestToken;
+            debounceTimer = setTimeout(() => {
+                fetchContentResults(raw).then(contentResults => {
+                    if (token !== requestToken) return; // une frappe plus récente a déjà relancé une recherche
+                    paint([...navMatches, ...contentResults], false);
+                });
+            }, 200);
         };
         const updateSelection = () => {
             results.querySelectorAll('.nav-search-item').forEach((el, i) => el.classList.toggle('selected', i === selected));
@@ -238,14 +267,19 @@ function toggleSidebar() {
         }
     });
 
-    // Recherche en direct dans le tiroir (mobile) : filtre la liste déjà affichée plutôt que
-    // de rouvrir une palette par-dessus un tiroir déjà ouvert.
+    // Recherche en direct dans le tiroir (mobile) : filtre la liste déjà affichée (modules) et
+    // interroge en plus le contenu réel (tâches, contacts, documents...) — plutôt que de
+    // rouvrir une palette par-dessus un tiroir déjà ouvert.
     const searchInput = document.getElementById('sidebar-search-input');
     const searchEmpty = document.getElementById('sidebar-search-empty');
+    const contentResultsBox = document.getElementById('sidebar-content-results');
     const navMenu = document.querySelector('.nav-menu');
     if (searchInput && navMenu) {
+        let drawerRequestToken = 0;
+        let drawerDebounce = null;
         searchInput.addEventListener('input', () => {
-            const q = normalize(searchInput.value.trim());
+            const raw = searchInput.value.trim();
+            const q = normalize(raw);
             const searching = q.length > 0;
             navMenu.classList.toggle('searching', searching);
             document.querySelectorAll('.nav-section-label').forEach(el => { el.style.display = searching ? 'none' : ''; });
@@ -258,7 +292,28 @@ function toggleSidebar() {
                 li.classList.toggle('nav-search-hidden', !matches);
                 if (matches) anyVisible = true;
             });
-            if (searchEmpty) searchEmpty.style.display = (searching && !anyVisible) ? 'block' : 'none';
+
+            if (contentResultsBox) contentResultsBox.innerHTML = '';
+            clearTimeout(drawerDebounce);
+            const token = ++drawerRequestToken;
+            if (!searching) {
+                if (searchEmpty) searchEmpty.style.display = 'none';
+                return;
+            }
+            drawerDebounce = setTimeout(() => {
+                fetchContentResults(raw).then(contentResults => {
+                    if (token !== drawerRequestToken) return;
+                    if (searchEmpty) searchEmpty.style.display = (!anyVisible && !contentResults.length) ? 'block' : 'none';
+                    if (contentResultsBox && contentResults.length) {
+                        contentResultsBox.innerHTML = `<p class="sidebar-content-results-label">Contenu</p>` +
+                            contentResults.map(it => `
+                                <a href="${it.href}" class="sidebar-content-result">
+                                    <span class="nav-icon">${escapeHtml(it.icon)}</span>
+                                    <span>${escapeHtml(it.label)}</span>
+                                </a>`).join('');
+                    }
+                });
+            }, 200);
         });
     }
 
