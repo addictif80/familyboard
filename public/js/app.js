@@ -132,6 +132,126 @@ function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
 }
 
+// ---- Sections repliables de la sidebar (état mémorisé par appareil) ----
+(function initNavSections() {
+    const STORAGE_KEY = 'fb-nav-collapsed';
+    let collapsed;
+    try { collapsed = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY)) || []); }
+    catch { collapsed = new Set(); }
+
+    const apply = (id, isCollapsed) => {
+        document.querySelectorAll(`[data-section="${id}"]`).forEach(li => li.classList.toggle('nav-section-collapsed', isCollapsed));
+        const label = document.querySelector(`[data-section-toggle="${id}"]`);
+        if (label) label.classList.toggle('collapsed', isCollapsed);
+    };
+
+    const toggle = (id) => {
+        if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+        apply(id, collapsed.has(id));
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...collapsed])); } catch {}
+    };
+
+    // Palette de recherche rapide (Ctrl/Cmd+K) — construite depuis les liens déjà présents
+    // dans le DOM (sidebar + menu compte), aucune liste dupliquée à maintenir côté serveur.
+    window.__navSearchIndex = null;
+    function buildNavSearchIndex() {
+        const items = [];
+        document.querySelectorAll('#sidebar .nav-link').forEach(a => {
+            const li = a.closest('li');
+            const group = li && li.dataset.section
+                ? (document.querySelector(`[data-section-toggle="${li.dataset.section}"] span`)?.textContent || 'Menu')
+                : 'Général';
+            items.push({
+                label: a.querySelector('.nav-label')?.textContent.trim() || a.textContent.trim(),
+                icon: a.querySelector('.nav-icon')?.textContent.trim() || '📄',
+                href: a.getAttribute('href'),
+                group,
+            });
+        });
+        document.querySelectorAll('.user-menu-item[href]').forEach(a => {
+            items.push({
+                label: a.textContent.replace(a.querySelector('.user-menu-item-icon')?.textContent || '', '').trim(),
+                icon: a.querySelector('.user-menu-item-icon')?.textContent.trim() || '⚙️',
+                href: a.getAttribute('href'),
+                group: 'Compte',
+            });
+        });
+        return items;
+    }
+
+    const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    function openNavSearchImpl() {
+        if (!document.getElementById('sidebar')) return;
+        if (!window.__navSearchIndex) window.__navSearchIndex = buildNavSearchIndex();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'nav-search-overlay';
+        overlay.innerHTML = `
+            <div class="nav-search-box">
+                <input type="text" class="nav-search-input" placeholder="Aller à… (calendrier, budget, paramètres…)" autocomplete="off">
+                <div class="nav-search-results"></div>
+            </div>`;
+        document.body.appendChild(overlay);
+        const input = overlay.querySelector('.nav-search-input');
+        const results = overlay.querySelector('.nav-search-results');
+        let selected = 0;
+        let shown = [];
+
+        const render = () => {
+            const q = normalize(input.value.trim());
+            shown = !q ? window.__navSearchIndex : window.__navSearchIndex.filter(it => normalize(it.label).includes(q));
+            selected = 0;
+            results.innerHTML = shown.length
+                ? shown.map((it, i) => `
+                    <a href="${it.href}" class="nav-search-item ${i === 0 ? 'selected' : ''}" data-idx="${i}">
+                        <span class="nav-icon">${it.icon}</span><span>${it.label}</span>
+                        <span class="nav-search-item-group">${it.group}</span>
+                    </a>`).join('')
+                : `<div class="nav-search-empty">Aucun résultat.</div>`;
+        };
+        const updateSelection = () => {
+            results.querySelectorAll('.nav-search-item').forEach((el, i) => el.classList.toggle('selected', i === selected));
+            results.querySelector('.nav-search-item.selected')?.scrollIntoView({ block: 'nearest' });
+        };
+        const close = () => overlay.remove();
+
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+        input.addEventListener('input', render);
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { close(); }
+            else if (e.key === 'ArrowDown') { e.preventDefault(); if (selected < shown.length - 1) { selected++; updateSelection(); } }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); if (selected > 0) { selected--; updateSelection(); } }
+            else if (e.key === 'Enter') { e.preventDefault(); const href = shown[selected]?.href; if (href) window.location.href = href; }
+        });
+
+        render();
+        input.focus();
+    }
+    window.openNavSearch = openNavSearchImpl;
+
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            openNavSearchImpl();
+        }
+    });
+
+    document.querySelectorAll('[data-section-toggle]').forEach(label => {
+        const id = label.dataset.sectionToggle;
+        // Une section contenant la page active reste toujours dépliée à l'arrivée, même si
+        // elle avait été repliée lors d'une précédente visite — jamais cacher où on se trouve.
+        const hasActiveItem = document.querySelector(`[data-section="${id}"].active`);
+        if (hasActiveItem) collapsed.delete(id);
+        apply(id, collapsed.has(id));
+
+        label.addEventListener('click', () => toggle(id));
+        label.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(id); }
+        });
+    });
+})();
+
 // User menu (sidebar footer popover)
 let userMenuOpen = false;
 

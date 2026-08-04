@@ -214,8 +214,19 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   text-transform: uppercase;
   letter-spacing: .07em;
   color: rgba(255,255,255,.32);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  user-select: none;
 }
 .nav-section-label:first-child { padding-top: .2rem; }
+.nav-section-label:hover { color: rgba(255,255,255,.55); }
+.nav-section-label:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.nav-section-chevron { font-size: .7rem; transition: transform .15s; }
+.nav-section-label.collapsed .nav-section-chevron { transform: rotate(-90deg); }
+.nav-item.nav-section-collapsed { display: none; }
 
 .sidebar-footer {
   padding: .75rem;
@@ -479,6 +490,82 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 [data-theme="dark"] .theme-icon-sun,
 :root:not([data-theme="dark"]) .theme-icon-moon { display: none; }
 
+.nav-search-trigger {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: .82rem;
+  padding: .4rem .5rem .4rem .7rem;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.nav-search-trigger:hover { background: var(--card-bg-alt); border-color: var(--primary-light); }
+.nav-search-kbd {
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .1rem .35rem;
+}
+@media (max-width: 640px) {
+  .nav-search-trigger span:first-child { display: none; }
+  .nav-search-kbd { display: none; }
+  .nav-search-trigger { padding: .45rem; }
+}
+
+.nav-search-overlay {
+  position: fixed; inset: 0;
+  background: rgba(20,15,10,.55);
+  backdrop-filter: blur(2px);
+  z-index: 400;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10vh 1rem 1rem;
+}
+.nav-search-box {
+  width: 100%; max-width: 520px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), 0 20px 60px rgba(0,0,0,.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+.nav-search-input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+}
+.nav-search-results { overflow-y: auto; padding: .5rem; }
+.nav-search-empty { padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: .85rem; }
+.nav-search-item {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem .75rem;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.nav-search-item .nav-icon { font-size: 1.05rem; width: 1.5rem; text-align: center; }
+.nav-search-item.selected { background: var(--bg); }
+.nav-search-item-group { font-size: .7rem; color: var(--text-muted); margin-left: auto; text-transform: uppercase; letter-spacing: .04em; }
+
 .btn-icon {
   background: none;
   border: none;
@@ -657,16 +744,21 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
   width: 100%;
   max-width: 560px;
   max-height: 90vh;
-  overflow-y: auto;
+  /* En-tête et pied de page restent fixes, seul le corps défile — sans ça, sur un long
+     formulaire (mobile surtout, écran réduit par le clavier), le bouton d'enregistrement
+     défile hors champ avec le reste et n'est plus atteignable sans scroller jusqu'en bas. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .modal-sm { max-width: 420px; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.1rem 1.35rem; border-bottom: 1px solid var(--border); }
+.modal-header { flex: none; display: flex; justify-content: space-between; align-items: center; padding: 1.1rem 1.35rem; border-bottom: 1px solid var(--border); }
 .modal-header h3 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; }
 .modal-header button { background: none; border: none; cursor: pointer; font-size: 1.2rem; color: var(--text-muted); border-radius: var(--radius-sm); padding: .2rem .4rem; }
 .modal-header button:hover { background: var(--bg); }
-.modal-body { padding: 1.35rem; }
-.modal-footer { display: flex; gap: .5rem; justify-content: flex-end; padding: 1.1rem 1.35rem; border-top: 1px solid var(--border); }
+.modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 1.35rem; }
+.modal-footer { flex: none; display: flex; gap: .5rem; justify-content: flex-end; padding: 1.1rem 1.35rem; border-top: 1px solid var(--border); }
 
 /* ---- Auth ---- */
 .auth-wrapper {
