@@ -620,7 +620,11 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 /* ---- Notifications Panel ---- */
 .notifications-panel {
   position: absolute;
-  top: var(--topbar-height);
+  /* Positionné par rapport au haut de la page (aucun ancêtre positionné entre lui et le
+     <body>), pas par rapport à la topbar elle-même : sans ajouter la hauteur des bandeaux
+     d'alerte, il se plaçait à 60px du HAUT DE LA PAGE — sous les bandeaux 2FA/PWA quand ils
+     sont affichés — au lieu de juste sous la topbar (qui, elle, en tient déjà compte). */
+  top: calc(var(--banners-h, 0px) + var(--topbar-height));
   right: 1rem;
   width: 340px;
   background: var(--card-bg);
