@@ -228,6 +228,12 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 .nav-section-label.collapsed .nav-section-chevron { transform: rotate(-90deg); }
 .nav-item.nav-section-collapsed { display: none; }
 
+/* Recherche en direct dans le tiroir : pendant la recherche, ignore l'état replié des
+   sections (un résultat dans une section repliée doit rester visible) — seul le filtre de
+   correspondance (.nav-search-hidden) décide de ce qui s'affiche. */
+.nav-menu.searching .nav-item.nav-section-collapsed { display: list-item; }
+.nav-item.nav-search-hidden { display: none; }
+
 .sidebar-footer {
   padding: .75rem;
   border-top: 1px solid rgba(255,255,255,.07);
@@ -337,7 +343,30 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   overflow: hidden;
 }
 
-.mobile-menu-btn { display: none; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text); }
+.sidebar-backdrop { display: none; }
+
+.sidebar-search {
+  display: none;
+  align-items: center;
+  gap: .5rem;
+  margin: .6rem .9rem;
+  padding: .5rem .7rem;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: var(--radius-sm);
+}
+.sidebar-search-icon { font-size: .85rem; opacity: .7; }
+.sidebar-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: .85rem;
+}
+.sidebar-search input::placeholder { color: rgba(255,255,255,.45); }
+.sidebar-search-empty { padding: .5rem 1.15rem 0; font-size: .8rem; color: rgba(255,255,255,.45); }
 
 /* ---- Bottom nav (mobile/PWA) : masquée sur desktop, activée dans le bloc Responsive
    ci-dessous. Même barre que le site tourne en onglet navigateur ou en PWA installée —
@@ -513,12 +542,6 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   border-radius: 4px;
   padding: .1rem .35rem;
 }
-@media (max-width: 640px) {
-  .nav-search-trigger span:first-child { display: none; }
-  .nav-search-kbd { display: none; }
-  .nav-search-trigger { padding: .45rem; }
-}
-
 .nav-search-overlay {
   position: fixed; inset: 0;
   background: rgba(20,15,10,.55);
@@ -1314,13 +1337,36 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); }
-  .sidebar.open { transform: translateX(0); }
+  /* Tiroir de menu façon appli mobile (Android/iOS) : remonte depuis le bas plutôt que de
+     glisser depuis la gauche — cohérent avec le bouton « Plus » de la barre du bas qui
+     l'ouvre désormais. Un fond assombri ferme le tiroir au tap, comme n'importe quelle
+     feuille modale native. */
+  .sidebar {
+    top: auto;
+    left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 85vh;
+    max-height: 85vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transform: translateY(100%);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .sidebar.open { transform: translateY(0); }
+  .sidebar-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15,12,8,.5);
+    z-index: 95;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+  }
+  .sidebar-backdrop.open { opacity: 1; pointer-events: auto; }
   .main-content { margin-left: 0; }
-  .mobile-menu-btn { display: block; }
   .sidebar-toggle { display: block; }
   .content-area { padding: 1rem; padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)); }
   .bottom-nav { display: flex; }
+  .nav-search-trigger { display: none; }
+  .sidebar-search { display: flex; }
 
   .dashboard-grid { grid-template-columns: 1fr; }
   .budget-main-grid { grid-template-columns: 1fr; }
@@ -1545,7 +1591,9 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 
 /* ---- Extra-small screens (phones < 480px) ---- */
 @media (max-width: 480px) {
-  .content-area { padding: .75rem; }
+  /* Le raccourci "padding" écraserait le padding-bottom réservé pour la barre du bas
+     (défini dans le bloc @media 768px) — répété ici explicitement plutôt que raccourci. */
+  .content-area { padding: .75rem; padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)); }
   .budget-summary { grid-template-columns: 1fr; }
   .card { padding: 1rem; }
   .cal-nav { padding: .65rem .5rem; gap: .25rem; }
