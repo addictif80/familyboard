@@ -127,9 +127,10 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Sidebar toggle
+// Sidebar toggle (tiroir de menu sur mobile : bascule aussi le fond assombri qui le ferme au tap)
 function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
+    const isOpen = document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-backdrop')?.classList.toggle('open', isOpen);
 }
 
 // ---- Sections repliables de la sidebar (état mémorisé par appareil) ----
@@ -236,6 +237,30 @@ function toggleSidebar() {
             openNavSearchImpl();
         }
     });
+
+    // Recherche en direct dans le tiroir (mobile) : filtre la liste déjà affichée plutôt que
+    // de rouvrir une palette par-dessus un tiroir déjà ouvert.
+    const searchInput = document.getElementById('sidebar-search-input');
+    const searchEmpty = document.getElementById('sidebar-search-empty');
+    const navMenu = document.querySelector('.nav-menu');
+    if (searchInput && navMenu) {
+        searchInput.addEventListener('input', () => {
+            const q = normalize(searchInput.value.trim());
+            const searching = q.length > 0;
+            navMenu.classList.toggle('searching', searching);
+            document.querySelectorAll('.nav-section-label').forEach(el => { el.style.display = searching ? 'none' : ''; });
+
+            let anyVisible = false;
+            navMenu.querySelectorAll('.nav-item').forEach(li => {
+                if (!searching) { li.classList.remove('nav-search-hidden'); return; }
+                const label = li.querySelector('.nav-label')?.textContent || '';
+                const matches = normalize(label).includes(q);
+                li.classList.toggle('nav-search-hidden', !matches);
+                if (matches) anyVisible = true;
+            });
+            if (searchEmpty) searchEmpty.style.display = (searching && !anyVisible) ? 'block' : 'none';
+        });
+    }
 
     document.querySelectorAll('[data-section-toggle]').forEach(label => {
         const id = label.dataset.sectionToggle;

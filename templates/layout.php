@@ -94,6 +94,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
 ?>
 <?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
 <div class="app-wrapper">
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -101,8 +102,14 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                 <span class="logo-icon">🏠</span>
                 <span class="logo-text"><?= htmlspecialchars($family['name'] ?? APP_NAME) ?></span>
             </div>
-            <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+            <button class="sidebar-toggle" onclick="toggleSidebar()">✕</button>
         </div>
+
+        <div class="sidebar-search">
+            <span class="sidebar-search-icon">🔎</span>
+            <input type="text" id="sidebar-search-input" placeholder="Rechercher un module…" autocomplete="off">
+        </div>
+        <p class="sidebar-search-empty" id="sidebar-search-empty" style="display:none">Aucun résultat.</p>
 
         <ul class="nav-menu">
             <li class="nav-item <?= $currentPath === BASE_URL . '/' || $currentPath === BASE_URL ? 'active' : '' ?>">
@@ -398,7 +405,6 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
     <div class="main-content">
         <!-- Top bar -->
         <header class="topbar">
-            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
             <h1 class="page-title"><?= htmlspecialchars($pageTitle ?? '') ?></h1>
             <div class="alert-banner" id="alert-banner" style="display:none">
                 <div class="alert-banner-track" id="alert-banner-track"></div>
