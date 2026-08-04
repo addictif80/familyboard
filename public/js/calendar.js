@@ -246,7 +246,7 @@ function openEventModal(date = null, eventData = null) {
     if (custodyToggle) {
         custodyToggle.checked = false;
         document.getElementById('event-custody-select-wrap').style.display = 'none';
-        document.getElementById('event-custody-schedule').value = '';
+        document.querySelectorAll('.event-custody-child-cb').forEach(cb => { cb.checked = false; });
     }
 
     if (date) {
@@ -280,10 +280,12 @@ function openEventModal(date = null, eventData = null) {
             hideLocationPreview();
         }
         if (custodyToggle) {
-            const csId = eventData.extendedProps?.custody_schedule_id || '';
-            custodyToggle.checked = !!csId;
-            document.getElementById('event-custody-select-wrap').style.display = csId ? '' : 'none';
-            document.getElementById('event-custody-schedule').value = csId;
+            const csIds = (eventData.extendedProps?.custody_schedule_ids || '').toString().split(',').filter(Boolean).map(Number);
+            custodyToggle.checked = csIds.length > 0;
+            document.getElementById('event-custody-select-wrap').style.display = csIds.length ? '' : 'none';
+            document.querySelectorAll('.event-custody-child-cb').forEach(cb => {
+                cb.checked = csIds.includes(parseInt(cb.value, 10));
+            });
         }
     }
     openModal('event-modal');
@@ -316,7 +318,7 @@ async function saveEvent() {
     };
     const custodyToggle = document.getElementById('event-custody-toggle');
     if (custodyToggle && custodyToggle.checked) {
-        data.custody_schedule_id = document.getElementById('event-custody-schedule').value;
+        data.custody_schedule_ids = Array.from(document.querySelectorAll('.event-custody-child-cb:checked')).map(cb => parseInt(cb.value, 10));
     }
 
     const id = document.getElementById('event-id').value;

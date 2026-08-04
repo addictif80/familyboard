@@ -107,7 +107,7 @@ class Document
         $docId = (int)Database::insert(
             'INSERT INTO documents
              (family_id, user_id, title, doc_type, issuer, issue_date, expiry_date,
-              tags, file_path, file_original, file_mime, ocr_text, notes, custody_schedule_id)
+              tags, file_path, file_original, file_mime, ocr_text, notes, custody_schedule_ids)
              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId, $primaryUserId,
@@ -120,7 +120,7 @@ class Document
                 $filePath, $fileOrig, $fileMime,
                 $ocrText ?: null,
                 $data['notes'] ?? null,
-                !empty($data['custody_schedule_id']) ? $data['custody_schedule_id'] : null,
+                self::encodeScheduleIds($data),
             ]
         );
 
@@ -150,7 +150,7 @@ class Document
 
         Database::execute(
             'UPDATE documents SET user_id=?, title=?, doc_type=?, issuer=?, issue_date=?, expiry_date=?,
-             tags=?, file_path=?, file_original=?, file_mime=?, ocr_text=?, notes=?, custody_schedule_id=?
+             tags=?, file_path=?, file_original=?, file_mime=?, ocr_text=?, notes=?, custody_schedule_ids=?
              WHERE id=? AND family_id=?',
             [
                 $primaryUserId,
@@ -162,7 +162,7 @@ class Document
                 $filePath, $fileOrig, $fileMime,
                 $ocrText ?: null,
                 $data['notes'] ?? null,
-                !empty($data['custody_schedule_id']) ? $data['custody_schedule_id'] : null,
+                self::encodeScheduleIds($data),
                 $id, $familyId,
             ]
         );
@@ -170,16 +170,23 @@ class Document
         self::syncMembers($id, $memberIds);
     }
 
+    /** CSV de schedule_id (comme Invitation::create()), ou NULL si aucun enfant sélectionné. */
+    private static function encodeScheduleIds(array $data): ?string
+    {
+        $ids = array_values(array_unique(array_map('intval', (array)($data['custody_schedule_ids'] ?? []))));
+        return $ids ? implode(',', $ids) : null;
+    }
+
     /** Documents tagués à l'un des plannings de garde donnés (vue co-parent restreint). */
     public static function getForSchedules(array $scheduleIds): array
     {
         $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
         if (empty($scheduleIds)) return [];
-        $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
+        $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, d.custody_schedule_ids)'));
         $rows = Database::fetchAll(
             "SELECT d.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
              FROM documents d JOIN users u ON u.id = d.user_id
-             WHERE d.custody_schedule_id IN ($ph)
+             WHERE $ors
              ORDER BY d.created_at DESC",
             $scheduleIds
         );

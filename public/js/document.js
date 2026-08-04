@@ -67,7 +67,7 @@ function openDocModal() {
     if (custodyToggle) {
         custodyToggle.checked = false;
         document.getElementById('doc-custody-select-wrap').style.display = 'none';
-        document.getElementById('doc-custody-schedule').value = '';
+        document.querySelectorAll('.doc-custody-child-cb').forEach(cb => { cb.checked = false; });
     }
     document.getElementById('doc-ocr-text').value = '';
     document.getElementById('doc-ocr-details').style.display = 'none';
@@ -95,9 +95,12 @@ function openEditDocModal(item) {
     const custodyToggle = document.getElementById('doc-custody-toggle');
     if (custodyToggle) {
         const wrap = document.getElementById('doc-custody-select-wrap');
-        custodyToggle.checked = !!item.custody_schedule_id;
-        wrap.style.display = item.custody_schedule_id ? '' : 'none';
-        document.getElementById('doc-custody-schedule').value = item.custody_schedule_id || '';
+        const csIds = (item.custody_schedule_ids || '').toString().split(',').filter(Boolean).map(Number);
+        custodyToggle.checked = csIds.length > 0;
+        wrap.style.display = csIds.length ? '' : 'none';
+        document.querySelectorAll('.doc-custody-child-cb').forEach(cb => {
+            cb.checked = csIds.includes(parseInt(cb.value, 10));
+        });
     }
     // Check member checkboxes based on item.members array
     const memberIds = new Set((item.members || []).map(m => parseInt(m.id)));
@@ -296,7 +299,9 @@ async function saveDoc() {
     fd.append('ocr_text',    document.getElementById('doc-ocr-text').value);
     const custodyToggle = document.getElementById('doc-custody-toggle');
     if (custodyToggle && custodyToggle.checked) {
-        fd.append('custody_schedule_id', document.getElementById('doc-custody-schedule').value);
+        document.querySelectorAll('.doc-custody-child-cb:checked').forEach(cb => {
+            fd.append('custody_schedule_ids[]', cb.value);
+        });
     }
     document.querySelectorAll('.doc-member-cb:checked').forEach(cb => {
         fd.append('member_ids[]', cb.value);

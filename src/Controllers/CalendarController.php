@@ -76,7 +76,7 @@ class CalendarController extends BaseController
                     'user_color' => $e['user_color'],
                     'caldav' => (bool)$e['caldav_uid'],
                     'type' => 'event',
-                    'custody_schedule_id' => $e['custody_schedule_id'] ?? null,
+                    'custody_schedule_ids' => $e['custody_schedule_ids'] ?? null,
                     'professional_name' => $e['professional_name'] ?? null,
                     'location' => $e['location'] ?? null,
                     'location_lat' => $e['location_lat'] ?? null,
@@ -212,14 +212,11 @@ class CalendarController extends BaseController
             $data['family_id'] = $user['family_id'];
             $data['user_id'] = $user['id'];
             $data['color'] = $this->safeColor($data['color'] ?? null);
-            if (!empty($data['custody_schedule_id'])) {
-                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
-                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
-            }
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds($data['custody_schedule_ids'] ?? [], $user['family_id']);
             $id = Event::create($data);
             $event = Event::getById($id);
-            if (!empty($data['custody_schedule_id'])) {
-                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'event_created', $data['title'] ?? null);
+            foreach ($data['custody_schedule_ids'] as $scheduleId) {
+                CustodyActivityLog::record($scheduleId, $user['id'], 'event_created', $data['title'] ?? null);
             }
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Nouvel événement', $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/calendar');
             return ['success' => true, 'id' => $id, 'event' => $event];
@@ -238,14 +235,10 @@ class CalendarController extends BaseController
             }
             $data = $this->jsonInput();
             $data['color'] = $this->safeColor($data['color'] ?? null);
-            if (!empty($data['custody_schedule_id'])) {
-                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
-                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
-            }
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds($data['custody_schedule_ids'] ?? [], $user['family_id']);
             Event::update($id, $data);
-            $loggedScheduleId = $data['custody_schedule_id'] ?? $event['custody_schedule_id'] ?? null;
-            if (!empty($loggedScheduleId)) {
-                CustodyActivityLog::record((int)$loggedScheduleId, $user['id'], 'event_updated', $data['title'] ?? $event['title']);
+            foreach ($data['custody_schedule_ids'] as $scheduleId) {
+                CustodyActivityLog::record($scheduleId, $user['id'], 'event_updated', $data['title'] ?? $event['title']);
             }
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement modifié',
                 $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']), BASE_URL . '/calendar');

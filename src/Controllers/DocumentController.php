@@ -62,13 +62,10 @@ class DocumentController extends BaseController
                     fn($id) => in_array($id, $familyMemberIds, true)
                 ));
             }
-            if (!empty($data['custody_schedule_id'])) {
-                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
-                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
-            }
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), $user['family_id']);
             $id     = Document::create($user['family_id'], $userId, $data, $file);
-            if (!empty($data['custody_schedule_id'])) {
-                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'document_uploaded', $data['title'] ?? null);
+            foreach ($data['custody_schedule_ids'] as $scheduleId) {
+                CustodyActivityLog::record($scheduleId, $user['id'], 'document_uploaded', $data['title'] ?? null);
             }
             Notification::notifyFamily($user['family_id'], $user['id'], 'documents', 'Nouveau document',
                 $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/documents');
@@ -106,13 +103,10 @@ class DocumentController extends BaseController
                     fn($id) => in_array($id, $familyMemberIds, true)
                 ));
             }
-            if (!empty($data['custody_schedule_id'])) {
-                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
-                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
-            }
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), $user['family_id']);
             Document::update((int)$params['id'], $user['family_id'], $data, $file);
-            if (!empty($data['custody_schedule_id'])) {
-                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'document_updated', $data['title'] ?? null);
+            foreach ($data['custody_schedule_ids'] as $scheduleId) {
+                CustodyActivityLog::record($scheduleId, $user['id'], 'document_updated', $data['title'] ?? null);
             }
             return ['success' => true];
         });

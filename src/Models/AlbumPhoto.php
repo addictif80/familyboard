@@ -15,11 +15,11 @@ class AlbumPhoto
         );
     }
 
-    /** Inclut family_id/custody_schedule_id de l'album parent pour les contrôles d'accès. */
+    /** Inclut family_id de l'album parent pour les contrôles d'accès. */
     public static function getById(int $id): ?array
     {
         return Database::fetch(
-            'SELECT p.*, a.family_id, a.custody_schedule_id
+            'SELECT p.*, a.family_id
              FROM album_photos p JOIN albums a ON a.id=p.album_id
              WHERE p.id=?',
             [$id]

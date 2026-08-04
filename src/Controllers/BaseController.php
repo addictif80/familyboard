@@ -262,6 +262,18 @@ class BaseController
         return $color && preg_match('/^#[0-9a-fA-F]{3,8}$/', $color) ? $color : $fallback;
     }
 
+    /** Ne garde que les schedule_id qui appartiennent bien à la famille de l'appelant — reçus
+     *  du client, jamais fiables tels quels (sélection d'un ou plusieurs enfants pour rendre un
+     *  événement/document visible à leur accès co-parent). */
+    protected function validateFamilyScheduleIds(array $scheduleIds, int $familyId): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $scheduleIds)));
+        return array_values(array_filter($ids, function ($id) use ($familyId) {
+            $schedule = \App\Models\Custody::getScheduleById($id);
+            return $schedule && (int)$schedule['family_id'] === $familyId;
+        }));
+    }
+
     /** Raison du dernier rejet de uploadImage() (null si succès, ou si rien n'a été soumis) —
      *  les appelants qui veulent renvoyer un message précis à l'utilisateur (plutôt que de
      *  laisser un envoi refusé passer inaperçu, ex. un format non supporté) lisent cette
