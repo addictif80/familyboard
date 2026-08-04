@@ -115,6 +115,8 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             <button class="sidebar-toggle" onclick="toggleSidebar()">✕</button>
         </div>
 
+        <?php require BASE_PATH . '/templates/partials/abhd_spotlight_sidebar.php'; ?>
+
         <div class="sidebar-search">
             <span class="sidebar-search-icon">🔎</span>
             <input type="text" id="sidebar-search-input" placeholder="Rechercher un module…" autocomplete="off">

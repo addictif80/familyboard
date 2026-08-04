@@ -17,7 +17,11 @@ ob_start();
     <div class="hero-alert" id="hero-alert" style="display:none"></div>
 </div>
 
-<?php $placement = 'dashboard'; require BASE_PATH . '/templates/partials/abhd_spotlight.php'; ?>
+<!-- Sur PC, cette même mise en avant s'affiche dans la sidebar (voir abhd_spotlight_sidebar.php)
+     — .dashboard-spotlight-wrap masque celle-ci au-delà de 768px pour ne pas la dupliquer. -->
+<div class="dashboard-spotlight-wrap">
+    <?php $placement = 'dashboard'; require BASE_PATH . '/templates/partials/abhd_spotlight.php'; ?>
+</div>
 
 <!-- Widget toolbar -->
 <div class="widget-toolbar">
