@@ -29,6 +29,18 @@ class CoparentController extends BaseController
 {
     private const MAX_VOICE_SIZE = 15 * 1024 * 1024;
 
+    /**
+     * Le fuseau horaire global du process (index.php) est fixé sur la famille du COMPTE
+     * connecté — correct pour un membre classique, faux pour un accès co-parent qui consulte
+     * un planning appartenant à une AUTRE famille (fuseau potentiellement différent). Les
+     * calculs de date relatifs ("ce mois-ci" par défaut, etc.) doivent utiliser le fuseau de
+     * la famille propriétaire du planning, pas celui du compte du co-parent.
+     */
+    private function applyScheduleTimezone(array $schedule): void
+    {
+        date_default_timezone_set(Family::getTimezone((int)$schedule['family_id']));
+    }
+
     public function index(array $params): void
     {
         $this->requireAuth(true);
@@ -77,24 +89,29 @@ class CoparentController extends BaseController
             $user = Session::user();
             $scheduleId = (int)($_GET['schedule_id'] ?? 0);
             if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) return [];
+            $schedule = Custody::getScheduleById($scheduleId);
+            if ($schedule) $this->applyScheduleTimezone($schedule);
             $start = $_GET['start'] ?? date('Y-m-01');
             $end = $_GET['end'] ?? date('Y-m-t');
             $events = Custody::getAllEventsForSchedules([$scheduleId], $start, $end);
-            return array_map(fn($e) => [
-                'id'              => 'custody_' . $e['id'],
-                'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
-                'start'           => $e['start_date'],
-                'end'             => date('Y-m-d', strtotime($e['end_date'] . ' +1 day')),
-                'allDay'          => true,
-                'color'           => $e['parent_color'],
-                'backgroundColor' => $e['schedule_color'],
-                'borderColor'     => $e['parent_color'],
-                'extendedProps'   => [
-                    'parent_name'  => $e['parent_name'],
-                    'notes'        => $e['notes'],
-                    'is_recurring' => !empty($e['is_recurring']),
-                ],
-            ], $events);
+            return array_map(function ($e) {
+                $range = Custody::toDisplayRange($e);
+                return [
+                    'id'              => 'custody_' . $e['id'],
+                    'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
+                    'start'           => $range['start'],
+                    'end'             => $range['end'],
+                    'allDay'          => false,
+                    'color'           => $e['parent_color'],
+                    'backgroundColor' => $e['schedule_color'],
+                    'borderColor'     => $e['parent_color'],
+                    'extendedProps'   => [
+                        'parent_name'  => $e['parent_name'],
+                        'notes'        => $e['notes'],
+                        'is_recurring' => !empty($e['is_recurring']),
+                    ],
+                ];
+            }, $events);
         });
     }
 
@@ -158,6 +175,7 @@ class CoparentController extends BaseController
             if (mb_strlen($content) > 4000) return ['success' => false, 'error' => 'Message trop long'];
 
             $schedule = Custody::getScheduleById($scheduleId);
+            $this->applyScheduleTimezone($schedule);
 
             $audioPath = $audioOriginal = $audioMime = $duration = null;
             if ($audioFile) {
@@ -280,6 +298,7 @@ class CoparentController extends BaseController
         $this->json(function () {
             $user = Session::user();
             $schedules = Custody::getSchedulesForUser((int)$user['id']);
+            $scheduleIds = array_column($schedules, 'id');
             $familyIds = array_values(array_unique(array_map('intval', array_column($schedules, 'family_id'))));
             // Respecte la désactivation du module par une famille même pour cet accès restreint —
             // sans quoi désactiver "Portail de liens" côté famille n'aurait aucun effet ici.
@@ -287,7 +306,7 @@ class CoparentController extends BaseController
                 $f = Family::findById($fid);
                 return $f && !in_array('links', Family::getDisabledModules($f), true);
             }));
-            return ['links' => PortalLink::getCoparentVisibleForFamilies($familyIds)];
+            return ['links' => PortalLink::getCoparentVisibleForFamilies($familyIds, $scheduleIds)];
         });
     }
 
@@ -322,12 +341,15 @@ class CoparentController extends BaseController
             }
             if (!$title) $title = $preview['title'];
 
+            // Restreint au planning depuis lequel c'est proposé — pas d'intérêt à la rendre
+            // visible aux accès co-parent d'un autre enfant de la même famille par défaut.
             PortalLink::create((int)$schedule['family_id'], (int)$user['id'], [
-                'title'               => $title,
-                'url'                 => $url,
-                'description'         => trim($data['description'] ?? ''),
-                'image_path'          => $preview['image_path'],
-                'visible_to_coparent' => true,
+                'title'                 => $title,
+                'url'                   => $url,
+                'description'           => trim($data['description'] ?? ''),
+                'image_path'            => $preview['image_path'],
+                'visible_to_coparent'   => true,
+                'coparent_schedule_ids' => [$scheduleId],
             ], 'pending');
 
             return ['success' => true];
@@ -341,6 +363,8 @@ class CoparentController extends BaseController
             $user = Session::user();
             $scheduleId = (int)($_GET['schedule_id'] ?? 0);
             if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) return [];
+            $schedule = Custody::getScheduleById($scheduleId);
+            if ($schedule) $this->applyScheduleTimezone($schedule);
             $start = $_GET['start'] ?? date('Y-m-01') . ' 00:00:00';
             $end = $_GET['end'] ?? date('Y-m-t') . ' 23:59:59';
             return Event::getForSchedules([$scheduleId], $start, $end);

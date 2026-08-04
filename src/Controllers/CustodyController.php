@@ -29,25 +29,28 @@ class CustodyController extends BaseController
             $start = $_GET['start'] ?? date('Y-m-01');
             $end = $_GET['end'] ?? date('Y-m-t');
             $events = Custody::getAllEventsForFamily($user['family_id'], $start, $end);
-            return array_map(fn($e) => [
-                'id'              => 'custody_' . $e['id'],
-                'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
-                'start'           => $e['start_date'],
-                'end'             => date('Y-m-d', strtotime($e['end_date'] . ' +1 day')),
-                'allDay'          => true,
-                'color'           => $e['parent_color'],
-                'backgroundColor' => $e['schedule_color'],
-                'borderColor'     => $e['parent_color'],
-                'extendedProps'   => [
-                    'child_name'     => $e['child_name'],
-                    'parent_name'    => $e['parent_name'],
-                    'arrival_time'   => $e['arrival_time'],
-                    'departure_time' => $e['departure_time'],
-                    'notes'          => $e['notes'],
-                    'is_recurring'   => !empty($e['is_recurring']),
-                    'type'           => 'custody',
-                ],
-            ], $events);
+            return array_map(function ($e) {
+                $range = Custody::toDisplayRange($e);
+                return [
+                    'id'              => 'custody_' . $e['id'],
+                    'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
+                    'start'           => $range['start'],
+                    'end'             => $range['end'],
+                    'allDay'          => false,
+                    'color'           => $e['parent_color'],
+                    'backgroundColor' => $e['schedule_color'],
+                    'borderColor'     => $e['parent_color'],
+                    'extendedProps'   => [
+                        'child_name'     => $e['child_name'],
+                        'parent_name'    => $e['parent_name'],
+                        'arrival_time'   => $e['arrival_time'],
+                        'departure_time' => $e['departure_time'],
+                        'notes'          => $e['notes'],
+                        'is_recurring'   => !empty($e['is_recurring']),
+                        'type'           => 'custody',
+                    ],
+                ];
+            }, $events);
         });
     }
 
@@ -62,6 +65,7 @@ class CustodyController extends BaseController
                 'start'            => $data['recurrence_start'] ?? null,
                 'handover_weekday' => $data['handover_weekday'] ?? null,
                 'extra_weekday'    => $data['extra_weekday'] ?? null,
+                'handover_time'    => $data['handover_time'] ?? null,
                 'parent1_id'       => $this->resolveScheduleParentId($data['recurrence_parent1_id'] ?? null, $user['family_id']),
                 'parent2_id'       => $this->resolveScheduleParentId($data['recurrence_parent2_id'] ?? null, $user['family_id']),
                 'parent1_label'    => $data['recurrence_parent1_label'] ?? null,
@@ -88,6 +92,7 @@ class CustodyController extends BaseController
                 'start'            => $data['recurrence_start'] ?? null,
                 'handover_weekday' => $data['handover_weekday'] ?? null,
                 'extra_weekday'    => $data['extra_weekday'] ?? null,
+                'handover_time'    => $data['handover_time'] ?? null,
                 'parent1_id'       => $this->resolveScheduleParentId($data['recurrence_parent1_id'] ?? null, $user['family_id'], $id),
                 'parent2_id'       => $this->resolveScheduleParentId($data['recurrence_parent2_id'] ?? null, $user['family_id'], $id),
                 'parent1_label'    => $data['recurrence_parent1_label'] ?? null,

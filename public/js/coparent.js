@@ -7,6 +7,7 @@ let cpJournalLastId = 0;
 let cpJournalPolling = null;
 let cpProposalMonth = new Date();
 let cpProposalDays = {}; // 'YYYY-MM-DD' -> 1 | 2
+let cpEventsCache = [];
 
 function cpCurrentSchedule() {
     return CP_SCHEDULES.find(s => s.id == cpCurrentScheduleId) || CP_SCHEDULES[0];
@@ -428,22 +429,72 @@ async function cpUploadDocument() {
 
 // ── Évènements calendrier tagués ──────────────────────────────────────────
 
+// Format "YYYY-MM-DD HH:MM:SS" en heure locale du navigateur — pas .toISOString(), qui
+// convertirait en UTC : les dates d'événements sont des chaînes "horloge murale" saisies
+// telles quelles (même convention que public/js/calendar.js), pas de vrais instants UTC.
+function cpLocalDateTimeParam(d) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+// Idem cpFormatDateTime, mais pour une date/heure "horloge murale" (événements) plutôt qu'un
+// horodatage serveur réel (created_at) : pas de suffixe 'Z', sans quoi l'heure affichée est
+// décalée de l'écart UTC du fuseau du navigateur par rapport à l'heure réellement saisie.
+function cpFormatEventDateTime(datetime) {
+    const iso = datetime.includes('T') ? datetime : datetime.replace(' ', 'T');
+    return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
 async function cpLoadEvents() {
     const start = new Date();
     const end = new Date();
     end.setDate(end.getDate() + 90);
-    const data = await apiFetch(`${BASE_URL}/api/coparent/events?schedule_id=${cpCurrentScheduleId}&start=${start.toISOString()}&end=${end.toISOString()}`);
+    const data = await apiFetch(`${BASE_URL}/api/coparent/events?schedule_id=${cpCurrentScheduleId}&start=${encodeURIComponent(cpLocalDateTimeParam(start))}&end=${encodeURIComponent(cpLocalDateTimeParam(end))}`);
+    cpEventsCache = Array.isArray(data) ? data : [];
     const list = document.getElementById('cp-events-list');
-    if (!Array.isArray(data) || !data.length) {
+    if (!cpEventsCache.length) {
         list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucun évènement à venir.</p>';
         return;
     }
-    list.innerHTML = data.map(e => `
-        <div class="cp-event-item">
+    list.innerHTML = cpEventsCache.map(e => `
+        <div class="cp-event-item" onclick="cpShowEventDetails(${e.id})" role="button" tabindex="0">
             <strong>${escapeHtml(e.title)}</strong>
-            <div style="color:var(--text-muted);font-size:.8rem">${cpFormatDateTime(e.start_datetime)}</div>
+            <div style="color:var(--text-muted);font-size:.8rem">${cpFormatEventDateTime(e.start_datetime)}</div>
         </div>
     `).join('');
+}
+
+// Détail d'un évènement, en lecture seule — le co-parent voit les mêmes informations qu'un
+// membre de la famille (description, lieu, professionnel...) mais ne peut ni modifier ni
+// supprimer : ces évènements appartiennent à la famille du planning, pas à son propre compte.
+function cpShowEventDetails(eventId) {
+    const e = cpEventsCache.find(ev => ev.id === eventId || ev.id === String(eventId));
+    if (!e) return;
+
+    document.getElementById('cp-event-detail-title').textContent = e.title;
+
+    const range = e.is_all_day
+        ? cpFormatEventDateTime(e.start_datetime).split(' ')[0]
+        : `${cpFormatEventDateTime(e.start_datetime)} → ${cpFormatEventDateTime(e.end_datetime)}`;
+
+    const rows = [`<div class="cp-event-detail-row"><span>🕐</span><span>${escapeHtml(range)}</span></div>`];
+    if (e.location) {
+        const mapsUrl = e.location_lat && e.location_lng
+            ? `https://www.google.com/maps/search/?api=1&query=${e.location_lat},${e.location_lng}`
+            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(e.location)}`;
+        rows.push(`<div class="cp-event-detail-row"><span>📍</span><a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(e.location)}</a></div>`);
+    }
+    if (e.professional_name) {
+        rows.push(`<div class="cp-event-detail-row"><span>🩺</span><span>${escapeHtml(e.professional_name)}</span></div>`);
+    }
+    if (e.description) {
+        rows.push(`<div class="cp-event-detail-row"><span>📝</span><span style="white-space:pre-wrap">${escapeHtml(e.description)}</span></div>`);
+    }
+    if (e.user_name) {
+        rows.push(`<div class="cp-event-detail-row" style="color:var(--text-muted);font-size:.8rem"><span>👤</span><span>Ajouté par ${escapeHtml(e.user_name)}</span></div>`);
+    }
+    document.getElementById('cp-event-detail-body').innerHTML = rows.join('');
+    openModal('cp-event-detail-modal');
 }
 
 async function cpCreateEvent() {

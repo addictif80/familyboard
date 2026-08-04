@@ -37,17 +37,18 @@ class Custody
     {
         return Database::insert(
             'INSERT INTO custody_schedules
-             (family_id, child_name, color, notes, recurrence_type, recurrence_start, handover_weekday, extra_weekday,
+             (family_id, child_name, color, notes, recurrence_type, recurrence_start, handover_weekday, extra_weekday, handover_time,
               recurrence_parent1_id, recurrence_parent2_id,
               recurrence_parent1_label, recurrence_parent1_color,
               recurrence_parent2_label, recurrence_parent2_color)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId, $childName, $color, $notes,
                 $recurrence['type'] ?? 'none',
                 $recurrence['start'] ?? null,
                 $recurrence['handover_weekday'] ?: null,
                 $recurrence['extra_weekday'] ?: null,
+                self::normalizeHandoverTime($recurrence['handover_time'] ?? null),
                 $recurrence['parent1_id'] ?: null,
                 $recurrence['parent2_id'] ?: null,
                 $recurrence['parent1_label'] ?? null,
@@ -61,7 +62,7 @@ class Custody
     public static function updateSchedule(int $id, string $childName, string $color, string $notes, array $recurrence = []): void
     {
         Database::execute(
-            'UPDATE custody_schedules SET child_name=?, color=?, notes=?, recurrence_type=?, recurrence_start=?, handover_weekday=?, extra_weekday=?,
+            'UPDATE custody_schedules SET child_name=?, color=?, notes=?, recurrence_type=?, recurrence_start=?, handover_weekday=?, extra_weekday=?, handover_time=?,
              recurrence_parent1_id=?, recurrence_parent2_id=?,
              recurrence_parent1_label=?, recurrence_parent1_color=?,
              recurrence_parent2_label=?, recurrence_parent2_color=?
@@ -72,6 +73,7 @@ class Custody
                 $recurrence['start'] ?? null,
                 $recurrence['handover_weekday'] ?: null,
                 $recurrence['extra_weekday'] ?: null,
+                self::normalizeHandoverTime($recurrence['handover_time'] ?? null),
                 $recurrence['parent1_id'] ?: null,
                 $recurrence['parent2_id'] ?: null,
                 $recurrence['parent1_label'] ?? null,
@@ -81,6 +83,33 @@ class Custody
                 $id,
             ]
         );
+    }
+
+    /** "HH:MM" (saisie utilisateur) -> "HH:MM:00", avec repli sur 18h si absent/invalide. */
+    private static function normalizeHandoverTime(?string $time): string
+    {
+        if ($time && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time)) return $time . ':00';
+        return '18:00:00';
+    }
+
+    /**
+     * Combine un bloc de garde (start_date/end_date, jours entiers) avec l'heure de passage du
+     * planning pour obtenir l'instant réel de début/fin — ex. "vendredi 18h" plutôt que
+     * "vendredi 00h00". Le jour de fin reste exclusif (même convention +1 jour déjà en place
+     * partout où ces blocs sont affichés) : c'est seulement l'HEURE de la bascule qui change,
+     * jamais l'algorithme qui décide quel jour appartient à quel parent.
+     */
+    public static function toDisplayRange(array $event): array
+    {
+        $defaultTime = substr($event['handover_time'] ?? '18:00:00', 0, 5);
+        // Un événement manuel peut avoir sa propre heure d'arrivée/départ (exception ponctuelle
+        // à l'heure de passage habituelle du planning) — elle est prioritaire quand présente.
+        $startTime = !empty($event['arrival_time']) ? substr($event['arrival_time'], 0, 5) : $defaultTime;
+        $endTime   = !empty($event['departure_time']) ? substr($event['departure_time'], 0, 5) : $defaultTime;
+        return [
+            'start' => $event['start_date'] . ' ' . $startTime . ':00',
+            'end'   => date('Y-m-d', strtotime($event['end_date'] . ' +1 day')) . ' ' . $endTime . ':00',
+        ];
     }
 
     public static function deleteSchedule(int $id): void
@@ -164,7 +193,7 @@ class Custody
     public static function getAllEventsForFamily(int $familyId, string $start, string $end): array
     {
         $manual = Database::fetchAll(
-            'SELECT ce.*, cs.child_name, cs.color as schedule_color, cs.recurrence_type,
+            'SELECT ce.*, cs.child_name, cs.color as schedule_color, cs.recurrence_type, cs.handover_time,
              u.name as parent_name, u.color as parent_color
              FROM custody_events ce
              JOIN custody_schedules cs ON cs.id=ce.schedule_id
@@ -187,7 +216,7 @@ class Custody
 
         $placeholders = implode(',', array_fill(0, count($scheduleIds), '?'));
         $manual = Database::fetchAll(
-            "SELECT ce.*, cs.child_name, cs.color as schedule_color, cs.recurrence_type,
+            "SELECT ce.*, cs.child_name, cs.color as schedule_color, cs.recurrence_type, cs.handover_time,
              u.name as parent_name, u.color as parent_color
              FROM custody_events ce
              JOIN custody_schedules cs ON cs.id=ce.schedule_id
@@ -365,6 +394,7 @@ class Custody
                     'departure_time' => null,
                     'notes'          => null,
                     'is_recurring'   => true,
+                    'handover_time'  => $schedule['handover_time'] ?? '18:00:00',
                 ];
             }
 
@@ -425,6 +455,12 @@ class Custody
             $sat = clone $current;
             $sun = clone $current;
             $sun->modify('+1 day');
+            // Le week-end "réel" ne commence pas samedi minuit ni ne finit dimanche minuit :
+            // le parent qui a le week-end récupère l'enfant vendredi (sortie d'école) et le
+            // ramène lundi (rentrée d'école) — le passage précis dans la journée est ensuite
+            // géré par handover_time (Custody::toDisplayRange), pas ici.
+            $fri = clone $current; $fri->modify('-1 day');
+            $mon = clone $current; $mon->modify('+2 days');
 
             // Determine which parent gets this weekend
             if ($recType === 'weekends_every_2') {
@@ -452,7 +488,7 @@ class Custody
             $parent = $parents[$parentKey];
 
             // Check overlap with range
-            if ($sun >= $rangeFrom && $sat <= $rangeTo) {
+            if ($mon >= $rangeFrom && $fri <= $rangeTo) {
                 $events[] = [
                     'id'             => 'r_' . $schedule['id'] . '_' . $sat->format('Ymd'),
                     'schedule_id'    => $schedule['id'],
@@ -461,12 +497,13 @@ class Custody
                     'parent_user_id' => $parent['id'],
                     'parent_name'    => $parent['name'],
                     'parent_color'   => $parent['color'],
-                    'start_date'     => $sat->format('Y-m-d'),
-                    'end_date'       => $sun->format('Y-m-d'),
+                    'start_date'     => $fri->format('Y-m-d'),
+                    'end_date'       => $mon->format('Y-m-d'),
                     'arrival_time'   => null,
                     'departure_time' => null,
                     'notes'          => null,
                     'is_recurring'   => true,
+                    'handover_time'  => $schedule['handover_time'] ?? '18:00:00',
                 ];
             }
 
@@ -492,6 +529,7 @@ class Custody
                         'departure_time' => null,
                         'notes'          => null,
                         'is_recurring'   => true,
+                        'handover_time'  => $schedule['handover_time'] ?? '18:00:00',
                     ];
                 }
             }
@@ -627,6 +665,7 @@ class Custody
                 'departure_time' => null,
                 'notes'          => $vacation['label'] ?: 'Vacances',
                 'is_recurring'   => true,
+                'handover_time'  => $schedule['handover_time'] ?? '18:00:00',
             ];
         }
         return $events;

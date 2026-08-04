@@ -11,7 +11,9 @@ use App\Core\Database;
  */
 class AbhdHighlight
 {
-    public const PLACEMENTS = ['dashboard', 'module_pages', 'email', 'coparent'];
+    // La vue co-parent n'affiche plus aucune mise en avant (ni bandeau, ni modale) — un accès
+    // restreint pensé pour un parent séparé, volontairement gardé sans contenu promotionnel.
+    public const PLACEMENTS = ['dashboard', 'module_pages', 'email'];
 
     public static function getAll(): array
     {

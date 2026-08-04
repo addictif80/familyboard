@@ -69,15 +69,18 @@ document.documentElement.style.setProperty('--banners-h', document.getElementByI
 </script>
 
 <?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
-<?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
-<!-- Compte à accès restreint : pas de sidebar complète, seulement l'essentiel. -->
+<!-- Compte à accès restreint : pas de sidebar complète, seulement l'essentiel — et pas de
+     mise en avant ABHD non plus (ni bandeau, ni modale), contrairement au reste de l'app. -->
 <div class="coparent-shell">
     <header class="coparent-topbar">
         <div class="coparent-brand">
             <span class="logo-icon">🔒</span>
             <span>Garde partagée</span>
         </div>
-        <div style="display:flex;gap:.5rem;align-items:center">
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+            <a href="<?= BASE_URL ?>/aide" class="btn btn-secondary btn-sm">🧭 Guide</a>
+            <a href="<?= BASE_URL ?>/faq" class="btn btn-secondary btn-sm">❓ FAQ</a>
+            <a href="<?= BASE_URL ?>/support" class="btn btn-secondary btn-sm">🎫 Support</a>
             <button class="btn btn-secondary btn-sm" onclick="openReportIssueModal()" title="Signaler un problème">🐞 Signaler un problème</button>
             <a href="<?= BASE_URL ?>/logout" class="btn btn-secondary btn-sm">Déconnexion</a>
         </div>

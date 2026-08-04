@@ -24,6 +24,8 @@ class PortalLinkController extends BaseController
                 fn($l) => $l['status'] === 'approved' || (int)$l['submitted_by'] === (int)$user['id']
             ));
         }
+        // Pour le choix "visible pour tel(s) enfant(s)" quand la case co-parent est cochée.
+        $schedules = Custody::getSchedules($user['family_id']);
 
         require BASE_PATH . '/templates/links/index.php';
     }
@@ -49,11 +51,12 @@ class PortalLinkController extends BaseController
 
             $status = $user['role'] === 'admin' ? 'approved' : 'pending';
             $id = PortalLink::create($user['family_id'], (int)$user['id'], [
-                'title'               => $title,
-                'url'                 => $url,
-                'description'         => trim($data['description'] ?? ''),
-                'image_path'          => $preview['image_path'],
-                'visible_to_coparent' => !empty($data['visible_to_coparent']),
+                'title'                 => $title,
+                'url'                   => $url,
+                'description'           => trim($data['description'] ?? ''),
+                'image_path'            => $preview['image_path'],
+                'visible_to_coparent'   => !empty($data['visible_to_coparent']),
+                'coparent_schedule_ids' => $data['coparent_schedule_ids'] ?? [],
             ], $status);
 
             return ['success' => true, 'status' => $status, 'link' => PortalLink::getById($id)];
@@ -168,8 +171,15 @@ class PortalLinkController extends BaseController
         } elseif ($user['role'] !== 'coparent' && $link['family_id'] === $user['family_id']) {
             $allowed = true;
         } elseif ($link['visible_to_coparent']) {
-            $accessibleFamilyIds = array_column(Custody::getSchedulesForUser((int)$user['id']), 'family_id');
-            $allowed = in_array($link['family_id'], array_map('intval', $accessibleFamilyIds), true);
+            $schedules = Custody::getSchedulesForUser((int)$user['id']);
+            $matchingScheduleIds = array_column(
+                array_filter($schedules, fn($s) => (int)$s['family_id'] === (int)$link['family_id']),
+                'id'
+            );
+            if ($matchingScheduleIds) {
+                $allowed = empty($link['coparent_schedule_ids'])
+                    || (bool)array_intersect($matchingScheduleIds, array_map('intval', explode(',', $link['coparent_schedule_ids'])));
+            }
         }
 
         if (!$allowed) {

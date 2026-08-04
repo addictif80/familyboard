@@ -132,9 +132,20 @@ function _linkCard(array $l, bool $isAdmin, bool $showStatus): string
             </div>
             <div class="form-group">
                 <label class="radio-option">
-                    <input type="checkbox" id="link-coparent">
+                    <input type="checkbox" id="link-coparent" onchange="toggleLinkCoparentChildren()">
                     <span>Visible par un accès co-parent</span>
                 </label>
+                <?php if (!empty($schedules)): ?>
+                <div id="link-coparent-children" style="display:none;margin:.5rem 0 0 1.6rem">
+                    <small style="color:var(--text-muted);display:block;margin-bottom:.3rem">Pour quel(s) enfant(s) ?</small>
+                    <?php foreach ($schedules as $s): ?>
+                        <label class="radio-option">
+                            <input type="checkbox" class="link-coparent-child-cb" value="<?= (int)$s['id'] ?>" checked>
+                            <span><?= htmlspecialchars($s['child_name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
             </div>
             <p id="link-modal-error" style="color:var(--danger,#E74C3C);font-size:.82rem;display:none"></p>
         </div>

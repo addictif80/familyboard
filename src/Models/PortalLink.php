@@ -23,19 +23,35 @@ class PortalLink
         return Database::fetchAll($sql, $params);
     }
 
-    /** Liens approuvés et marqués visibles pour un accès co-parent, pour un ensemble de
-     *  familles — inclut aussi les liens certifiés globaux. */
-    public static function getCoparentVisibleForFamilies(array $familyIds): array
+    /**
+     * Liens approuvés et marqués visibles pour un accès co-parent, pour un ensemble de
+     * familles (inclut aussi les liens certifiés globaux). $scheduleIds restreint aux enfants
+     * concernés : coparent_schedule_ids NULL = visible à tout accès co-parent de la famille
+     * (comportement par défaut, non restreint) ; sinon seulement si l'un des scheduleIds
+     * fournis fait partie de la liste enregistrée sur le lien.
+     */
+    public static function getCoparentVisibleForFamilies(array $familyIds, array $scheduleIds = []): array
     {
         $familyIds = array_values(array_unique(array_map('intval', $familyIds)));
         if (empty($familyIds)) return [];
         $ph = implode(',', array_fill(0, count($familyIds), '?'));
+
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        $scheduleClause = 'l.coparent_schedule_ids IS NULL';
+        $scheduleParams = [];
+        if ($scheduleIds) {
+            $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, l.coparent_schedule_ids)'));
+            $scheduleClause = "(l.coparent_schedule_ids IS NULL OR $ors)";
+            $scheduleParams = $scheduleIds;
+        }
+
         return Database::fetchAll(
             "SELECT l.*, f.name as family_name FROM portal_links l
              LEFT JOIN families f ON f.id = l.family_id
              WHERE (l.family_id IN ($ph) OR l.family_id IS NULL) AND l.status='approved' AND l.visible_to_coparent=1
+               AND $scheduleClause
              ORDER BY l.certified DESC, l.click_count DESC, l.created_at DESC",
-            $familyIds
+            [...$familyIds, ...$scheduleParams]
         );
     }
 
@@ -52,11 +68,21 @@ class PortalLink
         return Database::fetch('SELECT * FROM portal_links WHERE id = ?', [$id]);
     }
 
+    /** NULL si la case "visible co-parent" n'est pas cochée, ou si elle l'est sans restreindre
+     *  à des enfants précis (visible à tout accès co-parent de la famille) — sinon la liste
+     *  des schedule_id cochés, en CSV (même convention que Invitation::create()). */
+    private static function encodeScheduleIds(array $data): ?string
+    {
+        if (empty($data['visible_to_coparent']) || empty($data['coparent_schedule_ids'])) return null;
+        $ids = array_values(array_unique(array_map('intval', (array)$data['coparent_schedule_ids'])));
+        return $ids ? implode(',', $ids) : null;
+    }
+
     public static function create(int $familyId, int $userId, array $data, string $status): int
     {
         return Database::insert(
-            'INSERT INTO portal_links (family_id, title, url, description, image_path, status, visible_to_coparent, submitted_by, reviewed_by, reviewed_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO portal_links (family_id, title, url, description, image_path, status, visible_to_coparent, coparent_schedule_ids, submitted_by, reviewed_by, reviewed_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId,
                 $data['title'],
@@ -65,6 +91,7 @@ class PortalLink
                 $data['image_path'] ?? null,
                 $status,
                 !empty($data['visible_to_coparent']) ? 1 : 0,
+                self::encodeScheduleIds($data),
                 $userId,
                 $status === 'approved' ? $userId : null,
                 $status === 'approved' ? gmdate('Y-m-d H:i:s') : null,
@@ -73,7 +100,8 @@ class PortalLink
     }
 
     /** Lien certifié : porté par l'administrateur système, jamais rattaché à une famille
-     *  précise, toujours publié immédiatement (pas de circuit d'approbation par un tiers). */
+     *  précise, toujours publié immédiatement (pas de circuit d'approbation par un tiers) —
+     *  et jamais restreint à des enfants précis, puisqu'il n'est lié à aucune famille. */
     public static function createCertified(array $data): int
     {
         return Database::insert(
@@ -104,8 +132,8 @@ class PortalLink
     public static function update(int $id, array $data): void
     {
         Database::execute(
-            'UPDATE portal_links SET title=?, description=?, visible_to_coparent=? WHERE id=?',
-            [$data['title'], $data['description'] ?: null, !empty($data['visible_to_coparent']) ? 1 : 0, $id]
+            'UPDATE portal_links SET title=?, description=?, visible_to_coparent=?, coparent_schedule_ids=? WHERE id=?',
+            [$data['title'], $data['description'] ?: null, !empty($data['visible_to_coparent']) ? 1 : 0, self::encodeScheduleIds($data), $id]
         );
     }
 

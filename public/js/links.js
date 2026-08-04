@@ -6,7 +6,13 @@ function openLinkModal() {
     document.getElementById('link-description').value = '';
     document.getElementById('link-coparent').checked = false;
     document.getElementById('link-modal-error').style.display = 'none';
+    toggleLinkCoparentChildren();
     openModal('link-modal');
+}
+
+function toggleLinkCoparentChildren() {
+    const wrap = document.getElementById('link-coparent-children');
+    if (wrap) wrap.style.display = document.getElementById('link-coparent').checked ? 'block' : 'none';
 }
 
 async function submitLink() {
@@ -24,11 +30,15 @@ async function submitLink() {
     btn.disabled = true;
     btn.textContent = 'Vérification du lien…';
 
+    const coparentChecked = document.getElementById('link-coparent').checked;
     const payload = {
         url,
         title: document.getElementById('link-title').value.trim(),
         description: document.getElementById('link-description').value.trim(),
-        visible_to_coparent: document.getElementById('link-coparent').checked,
+        visible_to_coparent: coparentChecked,
+        coparent_schedule_ids: coparentChecked
+            ? Array.from(document.querySelectorAll('.link-coparent-child-cb:checked')).map(cb => parseInt(cb.value, 10))
+            : [],
     };
     const r = await apiFetch(BASE_URL + '/api/links', { method: 'POST', body: JSON.stringify(payload) });
 

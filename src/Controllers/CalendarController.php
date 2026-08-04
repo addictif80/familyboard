@@ -88,12 +88,13 @@ class CalendarController extends BaseController
             if (!empty($_GET['custody'])) {
                 $custodyEvents = \App\Models\Custody::getAllEventsForFamily($user['family_id'], $start, $end);
                 foreach ($custodyEvents as $e) {
+                    $range = \App\Models\Custody::toDisplayRange($e);
                     $formatted[] = [
                         'id'    => 'custody_' . $e['id'],
                         'title' => $e['child_name'] . ' chez ' . $e['parent_name'],
-                        'start' => $e['start_date'],
-                        'end'   => date('Y-m-d', strtotime($e['end_date'] . ' +1 day')),
-                        'allDay' => true,
+                        'start' => $range['start'],
+                        'end'   => $range['end'],
+                        'allDay' => false,
                         'color' => $e['parent_color'] ?: '#aaa',
                         'extendedProps' => [
                             'type'        => 'custody',

@@ -9,7 +9,7 @@ class SupportController extends BaseController
 {
     public function index(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $user    = Session::user();
         $tickets = SupportTicket::getByFamily($user['family_id']);
         require BASE_PATH . '/templates/support/index.php';
@@ -17,7 +17,7 @@ class SupportController extends BaseController
 
     public function show(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $user   = Session::user();
         $id     = (int)$params['id'];
         $ticket = SupportTicket::getById($id);
@@ -31,7 +31,7 @@ class SupportController extends BaseController
 
     public function create(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $user    = Session::user();
         $subject = trim($_POST['subject'] ?? '');
         $message = trim($_POST['message'] ?? '');
@@ -47,7 +47,7 @@ class SupportController extends BaseController
 
     public function reply(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $user    = Session::user();
         $id      = (int)$params['id'];
         $ticket  = SupportTicket::getById($id);
