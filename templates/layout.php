@@ -121,16 +121,18 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             <?php endif; ?>
 
             <?php if ($_navEnabled('wall') || $_navEnabled('albums') || $_navEnabled('chat') || $_navEnabled('calendar') || $_navEnabled('contacts') || $_navEnabled('meals') || $_navEnabled('wishlist') || $_navEnabled('polls')): ?>
-            <li class="nav-section-label">Vie de famille</li>
+            <li class="nav-section-label" data-section-toggle="vie-de-famille" role="button" tabindex="0">
+                <span>Vie de famille</span><span class="nav-section-chevron">▾</span>
+            </li>
             <?php endif; ?>
             <?php if ($_navEnabled('wall')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/wall') && !str_contains($currentPath, '/family-wall') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/wall') && !str_contains($currentPath, '/family-wall') ? 'active' : '' ?>" data-section="vie-de-famille">
                 <a href="<?= BASE_URL ?>/wall" class="nav-link">
                     <span class="nav-icon">📸</span>
                     <span class="nav-label">Mur familial</span>
                 </a>
             </li>
-            <li class="nav-item <?= str_contains($currentPath, '/messages') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/messages') ? 'active' : '' ?>" data-section="vie-de-famille">
                 <a href="<?= BASE_URL ?>/messages" class="nav-link">
                     <span class="nav-icon">✉️</span>
                     <span class="nav-label">Messages privés</span>
@@ -140,7 +142,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('albums')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>" data-section="vie-de-famille">
                 <a href="<?= BASE_URL ?>/albums" class="nav-link">
                     <span class="nav-icon">🖼️</span>
                     <span class="nav-label">Albums photo</span>
@@ -148,7 +150,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('chat')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>" data-section="vie-de-famille">
                 <a href="<?= BASE_URL ?>/chat" class="nav-link">
                     <span class="nav-icon">💬</span>
                     <span class="nav-label">Chat familial</span>
@@ -156,7 +158,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('calendar')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>" data-section="vie-de-famille">
                 <a href="<?= BASE_URL ?>/calendar" class="nav-link">
                     <span class="nav-icon">📅</span>
                     <span class="nav-label">Calendrier</span>
@@ -164,7 +166,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('contacts')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/contacts') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/contacts') ? 'active' : '' ?>" data-section="vie-de-famille">
                 <a href="<?= BASE_URL ?>/contacts" class="nav-link">
                     <span class="nav-icon">📒</span>
                     <span class="nav-label">Répertoire</span>
@@ -172,7 +174,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('meals')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/meals') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/meals') ? 'active' : '' ?>" data-section="vie-de-famille">
                 <a href="<?= BASE_URL ?>/meals" class="nav-link">
                     <span class="nav-icon">🍽️</span>
                     <span class="nav-label">Repas</span>
@@ -180,7 +182,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('wishlist')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/wishlist') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/wishlist') ? 'active' : '' ?>" data-section="vie-de-famille">
                 <a href="<?= BASE_URL ?>/wishlist" class="nav-link">
                     <span class="nav-icon">🎁</span>
                     <span class="nav-label">Liste de cadeaux</span>
@@ -188,7 +190,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('polls')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/polls') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/polls') ? 'active' : '' ?>" data-section="vie-de-famille">
                 <a href="<?= BASE_URL ?>/polls" class="nav-link">
                     <span class="nav-icon">🗳️</span>
                     <span class="nav-label">Sondages</span>
@@ -197,10 +199,12 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             <?php endif; ?>
 
             <?php if ($_navEnabled('custody') || $_hasCustodyAccess || $_navEnabled('comm_log')): ?>
-            <li class="nav-section-label">Garde partagée</li>
+            <li class="nav-section-label" data-section-toggle="garde-partagee" role="button" tabindex="0">
+                <span>Garde partagée</span><span class="nav-section-chevron">▾</span>
+            </li>
             <?php endif; ?>
             <?php if ($_navEnabled('custody')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/custody') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/custody') ? 'active' : '' ?>" data-section="garde-partagee">
                 <a href="<?= BASE_URL ?>/custody" class="nav-link">
                     <span class="nav-icon">👶</span>
                     <span class="nav-label">Garde alternée</span>
@@ -208,7 +212,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_hasCustodyAccess): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/coparent') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/coparent') ? 'active' : '' ?>" data-section="garde-partagee">
                 <a href="<?= BASE_URL ?>/coparent" class="nav-link">
                     <span class="nav-icon">🔒</span>
                     <span class="nav-label">Garde partagée</span>
@@ -216,7 +220,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('comm_log')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/comm-log') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/comm-log') ? 'active' : '' ?>" data-section="garde-partagee">
                 <a href="<?= BASE_URL ?>/comm-log" class="nav-link">
                     <span class="nav-icon">📝</span>
                     <span class="nav-label">Journal parental</span>
@@ -225,10 +229,12 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             <?php endif; ?>
 
             <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties') || $_navEnabled('links')): ?>
-            <li class="nav-section-label">Organisation</li>
+            <li class="nav-section-label" data-section-toggle="organisation" role="button" tabindex="0">
+                <span>Organisation</span><span class="nav-section-chevron">▾</span>
+            </li>
             <?php endif; ?>
             <?php if ($_navEnabled('tasks')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/tasks') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/tasks') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/tasks" class="nav-link">
                     <span class="nav-icon">✅</span>
                     <span class="nav-label">Tâches & Courses</span>
@@ -236,7 +242,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('projects')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/projects') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/projects') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/projects" class="nav-link">
                     <span class="nav-icon">📋</span>
                     <span class="nav-label">Projets</span>
@@ -244,7 +250,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('budget')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/budget') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/budget') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/budget" class="nav-link">
                     <span class="nav-icon">💰</span>
                     <span class="nav-label">Budget</span>
@@ -252,7 +258,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('documents')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/documents') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/documents') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/documents" class="nav-link">
                     <span class="nav-icon">🗂️</span>
                     <span class="nav-label">Documents</span>
@@ -260,7 +266,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('warranties')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/warranties') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/warranties') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/warranties" class="nav-link">
                     <span class="nav-icon">🛡️</span>
                     <span class="nav-label">Garanties</span>
@@ -268,7 +274,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('links')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/links') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/links') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/links" class="nav-link">
                     <span class="nav-icon">🔗</span>
                     <span class="nav-label">Portail de liens</span>
@@ -277,10 +283,12 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             <?php endif; ?>
 
             <?php if ($_navEnabled('baby') || $_navEnabled('location') || $_navEnabled('emergency')): ?>
-            <li class="nav-section-label">Suivi & sécurité</li>
+            <li class="nav-section-label" data-section-toggle="suivi-securite" role="button" tabindex="0">
+                <span>Suivi & sécurité</span><span class="nav-section-chevron">▾</span>
+            </li>
             <?php endif; ?>
             <?php if ($_navEnabled('baby')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/baby') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/baby') ? 'active' : '' ?>" data-section="suivi-securite">
                 <a href="<?= BASE_URL ?>/baby" class="nav-link">
                     <span class="nav-icon">🍼</span>
                     <span class="nav-label">Bébé</span>
@@ -288,7 +296,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('location')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>" data-section="suivi-securite">
                 <a href="<?= BASE_URL ?>/location" class="nav-link">
                     <span class="nav-icon">📍</span>
                     <span class="nav-label">Position</span>
@@ -296,7 +304,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('emergency')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/emergency') ? 'active' : '' ?>">
+            <li class="nav-item <?= str_contains($currentPath, '/emergency') ? 'active' : '' ?>" data-section="suivi-securite">
                 <a href="<?= BASE_URL ?>/emergency" class="nav-link">
                     <span class="nav-icon">🚑</span>
                     <span class="nav-label">Fiches urgence</span>
@@ -350,6 +358,42 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
         </div>
     </nav>
 
+    <?php if ($currentUser['role'] !== 'coparent'):
+        // Barre de navigation rapide (mobile/PWA uniquement, voir CSS) : Accueil + jusqu'à 3
+        // modules choisis par l'utilisateur (Paramètres → Barre rapide) ou, à défaut, une
+        // sélection par défaut — jamais recalculée automatiquement depuis l'usage réel, pour
+        // ne pas casser la mémoire musculaire d'une barre qui changerait toute seule.
+        $_availableQuickModules = array_values(array_filter(
+            array_keys(\App\Models\Family::QUICK_NAV_ROUTES),
+            fn($slug) => $_navEnabled($slug)
+        ));
+        $_quickNavStored = array_values(array_intersect(
+            array_filter(explode(',', $currentUser['quick_nav'] ?? '')),
+            $_availableQuickModules
+        ));
+        $_quickNavSlugs = array_slice($_quickNavStored ?: \App\Models\Family::defaultQuickNav($_availableQuickModules), 0, 3);
+    ?>
+    <nav class="bottom-nav" aria-label="Navigation rapide">
+        <a href="<?= BASE_URL ?>/" class="bottom-nav-item <?= $currentPath === BASE_URL . '/' || $currentPath === BASE_URL ? 'active' : '' ?>">
+            <span class="bottom-nav-icon">🏠</span>
+            <span class="bottom-nav-label">Accueil</span>
+        </a>
+        <?php foreach ($_quickNavSlugs as $_slug):
+            $_meta = \App\Models\Family::MODULES[$_slug];
+            $_route = \App\Models\Family::QUICK_NAV_ROUTES[$_slug];
+        ?>
+        <a href="<?= BASE_URL . $_route ?>" class="bottom-nav-item <?= str_contains($currentPath, $_route) ? 'active' : '' ?>">
+            <span class="bottom-nav-icon"><?= $_meta['icon'] ?></span>
+            <span class="bottom-nav-label"><?= htmlspecialchars($_meta['label']) ?></span>
+        </a>
+        <?php endforeach; ?>
+        <button type="button" class="bottom-nav-item bottom-nav-more" onclick="toggleSidebar()">
+            <span class="bottom-nav-icon">☰</span>
+            <span class="bottom-nav-label">Plus</span>
+        </button>
+    </nav>
+    <?php endif; ?>
+
     <!-- Main content -->
     <div class="main-content">
         <!-- Top bar -->
@@ -360,6 +404,10 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                 <div class="alert-banner-track" id="alert-banner-track"></div>
             </div>
             <div class="topbar-actions">
+                <button class="nav-search-trigger" onclick="openNavSearch()" title="Recherche rapide (Ctrl/Cmd+K)">
+                    <span>🔎 Rechercher…</span>
+                    <span class="nav-search-kbd">Ctrl K</span>
+                </button>
                 <button class="btn-icon" onclick="openReportIssueModal()" title="Signaler un problème">🐞</button>
                 <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème">
                     <span class="theme-icon-sun">☀️</span>

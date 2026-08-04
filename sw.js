@@ -13,6 +13,7 @@ self.addEventListener('install', e => {
         caches.open(CACHE).then(c => c.addAll([
             new URL(`/public/css/app.css?v=${VERSION}`, location).href,
             new URL(`/public/js/app.js?v=${VERSION}`,  location).href,
+            new URL('/public/offline.html', location).href,
         ])).catch(() => { /* ignore cache errors, SW must activate regardless */ })
     );
 });
@@ -52,9 +53,13 @@ self.addEventListener('fetch', e => {
         return;
     }
 
-    // HTML pages: network-first, fall back to cache when offline
+    // HTML pages: network-first, fall back to this exact page if already cached, then to
+    // the precached offline page — so a page never seen before, opened without connection,
+    // shows a friendly message instead of the browser's own "no internet" error.
     e.respondWith(
-        fetch(e.request).catch(() => caches.match(e.request))
+        fetch(e.request).catch(() =>
+            caches.match(e.request).then(cached => cached || caches.match('/public/offline.html'))
+        )
     );
 });
 

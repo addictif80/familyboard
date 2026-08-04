@@ -64,6 +64,15 @@ class User
         Database::execute('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?', $params);
     }
 
+    /** Barre de navigation rapide (mobile/PWA) : jusqu'à 3 slugs de module choisis par
+     *  l'utilisateur lui-même — préférence personnelle, jamais recalculée automatiquement.
+     *  $slugs === null réinitialise vers la sélection par défaut (Family::defaultQuickNav). */
+    public static function updateQuickNav(int $id, ?array $slugs): void
+    {
+        $value = $slugs ? implode(',', array_slice($slugs, 0, 3)) : null;
+        Database::execute('UPDATE users SET quick_nav = ? WHERE id = ?', [$value, $id]);
+    }
+
     public static function updatePassword(int $id, string $password): void
     {
         Database::execute('UPDATE users SET password = ? WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $id]);
