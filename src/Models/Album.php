@@ -43,9 +43,12 @@ class Album
         Database::execute('DELETE FROM albums WHERE id=?', [$id]);
     }
 
-    public static function setCustodySchedule(int $id, ?int $scheduleId): void
+    /** Un album peut être partagé avec plusieurs enfants (donc plusieurs accès co-parent) à la
+     *  fois — liste de schedule_id en CSV, même convention que Invitation::create(). */
+    public static function setCustodySchedules(int $id, array $scheduleIds): void
     {
-        Database::execute('UPDATE albums SET custody_schedule_id=? WHERE id=?', [$scheduleId ?: null, $id]);
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        Database::execute('UPDATE albums SET custody_schedule_ids=? WHERE id=?', [$scheduleIds ? implode(',', $scheduleIds) : null, $id]);
     }
 
     /** Albums partagés avec un co-parent restreint, accessibles via ses plannings de garde. */
@@ -53,13 +56,13 @@ class Album
     {
         $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
         if (empty($scheduleIds)) return [];
-        $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
+        $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, a.custody_schedule_ids)'));
         return Database::fetchAll(
             "SELECT a.*, u.name as user_name, u.color as user_color,
              (SELECT COUNT(*) FROM album_photos p WHERE p.album_id=a.id) as photo_count,
              (SELECT image_path FROM album_photos p WHERE p.album_id=a.id ORDER BY p.created_at DESC LIMIT 1) as cover_path
              FROM albums a JOIN users u ON u.id=a.user_id
-             WHERE a.custody_schedule_id IN ($ph) ORDER BY a.created_at DESC",
+             WHERE $ors ORDER BY a.created_at DESC",
             $scheduleIds
         );
     }
@@ -69,11 +72,11 @@ class Album
     {
         $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
         if (empty($scheduleIds)) return null;
-        $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
+        $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, a.custody_schedule_ids)'));
         return Database::fetch(
             "SELECT a.*, u.name as user_name, u.color as user_color
              FROM albums a JOIN users u ON u.id=a.user_id
-             WHERE a.id=? AND a.custody_schedule_id IN ($ph)",
+             WHERE a.id=? AND ($ors)",
             [$id, ...$scheduleIds]
         );
     }

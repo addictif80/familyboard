@@ -1836,6 +1836,25 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .coparent-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 .coparent-panel { display: none; }
 .coparent-panel.active { display: block; }
+
+.cp-event-item {
+  padding: .65rem .75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  margin-bottom: .5rem;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.cp-event-item:hover { background: var(--bg); border-color: var(--primary-light); }
+.cp-event-item:last-child { margin-bottom: 0; }
+
+.cp-event-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  padding: .4rem 0;
+}
+.cp-event-detail-row + .cp-event-detail-row { border-top: 1px solid var(--border); }
 .coparent-child-picker { margin-bottom: 1rem; }
 
 /* ── City autocomplete ───────────────────────────────────────── */

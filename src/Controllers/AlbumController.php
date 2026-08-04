@@ -99,16 +99,14 @@ class AlbumController extends BaseController
                 return ['success' => false, 'error' => 'Album introuvable.'];
             }
 
-            $scheduleId = (int)($this->jsonInput()['schedule_id'] ?? 0);
-            if ($scheduleId > 0) {
+            $scheduleIds = array_values(array_unique(array_map('intval', (array)($this->jsonInput()['schedule_ids'] ?? []))));
+            foreach ($scheduleIds as $scheduleId) {
                 $schedule = Custody::getScheduleById($scheduleId);
                 if (!$schedule || (int)$schedule['family_id'] !== (int)$user['family_id']) {
                     return ['success' => false, 'error' => 'Planning introuvable.'];
                 }
-                Album::setCustodySchedule($album['id'], $scheduleId);
-            } else {
-                Album::setCustodySchedule($album['id'], null);
             }
+            Album::setCustodySchedules($album['id'], $scheduleIds);
             return ['success' => true];
         });
     }

@@ -304,15 +304,32 @@ async function saveDoc() {
     if (_docFile) fd.append('file', _docFile);
 
     const url = id ? `${BASE_URL}/api/documents/${id}` : `${BASE_URL}/api/documents`;
+    const fail = msg => { Dialog.toast(msg, 'error'); btn.disabled = false; btn.textContent = 'Enregistrer'; };
+
+    let res;
     try {
-        const res  = await fetch(url, { method: 'POST', body: fd });
-        const data = await res.json();
-        if (data.success) { closeModal('doc-modal'); location.reload(); }
-        else { Dialog.toast(data.error || 'Erreur.', 'error'); btn.disabled = false; btn.textContent = 'Enregistrer'; }
-    } catch(e) {
-        Dialog.toast('Erreur réseau.', 'error');
-        btn.disabled = false; btn.textContent = 'Enregistrer';
+        res = await fetch(url, { method: 'POST', body: fd });
+    } catch (e) {
+        // fetch() ne rejette que si la requête n'a jamais atteint le serveur (coupure réseau,
+        // DNS...) — c'est le seul cas où "Erreur réseau" est le bon diagnostic.
+        fail('Erreur réseau — vérifiez votre connexion et réessayez.');
+        return;
     }
+    if (res.status === 413) {
+        fail('Fichier trop volumineux pour le serveur. Essayez un fichier plus léger.');
+        return;
+    }
+    let data;
+    try {
+        data = await res.json();
+    } catch (e) {
+        // Le serveur a répondu, mais pas en JSON (erreur PHP, page d'erreur du serveur web...) —
+        // ce n'est pas un problème de réseau, mais côté serveur.
+        fail(`Erreur serveur (code ${res.status}). Réessayez ou signalez le problème si ça persiste.`);
+        return;
+    }
+    if (data.success) { closeModal('doc-modal'); location.reload(); }
+    else fail(data.error || 'Erreur.');
 }
 
 async function deleteDoc(id) {

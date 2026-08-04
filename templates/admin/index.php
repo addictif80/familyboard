@@ -453,7 +453,6 @@
                     <label class="radio-option"><input type="checkbox" name="show_dashboard" checked> Tableau de bord</label>
                     <label class="radio-option"><input type="checkbox" name="show_module_pages" checked> Page d'accueil de chaque module</label>
                     <label class="radio-option"><input type="checkbox" name="show_email" checked> Pied de chaque e-mail</label>
-                    <label class="radio-option"><input type="checkbox" name="show_coparent" checked> Vue co-parent</label>
                 </div>
                 <div class="form-group">
                     <label class="radio-option"><input type="checkbox" name="show_modal"> Fenêtre modale à la première page vue après connexion</label>
@@ -497,7 +496,6 @@
                     <label class="radio-option"><input type="checkbox" name="show_dashboard" <?= $h['show_dashboard'] ? 'checked' : '' ?>> Tableau de bord</label>
                     <label class="radio-option"><input type="checkbox" name="show_module_pages" <?= $h['show_module_pages'] ? 'checked' : '' ?>> Page d'accueil de chaque module</label>
                     <label class="radio-option"><input type="checkbox" name="show_email" <?= $h['show_email'] ? 'checked' : '' ?>> Pied de chaque e-mail</label>
-                    <label class="radio-option"><input type="checkbox" name="show_coparent" <?= $h['show_coparent'] ? 'checked' : '' ?>> Vue co-parent</label>
                 </div>
                 <div class="form-group">
                     <label class="radio-option"><input type="checkbox" name="show_modal" <?= $h['show_modal'] ? 'checked' : '' ?>> Fenêtre modale à la première page vue après connexion</label>

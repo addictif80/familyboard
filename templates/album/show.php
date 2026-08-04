@@ -9,13 +9,13 @@ ob_start();
         <div>
             <h2 style="margin:.25rem 0"><?= htmlspecialchars($album['title']) ?></h2>
             <?php if ($album['description']): ?><p style="color:var(--text-muted);margin:0 0 .25rem"><?= nl2br(htmlspecialchars($album['description'])) ?></p><?php endif; ?>
-            <span class="album-meta">Créé par <?= htmlspecialchars($album['user_name']) ?><?php if ($album['custody_schedule_id']): ?> · 🔒 Partagé avec le co-parent<?php endif; ?></span>
+            <span class="album-meta">Créé par <?= htmlspecialchars($album['user_name']) ?><?php if (!empty($album['custody_schedule_ids'])): ?> · 🔒 Partagé avec le co-parent<?php endif; ?></span>
         </div>
         <?php if ($canManage): ?>
         <div class="album-header-actions">
             <button class="btn btn-secondary btn-sm" onclick="albumOpenEditModal(<?= (int)$album['id'] ?>, <?= htmlspecialchars(json_encode($album['title']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($album['description'] ?? ''), ENT_QUOTES) ?>)">Renommer</button>
             <?php if ($user['role'] === 'admin'): ?>
-            <button class="btn btn-secondary btn-sm" onclick="albumOpenShareModal(<?= (int)$album['id'] ?>, <?= (int)($album['custody_schedule_id'] ?? 0) ?>)">Partager</button>
+            <button class="btn btn-secondary btn-sm" onclick="albumOpenShareModal(<?= (int)$album['id'] ?>, <?= json_encode($album['custody_schedule_ids'] ?? '') ?>)">Partager</button>
             <button class="btn btn-secondary btn-sm" onclick="albumOpenPublicLinkModal(<?= (int)$album['id'] ?>, <?= htmlspecialchars(json_encode($shareLink ?: null), ENT_QUOTES) ?>)">🔗 Lien public</button>
             <?php endif; ?>
             <button class="btn btn-danger btn-sm" onclick="albumDelete(<?= (int)$album['id'] ?>)">Supprimer l'album</button>
@@ -98,13 +98,16 @@ ob_start();
             <input type="hidden" id="album-share-id">
             <p style="color:var(--text-muted);font-size:.85rem">Le co-parent ayant accès au planning de garde sélectionné pourra voir cet album et y ajouter ses propres photos (il ne pourra pas les modifier ni les supprimer).</p>
             <div class="form-group">
-                <label>Planning de garde</label>
-                <select id="album-share-schedule">
-                    <option value="0">— Ne pas partager —</option>
-                    <?php foreach ($schedules as $s): ?>
-                        <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['child_name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <label>Enfant(s)</label>
+                <?php if (empty($schedules)): ?>
+                    <p style="color:var(--text-muted);font-size:.85rem">Aucun planning de garde configuré pour l'instant.</p>
+                <?php endif; ?>
+                <?php foreach ($schedules as $s): ?>
+                    <label class="radio-option">
+                        <input type="checkbox" class="album-share-child-cb" value="<?= (int)$s['id'] ?>">
+                        <span><?= htmlspecialchars($s['child_name']) ?></span>
+                    </label>
+                <?php endforeach; ?>
             </div>
         </div>
         <div class="modal-footer">

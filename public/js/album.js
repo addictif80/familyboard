@@ -66,19 +66,22 @@ async function albumDelete(id) {
     }
 }
 
-function albumOpenShareModal(id, currentScheduleId) {
+function albumOpenShareModal(id, currentScheduleIds) {
     document.getElementById('album-share-id').value = id;
-    document.getElementById('album-share-schedule').value = currentScheduleId || 0;
+    const current = (currentScheduleIds || '').toString().split(',').filter(Boolean).map(Number);
+    document.querySelectorAll('.album-share-child-cb').forEach(cb => {
+        cb.checked = current.includes(parseInt(cb.value, 10));
+    });
     openModal('album-share-modal');
 }
 
 async function albumSaveShare() {
     const id = document.getElementById('album-share-id').value;
-    const scheduleId = parseInt(document.getElementById('album-share-schedule').value, 10) || 0;
+    const scheduleIds = Array.from(document.querySelectorAll('.album-share-child-cb:checked')).map(cb => parseInt(cb.value, 10));
 
     const result = await apiFetch(BASE_URL + '/api/albums/' + id + '/share', {
         method: 'POST',
-        body: JSON.stringify({ schedule_id: scheduleId }),
+        body: JSON.stringify({ schedule_ids: scheduleIds }),
     });
 
     if (result.success) {

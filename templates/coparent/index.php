@@ -10,8 +10,6 @@ ob_start();
     </div>
 <?php else: ?>
 
-<?php $placement = 'coparent'; require BASE_PATH . '/templates/partials/abhd_spotlight.php'; ?>
-
 <?php if ((\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
 <div class="card" style="padding:1.25rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
     <div>
@@ -183,6 +181,22 @@ ob_start();
         <div class="modal-footer">
             <button class="btn btn-primary" id="cp-link-modal-submit" onclick="cpSubmitLink()">Proposer</button>
             <button class="btn btn-secondary" onclick="closeModal('cp-link-modal')">Annuler</button>
+        </div>
+    </div>
+</div>
+
+<!-- Détail d'un évènement (lecture seule) -->
+<div class="modal-overlay" id="cp-event-detail-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="cp-event-detail-title">Évènement</h3>
+            <button onclick="closeModal('cp-event-detail-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="cp-event-detail-body"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('cp-event-detail-modal')">Fermer</button>
         </div>
     </div>
 </div>

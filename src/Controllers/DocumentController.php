@@ -38,6 +38,21 @@ class DocumentController extends BaseController
             $user   = Session::user();
             $data   = $_POST ?: $this->jsonInput();
             $file   = $_FILES['file'] ?? null;
+            // Document::processFile() ignore silencieusement un fichier en échec d'envoi (elle
+            // ne traite que UPLOAD_ERR_OK) — sans ce contrôle, le document serait créé SANS le
+            // fichier, sans jamais prévenir l'utilisateur de la vraie raison (taille, coupure...).
+            if ($file && $file['error'] !== UPLOAD_ERR_OK && $file['error'] !== UPLOAD_ERR_NO_FILE) {
+                $message = match ($file['error']) {
+                    UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE =>
+                        'Fichier trop volumineux pour la configuration actuelle du serveur.',
+                    UPLOAD_ERR_PARTIAL =>
+                        "Envoi interrompu (connexion coupée en cours d'envoi) — réessayez.",
+                    UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE =>
+                        "Erreur serveur : impossible d'écrire le fichier temporaire.",
+                    default => "Erreur d'envoi du fichier (code {$file['error']}).",
+                };
+                return ['success' => false, 'error' => $message];
+            }
             $familyMemberIds = array_map('intval', array_column(User::getByFamily($user['family_id']), 'id'));
             $userId = (int)($data['user_id'] ?? $user['id']);
             if (!in_array($userId, $familyMemberIds, true)) $userId = $user['id'];
@@ -68,6 +83,18 @@ class DocumentController extends BaseController
             $user = Session::user();
             $data = $_POST ?: $this->jsonInput();
             $file = $_FILES['file'] ?? null;
+            if ($file && $file['error'] !== UPLOAD_ERR_OK && $file['error'] !== UPLOAD_ERR_NO_FILE) {
+                $message = match ($file['error']) {
+                    UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE =>
+                        'Fichier trop volumineux pour la configuration actuelle du serveur.',
+                    UPLOAD_ERR_PARTIAL =>
+                        "Envoi interrompu (connexion coupée en cours d'envoi) — réessayez.",
+                    UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE =>
+                        "Erreur serveur : impossible d'écrire le fichier temporaire.",
+                    default => "Erreur d'envoi du fichier (code {$file['error']}).",
+                };
+                return ['success' => false, 'error' => $message];
+            }
             $familyMemberIds = array_map('intval', array_column(User::getByFamily($user['family_id']), 'id'));
             if (isset($data['user_id'])) {
                 $data['user_id'] = (int)$data['user_id'];
