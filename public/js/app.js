@@ -340,17 +340,22 @@ function markAllRead() {
 }
 
 // ---- Keep sidebar/topbar clear of the stacked top banners ----
+// syncBannersHeight() is exposed globally so any code that shows/hides a banner (ex. the PWA
+// onboarding banner below) can call it directly right away, instead of relying solely on the
+// ResizeObserver notification — belt and suspenders, since a banner shown via a delayed async
+// check should never wait an extra frame to be accounted for.
+window.syncBannersHeight = function () {
+    const banners = document.getElementById('top-banners');
+    if (banners) document.documentElement.style.setProperty('--banners-h', banners.offsetHeight + 'px');
+};
 (function () {
     const banners = document.getElementById('top-banners');
     if (!banners) return;
-    const sync = () => {
-        document.documentElement.style.setProperty('--banners-h', banners.offsetHeight + 'px');
-    };
-    sync();
+    syncBannersHeight();
     if (typeof ResizeObserver === 'function') {
-        new ResizeObserver(sync).observe(banners);
+        new ResizeObserver(syncBannersHeight).observe(banners);
     } else {
-        window.addEventListener('resize', sync);
+        window.addEventListener('resize', syncBannersHeight);
     }
 })();
 
@@ -410,6 +415,7 @@ async function checkPwaOnboardingBanner() {
         text.textContent = "📲 Installez FamilyBoard sur votre écran d'accueil pour une meilleure expérience et les notifications.";
         link.href = BASE_URL + '/settings#pwa-install-section';
         banner.style.display = 'flex';
+        syncBannersHeight?.();
         return;
     }
     const { state } = await checkPushStatus();
@@ -417,9 +423,11 @@ async function checkPwaOnboardingBanner() {
         text.textContent = '🔔 Activez les notifications pour ne rien manquer.';
         link.href = BASE_URL + '/settings#push-notifications-section';
         banner.style.display = 'flex';
+        syncBannersHeight?.();
         return;
     }
     banner.style.display = 'none';
+    syncBannersHeight?.();
 }
 checkPwaOnboardingBanner();
 

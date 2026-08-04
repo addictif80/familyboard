@@ -1350,12 +1350,16 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     transform: translateY(100%);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* Une fois ouvert, le tiroir est une feuille modale : il doit passer au-dessus des
+       bandeaux d'alerte (#top-banners, z-index 500), pas en dessous — sans ce z-index plus
+       élevé, un bandeau 2FA/installation restait affiché par-dessus le haut du tiroir ouvert. */
+    z-index: 600;
   }
   .sidebar.open { transform: translateY(0); }
   .sidebar-backdrop {
     position: fixed; inset: 0;
     background: rgba(15,12,8,.5);
-    z-index: 95;
+    z-index: 599;
     opacity: 0;
     pointer-events: none;
     transition: opacity .2s ease;
