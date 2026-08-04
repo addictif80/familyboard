@@ -21,6 +21,7 @@ use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\LegalController;
 use App\Controllers\HelpController;
+use App\Controllers\SearchController;
 use App\Controllers\CalendarController;
 use App\Controllers\WallController;
 use App\Controllers\FollowController;
@@ -199,6 +200,9 @@ $router->get('/faq', [LegalController::class, 'faq']);
 
 // Guide d'utilisation (réservé aux utilisateurs connectés)
 $router->get('/aide', [HelpController::class, 'index']);
+
+// Recherche globale (contenu réel, pas seulement les pages/modules)
+$router->get('/api/search', [SearchController::class, 'search']);
 
 // Dashboard
 $router->get('/', [DashboardController::class, 'index']);
