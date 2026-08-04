@@ -5,8 +5,10 @@ use App\Core\EmailLayout;
 use App\Core\Mail;
 use App\Core\RememberMe;
 use App\Core\Session;
+use App\Models\EmailContent;
 use App\Models\Family;
 use App\Models\LoginAttempt;
+use App\Models\PasswordReset;
 use App\Models\TwoFactorAuth;
 use App\Models\User;
 
@@ -20,6 +22,7 @@ class AuthController
         }
         Session::delete('pending_2fa_user_id');
         $error = Session::getFlash('error');
+        $success = Session::getFlash('success');
         require BASE_PATH . '/templates/auth/login.php';
     }
 
@@ -289,6 +292,127 @@ class AuthController
         } catch (\Throwable $e) {
             error_log('notifyExistingAccountOfRegistrationAttempt failed: ' . $e->getMessage());
         }
+    }
+
+    public function showForgotPassword(array $params): void
+    {
+        if (Session::isLoggedIn()) {
+            header('Location: ' . BASE_URL . '/');
+            exit;
+        }
+        $error = Session::getFlash('error');
+        $info = Session::getFlash('info');
+        require BASE_PATH . '/templates/auth/forgot_password.php';
+    }
+
+    public function forgotPassword(array $params): void
+    {
+        if (!\App\Core\Csrf::verify()) {
+            Session::flash('error', 'Session expirée, veuillez réessayer.');
+            header('Location: ' . BASE_URL . '/forgot-password');
+            exit;
+        }
+        $email = trim($_POST['email'] ?? '');
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+        // Message générique dans tous les cas ci-dessous (compte inexistant, verrouillage,
+        // erreur d'envoi...) : révéler "cet email n'existe pas" permettrait de découvrir qui a
+        // un compte FamilyBoard en testant des adresses en masse — même précaution que
+        // register() pour une adresse déjà utilisée.
+        $genericMessage = "Si un compte existe avec cette adresse, un e-mail de réinitialisation vient d'être envoyé.";
+
+        if (!$email) {
+            Session::flash('error', 'Veuillez indiquer votre adresse e-mail.');
+            header('Location: ' . BASE_URL . '/forgot-password');
+            exit;
+        }
+
+        $acctKey = LoginAttempt::accountKey($email);
+        if (LoginAttempt::isLocked('reset', $ip) || LoginAttempt::isLocked('reset', $acctKey)) {
+            // Toujours le message générique — pas d'indice sur la raison de l'échec.
+            Session::flash('info', $genericMessage);
+            header('Location: ' . BASE_URL . '/forgot-password');
+            exit;
+        }
+        LoginAttempt::record('reset', $ip);
+        LoginAttempt::record('reset', $acctKey);
+
+        $user = User::findByEmail($email);
+        if ($user && empty($user['blocked_at'])) {
+            try {
+                $token = PasswordReset::create((int)$user['id']);
+                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $resetUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . BASE_URL . '/reset-password/' . $token;
+
+                $rendered = EmailContent::render('password_reset', ['user_name' => $user['name']]);
+                $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+                    'label' => 'Réinitialiser mon mot de passe',
+                    'url'   => $resetUrl,
+                ]);
+                Mail::send((int)$user['family_id'], $user['email'], $user['name'], $rendered['subject'], $html, 'security');
+            } catch (\Throwable $e) {
+                error_log('forgotPassword mail failed: ' . $e->getMessage());
+            }
+        }
+
+        Session::flash('info', $genericMessage);
+        header('Location: ' . BASE_URL . '/forgot-password');
+        exit;
+    }
+
+    public function showResetPassword(array $params): void
+    {
+        $token = $params['token'] ?? '';
+        $reset = $token ? PasswordReset::getByToken($token) : null;
+        if (!$reset) {
+            Session::flash('error', 'Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.');
+            header('Location: ' . BASE_URL . '/forgot-password');
+            exit;
+        }
+        $error = Session::getFlash('error');
+        require BASE_PATH . '/templates/auth/reset_password.php';
+    }
+
+    public function resetPassword(array $params): void
+    {
+        if (!\App\Core\Csrf::verify()) {
+            Session::flash('error', 'Session expirée, veuillez réessayer.');
+            header('Location: ' . BASE_URL . '/login');
+            exit;
+        }
+        $token = $params['token'] ?? '';
+        $reset = $token ? PasswordReset::getByToken($token) : null;
+        if (!$reset) {
+            Session::flash('error', 'Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau.');
+            header('Location: ' . BASE_URL . '/forgot-password');
+            exit;
+        }
+
+        $password = $_POST['password'] ?? '';
+        $confirm = $_POST['password_confirm'] ?? '';
+        if (strlen($password) < 8) {
+            Session::flash('error', 'Le mot de passe doit faire au moins 8 caractères.');
+            header('Location: ' . BASE_URL . '/reset-password/' . $token);
+            exit;
+        }
+        if ($password !== $confirm) {
+            Session::flash('error', 'Les deux mots de passe ne correspondent pas.');
+            header('Location: ' . BASE_URL . '/reset-password/' . $token);
+            exit;
+        }
+
+        User::updatePassword((int)$reset['user_id'], $password);
+        PasswordReset::markUsed($token);
+
+        // Un lien de réinitialisation intercepté/laissé traîner ne doit pas suffire à garder un
+        // accès parallèle après coup : toute session/« se souvenir de moi » déjà ouverte ailleurs
+        // est invalidée, même précaution qu'un changement de mot de passe depuis les paramètres.
+        \App\Core\Database::execute('UPDATE users SET force_logout_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s'), $reset['user_id']]);
+        \App\Models\AuthToken::deleteForUser((int)$reset['user_id']);
+
+        Session::flash('success', 'Mot de passe mis à jour. Vous pouvez vous connecter.');
+        header('Location: ' . BASE_URL . '/login');
+        exit;
     }
 
     public function logout(array $params): void

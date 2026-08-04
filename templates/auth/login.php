@@ -12,6 +12,9 @@ ob_start();
     <?php if ($error): ?>
         <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
+    <?php if ($success): ?>
+        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+    <?php endif; ?>
 
     <form method="POST" action="<?= BASE_URL ?>/login" class="auth-form">
         <?= \App\Core\Csrf::field() ?>
@@ -26,6 +29,7 @@ ob_start();
         <button type="submit" class="btn btn-primary btn-full">Se connecter</button>
     </form>
 
+    <p class="auth-link"><a href="<?= BASE_URL ?>/forgot-password">Mot de passe oublié ?</a></p>
     <p class="auth-link">Pas encore de compte ? <a href="<?= BASE_URL ?>/register">Créer une famille</a></p>
 </div>
 <?php
