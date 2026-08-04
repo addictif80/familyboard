@@ -192,6 +192,10 @@ $router->get('/logout', [AuthController::class, 'logout']);
 $router->get('/login/2fa', [AuthController::class, 'showTwoFactor']);
 $router->post('/login/2fa', [AuthController::class, 'verifyTwoFactor']);
 $router->post('/login/2fa/resend', [AuthController::class, 'resendTwoFactorEmail']);
+$router->get('/forgot-password', [AuthController::class, 'showForgotPassword']);
+$router->post('/forgot-password', [AuthController::class, 'forgotPassword']);
+$router->get('/reset-password/:token', [AuthController::class, 'showResetPassword']);
+$router->post('/reset-password/:token', [AuthController::class, 'resetPassword']);
 
 // Pages publiques (accessibles sans compte)
 $router->get('/confidentialite', [LegalController::class, 'privacy']);

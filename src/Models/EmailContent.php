@@ -56,6 +56,10 @@ class EmailContent
             'subject' => '🗓️ La semaine de {{child_names}}',
             'message' => "Bonjour {{user_name}},\n\nVoici le planning de garde et les rendez-vous de la semaine pour {{child_names}} :",
         ],
+        'password_reset' => [
+            'subject' => 'Réinitialisation de votre mot de passe FamilyBoard',
+            'message' => "Bonjour {{user_name}},\n\nVous avez demandé la réinitialisation de votre mot de passe. Ce lien est valable 1 heure et à usage unique.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail : votre mot de passe reste inchangé.",
+        ],
     ];
 
     public static function get(string $type): array
@@ -127,6 +131,7 @@ class EmailContent
             'birthday_reminder'    => 'Rappel anniversaire (7j avant)',
             'weekly_digest'         => 'Résumé hebdomadaire (dimanche soir)',
             'weekly_digest_coparent'=> 'Résumé hebdomadaire — accès co-parent',
+            'password_reset'        => 'Réinitialisation de mot de passe',
             default                => $type,
         };
     }
@@ -145,6 +150,7 @@ class EmailContent
             'birthday_reminder'     => ['user_name', 'birthday_name', 'birthday_age', 'birthday_date'],
             'weekly_digest'         => ['user_name', 'family_name'],
             'weekly_digest_coparent'=> ['user_name', 'child_names'],
+            'password_reset'        => ['user_name'],
             default                 => [],
         };
     }
