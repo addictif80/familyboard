@@ -94,21 +94,24 @@ class CoparentController extends BaseController
             $start = $_GET['start'] ?? date('Y-m-01');
             $end = $_GET['end'] ?? date('Y-m-t');
             $events = Custody::getAllEventsForSchedules([$scheduleId], $start, $end);
-            return array_map(fn($e) => [
-                'id'              => 'custody_' . $e['id'],
-                'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
-                'start'           => $e['start_date'],
-                'end'             => date('Y-m-d', strtotime($e['end_date'] . ' +1 day')),
-                'allDay'          => true,
-                'color'           => $e['parent_color'],
-                'backgroundColor' => $e['schedule_color'],
-                'borderColor'     => $e['parent_color'],
-                'extendedProps'   => [
-                    'parent_name'  => $e['parent_name'],
-                    'notes'        => $e['notes'],
-                    'is_recurring' => !empty($e['is_recurring']),
-                ],
-            ], $events);
+            return array_map(function ($e) {
+                $range = Custody::toDisplayRange($e);
+                return [
+                    'id'              => 'custody_' . $e['id'],
+                    'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
+                    'start'           => $range['start'],
+                    'end'             => $range['end'],
+                    'allDay'          => false,
+                    'color'           => $e['parent_color'],
+                    'backgroundColor' => $e['schedule_color'],
+                    'borderColor'     => $e['parent_color'],
+                    'extendedProps'   => [
+                        'parent_name'  => $e['parent_name'],
+                        'notes'        => $e['notes'],
+                        'is_recurring' => !empty($e['is_recurring']),
+                    ],
+                ];
+            }, $events);
         });
     }
 

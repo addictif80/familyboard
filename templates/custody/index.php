@@ -85,6 +85,12 @@ ob_start();
                 </select>
             </div>
 
+            <div class="form-group">
+                <label>Heure de passage</label>
+                <input type="time" id="schedule-handover-time" value="18:00">
+                <small class="field-hint">L'heure à laquelle la garde bascule d'un parent à l'autre (ex. 18h) — s'applique à tous les passages de ce planning, week-ends comme semaine. Un week-end "1 sur 2" commence ainsi vendredi à cette heure et se termine lundi à cette heure, pas à minuit.</small>
+            </div>
+
             <div id="recurrence-fields" style="display:none">
                 <div class="form-group">
                     <label>Date de début de la périodicité</label>
