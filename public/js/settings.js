@@ -1,3 +1,22 @@
+// ---- Barre rapide (mobile) : limite le nombre de modules cochables ----
+document.addEventListener('DOMContentLoaded', () => {
+    const group = document.querySelector('[data-quick-nav-group]');
+    if (!group) return;
+    const max = parseInt(group.dataset.max, 10) || 3;
+    const hint = document.querySelector('[data-quick-nav-hint]');
+    const boxes = () => Array.from(group.querySelectorAll('input[type="checkbox"]'));
+
+    const refresh = () => {
+        const checked = boxes().filter(b => b.checked).length;
+        boxes().forEach(b => { if (!b.checked) b.disabled = checked >= max; });
+        if (hint) hint.textContent = checked >= max
+            ? `${max} sélectionnés sur ${max} maximum.`
+            : `${checked}/${max} sélectionnés.`;
+    };
+    group.addEventListener('change', refresh);
+    refresh();
+});
+
 // ---- Déconnexion de tous les appareils ----
 async function confirmLogoutAllDevices() {
     const ok = await Dialog.confirm('Déconnecter tous les appareils, y compris celui-ci ? Vous devrez vous reconnecter.');

@@ -204,6 +204,21 @@ class SettingsController extends BaseController
         exit;
     }
 
+    /** Barre de navigation rapide (mobile/PWA) — préférence personnelle, pas un réglage
+     *  d'administrateur familial : n'importe quel membre/admin choisit la sienne. */
+    public function updateQuickNav(array $params): void
+    {
+        $this->requireAuth();
+        $user = Session::user();
+        $valid = array_keys(\App\Models\Family::MODULES);
+        $selected = array_slice((array)($_POST['quick_nav'] ?? []), 0, 3);
+        $slugs = array_values(array_intersect($selected, $valid));
+        User::updateQuickNav((int)$user['id'], $slugs ?: null);
+        Session::flash('success', 'Barre rapide mise à jour.');
+        header('Location: ' . BASE_URL . '/settings');
+        exit;
+    }
+
     public function removeMember(array $params): void
     {
         $this->requireAdmin();

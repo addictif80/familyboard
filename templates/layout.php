@@ -350,6 +350,42 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
         </div>
     </nav>
 
+    <?php if ($currentUser['role'] !== 'coparent'):
+        // Barre de navigation rapide (mobile/PWA uniquement, voir CSS) : Accueil + jusqu'à 3
+        // modules choisis par l'utilisateur (Paramètres → Barre rapide) ou, à défaut, une
+        // sélection par défaut — jamais recalculée automatiquement depuis l'usage réel, pour
+        // ne pas casser la mémoire musculaire d'une barre qui changerait toute seule.
+        $_availableQuickModules = array_values(array_filter(
+            array_keys(\App\Models\Family::QUICK_NAV_ROUTES),
+            fn($slug) => $_navEnabled($slug)
+        ));
+        $_quickNavStored = array_values(array_intersect(
+            array_filter(explode(',', $currentUser['quick_nav'] ?? '')),
+            $_availableQuickModules
+        ));
+        $_quickNavSlugs = array_slice($_quickNavStored ?: \App\Models\Family::defaultQuickNav($_availableQuickModules), 0, 3);
+    ?>
+    <nav class="bottom-nav" aria-label="Navigation rapide">
+        <a href="<?= BASE_URL ?>/" class="bottom-nav-item <?= $currentPath === BASE_URL . '/' || $currentPath === BASE_URL ? 'active' : '' ?>">
+            <span class="bottom-nav-icon">🏠</span>
+            <span class="bottom-nav-label">Accueil</span>
+        </a>
+        <?php foreach ($_quickNavSlugs as $_slug):
+            $_meta = \App\Models\Family::MODULES[$_slug];
+            $_route = \App\Models\Family::QUICK_NAV_ROUTES[$_slug];
+        ?>
+        <a href="<?= BASE_URL . $_route ?>" class="bottom-nav-item <?= str_contains($currentPath, $_route) ? 'active' : '' ?>">
+            <span class="bottom-nav-icon"><?= $_meta['icon'] ?></span>
+            <span class="bottom-nav-label"><?= htmlspecialchars($_meta['label']) ?></span>
+        </a>
+        <?php endforeach; ?>
+        <button type="button" class="bottom-nav-item bottom-nav-more" onclick="toggleSidebar()">
+            <span class="bottom-nav-icon">☰</span>
+            <span class="bottom-nav-label">Plus</span>
+        </button>
+    </nav>
+    <?php endif; ?>
+
     <!-- Main content -->
     <div class="main-content">
         <!-- Top bar -->

@@ -31,6 +31,28 @@ class Family
         'links'       => ['label' => 'Portail de liens',   'icon' => '🔗'],
     ];
 
+    /** Modules ayant une page de destination directe (donc utilisables dans la barre de
+     *  navigation rapide) : exclut 'sitter' et 'kiosk', qui se gèrent depuis les réglages via
+     *  des liens générés plutôt que d'être des pages qu'on visite au quotidien. */
+    public const QUICK_NAV_ROUTES = [
+        'wall' => '/wall', 'albums' => '/albums', 'calendar' => '/calendar', 'custody' => '/custody',
+        'tasks' => '/tasks', 'chat' => '/chat', 'budget' => '/budget', 'projects' => '/projects',
+        'contacts' => '/contacts', 'warranties' => '/warranties', 'documents' => '/documents',
+        'family-wall' => '/family-wall', 'baby' => '/baby', 'location' => '/location',
+        'emergency' => '/emergency', 'comm_log' => '/comm-log', 'meals' => '/meals',
+        'wishlist' => '/wishlist', 'polls' => '/polls', 'links' => '/links',
+    ];
+
+    /** Sélection par défaut de la barre de navigation rapide (mobile/PWA), tant que
+     *  l'utilisateur n'a pas choisi la sienne — un ordre de priorité fixe, filtré sur les
+     *  modules réellement activés pour la famille, jamais recalculé depuis l'usage réel
+     *  (une barre qui bouge toute seule casse la mémoire musculaire). */
+    public static function defaultQuickNav(array $availableSlugs): array
+    {
+        $priority = ['calendar', 'tasks', 'wall', 'chat', 'custody', 'budget', 'contacts', 'documents', 'wishlist', 'albums'];
+        return array_slice(array_values(array_intersect($priority, $availableSlugs)), 0, 3);
+    }
+
     public static function findById(int $id): ?array
     {
         return Database::fetch('SELECT * FROM families WHERE id = ?', [$id]);

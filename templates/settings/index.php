@@ -187,6 +187,42 @@ ob_start();
         </div>
     </div>
 
+    <!-- Barre de navigation rapide (bas d'écran, mobile/PWA) -->
+    <div class="card settings-section">
+        <h3>📱 Barre rapide (mobile)</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Sur mobile et dans l'application installée, une barre en bas d'écran donne un accès
+            direct à l'accueil, jusqu'à 3 modules de votre choix, et le reste du menu (« Plus »).
+            Choisissez vos 3 modules — ils resteront fixes tant que vous ne les changez pas
+            vous-même.
+        </p>
+        <?php
+        $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
+        $_availableQuick = array_values(array_filter(
+            array_keys(\App\Models\Family::QUICK_NAV_ROUTES),
+            fn($slug) => !in_array($slug, $_disabledModules, true)
+        ));
+        $_currentQuick = array_values(array_intersect(
+            array_filter(explode(',', $user['quick_nav'] ?? '')),
+            $_availableQuick
+        ));
+        if (!$_currentQuick) $_currentQuick = \App\Models\Family::defaultQuickNav($_availableQuick);
+        ?>
+        <form method="POST" action="<?= BASE_URL ?>/settings/quick-nav"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group" data-quick-nav-group data-max="3">
+                <?php foreach ($_availableQuick as $_slug): $_meta = \App\Models\Family::MODULES[$_slug]; ?>
+                <label class="radio-option">
+                    <input type="checkbox" name="quick_nav[]" value="<?= htmlspecialchars($_slug) ?>"
+                        <?= in_array($_slug, $_currentQuick, true) ? 'checked' : '' ?>>
+                    <?= $_meta['icon'] ?> <?= htmlspecialchars($_meta['label']) ?>
+                </label>
+                <?php endforeach; ?>
+            </div>
+            <p style="font-size:.78rem;color:var(--text-muted);margin:.25rem 0 .75rem" data-quick-nav-hint>3 sélectionnés au maximum.</p>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+        </form>
+    </div>
+
     <!-- Push notifications -->
     <div class="card settings-section" id="push-notifications-section">
         <h3>🔔 Notifications push</h3>
