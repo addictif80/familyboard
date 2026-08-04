@@ -236,7 +236,10 @@ function toggleSidebar() {
             debounceTimer = setTimeout(() => {
                 fetchContentResults(raw).then(contentResults => {
                     if (token !== requestToken) return; // une frappe plus récente a déjà relancé une recherche
-                    paint([...navMatches, ...contentResults], false);
+                    // Le contenu trouvé (résultat concret d'une recherche) passe avant les pages/
+                    // modules : sinon, une recherche qui ne correspond à aucun module pousse ce
+                    // qu'on cherche vraiment tout en bas d'une liste de pages non pertinentes.
+                    paint([...contentResults, ...navMatches], false);
                 });
             }, 200);
         };

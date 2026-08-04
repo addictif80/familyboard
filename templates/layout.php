@@ -117,6 +117,10 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             <input type="text" id="sidebar-search-input" placeholder="Rechercher un module…" autocomplete="off">
         </div>
         <p class="sidebar-search-empty" id="sidebar-search-empty" style="display:none">Aucun résultat.</p>
+        <!-- Le contenu trouvé (tâches, contacts...) passe avant la liste des modules : sinon,
+             une recherche qui ne correspond à aucun module pousse ce qu'on cherche vraiment
+             tout en bas d'une liste de pages non pertinentes. -->
+        <div class="sidebar-content-results" id="sidebar-content-results"></div>
 
         <ul class="nav-menu">
             <li class="nav-item <?= $currentPath === BASE_URL . '/' || $currentPath === BASE_URL ? 'active' : '' ?>">
@@ -326,7 +330,6 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
         </ul>
-        <div class="sidebar-content-results" id="sidebar-content-results"></div>
 
         <div class="sidebar-footer">
             <div class="user-menu" id="user-menu">
