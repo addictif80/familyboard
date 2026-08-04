@@ -567,8 +567,11 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 }
 .nav-search-overlay {
   position: fixed; inset: 0;
-  background: rgba(20,15,10,.55);
-  backdrop-filter: blur(2px);
+  /* Assez opaque pour que la sidebar (tous les modules) ne reste pas lisible en
+     filigrane derrière — sinon elle se confond visuellement avec les résultats de
+     recherche eux-mêmes, qui peuvent être une liste courte ou vide. */
+  background: rgba(15,12,8,.88);
+  backdrop-filter: blur(3px);
   z-index: 400;
   display: flex;
   align-items: flex-start;
