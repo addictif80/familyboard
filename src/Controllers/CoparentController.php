@@ -283,7 +283,7 @@ class CoparentController extends BaseController
             }
             $schedule = Custody::getScheduleById($scheduleId);
             $file = $_FILES['file'] ?? null;
-            $data['custody_schedule_id'] = $scheduleId;
+            $data['custody_schedule_ids'] = [$scheduleId];
             $id = Document::create((int)$schedule['family_id'], $user['id'], $data, $file);
             CustodyActivityLog::record($scheduleId, $user['id'], 'document_uploaded', $data['title'] ?? null);
             return ['success' => true, 'id' => $id];
@@ -384,7 +384,7 @@ class CoparentController extends BaseController
             $schedule = Custody::getScheduleById($scheduleId);
             $data['family_id'] = (int)$schedule['family_id'];
             $data['user_id'] = $user['id'];
-            $data['custody_schedule_id'] = $scheduleId;
+            $data['custody_schedule_ids'] = [$scheduleId];
             $id = Event::create($data);
             CustodyActivityLog::record($scheduleId, $user['id'], 'event_created', $data['title'] ?? null);
             return ['success' => true, 'id' => $id];

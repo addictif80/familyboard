@@ -125,13 +125,13 @@ ob_start();
                     Garde alternée
                 </label>
                 <div id="event-custody-select-wrap" style="display:none;margin-top:.4rem">
-                    <select id="event-custody-schedule">
-                        <option value="">Sélectionner un enfant…</option>
-                        <?php foreach ($custodySchedules as $cs): ?>
-                            <option value="<?= (int)$cs['id'] ?>"><?= htmlspecialchars($cs['child_name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <small class="form-hint">Cet évènement sera visible par le co-parent à accès restreint de cet enfant.</small>
+                    <?php foreach ($custodySchedules as $cs): ?>
+                        <label class="radio-option">
+                            <input type="checkbox" class="event-custody-child-cb" value="<?= (int)$cs['id'] ?>">
+                            <span><?= htmlspecialchars($cs['child_name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                    <small class="form-hint">Cet évènement sera visible par le(s) co-parent(s) à accès restreint des enfants sélectionnés.</small>
                 </div>
             </div>
             <?php endif; ?>
