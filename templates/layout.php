@@ -60,6 +60,13 @@
 </div>
 <?php endif; ?>
 </div>
+<script>
+// Fixe --banners-h dès le parsing du HTML (avant même le chargement d'app.js en bas de page) :
+// sans ça, la sidebar/topbar (position fixed/sticky) démarrent brièvement à top:0, sous les
+// bandeaux, le temps que le script principal se charge — un flash bref sur PC, mais qui peut
+// sembler permanent sur une connexion lente ou un appareil peu puissant.
+document.documentElement.style.setProperty('--banners-h', document.getElementById('top-banners').offsetHeight + 'px');
+</script>
 
 <?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
 <?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
