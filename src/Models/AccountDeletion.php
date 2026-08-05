@@ -25,6 +25,42 @@ class AccountDeletion
         self::deleteFiles($filePaths);
     }
 
+    /**
+     * Supprime un accès co-parent (par l'admin de la famille ou par le co-parent lui-même) —
+     * contrairement à deleteUser(), le contenu créé (documents, événements, journal, photos,
+     * liens proposés) n'est jamais supprimé : le compte est détaché (user_id -> NULL) en
+     * gardant le nom en clair, comme album_photos.uploader_name pour les ajouts via lien
+     * public. Envoie d'abord un rapport PDF de toute l'activité du compte, pendant qu'elle
+     * est encore reconstituable.
+     */
+    public static function deleteCoparent(int $userId): void
+    {
+        $user = Database::fetch('SELECT * FROM users WHERE id=?', [$userId]);
+        if (!$user) return;
+
+        try {
+            \App\Models\CoparentReport::sendFinalReport($user);
+        } catch (\Throwable $e) {
+            error_log('Coparent report error: ' . $e->getMessage());
+        }
+
+        $name = $user['name'];
+        Database::execute('UPDATE documents SET user_id=NULL, former_user_name=? WHERE user_id=?', [$name, $userId]);
+        Database::execute('UPDATE events SET user_id=NULL, former_user_name=? WHERE user_id=?', [$name, $userId]);
+        Database::execute('UPDATE comm_log_messages SET user_id=NULL, former_user_name=? WHERE user_id=?', [$name, $userId]);
+        Database::execute('UPDATE album_photos SET user_id=NULL, uploader_name=COALESCE(uploader_name, ?) WHERE user_id=?', [$name, $userId]);
+        Database::execute('UPDATE portal_links SET submitted_by=NULL, former_submitted_by_name=? WHERE submitted_by=?', [$name, $userId]);
+
+        // Avatar personnel : supprimé (ce n'est pas du contenu familial, contrairement au
+        // reste) — le fichier ci-dessus n'est jamais touché par cette méthode.
+        if (!empty($user['avatar'])) {
+            $abs = BASE_PATH . $user['avatar'];
+            if (is_file($abs)) @unlink($abs);
+        }
+
+        Database::execute('DELETE FROM users WHERE id=?', [$userId]);
+    }
+
     /** Transfère le rôle admin à un autre membre puis supprime le compte de l'admin sortant. */
     public static function transferAdminAndDelete(int $outgoingAdminId, int $newAdminId, int $familyId): void
     {

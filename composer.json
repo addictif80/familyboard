@@ -1,5 +1,6 @@
 {
     "require": {
-        "minishlink/web-push": "^10.1"
+        "minishlink/web-push": "^10.1",
+        "dompdf/dompdf": "^3.1"
     }
 }

@@ -6,6 +6,10 @@ use App\Models\EmailLog;
 
 class Mail
 {
+    /**
+     * $attachments : liste de ['filename' => string, 'content' => string (données brutes,
+     * pas encore encodées), 'mime' => string].
+     */
     public static function send(
         int $familyId,
         string $to,
@@ -13,7 +17,8 @@ class Mail
         string $subject,
         string $htmlBody,
         string $type = 'manual',
-        ?int $sentBy = null
+        ?int $sentBy = null,
+        array $attachments = []
     ): bool {
         $settings = SmtpSettings::get();
         if (!$settings) {
@@ -21,7 +26,7 @@ class Mail
             return false;
         }
 
-        [$ok, $error] = self::sendViaSMTP($settings, $to, $toName, $subject, $htmlBody);
+        [$ok, $error] = self::sendViaSMTP($settings, $to, $toName, $subject, $htmlBody, $attachments);
         EmailLog::add($familyId, $sentBy, $to, $toName, $subject, $htmlBody, $type, $ok, $error);
         return $ok;
     }
@@ -29,7 +34,7 @@ class Mail
     /**
      * Returns [bool $success, string $errorMessage]
      */
-    private static function sendViaSMTP(array $s, string $to, string $toName, string $subject, string $body): array
+    private static function sendViaSMTP(array $s, string $to, string $toName, string $subject, string $body, array $attachments = []): array
     {
         $port   = (int)$s['port'];
         $host   = $s['host'];
@@ -118,19 +123,43 @@ class Mail
             return [false, "DATA refusé : " . trim($dataStart)];
         }
 
-        $headers = implode("\r\n", [
-            'MIME-Version: 1.0',
-            'Content-Type: text/html; charset=UTF-8',
-            'From: ' . $s['from_name'] . ' <' . $s['from_email'] . '>',
-            'To: ' . $toName . ' <' . $to . '>',
-            'Subject: =?UTF-8?B?' . base64_encode($subject) . '?=',
-            'X-Mailer: FamilyBoard',
-        ]);
-
         // Dot-stuffing: lines starting with '.' must be escaped as '..'
         $safeBody = preg_replace('/^\.(?=.)/m', '..', $body);
 
-        self::raw($socket, $headers . "\r\n\r\n" . $safeBody . "\r\n.\r\n");
+        if ($attachments) {
+            // Base64 n'utilise jamais '.', donc les parties jointes n'ont pas besoin de
+            // dot-stuffing — seul le corps HTML (déjà traité ci-dessus) en a besoin.
+            $boundary = 'fbnd_' . bin2hex(random_bytes(12));
+            $headers = implode("\r\n", [
+                'MIME-Version: 1.0',
+                'Content-Type: multipart/mixed; boundary="' . $boundary . '"',
+                'From: ' . $s['from_name'] . ' <' . $s['from_email'] . '>',
+                'To: ' . $toName . ' <' . $to . '>',
+                'Subject: =?UTF-8?B?' . base64_encode($subject) . '?=',
+                'X-Mailer: FamilyBoard',
+            ]);
+            $mime = "--{$boundary}\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n{$safeBody}\r\n";
+            foreach ($attachments as $att) {
+                $mime .= "--{$boundary}\r\n"
+                    . 'Content-Type: ' . ($att['mime'] ?? 'application/octet-stream') . '; name="' . $att['filename'] . '"' . "\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n"
+                    . 'Content-Disposition: attachment; filename="' . $att['filename'] . '"' . "\r\n\r\n"
+                    . chunk_split(base64_encode($att['content']))
+                    . "\r\n";
+            }
+            $mime .= "--{$boundary}--\r\n";
+            self::raw($socket, $headers . "\r\n\r\n" . $mime . "\r\n.\r\n");
+        } else {
+            $headers = implode("\r\n", [
+                'MIME-Version: 1.0',
+                'Content-Type: text/html; charset=UTF-8',
+                'From: ' . $s['from_name'] . ' <' . $s['from_email'] . '>',
+                'To: ' . $toName . ' <' . $to . '>',
+                'Subject: =?UTF-8?B?' . base64_encode($subject) . '?=',
+                'X-Mailer: FamilyBoard',
+            ]);
+            self::raw($socket, $headers . "\r\n\r\n" . $safeBody . "\r\n.\r\n");
+        }
         $dataResp = fgets($socket, 512);
         self::raw($socket, "QUIT\r\n");
         fclose($socket);
