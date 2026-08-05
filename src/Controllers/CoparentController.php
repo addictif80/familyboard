@@ -75,7 +75,7 @@ class CoparentController extends BaseController
             }
 
             $familyId = Family::create($familyName);
-            Database::execute('UPDATE users SET family_id=?, role=? WHERE id=?', [$familyId, 'admin', $user['id']]);
+            Database::execute('UPDATE users SET family_id=?, role=?, is_founder=1 WHERE id=?', [$familyId, 'admin', $user['id']]);
             Session::login(User::findById($user['id']));
 
             return ['success' => true];

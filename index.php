@@ -466,6 +466,8 @@ $router->post('/settings/modules',  [SettingsController::class, 'updateModules']
 $router->post('/settings/quick-nav', [SettingsController::class, 'updateQuickNav']);
 $router->post('/settings/family/code', [SettingsController::class, 'regenerateCode']);
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
+$router->post('/settings/member/:id/promote', [SettingsController::class, 'promoteMember']);
+$router->post('/settings/member/:id/demote', [SettingsController::class, 'demoteMember']);
 $router->get('/settings/export', [SettingsController::class, 'exportData']);
 $router->post('/settings/delete-account', [SettingsController::class, 'deleteAccount']);
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);

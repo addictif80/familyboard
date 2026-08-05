@@ -259,6 +259,7 @@ class AuthController
             }
             $familyId = $family['id'];
             $role = 'member';
+            $isFounder = false;
         } else {
             if (!$familyName) {
                 Session::flash('error', 'Veuillez donner un nom à votre famille.');
@@ -267,12 +268,16 @@ class AuthController
             }
             $familyId = Family::create($familyName);
             $role = 'admin';
+            $isFounder = true;
         }
 
         $colors = ['#4A90D9', '#E74C3C', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C', '#E67E22', '#3498DB'];
         $color = $colors[array_rand($colors)];
 
         $userId = User::create($familyId, $name, $email, $password, $role, $color);
+        if ($isFounder) {
+            \App\Core\Database::execute('UPDATE users SET is_founder=1 WHERE id=?', [$userId]);
+        }
 
         // Si cette adresse était celle d'un invité externe à une addition (sans compte), il
         // retrouve directement les mêmes éléments dans son nouveau compte.

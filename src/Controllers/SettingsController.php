@@ -230,11 +230,66 @@ class SettingsController extends BaseController
         if ($id !== $user['id']) {
             $member = User::findById($id);
             if ($member && $member['family_id'] === $user['family_id']) {
+                // L'administrateur fondateur ne peut être retiré par personne d'autre que
+                // lui-même (via la suppression de compte, qui gère déjà le transfert de rôle).
+                if (!empty($member['is_founder']) && !$user['is_founder']) {
+                    Session::flash('error', 'Seul l\'administrateur fondateur peut retirer son propre compte.');
+                    header('Location: ' . BASE_URL . '/settings');
+                    exit;
+                }
                 // Contenu préservé (jamais supprimé en cascade) et tracé dans deleted_users,
                 // pour tout membre — voir AccountDeletion::deleteUser().
                 AccountDeletion::deleteUser($id, (int)$member['family_id'], 'family_admin');
             }
         }
+        header('Location: ' . BASE_URL . '/settings');
+        exit;
+    }
+
+    /** Promeut un membre au rôle d'administrateur — n'importe quel admin peut le faire. */
+    public function promoteMember(array $params): void
+    {
+        $this->requireAdmin();
+        $user = Session::user();
+        $id = (int)$params['id'];
+        if ($id !== $user['id']) {
+            $member = User::findById($id);
+            if ($member && $member['family_id'] === $user['family_id'] && $member['role'] === 'member') {
+                \App\Core\Database::execute("UPDATE users SET role='admin' WHERE id=?", [$id]);
+                \App\Models\Notification::create(
+                    $id, 'settings', 'Vous êtes maintenant administrateur',
+                    $user['name'] . ' vous a promu administrateur de la famille.', BASE_URL . '/settings'
+                );
+            }
+        }
+        Session::flash('success', 'Membre promu administrateur.');
+        header('Location: ' . BASE_URL . '/settings');
+        exit;
+    }
+
+    /** Rétrograde un administrateur au rôle de membre — impossible sur l'administrateur
+     *  fondateur, sauf par lui-même. */
+    public function demoteMember(array $params): void
+    {
+        $this->requireAdmin();
+        $user = Session::user();
+        $id = (int)$params['id'];
+        if ($id !== $user['id']) {
+            $member = User::findById($id);
+            if ($member && $member['family_id'] === $user['family_id'] && $member['role'] === 'admin') {
+                if (!empty($member['is_founder']) && !$user['is_founder']) {
+                    Session::flash('error', 'Seul l\'administrateur fondateur peut modifier son propre rôle.');
+                    header('Location: ' . BASE_URL . '/settings');
+                    exit;
+                }
+                \App\Core\Database::execute("UPDATE users SET role='member' WHERE id=?", [$id]);
+                \App\Models\Notification::create(
+                    $id, 'settings', 'Rôle administrateur retiré',
+                    $user['name'] . ' vous a retiré le rôle d\'administrateur de la famille.', BASE_URL . '/settings'
+                );
+            }
+        }
+        Session::flash('success', 'Administrateur rétrogradé.');
         header('Location: ' . BASE_URL . '/settings');
         exit;
     }

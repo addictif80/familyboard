@@ -430,7 +430,9 @@ ob_start();
                         <strong><?= htmlspecialchars($member['name']) ?></strong>
                         <small>
                             <?= htmlspecialchars($member['email']) ?> ·
-                            <?php if ($member['role'] === 'admin'): ?>
+                            <?php if (!empty($member['is_founder'])): ?>
+                                👑 Admin fondateur
+                            <?php elseif ($member['role'] === 'admin'): ?>
                                 👑 Admin
                             <?php elseif ($member['role'] === 'coparent'): ?>
                                 🔒 Co-parent (accès restreint)
@@ -442,10 +444,24 @@ ob_start();
                             <?php endif; ?>
                         </small>
                     </div>
-                    <?php if ($member['id'] !== $user['id']): ?>
-                        <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')"><?= \App\Core\Csrf::field() ?>
-                            <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
-                        </form>
+                    <?php $founderProtected = !empty($member['is_founder']) && empty($user['is_founder']); ?>
+                    <?php if ($member['id'] !== $user['id'] && $user['role'] === 'admin' && $member['role'] !== 'coparent'): ?>
+                        <div style="display:flex;gap:.4rem">
+                        <?php if ($member['role'] === 'member'): ?>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/promote" onsubmit="return confirmSubmit(this,'Promouvoir <?= htmlspecialchars(addslashes($member['name'])) ?> administrateur ?')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm">👑 Promouvoir admin</button>
+                            </form>
+                        <?php elseif ($member['role'] === 'admin' && !$founderProtected): ?>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/demote" onsubmit="return confirmSubmit(this,'Rétrograder <?= htmlspecialchars(addslashes($member['name'])) ?> au rôle de membre ?')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm">Rétrograder</button>
+                            </form>
+                        <?php endif; ?>
+                        <?php if (!$founderProtected): ?>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars(addslashes($member['name'])) ?> de la famille ?')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
+                            </form>
+                        <?php endif; ?>
+                        </div>
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
