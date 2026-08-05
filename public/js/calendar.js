@@ -341,6 +341,8 @@ async function saveEvent() {
     if (result.success) {
         closeModal('event-modal');
         loadEvents();
+    } else {
+        Dialog.toast(result.error || 'Erreur lors de l\'enregistrement.', 'error');
     }
 }
 
@@ -351,6 +353,8 @@ async function deleteEvent() {
     if (result.success) {
         closeModal('event-modal');
         loadEvents();
+    } else {
+        Dialog.toast(result.error || 'Erreur lors de la suppression.', 'error');
     }
 }
 
