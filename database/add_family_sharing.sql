@@ -26,9 +26,14 @@ CREATE TABLE IF NOT EXISTS family_friends (
 -- Marque un événement comme étant la copie ("fork") d'un événement partagé par une autre
 -- famille — purement informatif (affichage "Partagé par la famille X"), sans lien de
 -- synchronisation directe : toute la logique de propagation passe par event_shares /
--- event_share_changes ci-dessous, jamais par une mise à jour directe de cette copie.
+-- event_share_changes ci-dessous, jamais par une mise à jour directe de cette copie. Pas de
+-- contrainte de clé étrangère ici volontairement : ADD CONSTRAINT n'est pas idempotent (pas
+-- d'équivalent "IF NOT EXISTS" en MySQL), et une tentative précédente a échoué en production —
+-- comme cette instruction est en plein milieu du fichier, son échec empêchait toutes les
+-- instructions suivantes (création de event_shares/event_share_changes) de s'exécuter, à
+-- chaque nouvelle tentative de migration automatique. La colonne seule (nullable, sans FK)
+-- suffit à l'usage qui en est fait.
 ALTER TABLE events ADD COLUMN IF NOT EXISTS shared_from_family_id INT NULL DEFAULT NULL;
-ALTER TABLE events ADD CONSTRAINT fk_events_shared_from FOREIGN KEY (shared_from_family_id) REFERENCES families(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS event_shares (
     id                 INT AUTO_INCREMENT PRIMARY KEY,
