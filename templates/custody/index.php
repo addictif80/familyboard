@@ -14,7 +14,9 @@ ob_start();
                     <?php endif; ?>
                     <button onclick="openEditScheduleModal(<?= htmlspecialchars(json_encode($schedule)) ?>)" class="btn-chip">✏️</button>
                     <button onclick="openVacationModal(<?= (int)$schedule['id'] ?>, <?= htmlspecialchars(json_encode($schedule['child_name'])) ?>)" class="btn-chip" title="Périodes de vacances">🏖️</button>
+                    <?php if ($user['role'] === 'admin'): ?>
                     <button onclick="openInviteCoparentModal(<?= (int)$schedule['id'] ?>)" class="btn-chip" title="Inviter un co-parent">🔒</button>
+                    <?php endif; ?>
                     <button onclick="openActivityLogModal(<?= (int)$schedule['id'] ?>, <?= htmlspecialchars(json_encode($schedule['child_name'])) ?>)" class="btn-chip" title="Journal d'activité">📜</button>
                     <button onclick="deleteSchedule(<?= $schedule['id'] ?>)" class="btn-chip">✕</button>
                 </span>
