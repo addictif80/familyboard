@@ -41,6 +41,7 @@ ob_start();
     <button class="coparent-tab" data-panel="cp-panel-events" onclick="cpShowTab('cp-panel-events')">📆 Évènements</button>
     <button class="coparent-tab" data-panel="cp-panel-activity" onclick="cpShowTab('cp-panel-activity')">📜 Journal d'activité</button>
     <button class="coparent-tab" data-panel="cp-panel-links" onclick="cpShowTab('cp-panel-links')">🔗 Liens utiles</button>
+    <button class="coparent-tab" data-panel="cp-panel-additions" onclick="cpShowTab('cp-panel-additions')">🧾 Additions</button>
     <button class="coparent-tab" data-panel="cp-panel-notifications" onclick="cpShowTab('cp-panel-notifications')">🔔 Notifications</button>
 </div>
 
@@ -199,6 +200,17 @@ ob_start();
             <button class="btn btn-secondary" onclick="closeModal('cp-event-detail-modal')">Fermer</button>
         </div>
     </div>
+</div>
+
+<div class="coparent-panel" id="cp-panel-additions">
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+        <h3 style="margin:0">🧾 Additions</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin:.5rem 0 0">
+            Additions et cagnottes partagées avec vous, en tant qu'entité indépendante (pas au
+            nom d'une famille).
+        </p>
+    </div>
+    <div id="cp-additions-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
 </div>
 
 <div class="coparent-panel" id="cp-panel-notifications">

@@ -248,6 +248,15 @@ function openEventModal(date = null, eventData = null) {
         document.getElementById('event-custody-select-wrap').style.display = 'none';
         document.querySelectorAll('.event-custody-child-cb').forEach(cb => { cb.checked = false; });
     }
+    const shareWrap = document.getElementById('event-share-wrap');
+    if (shareWrap) {
+        // Uniquement à la création — un événement déjà partagé ne peut plus être ré-invité
+        // depuis ce formulaire (voir la note sous la liste des familles).
+        shareWrap.style.display = eventData ? 'none' : '';
+        document.getElementById('event-share-toggle').checked = false;
+        document.getElementById('event-share-select-wrap').style.display = 'none';
+        document.querySelectorAll('.event-share-family-cb').forEach(cb => { cb.checked = false; });
+    }
 
     if (date) {
         document.getElementById('event-start').value = date + 'T09:00';
@@ -319,6 +328,10 @@ async function saveEvent() {
     const custodyToggle = document.getElementById('event-custody-toggle');
     if (custodyToggle && custodyToggle.checked) {
         data.custody_schedule_ids = Array.from(document.querySelectorAll('.event-custody-child-cb:checked')).map(cb => parseInt(cb.value, 10));
+    }
+    const shareToggle = document.getElementById('event-share-toggle');
+    if (shareToggle && shareToggle.checked) {
+        data.share_family_ids = Array.from(document.querySelectorAll('.event-share-family-cb:checked')).map(cb => parseInt(cb.value, 10));
     }
 
     const id = document.getElementById('event-id').value;
@@ -566,5 +579,76 @@ async function geocodeAndPreview(address) {
     }
 })();
 
+// ── Partage inter-familles ───────────────────────────────────────
+async function loadShareInvitations() {
+    const panel = document.getElementById('share-invitations-panel');
+    if (!panel) return;
+    const r = await apiFetch(BASE_URL + '/api/calendar/share-invitations');
+    if (!r || (!r.invitations && !r.changes)) return;
+
+    const parts = [];
+
+    (r.invitations || []).forEach(inv => {
+        const when = inv.is_all_day
+            ? new Date(inv.start_datetime).toLocaleDateString('fr-FR')
+            : new Date(inv.start_datetime.replace(' ', 'T')).toLocaleString('fr-FR');
+        parts.push(
+            '<div class="card share-alert-card" style="padding:.85rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">' +
+            '<span style="flex:1"><strong>' + esc(inv.origin_family_name) + '</strong> vous invite à « ' + esc(inv.title) + ' » — ' + esc(when) + '</span>' +
+            '<button class="btn btn-primary btn-sm" onclick="respondShareInvitation(' + inv.id + `, 'accept')">Accepter</button>` +
+            '<button class="btn btn-secondary btn-sm" onclick="respondShareInvitation(' + inv.id + `, 'decline')">Refuser</button>` +
+            '</div>'
+        );
+    });
+
+    (r.changes || []).forEach(ch => {
+        const label = ch.change_type === 'delete' ? 'a supprimé' : 'a modifié';
+        const payload = ch.payload ? JSON.parse(ch.payload) : {};
+        const title = payload.title || '';
+        parts.push(
+            '<div class="card share-alert-card" style="padding:.85rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">' +
+            '<span style="flex:1"><strong>' + esc(ch.origin_family_name) + '</strong> ' + label + ' un événement partagé' + (title ? (' « ' + esc(title) + ' »') : '') + '</span>' +
+            '<button class="btn btn-primary btn-sm" onclick="resolveShareChange(' + ch.id + `, 'accept')">Accepter</button>` +
+            '<button class="btn btn-secondary btn-sm" onclick="resolveShareChange(' + ch.id + `, 'decline')">Refuser</button>` +
+            '</div>'
+        );
+    });
+
+    panel.innerHTML = parts.join('');
+}
+
+async function respondShareInvitation(id, decision) {
+    const r = await apiFetch(BASE_URL + '/api/calendar/share-invitations/' + id + '/' + decision, { method: 'POST' });
+    if (r.success) {
+        Dialog.toast(decision === 'accept' ? 'Invitation acceptée.' : 'Invitation refusée.');
+        loadShareInvitations();
+        loadEvents();
+    } else {
+        Dialog.toast('Erreur.', 'error');
+    }
+}
+
+async function resolveShareChange(id, decision) {
+    let reason = null;
+    if (decision === 'decline') {
+        reason = prompt('Motif du refus (optionnel) :') || '';
+    }
+    const r = await apiFetch(BASE_URL + '/api/calendar/share-changes/' + id + '/resolve', {
+        method: 'POST', body: JSON.stringify({ decision, reason }),
+    });
+    if (r.success) {
+        Dialog.toast('Réponse enregistrée.');
+        loadShareInvitations();
+        loadEvents();
+    } else {
+        Dialog.toast('Erreur.', 'error');
+    }
+}
+
+function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 // Init
 loadEvents();
+loadShareInvitations();

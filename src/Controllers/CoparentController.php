@@ -75,7 +75,7 @@ class CoparentController extends BaseController
             }
 
             $familyId = Family::create($familyName);
-            Database::execute('UPDATE users SET family_id=?, role=? WHERE id=?', [$familyId, 'admin', $user['id']]);
+            Database::execute('UPDATE users SET family_id=?, role=?, is_founder=1 WHERE id=?', [$familyId, 'admin', $user['id']]);
             Session::login(User::findById($user['id']));
 
             return ['success' => true];
@@ -307,6 +307,17 @@ class CoparentController extends BaseController
                 return $f && !in_array('links', Family::getDisabledModules($f), true);
             }));
             return ['links' => PortalLink::getCoparentVisibleForFamilies($familyIds, $scheduleIds)];
+        });
+    }
+
+    /** Additions/cagnottes où ce co-parent est participant — en tant qu'entité indépendante,
+     *  jamais au nom d'une famille (il peut être invité par plusieurs familles différentes). */
+    public function additionsList(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            return ['additions' => \App\Models\AdditionParticipant::getForUser((int)$user['id'])];
         });
     }
 

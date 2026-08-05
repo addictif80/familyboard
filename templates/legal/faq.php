@@ -32,11 +32,15 @@ $sections = [
         ],
         [
             "Quelle est la différence entre administrateur et membre ?",
-            "L'administrateur peut gérer les paramètres de la famille, inviter/retirer des membres, activer ou désactiver des modules, et accéder aux réglages avancés (SMTP, etc. selon les droits). Un membre a accès à toutes les données de la famille mais pas à ces réglages d'administration.",
+            "L'administrateur peut gérer les paramètres de la famille, inviter/retirer des membres, activer ou désactiver des modules, et accéder aux réglages avancés (SMTP, etc. selon les droits). Un membre a accès à toutes les données de la famille mais pas à ces réglages d'administration. Une famille peut avoir plusieurs administrateurs (par exemple les deux parents) : n'importe quel administrateur peut promouvoir un membre ou rétrograder un autre administrateur, depuis Paramètres → Membres de la famille. Le tout premier administrateur (l'administrateur fondateur) ne peut être rétrogradé ni retiré que par lui-même.",
+        ],
+        [
+            "Qu'est-ce qu'une « famille amie » ?",
+            "Une autre famille FamilyBoard avec laquelle la vôtre est mise en relation, sur la base de son code famille — toujours avec acceptation mutuelle. Une fois amies, vous pouvez inviter cette famille à participer à vos événements de calendrier ; elle doit accepter chaque invitation, et obtient alors sa propre copie de l'événement qu'elle peut modifier ou annuler de son côté.",
         ],
         [
             "Qu'est-ce qu'un accès co-parent ?",
-            "C'est un accès restreint pensé pour un parent séparé qui a besoin de suivre la garde d'un enfant sans faire partie de la famille au sens large. Un compte co-parent ne voit que le planning de garde, le journal parental, les documents et les événements liés à l'enfant concerné — jamais le mur familial, le chat, le budget ou les autres données de la famille. Un même compte peut d'ailleurs avoir sa propre famille FamilyBoard et recevoir en plus un accès de garde partagée vers une autre famille : les deux notions sont indépendantes.",
+            "C'est un accès restreint pensé pour un parent séparé qui a besoin de suivre la garde d'un enfant sans faire partie de la famille au sens large. Un compte co-parent ne voit que le planning de garde, le journal parental, les documents et les événements liés à l'enfant concerné — jamais le mur familial, le chat, le budget ou les autres données de la famille. Il peut en revanche être invité à des additions ou cagnottes, en tant que personne indépendante plutôt qu'au nom d'une famille. Un même compte peut d'ailleurs avoir sa propre famille FamilyBoard et recevoir en plus un accès de garde partagée vers une autre famille : les deux notions sont indépendantes.",
         ],
         [
             "Puis-je changer de mot de passe ou d'e-mail ?",
@@ -62,7 +66,7 @@ $sections = [
         ],
         [
             "📅 Calendrier partagé",
-            "Événements avec récurrence, et import de calendriers externes (Google, Nextcloud, iCloud…) via CalDAV/iCal, avec synchronisation automatique configurable.",
+            "Événements avec récurrence, et import de calendriers externes (Google, Nextcloud, iCloud…) via CalDAV/iCal, avec synchronisation automatique configurable. Un événement peut aussi être partagé avec une famille amie (avec son acceptation) : elle reçoit sa propre copie, modifiable de son côté ; si vous modifiez ou supprimez l'original ensuite, chaque famille participante reçoit une alerte pour accepter ou refuser le changement.",
         ],
         [
             "👶 Garde alternée",
@@ -105,6 +109,10 @@ $sections = [
         [
             "🔗 Portail de liens",
             "Une page de liens utiles pour la famille (portail de l'école, mutuelle, mairie…), présentés sous forme de cartes avec aperçu du site, titre et nombre de clics. L'administrateur de famille ajoute des liens directement ; les autres membres — et un accès co-parent — peuvent en proposer, soumis à validation avant publication. Chaque lien est vérifié automatiquement (accessibilité, adresse autorisée) avant d'être ajouté. Un lien peut être marqué visible pour un accès co-parent, qui reçoit alors uniquement ceux qui le concernent. L'administrateur système peut également y ajouter des liens « Certifiés », diffusés d'un coup à toutes les familles du service, qu'aucune famille ne peut modifier ni supprimer.",
+        ],
+        [
+            "🧾 Additions & cagnotte",
+            "Partagez une dépense (restaurant, cadeau commun, activité…) entre plusieurs personnes : membres de la famille, co-parent, membre d'une famille amie, ou personne sans compte invitée par e-mail (elle accède via un lien à son propre espace additions). La répartition se fait en pourcentage ou en montant libre, et chaque participant doit accepter individuellement. La cagnotte est une variante gratuite, sans paiement en ligne : un objectif, des moyens de paiement déclarés (espèces, virement, Wero), et un registre de perceptions saisi à la main par un administrateur de la famille.",
         ],
         [
             "🗂️ Documents",

@@ -32,6 +32,39 @@ function cpLoadAll() {
     cpLoadEvents();
     cpLoadActivityLog();
     cpLoadLinks();
+    cpLoadAdditions();
+}
+
+// ── Additions ────────────────────────────────────────────────────────────
+
+async function cpLoadAdditions() {
+    const list = document.getElementById('cp-additions-list');
+    if (!list) return;
+    const r = await apiFetch(BASE_URL + '/api/coparent/additions');
+    const additions = r.additions || [];
+    if (!additions.length) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucune addition partagée avec vous pour l\'instant.</p>';
+        return;
+    }
+    list.innerHTML = additions.map(a => {
+        const statusLabel = { pending: 'En attente de votre réponse', accepted: 'Acceptée', declined: 'Refusée' }[a.status] || a.status;
+        const amount = a.is_cagnotte ? '' : (' — votre part : ' + a.share_value + (a.split_mode === 'percentage' ? ' %' : ' €'));
+        const actions = a.status === 'pending'
+            ? '<button class="btn btn-primary btn-sm" onclick="cpRespondAddition(' + a.id + `, 'accept')">Accepter</button>` +
+              '<button class="btn btn-secondary btn-sm" onclick="cpRespondAddition(' + a.id + `, 'decline')">Refuser</button>`
+            : '<span class="badge">' + statusLabel + '</span>';
+        return '<div class="card" style="padding:1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">' +
+            '<div style="flex:1"><strong>' + (a.is_cagnotte ? '🪙 ' : '') + escapeHtml(a.title) + '</strong>' +
+            '<div style="color:var(--text-muted);font-size:.82rem">' + escapeHtml(a.family_name) + amount + '</div></div>' +
+            actions + '</div>';
+    }).join('');
+}
+
+async function cpRespondAddition(participantId, decision) {
+    const r = await apiFetch(BASE_URL + '/api/additions/participants/' + participantId + '/respond', {
+        method: 'POST', body: JSON.stringify({ decision }),
+    });
+    if (r.success) cpLoadAdditions();
 }
 
 // ── Portail de liens ─────────────────────────────────────────────────────

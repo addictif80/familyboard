@@ -56,6 +56,8 @@ use App\Controllers\KioskController;
 use App\Controllers\NotificationController;
 use App\Controllers\AlertController;
 use App\Controllers\ErrorReportController;
+use App\Controllers\FriendController;
+use App\Controllers\AdditionController;
 
 Session::start();
 
@@ -223,6 +225,30 @@ $router->post('/api/calendar/vacations/:id/delete', [CalendarController::class, 
 $router->post('/api/calendar/caldav', [CalendarController::class, 'addCalDAV']);
 $router->post('/api/calendar/caldav/:id/sync', [CalendarController::class, 'syncCalDAV']);
 $router->post('/api/calendar/caldav/:id/delete', [CalendarController::class, 'deleteCalDAV']);
+$router->get('/api/calendar/friend-families', [CalendarController::class, 'apiFriendFamilies']);
+$router->get('/api/calendar/share-invitations', [CalendarController::class, 'apiShareInvitations']);
+$router->post('/api/calendar/share-invitations/:id/accept', [CalendarController::class, 'acceptShareInvitation']);
+$router->post('/api/calendar/share-invitations/:id/decline', [CalendarController::class, 'declineShareInvitation']);
+$router->post('/api/calendar/share-changes/:id/resolve', [CalendarController::class, 'resolveShareChange']);
+
+// Familles amies
+$router->get('/api/friends', [FriendController::class, 'list']);
+$router->post('/api/friends/request', [FriendController::class, 'request']);
+$router->post('/api/friends/:id/accept', [FriendController::class, 'accept']);
+$router->post('/api/friends/:id/decline', [FriendController::class, 'decline']);
+$router->post('/api/friends/:id/remove', [FriendController::class, 'remove']);
+
+// Additions (partage de frais + cagnotte)
+$router->get('/additions', [AdditionController::class, 'index']);
+$router->post('/api/additions', [AdditionController::class, 'create']);
+$router->post('/api/additions/:id/delete', [AdditionController::class, 'delete']);
+$router->post('/api/additions/:id/participants', [AdditionController::class, 'inviteParticipant']);
+$router->post('/api/additions/participants/:id/respond', [AdditionController::class, 'respond']);
+$router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
+$router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
+$router->get('/additions/espace/:token', [AdditionController::class, 'guestSpace']);
+$router->post('/additions/espace/:token/participants/:id/respond', [AdditionController::class, 'guestRespond']);
+$router->get('/api/coparent/additions', [CoparentController::class, 'additionsList']);
 
 // Wall
 $router->get('/wall', [WallController::class, 'index']);
@@ -440,6 +466,8 @@ $router->post('/settings/modules',  [SettingsController::class, 'updateModules']
 $router->post('/settings/quick-nav', [SettingsController::class, 'updateQuickNav']);
 $router->post('/settings/family/code', [SettingsController::class, 'regenerateCode']);
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
+$router->post('/settings/member/:id/promote', [SettingsController::class, 'promoteMember']);
+$router->post('/settings/member/:id/demote', [SettingsController::class, 'demoteMember']);
 $router->get('/settings/export', [SettingsController::class, 'exportData']);
 $router->post('/settings/delete-account', [SettingsController::class, 'deleteAccount']);
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);

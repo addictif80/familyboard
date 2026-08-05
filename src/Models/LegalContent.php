@@ -48,11 +48,11 @@ FamilyBoard est un service d'organisation familiale édité et opéré par son a
 
 2. Compte et famille
 
-La création d'un compte suppose de fournir des informations exactes (nom, adresse e-mail). Chaque compte appartient à une famille au sens de l'application (un foyer, ou un groupe de personnes souhaitant partager un espace commun) ; les membres d'une même famille ont accès aux données que les autres membres y déposent (agenda, messages, photos, budget, documents…), selon les modules activés.
+La création d'un compte suppose de fournir des informations exactes (nom, adresse e-mail). Chaque compte appartient à une famille au sens de l'application (un foyer, ou un groupe de personnes souhaitant partager un espace commun) ; les membres d'une même famille ont accès aux données que les autres membres y déposent (agenda, messages, photos, budget, documents…), selon les modules activés. Une famille peut compter plusieurs administrateurs ; le premier administrateur (dit fondateur) ne peut être rétrogradé ou retiré de la famille que par lui-même.
 
 3. Contenu déposé
 
-Chaque utilisateur reste responsable du contenu qu'il publie ou dépose (messages, photos, documents, notes). Les fiches d'urgence et les liens d'accès temporaires (baby-sitter, écran kiosque) créés par un utilisateur engagent sa responsabilité quant aux personnes avec qui il choisit de les partager.
+Chaque utilisateur reste responsable du contenu qu'il publie ou dépose (messages, photos, documents, notes). Les fiches d'urgence et les liens d'accès temporaires (baby-sitter, écran kiosque) créés par un utilisateur engagent sa responsabilité quant aux personnes avec qui il choisit de les partager. Il en va de même pour les invitations envoyées à une autre famille (mise en relation, partage d'événement) ou à une personne extérieure sans compte (participation à une addition ou à une cagnotte) : l'utilisateur qui envoie l'invitation est responsable de son destinataire et du contenu ainsi partagé.
 
 4. Disponibilité
 
@@ -77,7 +77,7 @@ FamilyBoard est un service d'organisation familiale édité et opéré par son a
 
 2. Données collectées et finalités
 
-Selon les modules que votre famille active, le service peut traiter : identité et contact (nom, e-mail, avatar), contenus familiaux (publications, messages, photos, documents, notes de journal parental), données de planification (calendrier, tâches, budget, garde partagée), données de localisation ponctuelles (partage de position à durée limitée, explicitement déclenché par vous), et données de santé (fiches d'urgence médicales) si vous choisissez de les renseigner. Ces données sont traitées dans le seul but de fournir les fonctionnalités que vous et votre famille utilisez.
+Selon les modules que votre famille active, le service peut traiter : identité et contact (nom, e-mail, avatar), contenus familiaux (publications, messages, photos, documents, notes de journal parental), données de planification (calendrier, tâches, budget, garde partagée), événements partagés avec une famille amie que vous choisissez d'inviter, données de partage de frais (additions, cagnottes — participants, montants, et le cas échéant coordonnées de paiement que vous choisissez d'afficher comme un IBAN ou un numéro Wero), données de localisation ponctuelles (partage de position à durée limitée, explicitement déclenché par vous), et données de santé (fiches d'urgence médicales) si vous choisissez de les renseigner. Ces données sont traitées dans le seul but de fournir les fonctionnalités que vous et votre famille utilisez.
 
 3. Base légale
 
@@ -89,7 +89,7 @@ Vos données sont conservées tant que votre compte existe. Les positions partag
 
 5. Destinataires et sous-traitants
 
-Vos données ne sont partagées qu'avec les membres de votre famille (et, pour un accès de garde partagée, avec le compte co-parent explicitement autorisé), jamais avec des tiers à des fins commerciales. Certaines fonctionnalités font appel à des services externes techniques : l'envoi d'e-mails transite par le serveur SMTP configuré par l'administrateur ; la météo et la recherche de lieux utilisent les API publiques open-meteo.com et nominatim.openstreetmap.org ; les polices de caractères sont chargées depuis Google Fonts. Ces services techniques ne reçoivent que les informations strictement nécessaires à leur fonction (ex. nom de ville pour la météo).
+Vos données ne sont partagées qu'avec les membres de votre famille (et, pour un accès de garde partagée, avec le compte co-parent explicitement autorisé), jamais avec des tiers à des fins commerciales. Deux exceptions existent, toujours à votre initiative explicite : un événement de calendrier que vous choisissez de partager avec une famille amie devient visible par les membres de cette famille une fois l'invitation acceptée ; et une personne que vous invitez par e-mail à une addition ou une cagnotte (même sans compte FamilyBoard) accède au détail de la répartition qui la concerne via un lien dédié. Certaines fonctionnalités font appel à des services externes techniques : l'envoi d'e-mails transite par le serveur SMTP configuré par l'administrateur ; la météo et la recherche de lieux utilisent les API publiques open-meteo.com et nominatim.openstreetmap.org ; les polices de caractères sont chargées depuis Google Fonts. Ces services techniques ne reçoivent que les informations strictement nécessaires à leur fonction (ex. nom de ville pour la météo).
 
 6. Vos droits
 

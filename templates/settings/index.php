@@ -333,6 +333,50 @@ ob_start();
             </form>
         </div>
 
+        <!-- Familles amies -->
+        <div id="friends" style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border)">
+            <h4 style="margin-bottom:.5rem">🤝 Familles amies</h4>
+            <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:.75rem">
+                Devenez amie avec une autre famille grâce à son code famille : une fois la demande acceptée,
+                vous pourrez l'inviter directement à participer à vos événements de calendrier.
+            </p>
+            <div class="form-row" style="align-items:flex-end;margin-bottom:1rem">
+                <div class="form-group flex-2" style="margin-bottom:0">
+                    <label>Code famille à ajouter</label>
+                    <input type="text" id="friend-code-input" placeholder="Ex. A1B2C3D4" style="text-transform:uppercase">
+                </div>
+                <button class="btn btn-primary" onclick="sendFriendRequest()" style="white-space:nowrap">Envoyer la demande</button>
+            </div>
+            <div id="friend-requests-incoming">
+                <?php foreach ($friendFamiliesIncoming as $fr): ?>
+                <div class="card" style="padding:.75rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+                    <span style="flex:1">Demande reçue de <strong><?= htmlspecialchars($fr['requester_family_name']) ?></strong></span>
+                    <button class="btn btn-primary btn-sm" onclick="respondFriendRequest(<?= (int)$fr['id'] ?>, 'accept')">Accepter</button>
+                    <button class="btn btn-secondary btn-sm" onclick="respondFriendRequest(<?= (int)$fr['id'] ?>, 'decline')">Refuser</button>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <div id="friend-requests-outgoing">
+                <?php foreach ($friendFamiliesOutgoing as $fr): ?>
+                <div class="card" style="padding:.75rem 1rem;margin-bottom:.5rem;color:var(--text-muted);font-size:.85rem">
+                    Demande envoyée à <strong><?= htmlspecialchars($fr['target_family_name']) ?></strong> — en attente de réponse
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php if (empty($friendFamiliesAccepted)): ?>
+                <p class="empty-state" style="margin:0">Aucune famille amie pour l'instant.</p>
+            <?php else: ?>
+            <ul id="friend-families-list" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.5rem">
+                <?php foreach ($friendFamiliesAccepted as $ff): ?>
+                <li class="card" style="padding:.6rem 1rem;display:flex;align-items:center;gap:.75rem">
+                    <span style="flex:1"><?= htmlspecialchars($ff['family_name']) ?></span>
+                    <button class="btn btn-secondary btn-sm" onclick="removeFriendFamily(<?= (int)$ff['id'] ?>, '<?= htmlspecialchars(addslashes($ff['family_name'])) ?>')">Retirer</button>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
+
         <!-- Email invitation -->
         <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border)">
             <h4 style="margin-bottom:.75rem">✉️ Inviter par email</h4>
@@ -386,7 +430,9 @@ ob_start();
                         <strong><?= htmlspecialchars($member['name']) ?></strong>
                         <small>
                             <?= htmlspecialchars($member['email']) ?> ·
-                            <?php if ($member['role'] === 'admin'): ?>
+                            <?php if (!empty($member['is_founder'])): ?>
+                                👑 Admin fondateur
+                            <?php elseif ($member['role'] === 'admin'): ?>
                                 👑 Admin
                             <?php elseif ($member['role'] === 'coparent'): ?>
                                 🔒 Co-parent (accès restreint)
@@ -398,10 +444,24 @@ ob_start();
                             <?php endif; ?>
                         </small>
                     </div>
-                    <?php if ($member['id'] !== $user['id']): ?>
-                        <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars($member['name']) ?> de la famille ?')"><?= \App\Core\Csrf::field() ?>
-                            <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
-                        </form>
+                    <?php $founderProtected = !empty($member['is_founder']) && empty($user['is_founder']); ?>
+                    <?php if ($member['id'] !== $user['id'] && $user['role'] === 'admin' && $member['role'] !== 'coparent'): ?>
+                        <div style="display:flex;gap:.4rem">
+                        <?php if ($member['role'] === 'member'): ?>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/promote" onsubmit="return confirmSubmit(this,'Promouvoir <?= htmlspecialchars(addslashes($member['name'])) ?> administrateur ?')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm">👑 Promouvoir admin</button>
+                            </form>
+                        <?php elseif ($member['role'] === 'admin' && !$founderProtected): ?>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/demote" onsubmit="return confirmSubmit(this,'Rétrograder <?= htmlspecialchars(addslashes($member['name'])) ?> au rôle de membre ?')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm">Rétrograder</button>
+                            </form>
+                        <?php endif; ?>
+                        <?php if (!$founderProtected): ?>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars(addslashes($member['name'])) ?> de la famille ?')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
+                            </form>
+                        <?php endif; ?>
+                        </div>
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
@@ -701,6 +761,33 @@ async function sendInvitation() {
         Dialog.toast(r.error || 'Erreur lors de l\'envoi.', 'error');
     }
 }
+
+// ── Familles amies ────────────────────────────────────────────
+async function sendFriendRequest() {
+    const input = document.getElementById('friend-code-input');
+    const code = input.value.trim();
+    if (!code) { Dialog.toast('Entrez un code famille.', 'error'); return; }
+    const r = await apiFetch(BASE_URL + '/api/friends/request', { method: 'POST', body: JSON.stringify({ code }) });
+    if (r.success) {
+        Dialog.toast('Demande envoyée !');
+        input.value = '';
+        setTimeout(() => location.reload(), 800);
+    } else {
+        Dialog.toast(r.error || 'Erreur lors de l\'envoi.', 'error');
+    }
+}
+async function respondFriendRequest(id, decision) {
+    const r = await apiFetch(BASE_URL + '/api/friends/' + id + '/' + decision, { method: 'POST' });
+    if (r.success) location.reload();
+    else Dialog.toast('Erreur.', 'error');
+}
+async function removeFriendFamily(id, name) {
+    if (!confirm('Retirer ' + name + ' de vos familles amies ? Les événements déjà partagés entre vous disparaîtront.')) return;
+    const r = await apiFetch(BASE_URL + '/api/friends/' + id + '/remove', { method: 'POST' });
+    if (r.success) location.reload();
+    else Dialog.toast('Erreur.', 'error');
+}
+
 // ── City autocomplete ──────────────────────────────────────────
 (function () {
     const input = document.getElementById('city-ac-input');
