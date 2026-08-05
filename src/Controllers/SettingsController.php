@@ -29,6 +29,9 @@ class SettingsController extends BaseController
         $kioskLinks = ($user['role'] === 'admin') ? KioskLink::getByFamily($user['family_id']) : [];
         $coparentsForNotify = ($user['role'] === 'admin') ? Custody::getCoparentUsersForFamily($user['family_id']) : [];
         $twoFactorMethod = TwoFactorAuth::getMethod($user['id']);
+        $friendFamiliesAccepted = \App\Models\FamilyFriend::getAcceptedFor((int)$user['family_id']);
+        $friendFamiliesIncoming = \App\Models\FamilyFriend::getPendingIncoming((int)$user['family_id']);
+        $friendFamiliesOutgoing = \App\Models\FamilyFriend::getPendingOutgoing((int)$user['family_id']);
         require BASE_PATH . '/templates/settings/index.php';
     }
 

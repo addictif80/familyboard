@@ -56,6 +56,7 @@ use App\Controllers\KioskController;
 use App\Controllers\NotificationController;
 use App\Controllers\AlertController;
 use App\Controllers\ErrorReportController;
+use App\Controllers\FriendController;
 
 Session::start();
 
@@ -223,6 +224,18 @@ $router->post('/api/calendar/vacations/:id/delete', [CalendarController::class, 
 $router->post('/api/calendar/caldav', [CalendarController::class, 'addCalDAV']);
 $router->post('/api/calendar/caldav/:id/sync', [CalendarController::class, 'syncCalDAV']);
 $router->post('/api/calendar/caldav/:id/delete', [CalendarController::class, 'deleteCalDAV']);
+$router->get('/api/calendar/friend-families', [CalendarController::class, 'apiFriendFamilies']);
+$router->get('/api/calendar/share-invitations', [CalendarController::class, 'apiShareInvitations']);
+$router->post('/api/calendar/share-invitations/:id/accept', [CalendarController::class, 'acceptShareInvitation']);
+$router->post('/api/calendar/share-invitations/:id/decline', [CalendarController::class, 'declineShareInvitation']);
+$router->post('/api/calendar/share-changes/:id/resolve', [CalendarController::class, 'resolveShareChange']);
+
+// Familles amies
+$router->get('/api/friends', [FriendController::class, 'list']);
+$router->post('/api/friends/request', [FriendController::class, 'request']);
+$router->post('/api/friends/:id/accept', [FriendController::class, 'accept']);
+$router->post('/api/friends/:id/decline', [FriendController::class, 'decline']);
+$router->post('/api/friends/:id/remove', [FriendController::class, 'remove']);
 
 // Wall
 $router->get('/wall', [WallController::class, 'index']);

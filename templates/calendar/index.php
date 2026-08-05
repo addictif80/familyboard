@@ -4,6 +4,7 @@ $extraJs = ['calendar.js'];
 ob_start();
 ?>
 <div class="calendar-container">
+    <div id="share-invitations-panel"></div>
     <div class="calendar-toolbar">
         <div class="calendar-filters">
             <?php foreach ($members as $member): ?>
@@ -132,6 +133,23 @@ ob_start();
                         </label>
                     <?php endforeach; ?>
                     <small class="form-hint">Cet évènement sera visible par le(s) co-parent(s) à accès restreint des enfants sélectionnés.</small>
+                </div>
+            </div>
+            <?php endif; ?>
+            <?php if (!empty($friendFamilies)): ?>
+            <div class="form-group" id="event-share-wrap">
+                <label>
+                    <input type="checkbox" id="event-share-toggle" onchange="document.getElementById('event-share-select-wrap').style.display = this.checked ? '' : 'none'">
+                    Inviter une famille amie
+                </label>
+                <div id="event-share-select-wrap" style="display:none;margin-top:.4rem">
+                    <?php foreach ($friendFamilies as $ff): ?>
+                        <label class="radio-option">
+                            <input type="checkbox" class="event-share-family-cb" value="<?= (int)$ff['family_id'] ?>">
+                            <span><?= htmlspecialchars($ff['family_name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                    <small class="form-hint">La famille invitée devra accepter avant de voir cet événement. Uniquement à la création — pour inviter une famille amie à un événement déjà créé, recréez-le.</small>
                 </div>
             </div>
             <?php endif; ?>

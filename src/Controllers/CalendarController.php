@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Models\Vacation;
 use App\Models\SchoolHoliday;
 use App\Models\Notification;
+use App\Models\FamilyFriend;
+use App\Models\EventShare;
 
 class CalendarController extends BaseController
 {
@@ -34,6 +36,7 @@ class CalendarController extends BaseController
 
         $custodySchedules = \App\Models\Custody::getSchedules($familyId);
         $hasProjects = !empty(\App\Models\Project::getByFamily($familyId));
+        $friendFamilies = FamilyFriend::getAcceptedFor($familyId);
         require BASE_PATH . '/templates/calendar/index.php';
     }
 
@@ -81,6 +84,7 @@ class CalendarController extends BaseController
                     'location' => $e['location'] ?? null,
                     'location_lat' => $e['location_lat'] ?? null,
                     'location_lng' => $e['location_lng'] ?? null,
+                    'shared_from_family_name' => $e['shared_from_family_name'] ?? null,
                 ],
             ], $events);
 
@@ -219,6 +223,15 @@ class CalendarController extends BaseController
                 CustodyActivityLog::record($scheduleId, $user['id'], 'event_created', $data['title'] ?? null);
             }
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Nouvel événement', $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/calendar');
+
+            $shareFamilyIds = array_values(array_intersect(
+                array_map('intval', (array)($data['share_family_ids'] ?? [])),
+                array_column(FamilyFriend::getAcceptedFor((int)$user['family_id']), 'family_id')
+            ));
+            if ($shareFamilyIds) {
+                EventShare::invite($id, (int)$user['family_id'], $shareFamilyIds, (int)$user['id']);
+            }
+
             return ['success' => true, 'id' => $id, 'event' => $event];
         });
     }
@@ -242,6 +255,11 @@ class CalendarController extends BaseController
             }
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement modifié',
                 $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']), BASE_URL . '/calendar');
+
+            // Jamais répercuté automatiquement chez les familles participantes : ça crée une
+            // alerte à résoudre individuellement, voir EventShare::propagateUpdate().
+            EventShare::propagateUpdate($id, $data);
+
             return ['success' => true];
         });
     }
@@ -256,10 +274,70 @@ class CalendarController extends BaseController
             if (!$event || $event['family_id'] !== $user['family_id']) {
                 return ['success' => false, 'error' => 'Non autorisé'];
             }
+            // Avant suppression : les familles participantes reçoivent une alerte à résoudre
+            // (accepter ou refuser la suppression), jamais une répercussion automatique.
+            EventShare::propagateDelete($id);
             Event::delete($id);
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement supprimé',
                 $user['name'] . ' a supprimé : ' . $event['title'], BASE_URL . '/calendar');
             return ['success' => true];
+        });
+    }
+
+    // ── Partage inter-familles ──────────────────────────────────────
+
+    /** Familles amies acceptées, pour la case à cocher à la création d'un événement. */
+    public function apiFriendFamilies(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            return ['families' => FamilyFriend::getAcceptedFor((int)$user['family_id'])];
+        });
+    }
+
+    public function apiShareInvitations(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            return [
+                'invitations' => EventShare::getPendingInvitations((int)$user['family_id']),
+                'changes'     => EventShare::getPendingChanges((int)$user['family_id']),
+            ];
+        });
+    }
+
+    public function acceptShareInvitation(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $ok = EventShare::accept((int)$params['id'], (int)$user['family_id'], (int)$user['id']);
+            return ['success' => $ok];
+        });
+    }
+
+    public function declineShareInvitation(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $ok = EventShare::decline((int)$params['id'], (int)$user['family_id']);
+            return ['success' => $ok];
+        });
+    }
+
+    public function resolveShareChange(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $decision = ($data['decision'] ?? '') === 'accept' ? 'accept' : 'decline';
+            $reason = trim($data['reason'] ?? '');
+            $ok = EventShare::resolveChange((int)$params['id'], (int)$user['family_id'], $decision, $reason ?: null);
+            return ['success' => $ok];
         });
     }
 

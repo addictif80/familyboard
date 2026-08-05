@@ -8,8 +8,9 @@ class Event
     public static function getByFamily(int $familyId, string $start, string $end): array
     {
         return Database::fetchAll(
-            'SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name, u.color as user_color FROM events e
+            'SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name, u.color as user_color, sf.name as shared_from_family_name FROM events e
              LEFT JOIN users u ON u.id = e.user_id
+             LEFT JOIN families sf ON sf.id = e.shared_from_family_id
              WHERE e.family_id = ? AND e.start_datetime < ? AND e.end_datetime > ?
              ORDER BY e.start_datetime',
             [$familyId, $end, $start]
