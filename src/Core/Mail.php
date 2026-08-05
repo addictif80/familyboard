@@ -26,9 +26,24 @@ class Mail
             return false;
         }
 
+        // $toName (et $subject/$to par défense en profondeur) atterrissent en clair dans les
+        // en-têtes bruts du client SMTP maison ci-dessous : un \r\n non filtré permettrait d'y
+        // injecter des en-têtes arbitraires (ex. Bcc:) — $toName en particulier peut provenir
+        // d'un champ libre saisi par un utilisateur (ex. nom d'un invité externe à une addition).
+        $to      = self::stripHeaderInjection($to);
+        $toName  = self::stripHeaderInjection($toName);
+        $subject = self::stripHeaderInjection($subject);
+
         [$ok, $error] = self::sendViaSMTP($settings, $to, $toName, $subject, $htmlBody, $attachments);
         EmailLog::add($familyId, $sentBy, $to, $toName, $subject, $htmlBody, $type, $ok, $error);
         return $ok;
+    }
+
+    /** Retire tout caractère de saut de ligne (CR/LF) — jamais valide dans un en-tête e-mail,
+     *  toujours suspect d'injection d'en-tête si présent dans un champ censé tenir sur une ligne. */
+    private static function stripHeaderInjection(string $value): string
+    {
+        return trim(str_replace(["\r", "\n"], ' ', $value));
     }
 
     /**
