@@ -139,6 +139,18 @@ class AccountDeletion
     {
         $filePaths = self::familyFilePaths($familyId);
 
+        // event_shares / event_share_changes / family_friends n'ont volontairement plus de
+        // contrainte de clé étrangère (cf. database/add_family_sharing_no_fk.sql) : nettoyage
+        // manuel ici pour éviter les lignes orphelines que le ON DELETE CASCADE gérait avant.
+        Database::execute(
+            'DELETE FROM event_share_changes WHERE event_share_id IN (
+                SELECT id FROM (SELECT id FROM event_shares WHERE origin_family_id=? OR target_family_id=?) t
+            )',
+            [$familyId, $familyId]
+        );
+        Database::execute('DELETE FROM event_shares WHERE origin_family_id=? OR target_family_id=?', [$familyId, $familyId]);
+        Database::execute('DELETE FROM family_friends WHERE requester_family_id=? OR target_family_id=?', [$familyId, $familyId]);
+
         Database::execute('DELETE FROM families WHERE id=?', [$familyId]);
 
         self::deleteFiles($filePaths);
