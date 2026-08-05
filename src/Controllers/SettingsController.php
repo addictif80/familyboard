@@ -227,13 +227,9 @@ class SettingsController extends BaseController
         if ($id !== $user['id']) {
             $member = User::findById($id);
             if ($member && $member['family_id'] === $user['family_id']) {
-                if ($member['role'] === 'coparent') {
-                    // Contenu préservé + rapport PDF envoyé — jamais une suppression brute
-                    // pour un accès co-parent, voir AccountDeletion::deleteCoparent().
-                    AccountDeletion::deleteCoparent($id);
-                } else {
-                    User::delete($id);
-                }
+                // Contenu préservé (jamais supprimé en cascade) et tracé dans deleted_users,
+                // pour tout membre — voir AccountDeletion::deleteUser().
+                AccountDeletion::deleteUser($id, (int)$member['family_id'], 'family_admin');
             }
         }
         header('Location: ' . BASE_URL . '/settings');

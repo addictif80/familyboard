@@ -6,13 +6,34 @@ use App\Core\Database;
 /** Suppression de compte utilisateur / famille, avec nettoyage des fichiers orphelins. */
 class AccountDeletion
 {
-    /** Supprime le compte d'un utilisateur qui reste dans une famille non vide. */
-    public static function deleteUser(int $userId, int $familyId): void
+    /**
+     * Supprime le compte d'un utilisateur qui reste dans une famille non vide — membre
+     * classique ou co-parent. Le contenu créé (documents, événements, journal parental,
+     * photos, liens proposés) n'est jamais supprimé, quel que soit qui initie la suppression :
+     * le compte est détaché de son contenu (user_id -> NULL, nom gardé en clair) plutôt que
+     * supprimé en cascade, et tracé dans deleted_users pour qu'un administrateur système
+     * puisse retrouver et, sur demande, purger définitivement ces données plus tard (voir
+     * purgeDeletedUserData()). Un compte co-parent reçoit en plus un rapport PDF de toute son
+     * activité par e-mail, avant la suppression, pendant qu'elle est encore reconstituable.
+     *
+     * $deletedBy : 'self' | 'family_admin' | 'system_admin' — qui a initié la suppression.
+     */
+    public static function deleteUser(int $userId, int $familyId, string $deletedBy = 'self'): void
     {
-        $filePaths = self::userFilePaths($userId);
+        $user = Database::fetch('SELECT * FROM users WHERE id=?', [$userId]);
+        if (!$user) return;
 
-        // project_materials.user_id n'a pas de ON DELETE en base (ce sont des
-        // ressources partagées de la famille) : on le réassigne au lieu de casser la suppression.
+        if ($user['role'] === 'coparent') {
+            try {
+                \App\Models\CoparentReport::sendFinalReport($user);
+            } catch (\Throwable $e) {
+                error_log('Coparent report error: ' . $e->getMessage());
+            }
+        }
+
+        // project_materials.user_id n'a pas de ON DELETE en base (ce sont des ressources
+        // partagées de la famille, pas un contenu personnel) : réassigné à un autre membre
+        // plutôt que conservé nominativement, contrairement au reste ci-dessous.
         $fallback = Database::fetch(
             "SELECT id FROM users WHERE family_id=? AND id!=? ORDER BY (role='admin') DESC, id LIMIT 1",
             [$familyId, $userId]
@@ -21,38 +42,20 @@ class AccountDeletion
             Database::execute('UPDATE project_materials SET user_id=? WHERE user_id=?', [$fallback['id'], $userId]);
         }
 
-        Database::execute('DELETE FROM users WHERE id=?', [$userId]);
-        self::deleteFiles($filePaths);
-    }
-
-    /**
-     * Supprime un accès co-parent (par l'admin de la famille ou par le co-parent lui-même) —
-     * contrairement à deleteUser(), le contenu créé (documents, événements, journal, photos,
-     * liens proposés) n'est jamais supprimé : le compte est détaché (user_id -> NULL) en
-     * gardant le nom en clair, comme album_photos.uploader_name pour les ajouts via lien
-     * public. Envoie d'abord un rapport PDF de toute l'activité du compte, pendant qu'elle
-     * est encore reconstituable.
-     */
-    public static function deleteCoparent(int $userId): void
-    {
-        $user = Database::fetch('SELECT * FROM users WHERE id=?', [$userId]);
-        if (!$user) return;
-
-        try {
-            \App\Models\CoparentReport::sendFinalReport($user);
-        } catch (\Throwable $e) {
-            error_log('Coparent report error: ' . $e->getMessage());
-        }
+        Database::execute(
+            'INSERT INTO deleted_users (original_user_id, family_id, name, email, role, deleted_by) VALUES (?,?,?,?,?,?)',
+            [$userId, $familyId, $user['name'], $user['email'], $user['role'], $deletedBy]
+        );
 
         $name = $user['name'];
-        Database::execute('UPDATE documents SET user_id=NULL, former_user_name=? WHERE user_id=?', [$name, $userId]);
-        Database::execute('UPDATE events SET user_id=NULL, former_user_name=? WHERE user_id=?', [$name, $userId]);
-        Database::execute('UPDATE comm_log_messages SET user_id=NULL, former_user_name=? WHERE user_id=?', [$name, $userId]);
-        Database::execute('UPDATE album_photos SET user_id=NULL, uploader_name=COALESCE(uploader_name, ?) WHERE user_id=?', [$name, $userId]);
-        Database::execute('UPDATE portal_links SET submitted_by=NULL, former_submitted_by_name=? WHERE submitted_by=?', [$name, $userId]);
+        Database::execute('UPDATE documents SET user_id=NULL, former_user_id=?, former_user_name=? WHERE user_id=?', [$userId, $name, $userId]);
+        Database::execute('UPDATE events SET user_id=NULL, former_user_id=?, former_user_name=? WHERE user_id=?', [$userId, $name, $userId]);
+        Database::execute('UPDATE comm_log_messages SET user_id=NULL, former_user_id=?, former_user_name=? WHERE user_id=?', [$userId, $name, $userId]);
+        Database::execute('UPDATE album_photos SET user_id=NULL, former_user_id=?, uploader_name=COALESCE(uploader_name, ?) WHERE user_id=?', [$userId, $name, $userId]);
+        Database::execute('UPDATE portal_links SET submitted_by=NULL, former_submitted_by_id=?, former_submitted_by_name=? WHERE submitted_by=?', [$userId, $name, $userId]);
 
         // Avatar personnel : supprimé (ce n'est pas du contenu familial, contrairement au
-        // reste) — le fichier ci-dessus n'est jamais touché par cette méthode.
+        // reste, qui est préservé ci-dessus).
         if (!empty($user['avatar'])) {
             $abs = BASE_PATH . $user['avatar'];
             if (is_file($abs)) @unlink($abs);
@@ -61,11 +64,74 @@ class AccountDeletion
         Database::execute('DELETE FROM users WHERE id=?', [$userId]);
     }
 
+    /** Alias explicite pour les appels côté suppression d'un accès co-parent — même logique
+     *  que deleteUser() (qui gère déjà le rapport PDF selon le rôle), $familyId retrouvé
+     *  automatiquement puisqu'un co-parent est toujours rattaché à la famille qui l'a invité. */
+    public static function deleteCoparent(int $userId, string $deletedBy = 'self'): void
+    {
+        $user = Database::fetch('SELECT family_id FROM users WHERE id=?', [$userId]);
+        if (!$user) return;
+        self::deleteUser($userId, (int)$user['family_id'], $deletedBy);
+    }
+
+    /**
+     * Purge définitive des données conservées d'un compte supprimé — action irréversible,
+     * réservée à un administrateur système (voir AdminController::purgeDeletedUser()).
+     * Supprime aussi les fichiers associés (documents, pièces jointes du journal, photos,
+     * aperçus de liens).
+     */
+    public static function purgeDeletedUserData(int $deletedUserRowId): void
+    {
+        $row = Database::fetch('SELECT * FROM deleted_users WHERE id=?', [$deletedUserRowId]);
+        if (!$row || $row['purged_at']) return;
+        $uid = (int)$row['original_user_id'];
+
+        foreach (['documents' => 'file_path', 'comm_log_messages' => 'audio_path'] as $table => $fileCol) {
+            foreach (Database::fetchAll("SELECT `$fileCol` as p FROM `$table` WHERE former_user_id=?", [$uid]) as $r) {
+                if (!empty($r['p'])) {
+                    $abs = BASE_PATH . $r['p'];
+                    if (is_file($abs)) @unlink($abs);
+                }
+            }
+        }
+        foreach (Database::fetchAll('SELECT image_path FROM album_photos WHERE former_user_id=?', [$uid]) as $r) {
+            if (!empty($r['image_path'])) {
+                $abs = BASE_PATH . $r['image_path'];
+                if (is_file($abs)) @unlink($abs);
+            }
+        }
+        foreach (Database::fetchAll('SELECT image_path FROM portal_links WHERE former_submitted_by_id=?', [$uid]) as $r) {
+            if (!empty($r['image_path'])) {
+                $abs = BASE_PATH . $r['image_path'];
+                if (is_file($abs)) @unlink($abs);
+            }
+        }
+
+        Database::execute('DELETE FROM documents WHERE former_user_id=?', [$uid]);
+        Database::execute('DELETE FROM events WHERE former_user_id=?', [$uid]);
+        Database::execute('DELETE FROM comm_log_messages WHERE former_user_id=?', [$uid]);
+        Database::execute('DELETE FROM album_photos WHERE former_user_id=?', [$uid]);
+        Database::execute('DELETE FROM portal_links WHERE former_submitted_by_id=?', [$uid]);
+
+        Database::execute('UPDATE deleted_users SET purged_at=NOW() WHERE id=?', [$deletedUserRowId]);
+    }
+
+    /** Comptes supprimés d'une famille (ou de toutes), avec leur statut de purge — pour
+     *  l'onglet admin système « Comptes supprimés ». */
+    public static function getDeletedUsers(): array
+    {
+        return Database::fetchAll(
+            'SELECT du.*, f.name as family_name
+             FROM deleted_users du JOIN families f ON f.id = du.family_id
+             ORDER BY du.purged_at IS NOT NULL, du.deleted_at DESC'
+        );
+    }
+
     /** Transfère le rôle admin à un autre membre puis supprime le compte de l'admin sortant. */
     public static function transferAdminAndDelete(int $outgoingAdminId, int $newAdminId, int $familyId): void
     {
         Database::execute("UPDATE users SET role='admin' WHERE id=? AND family_id=?", [$newAdminId, $familyId]);
-        self::deleteUser($outgoingAdminId, $familyId);
+        self::deleteUser($outgoingAdminId, $familyId, 'self');
     }
 
     /** Supprime toute la famille : tous les membres et toutes les données, en cascade. */
@@ -88,19 +154,6 @@ class AccountDeletion
         'messages'          => 'audio_path',
         'comm_log_messages' => 'audio_path',
     ];
-
-    private static function userFilePaths(int $userId): array
-    {
-        $paths = [];
-        $me = Database::fetch('SELECT avatar FROM users WHERE id=?', [$userId]);
-        if (!empty($me['avatar'])) $paths[] = $me['avatar'];
-        foreach (self::OWNED_FILE_TABLES as $table => $col) {
-            foreach (Database::fetchAll("SELECT `$col` as p FROM `$table` WHERE user_id=?", [$userId]) as $row) {
-                if (!empty($row['p'])) $paths[] = $row['p'];
-            }
-        }
-        return $paths;
-    }
 
     private static function familyFilePaths(int $familyId): array
     {

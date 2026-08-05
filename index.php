@@ -370,6 +370,7 @@ $router->get('/admin/logout', [AdminController::class, 'logout']);
 $router->get('/admin', [AdminController::class, 'index']);
 $router->post('/admin/users/:id/block', [AdminController::class, 'blockUser']);
 $router->post('/admin/users/:id/unblock', [AdminController::class, 'unblockUser']);
+$router->post('/admin/deleted-users/:id/purge', [AdminController::class, 'purgeDeletedUser']);
 $router->post('/admin/users/:id/impersonate', [AdminController::class, 'impersonate']);
 $router->get('/admin/stop-impersonating', [AdminController::class, 'stopImpersonating']);
 $router->post('/admin/ips', [AdminController::class, 'addIp']);
