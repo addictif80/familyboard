@@ -310,6 +310,17 @@ class CoparentController extends BaseController
         });
     }
 
+    /** Additions/cagnottes où ce co-parent est participant — en tant qu'entité indépendante,
+     *  jamais au nom d'une famille (il peut être invité par plusieurs familles différentes). */
+    public function additionsList(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            return ['additions' => \App\Models\AdditionParticipant::getForUser((int)$user['id'])];
+        });
+    }
+
     /** Un accès co-parent peut proposer un lien pour la famille du planning concerné — la
      *  proposition part toujours en attente de validation par un admin de cette famille, et
      *  est automatiquement marquée visible pour les accès co-parent (sans quoi elle n'aurait

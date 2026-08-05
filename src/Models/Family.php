@@ -29,6 +29,7 @@ class Family
         'wishlist'    => ['label' => 'Liste de cadeaux',   'icon' => '🎁'],
         'polls'       => ['label' => 'Sondages familiaux', 'icon' => '🗳️'],
         'links'       => ['label' => 'Portail de liens',   'icon' => '🔗'],
+        'additions'   => ['label' => 'Additions',          'icon' => '🧾'],
     ];
 
     /** Modules ayant une page de destination directe (donc utilisables dans la barre de
@@ -41,6 +42,7 @@ class Family
         'family-wall' => '/family-wall', 'baby' => '/baby', 'location' => '/location',
         'emergency' => '/emergency', 'comm_log' => '/comm-log', 'meals' => '/meals',
         'wishlist' => '/wishlist', 'polls' => '/polls', 'links' => '/links',
+        'additions' => '/additions',
     ];
 
     /** Sélection par défaut de la barre de navigation rapide (mobile/PWA), tant que

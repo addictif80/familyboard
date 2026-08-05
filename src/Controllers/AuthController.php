@@ -273,6 +273,15 @@ class AuthController
         $color = $colors[array_rand($colors)];
 
         $userId = User::create($familyId, $name, $email, $password, $role, $color);
+
+        // Si cette adresse était celle d'un invité externe à une addition (sans compte), il
+        // retrouve directement les mêmes éléments dans son nouveau compte.
+        try {
+            \App\Models\AdditionGuest::linkToUser($email, $userId);
+        } catch (\Throwable $e) {
+            error_log('AdditionGuest::linkToUser failed: ' . $e->getMessage());
+        }
+
         $user = User::findById($userId);
         $this->completeLogin($user);
     }

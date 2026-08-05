@@ -251,7 +251,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties') || $_navEnabled('links')): ?>
+            <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties') || $_navEnabled('links') || $_navEnabled('additions')): ?>
             <li class="nav-section-label" data-section-toggle="organisation" role="button" tabindex="0">
                 <span>Organisation</span><span class="nav-section-chevron">▾</span>
             </li>
@@ -301,6 +301,14 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                 <a href="<?= BASE_URL ?>/links" class="nav-link">
                     <span class="nav-icon">🔗</span>
                     <span class="nav-label">Portail de liens</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('additions')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/additions') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/additions" class="nav-link">
+                    <span class="nav-icon">🧾</span>
+                    <span class="nav-label">Additions</span>
                 </a>
             </li>
             <?php endif; ?>
