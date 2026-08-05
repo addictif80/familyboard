@@ -351,6 +351,11 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
    largeur minimale sur ses enfants, image et texte se réduisent avec elle. */
 .sidebar-spotlight {
   display: none;
+  /* .sidebar est flex column ; sans ça, une famille avec beaucoup de modules actifs (menu
+     plus long que la hauteur visible) écrase cet élément à quasi 0px au lieu de le laisser
+     défiler avec le reste — combinaison classique flexbox + overflow:hidden qui annule la
+     taille minimale automatique d'un enfant flex. */
+  flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
   margin: 0 .9rem .8rem;
