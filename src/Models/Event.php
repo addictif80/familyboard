@@ -8,8 +8,8 @@ class Event
     public static function getByFamily(int $familyId, string $start, string $end): array
     {
         return Database::fetchAll(
-            'SELECT e.*, u.name as user_name, u.color as user_color FROM events e
-             JOIN users u ON u.id = e.user_id
+            'SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name, u.color as user_color FROM events e
+             LEFT JOIN users u ON u.id = e.user_id
              WHERE e.family_id = ? AND e.start_datetime < ? AND e.end_datetime > ?
              ORDER BY e.start_datetime',
             [$familyId, $end, $start]
@@ -18,7 +18,7 @@ class Event
 
     public static function getById(int $id): ?array
     {
-        return Database::fetch('SELECT e.*, u.name as user_name FROM events e JOIN users u ON u.id=e.user_id WHERE e.id=?', [$id]);
+        return Database::fetch('SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name FROM events e LEFT JOIN users u ON u.id=e.user_id WHERE e.id=?', [$id]);
     }
 
     /** CSV de schedule_id (comme Invitation::create()), ou NULL si aucun enfant sélectionné. */
@@ -60,8 +60,8 @@ class Event
         if (empty($scheduleIds)) return [];
         $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, e.custody_schedule_ids)'));
         return Database::fetchAll(
-            "SELECT e.*, u.name as user_name, u.color as user_color FROM events e
-             JOIN users u ON u.id = e.user_id
+            "SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name, u.color as user_color FROM events e
+             LEFT JOIN users u ON u.id = e.user_id
              WHERE ($ors) AND e.start_datetime < ? AND e.end_datetime > ?
              ORDER BY e.start_datetime",
             [...$scheduleIds, $end, $start]
@@ -96,7 +96,7 @@ class Event
         $now = date('Y-m-d H:i:s');
         $until = date('Y-m-d H:i:s', strtotime("+{$days} days"));
         return Database::fetchAll(
-            'SELECT e.*, u.name as user_name, u.color as user_color FROM events e JOIN users u ON u.id=e.user_id
+            'SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name, u.color as user_color FROM events e LEFT JOIN users u ON u.id=e.user_id
              WHERE e.family_id=? AND e.start_datetime BETWEEN ? AND ?
              ORDER BY e.start_datetime LIMIT 10',
             [$familyId, $now, $until]

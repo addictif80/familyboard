@@ -5,6 +5,7 @@ use App\Core\Database;
 use App\Core\Mail;
 use App\Core\Session;
 use App\Models\AbhdHighlight;
+use App\Models\AccountDeletion;
 use App\Models\PortalLink;
 use App\Models\AppSetting;
 use App\Models\EmailContent;
@@ -178,6 +179,7 @@ class AdminController extends BaseController
         $legalTerms   = LegalContent::get('terms');
         $legalPrivacyIsCustom = LegalContent::isCustom('privacy');
         $legalTermsIsCustom   = LegalContent::isCustom('terms');
+        $deletedUsers = AccountDeletion::getDeletedUsers();
         $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
@@ -312,6 +314,17 @@ class AdminController extends BaseController
         $id = (int)$params['id'];
         Database::execute('UPDATE users SET blocked_at=NULL, blocked_reason=NULL WHERE id=?', [$id]);
         $this->redirect('/admin?tab=users&msg=unblocked');
+    }
+
+    /**
+     * Purge définitive des données conservées d'un compte supprimé (membre classique ou
+     * co-parent, quel que soit qui a initié la suppression) — action irréversible.
+     */
+    public function purgeDeletedUser(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AccountDeletion::purgeDeletedUserData((int)$params['id']);
+        $this->redirect('/admin?tab=deleted-accounts&msg=purged');
     }
 
     /**

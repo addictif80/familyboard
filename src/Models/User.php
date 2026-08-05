@@ -78,11 +78,6 @@ class User
         Database::execute('UPDATE users SET password = ? WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $id]);
     }
 
-    public static function delete(int $id): void
-    {
-        Database::execute('DELETE FROM users WHERE id = ?', [$id]);
-    }
-
     public static function verify(string $email, string $password): ?array
     {
         $user = self::findByEmail($email);

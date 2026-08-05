@@ -9,7 +9,7 @@ class PortalLink
      *  l'administrateur système, diffusés dans le portail de toutes les familles. */
     public static function getByFamily(int $familyId, ?string $status = null): array
     {
-        $sql = 'SELECT l.*, s.name as submitted_by_name, r.name as reviewed_by_name
+        $sql = 'SELECT l.*, COALESCE(s.name, l.former_submitted_by_name) as submitted_by_name, r.name as reviewed_by_name
                 FROM portal_links l
                 LEFT JOIN users s ON s.id = l.submitted_by
                 LEFT JOIN users r ON r.id = l.reviewed_by

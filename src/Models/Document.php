@@ -22,7 +22,7 @@ class Document
         }
 
         $whereStr = implode(' AND ', $where);
-        $select   = 'SELECT d.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar FROM documents d JOIN users u ON u.id = d.user_id';
+        $select   = 'SELECT d.*, COALESCE(u.name, d.former_user_name) as user_name, u.color as user_color, u.avatar as user_avatar FROM documents d LEFT JOIN users u ON u.id = d.user_id';
 
         if ($search !== '') {
             try {
@@ -56,8 +56,8 @@ class Document
     public static function findById(int $id, int $familyId): ?array
     {
         $row = Database::fetch(
-            'SELECT d.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
-             FROM documents d JOIN users u ON u.id = d.user_id
+            'SELECT d.*, COALESCE(u.name, d.former_user_name) as user_name, u.color as user_color, u.avatar as user_avatar
+             FROM documents d LEFT JOIN users u ON u.id = d.user_id
              WHERE d.id = ? AND d.family_id = ?',
             [$id, $familyId]
         );
@@ -81,8 +81,8 @@ class Document
     public static function getExpiringsSoon(int $familyId, int $days = 60): array
     {
         $rows = Database::fetchAll(
-            'SELECT d.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
-             FROM documents d JOIN users u ON u.id=d.user_id
+            'SELECT d.*, COALESCE(u.name, d.former_user_name) as user_name, u.color as user_color, u.avatar as user_avatar
+             FROM documents d LEFT JOIN users u ON u.id=d.user_id
              WHERE d.family_id=?
                AND d.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
              ORDER BY d.expiry_date ASC',
@@ -184,8 +184,8 @@ class Document
         if (empty($scheduleIds)) return [];
         $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, d.custody_schedule_ids)'));
         $rows = Database::fetchAll(
-            "SELECT d.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
-             FROM documents d JOIN users u ON u.id = d.user_id
+            "SELECT d.*, COALESCE(u.name, d.former_user_name) as user_name, u.color as user_color, u.avatar as user_avatar
+             FROM documents d LEFT JOIN users u ON u.id = d.user_id
              WHERE $ors
              ORDER BY d.created_at DESC",
             $scheduleIds
