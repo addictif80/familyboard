@@ -80,6 +80,7 @@ ob_start();
         </div>
         <div class="modal-body">
             <input type="hidden" id="event-id">
+            <div id="event-share-status" style="display:none;margin-bottom:.75rem;font-size:.85rem"></div>
             <div class="form-group">
                 <label>Titre *</label>
                 <input type="text" id="event-title" required placeholder="Anniversaire, réunion…">
