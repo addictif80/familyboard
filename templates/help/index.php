@@ -28,6 +28,8 @@ $moduleHelp = [
         "Cliquez sur un jour (ou glissez sur plusieurs jours) pour créer un événement ; la récurrence (hebdomadaire, mensuelle…) se règle dans le formulaire d'événement.",
         "Pour importer un calendrier externe (Google, Nextcloud, iCloud…), allez dans <strong>Paramètres → Calendriers externes</strong> et ajoutez une URL CalDAV/iCal : la synchronisation se fait ensuite automatiquement à l'intervalle choisi.",
         "Chaque événement peut être lié à un enfant suivi en garde alternée, ce qui le fait apparaître aussi côté co-parent si celui-ci a accès à cet enfant.",
+        "Pour inviter une <strong>famille amie</strong> à un événement (anniversaire, sortie commune…), devenez d'abord amie avec elle via son code famille dans <strong>Réglages → Familles amies</strong>, puis cochez-la à la création de l'événement. Elle doit accepter l'invitation, et obtient alors sa propre copie de l'événement, modifiable de son côté.",
+        "Si vous modifiez ou supprimez un événement déjà partagé, chaque famille participante reçoit une alerte lui demandant d'accepter ou de refuser le changement — rien n'est jamais répercuté automatiquement chez elle.",
     ],
     'custody' => $isCoparent ? [
         "Votre planning affiche uniquement les jours de garde de l'enfant pour lequel vous avez un accès — jamais les autres enfants ou membres de la famille.",
@@ -108,6 +110,14 @@ $moduleHelp = [
         "Créez un sondage avec une question et plusieurs choix de réponse depuis <strong>+ Nouveau sondage</strong> ; les votes de la famille s'affichent en temps réel.",
         "Un sondage peut être clôturé manuellement à tout moment par son créateur ou un administrateur.",
     ],
+    'additions' => $isCoparent ? [
+        "En tant qu'accès co-parent, vous pouvez être invité(e) à une addition ou une cagnotte en tant que personne indépendante — pas au nom d'une famille. Répondez depuis l'onglet <strong>🧾 Additions</strong> de votre espace.",
+    ] : [
+        "Créez une addition (restaurant, cadeau commun, activité…) avec un montant total, puis invitez des participants : membres de votre famille, un co-parent, un membre d'une famille amie, ou une personne sans compte via son e-mail (elle reçoit un lien vers son propre espace additions).",
+        "Choisissez la répartition en <strong>pourcentage</strong> ou en <strong>montant libre</strong> par participant ; chaque personne invitée doit accepter individuellement avant de compter dans le suivi.",
+        "La <strong>cagnotte</strong> (bouton dédié) est une variante gratuite, sans paiement en ligne : indiquez un objectif et les moyens acceptés (espèces, virement, Wero), puis un administrateur de la famille enregistre chaque perception à la main au fur et à mesure.",
+        "Si une personne invitée par e-mail crée ensuite un compte FamilyBoard avec la même adresse, elle retrouve automatiquement les mêmes additions dans son compte.",
+    ],
     'links' => $isCoparent ? [
         "Vous ne voyez que les liens marqués comme visibles pour un accès co-parent par l'administrateur de la famille.",
         "Vous pouvez proposer un lien utile (école, mutuelle…) : il doit être validé par un administrateur de la famille avant d'apparaître.",
@@ -120,7 +130,7 @@ $moduleHelp = [
     ],
 ];
 
-$coparentIntroModules = ['custody', 'comm_log', 'documents', 'calendar', 'albums', 'links'];
+$coparentIntroModules = ['custody', 'comm_log', 'documents', 'calendar', 'albums', 'links', 'additions'];
 ?>
 <div class="card" style="max-width:820px;margin:2rem auto;padding:2rem">
     <h2 style="margin-top:0">🧭 Guide d'utilisation</h2>
@@ -133,7 +143,14 @@ $coparentIntroModules = ['custody', 'comm_log', 'documents', 'calendar', 'albums
         <p style="background:var(--bg-alt, rgba(127,127,127,.08));border-radius:8px;padding:.75rem 1rem;font-size:.88rem;color:var(--text-muted)">
             Votre accès est un <strong>accès co-parent</strong> restreint : vous ne voyez ici que les modules
             réellement accessibles depuis votre espace (planning de garde, journal parental, documents, agenda,
-            albums et portail de liens liés à l'enfant concerné).
+            albums, portail de liens et additions liés à l'enfant concerné).
+        </p>
+    <?php else: ?>
+        <p style="background:var(--bg-alt, rgba(127,127,127,.08));border-radius:8px;padding:.75rem 1rem;font-size:.88rem;color:var(--text-muted)">
+            Plusieurs personnes peuvent administrer la même famille (par exemple les deux parents) : depuis
+            <strong>Réglages → Membres de la famille</strong>, un administrateur peut promouvoir un membre au
+            rôle d'administrateur, ou rétrograder un autre administrateur. Le tout premier administrateur de la
+            famille (l'administrateur fondateur) ne peut être rétrogradé ni retiré que par lui-même.
         </p>
     <?php endif; ?>
 

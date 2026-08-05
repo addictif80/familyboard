@@ -13,7 +13,9 @@ sein du service), installable comme PWA sur mobile et ordinateur.
 | 📸 **Mur familial** | Réseau social interne (hors accès co-parent) : publications personnelles visibles par les abonnés acceptés, ou au nom de la famille validées par un admin ; abonnements mutuels, partage direct des photos d'album |
 | ✉️ **Messages privés** | Conversations 1-à-1 entre membres qui se suivent mutuellement, distinctes du Chat familial (groupe) |
 | 🖼️ **Albums photo** | Albums partagés, y compris avec un co-parent à accès restreint |
-| 📅 **Calendrier partagé** | Événements récurrents, import CalDAV/iCal (Google, Nextcloud, iCloud…) |
+| 📅 **Calendrier partagé** | Événements récurrents, import CalDAV/iCal (Google, Nextcloud, iCloud…), partage d'un événement avec une famille amie (acceptation requise, copie indépendante côté famille invitée, alertes de résolution en cas de modification/suppression de l'original) |
+| 🤝 **Familles amies** | Mise en relation entre deux familles via code famille, toujours avec acceptation mutuelle — base du partage d'événements |
+| 🧾 **Additions & cagnotte** | Partage de frais (restaurant, cadeau commun, activité…) entre membres, co-parent, familles amies ou invités externes par e-mail (lien magique, espace additions dédié) ; répartition en pourcentage ou montant libre ; cagnotte gratuite avec objectif, moyens de paiement déclarés et registre de perceptions saisi manuellement |
 | 👶 **Garde alternée** | Planning de garde par enfant, périodicité automatique, propositions de jours, journal parental, historique d'activité horodaté |
 | 🔒 **Accès co-parent** | Accès restreint pour un parent séparé (avec ou sans famille FamilyBoard à lui) — voir [Garde partagée](#garde-partagée-et-accès-co-parent) |
 | ✅ **Tâches & Courses** | Listes partagées, assignation, priorités, échéances, rappels par e-mail |
@@ -39,7 +41,7 @@ sein du service), installable comme PWA sur mobile et ordinateur.
 | 🎫 **Support** | Tickets de support envoyés à l'administrateur système, avec pièces jointes de diagnostic |
 | 🧩 **Modules** | Chaque famille peut activer/désactiver les modules indépendamment |
 | ✉️ **E-mails** | Notifications SMTP personnalisées avec templates modifiables par famille |
-| 👥 **Multi-familles** | Invitation par code ou par e-mail, rôles admin/membre/co-parent |
+| 👥 **Multi-familles** | Invitation par code ou par e-mail, rôles admin/membre/co-parent ; une famille peut avoir plusieurs administrateurs, qui peuvent promouvoir/rétrograder les autres — l'administrateur fondateur ne peut être rétrogradé ou retiré que par lui-même |
 | ❓ **FAQ** | Page publique détaillant chaque fonctionnalité (`/faq`) |
 | 📜 **Contenu légal** | Politique de confidentialité et CGU éditables par l'administrateur système (`/confidentialite`, `/cgu`), acceptation obligatoire à l'inscription |
 
