@@ -39,6 +39,7 @@ class DataExport
         'liste_cadeaux'              => 'wishlist_items',
         'sondages'                   => 'polls',
         'portail_liens'              => 'portal_links',
+        'additions'                  => 'additions',
     ];
 
     /**
@@ -76,6 +77,8 @@ class DataExport
         'abonnements_suivis'     => ['follows', 'follower_id'],
         'abonnes'                => ['follows', 'followee_id'],
         'messages_prives_envoyes'=> ['dm_messages', 'sender_id'],
+        'additions_creees'       => ['additions', 'created_by'],
+        'participations_additions' => ['addition_participants', 'user_id'],
     ];
 
     /**
@@ -134,6 +137,25 @@ class DataExport
                     [$familyId]
                 );
             }
+            // Tables à double appartenance famille (partage inter-familles) : pas de colonne
+            // family_id unique, donc hors des boucles génériques ci-dessus.
+            $data['familles_amies'] = Database::fetchAll(
+                'SELECT * FROM family_friends WHERE requester_family_id=? OR target_family_id=?',
+                [$familyId, $familyId]
+            );
+            $data['evenements_partages'] = Database::fetchAll(
+                'SELECT * FROM event_shares WHERE origin_family_id=? OR target_family_id=?',
+                [$familyId, $familyId]
+            );
+            $data['changements_evenements_partages'] = Database::fetchAll(
+                'SELECT esc.* FROM event_share_changes esc JOIN event_shares es ON es.id=esc.event_share_id
+                 WHERE es.origin_family_id=? OR es.target_family_id=?',
+                [$familyId, $familyId]
+            );
+            $data['perceptions_cagnotte'] = Database::fetchAll(
+                'SELECT ap.* FROM addition_payments ap JOIN additions a ON a.id=ap.addition_id WHERE a.family_id=?',
+                [$familyId]
+            );
             $filePaths = self::collectFilePaths($familyId, null);
             foreach (Database::fetchAll('SELECT avatar FROM users WHERE family_id=?', [$familyId]) as $row) {
                 if (!empty($row['avatar'])) $filePaths[] = $row['avatar'];
@@ -144,6 +166,9 @@ class DataExport
             foreach (self::USER_TABLES as $key => [$table, $col]) {
                 $data[$key] = Database::fetchAll("SELECT * FROM `$table` WHERE `$col`=?", [$userId]);
             }
+            $data['perceptions_cagnotte_enregistrees'] = Database::fetchAll(
+                'SELECT * FROM addition_payments WHERE recorded_by=?', [$userId]
+            );
             $filePaths = self::collectFilePaths($familyId, $userId);
             if (!empty($me['avatar'])) $filePaths[] = $me['avatar'];
         }

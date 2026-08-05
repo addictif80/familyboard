@@ -140,8 +140,8 @@ class Document
 
         $ocrText = $newOcr !== '' ? $newOcr : ($existing['ocr_text'] ?? '');
 
-        $memberIds     = self::extractMemberIds($data, $existing['user_id']);
-        $primaryUserId = $memberIds[0];
+        $memberIds     = self::extractMemberIds($data, $existing['user_id'] !== null ? (int)$existing['user_id'] : null);
+        $primaryUserId = $memberIds[0] ?? null;
 
         $type = $data['doc_type'] ?? $existing['doc_type'];
         if (($type === '' || $type === 'auto') && $ocrText !== '') {
@@ -245,15 +245,19 @@ class Document
         unset($row);
     }
 
-    /** Parse member_ids from form data, fallback to $default */
-    private static function extractMemberIds(array $data, int $default): array
+    /** Parse member_ids from form data, fallback to $default — $default peut être null si
+     *  l'auteur d'origine du document a depuis été retiré de la famille (user_id devenu NULL,
+     *  voir AccountDeletion::deleteUser()) : dans ce cas, sans sélection explicite, le document
+     *  reste simplement sans membre associé plutôt que planter. */
+    private static function extractMemberIds(array $data, ?int $default): array
     {
         $raw = $data['member_ids'] ?? $data['user_id'] ?? null;
         $ids = array_values(array_filter(
             array_map('intval', (array)$raw),
             fn($id) => $id > 0
         ));
-        return empty($ids) ? [$default] : $ids;
+        if (!empty($ids)) return $ids;
+        return $default !== null ? [$default] : [];
     }
 
     /** Replace all members in junction table for a document */

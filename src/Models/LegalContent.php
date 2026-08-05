@@ -85,7 +85,7 @@ Le traitement repose sur l'exécution du service demandé (création de compte, 
 
 4. Durée de conservation
 
-Vos données sont conservées tant que votre compte existe. Les positions partagées expirent automatiquement à la durée que vous choisissez (au maximum 24h) et sont ensuite supprimées. Un ticket de support clos est conservé au maximum 18 mois. La suppression de votre compte ou de votre famille entraîne la suppression réelle des données associées (voir section 6).
+Vos données sont conservées tant que votre compte existe. Les positions partagées expirent automatiquement à la durée que vous choisissez (au maximum 24h) et sont ensuite supprimées. Un ticket de support clos est conservé au maximum 18 mois. La suppression de votre compte n'efface pas le contenu que vous avez ajouté à la vie de la famille (documents, événements, journal parental, photos, liens proposés) : il reste à la disposition des autres membres, votre nom y restant associé — voir le détail en section 6. Après une suppression de compte, votre nom, votre e-mail et votre rôle sont conservés dans un registre technique (comptes supprimés), le temps qu'un administrateur système en déclenche la purge définitive sur demande ; seuls votre mot de passe et votre photo de profil sont supprimés immédiatement. La suppression d'une famille entière (par son administrateur, quand elle n'a plus d'autre membre) entraîne en revanche la suppression réelle de toutes les données de cette famille, sans conservation.
 
 5. Destinataires et sous-traitants
 
@@ -93,7 +93,7 @@ Vos données ne sont partagées qu'avec les membres de votre famille (et, pour u
 
 6. Vos droits
 
-Vous disposez d'un droit d'accès, de rectification, d'effacement et de portabilité de vos données. Un export complet de vos données est disponible depuis Paramètres → Exporter mes données. La suppression de votre compte (Paramètres → Supprimer mon compte) efface réellement vos données personnelles et les fichiers associés, pas seulement un statut. Pour exercer ces droits ou pour toute question, contactez : {$contact}. Vous disposez également du droit d'introduire une réclamation auprès de l'autorité de contrôle compétente (en France, la CNIL).
+Vous disposez d'un droit d'accès, de rectification, d'effacement et de portabilité de vos données. Un export de vos données (y compris votre participation aux additions/cagnottes et aux partages entre familles) est disponible depuis Paramètres → Exporter mes données. La suppression de votre compte (Paramètres → Supprimer mon compte) supprime immédiatement votre mot de passe et votre photo de profil, mais conserve le contenu que vous avez ajouté à la vie de la famille (documents, événements, journal parental, photos, liens proposés), rattaché à votre nom, ainsi qu'un enregistrement de votre nom/e-mail/rôle dans un registre technique — voir le détail en section 4. Si vous souhaitez l'effacement complet et définitif de ce contenu conservé, contactez {$contact} : un administrateur système peut le purger sur demande. Si vous disposez d'un accès co-parent, la suppression de cet accès déclenche par ailleurs l'envoi automatique, à votre adresse, d'un rapport récapitulant le contenu que vous avez ajouté, avant sa conservation par la famille. Pour exercer vos droits ou pour toute question, contactez : {$contact}. Vous disposez également du droit d'introduire une réclamation auprès de l'autorité de contrôle compétente (en France, la CNIL).
 
 7. Sécurité
 
