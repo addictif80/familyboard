@@ -60,7 +60,10 @@ class AdditionParticipant
             'Invitation à partager une addition',
             '<p>Bonjour,</p>'
             . '<p>' . htmlspecialchars($inviter['name'] ?? 'Quelqu\'un') . ' vous invite à participer à « ' . htmlspecialchars($addition['title'] ?? '') . ' » sur FamilyBoard.</p>'
-            . '<p>Ce lien vous donne accès à votre espace additions personnel, où vous retrouverez toutes les additions partagées avec vous et le détail de la répartition.</p>',
+            . '<p>Ce lien vous donne accès à votre espace additions personnel, où vous retrouverez toutes les additions partagées avec vous et le détail de la répartition.</p>'
+            . '<p style="font-size:13px;color:#6b6558">Votre nom et votre adresse e-mail sont conservés pour cet usage tant que vous restez invité(e) à au moins une addition. '
+            . 'Pour toute question ou pour demander la suppression de vos données, consultez notre '
+            . '<a href="' . BASE_URL . '/confidentialite">politique de confidentialité</a>, qui indique comment nous contacter.</p>',
             ['url' => $link, 'label' => 'Accéder à mon espace additions']
         );
         try {

@@ -53,6 +53,13 @@ ob_start();
 </div>
 <?php endif; ?>
 
+<p style="max-width:720px;margin:1.5rem auto 0;font-size:.78rem;color:var(--text-muted);text-align:center">
+    Votre nom et votre e-mail sont conservés pour vous donner accès à cet espace tant que vous restez
+    invité(e) à au moins une addition. Voir notre <a href="<?= BASE_URL ?>/confidentialite">politique de
+    confidentialité</a> pour le détail et les moyens de nous contacter, y compris pour une demande de
+    suppression de vos données.
+</p>
+
 <script>var GUEST_TOKEN = <?= json_encode($guestToken) ?>;</script>
 <?php
 $content = ob_get_clean();

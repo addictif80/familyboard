@@ -13,7 +13,7 @@ ob_start();
             <?php $isOwn = $msg['user_id'] === $user['id']; ?>
             <div class="message-row <?= $isOwn ? 'own' : '' ?>" data-id="<?= $msg['id'] ?>">
                 <?php if (!$isOwn): ?>
-                    <div class="user-avatar-sm" style="background:<?= htmlspecialchars($msg['user_color']) ?>" title="<?= htmlspecialchars($msg['user_name']) ?>">
+                    <div class="user-avatar-sm" style="background:<?= htmlspecialchars($msg['user_color'] ?: '#4A90D9') ?>" title="<?= htmlspecialchars($msg['user_name']) ?>">
                         <?php if ($msg['user_avatar']): ?>
                             <img src="<?= BASE_URL . htmlspecialchars($msg['user_avatar']) ?>" alt="">
                         <?php else: ?>
@@ -23,7 +23,7 @@ ob_start();
                 <?php endif; ?>
                 <div class="message-bubble <?= $isOwn ? 'bubble-own' : 'bubble-other' ?>">
                     <?php if (!$isOwn): ?>
-                        <div class="message-author" style="color:<?= htmlspecialchars($msg['user_color']) ?>"><?= htmlspecialchars($msg['user_name']) ?></div>
+                        <div class="message-author" style="color:<?= htmlspecialchars($msg['user_color'] ?: '#4A90D9') ?>"><?= htmlspecialchars($msg['user_name']) ?></div>
                     <?php endif; ?>
                     <?php if (!empty($msg['audio_path'])): ?>
                         <div class="voice-msg">🎤<audio controls preload="none" src="<?= BASE_URL ?>/api/comm-log/<?= $msg['id'] ?>/audio"></audio><?php if ($msg['audio_duration']): ?><span class="voice-duration"><?= sprintf('%02d:%02d', intdiv($msg['audio_duration'], 60), $msg['audio_duration'] % 60) ?></span><?php endif; ?></div>

@@ -48,7 +48,7 @@ $sections = [
         ],
         [
             "Comment récupérer mes données ou supprimer mon compte ?",
-            "Depuis Paramètres, un export complet de vos données (JSON + fichiers) est disponible à tout moment. La suppression de compte y est également possible et efface réellement vos données personnelles, pas seulement un statut — voir la " . "<a href=\"" . BASE_URL . "/confidentialite\">politique de confidentialité</a> pour le détail.",
+            "Depuis Paramètres, un export de vos données (JSON + fichiers) est disponible à tout moment. La suppression de compte y est également possible : votre mot de passe et votre photo de profil sont supprimés immédiatement, mais le contenu que vous avez ajouté à la vie de la famille (documents, événements, journal, photos, liens) reste conservé et rattaché à votre nom, sauf demande d'effacement complet auprès du support — voir la " . "<a href=\"" . BASE_URL . "/confidentialite\">politique de confidentialité</a> pour le détail.",
         ],
     ],
     'Vie de famille' => [

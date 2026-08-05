@@ -8,7 +8,7 @@ class FriendController extends BaseController
 {
     public function request(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAdmin();
         $this->json(function () {
             $user = Session::user();
             $data = $this->jsonInput();
@@ -22,7 +22,7 @@ class FriendController extends BaseController
 
     public function accept(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAdmin();
         $this->json(function () use ($params) {
             $user = Session::user();
             $ok = FamilyFriend::accept((int)$params['id'], (int)$user['family_id']);
@@ -32,7 +32,7 @@ class FriendController extends BaseController
 
     public function decline(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAdmin();
         $this->json(function () use ($params) {
             $user = Session::user();
             $ok = FamilyFriend::decline((int)$params['id'], (int)$user['family_id']);
@@ -42,7 +42,7 @@ class FriendController extends BaseController
 
     public function remove(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAdmin();
         $this->json(function () use ($params) {
             $user = Session::user();
             $ok = FamilyFriend::remove((int)$params['id'], (int)$user['family_id']);

@@ -312,7 +312,7 @@ class CustodyController extends BaseController
     /** Invite un co-parent à accès restreint (garde + journal + docs/évènements tagués) pour un ou plusieurs enfants. */
     public function inviteCoparent(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAdmin();
         $this->json(function () use ($params) {
             $user = Session::user();
             $anchorSchedule = Custody::getScheduleById((int)$params['id']);
