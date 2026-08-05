@@ -345,6 +345,55 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 
 .sidebar-backdrop { display: none; }
 
+/* Mise en avant ABHD compacte, sidebar (PC) — voir templates/partials/abhd_spotlight_sidebar.php.
+   Masquée par défaut (réaffichée en desktop uniquement, cf. @media plus haut) ; toujours
+   contenue dans la largeur fixe de la sidebar (--sidebar-width), jamais l'inverse : aucune
+   largeur minimale sur ses enfants, image et texte se réduisent avec elle. */
+.sidebar-spotlight {
+  display: none;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 .9rem .8rem;
+  max-width: calc(100% - 1.8rem);
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: background .15s, border-color .15s;
+}
+.sidebar-spotlight:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.22); }
+.sidebar-spotlight-img {
+  display: block;
+  width: 100%;
+  height: 64px;
+  object-fit: cover;
+}
+.sidebar-spotlight-body {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  padding: .55rem .7rem;
+  min-width: 0;
+}
+.sidebar-spotlight-title {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--sidebar-text-active);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sidebar-spotlight-tag {
+  font-size: .65rem;
+  color: rgba(255,255,255,.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sidebar-search {
   display: none;
   align-items: center;
@@ -1458,6 +1507,12 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
   .cal-day-dots { display: none; }
   .cal-agenda    { display: none; }
   .cal-day { min-height: 90px; }
+
+  /* La mise en avant ABHD s'affiche dans la sidebar plutôt que sur le tableau de bord —
+     seul le tableau de bord mobile garde la version pleine largeur (sidebar = tiroir
+     généralement fermé sur mobile, donc peu utile comme emplacement là-bas). */
+  .sidebar-spotlight { display: block; }
+  .dashboard-spotlight-wrap { display: none; }
 }
 
 /* Tablet: slightly smaller cells */

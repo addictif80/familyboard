@@ -1,6 +1,6 @@
 <?php
 /**
- * @var string $placement 'dashboard'|'module_pages'|'coparent'
+ * @var string $placement 'dashboard'|'module_pages'
  * Inclusion volontairement silencieuse (rien n'est affiché s'il n'y a rien à montrer).
  */
 $_spotlight = \App\Models\AbhdHighlight::pickForPlacement($placement);
