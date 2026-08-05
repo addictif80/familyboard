@@ -70,7 +70,13 @@ class CalendarController extends BaseController
             $start = $_GET['start'] ?? date('Y-m-01');
             $end = $_GET['end'] ?? date('Y-m-t');
             $events = Event::getByFamily($user['family_id'], $start, $end);
-            $formatted = array_map(fn($e) => [
+            $formatted = array_map(function ($e) {
+                $statuses = array_filter(explode(',', (string)($e['share_statuses'] ?? '')));
+                $shareStatus = null;
+                if ($statuses) {
+                    $shareStatus = in_array('pending', $statuses, true) ? 'pending' : 'accepted';
+                }
+                return [
                 'id' => $e['id'],
                 'title' => $e['title'],
                 'start' => $e['is_all_day'] ? substr($e['start_datetime'], 0, 10) : $e['start_datetime'],
@@ -89,8 +95,10 @@ class CalendarController extends BaseController
                     'location_lat' => $e['location_lat'] ?? null,
                     'location_lng' => $e['location_lng'] ?? null,
                     'shared_from_family_name' => $e['shared_from_family_name'] ?? null,
+                    'share_status' => $shareStatus,
                 ],
-            ], $events);
+                ];
+            }, $events);
 
             // Optionally include custody events
             if (!empty($_GET['custody'])) {

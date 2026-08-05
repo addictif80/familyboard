@@ -24,6 +24,28 @@ function fmtEventTime(dateStr) {
     return _intlTime.format(new Date(dateStr));
 }
 
+// Icônes de partage cohérentes avec les autres modules : 🔒 co-parent, 🔗 invitation famille
+// amie en attente, 🤝 famille amie ayant accepté (ou copie reçue d'une famille amie).
+function eventShareIcon(e) {
+    const props = e.extendedProps || {};
+    let icon = '';
+    if (props.custody_schedule_ids) icon += '🔒';
+    if (props.shared_from_family_name) icon += '🤝';
+    else if (props.share_status === 'pending') icon += '🔗';
+    else if (props.share_status === 'accepted') icon += '🤝';
+    return icon ? icon + ' ' : '';
+}
+
+function eventShareTitleSuffix(e) {
+    const props = e.extendedProps || {};
+    let parts = [];
+    if (props.custody_schedule_ids) parts.push('partagé avec le co-parent');
+    if (props.shared_from_family_name) parts.push(`reçu de la famille ${props.shared_from_family_name}`);
+    else if (props.share_status === 'pending') parts.push('invitation famille amie en attente');
+    else if (props.share_status === 'accepted') parts.push('partagé avec une famille amie');
+    return parts.length ? ' — ' + parts.join(', ') : '';
+}
+
 // Simple calendar renderer
 function renderCalendar() {
     const container = document.getElementById('calendar');
@@ -97,8 +119,8 @@ function renderCalendar() {
                             : isSchool
                                 ? ''
                                 : `openEventDetails(${JSON.stringify(e.id)})`;
-            const label  = isCustody ? '👶 ' : isProject ? '📋 ' : '';
-            const suffix = isCustody ? ' (Garde alternée)' : isProject ? ' (Projet)' : isBirthday ? ' (Anniversaire)' : isVacation ? ' — cliquer pour supprimer' : '';
+            const label  = (isCustody ? '👶 ' : isProject ? '📋 ' : '') + eventShareIcon(e);
+            const suffix = (isCustody ? ' (Garde alternée)' : isProject ? ' (Projet)' : isBirthday ? ' (Anniversaire)' : isVacation ? ' — cliquer pour supprimer' : '') + eventShareTitleSuffix(e);
             html += `<div class="cal-event${isCustody ? ' cal-event-custody' : ''}"
                           style="background:${safeColor(e.color)};${isSchool ? 'opacity:.85' : ''}"
                           onclick="event.stopPropagation();${onClick}"
@@ -171,7 +193,7 @@ function renderMobileAgenda(dateStr) {
                         : isVacation
                             ? `deleteVacationPrompt(${e.extendedProps.vacation_id})`
                             : isSchool ? '' : `openEventDetails(${JSON.stringify(e.id)})`;
-            const label = isCustody ? '👶 ' : isProject ? '📋 ' : '';
+            const label = (isCustody ? '👶 ' : isProject ? '📋 ' : '') + eventShareIcon(e);
             inner += `<div class="cal-agenda-event" onclick="${onClick}" style="cursor:pointer">
                 <span class="cal-agenda-dot" style="background:${safeColor(e.color)}"></span>
                 <div class="cal-agenda-info">
@@ -295,6 +317,16 @@ function openEventModal(date = null, eventData = null) {
             document.querySelectorAll('.event-custody-child-cb').forEach(cb => {
                 cb.checked = csIds.includes(parseInt(cb.value, 10));
             });
+        }
+    }
+    const statusEl = document.getElementById('event-share-status');
+    if (statusEl) {
+        const suffix = eventData ? eventShareTitleSuffix(eventData) : '';
+        if (suffix) {
+            statusEl.textContent = eventShareIcon(eventData).trim() + suffix.replace(' — ', ' ');
+            statusEl.style.display = '';
+        } else {
+            statusEl.style.display = 'none';
         }
     }
     openModal('event-modal');

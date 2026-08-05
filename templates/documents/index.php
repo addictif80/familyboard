@@ -81,6 +81,7 @@ $totalDocs = array_sum($typeCounts);
             <div class="doc-card-head" style="background:<?= htmlspecialchars($doc['type_color']) ?>">
                 <span class="doc-card-icon"><?= $doc['type_icon'] ?></span>
                 <span class="doc-card-type"><?= htmlspecialchars($doc['type_label']) ?></span>
+                <?php if (!empty($doc['custody_schedule_ids'])): ?><span title="Partagé avec le co-parent">🔒</span><?php endif; ?>
                 <div class="doc-card-actions" onclick="event.stopPropagation()">
                     <button class="btn-icon-sm light" onclick="openEditDocModal(<?= htmlspecialchars(json_encode($doc)) ?>)" title="Modifier">✏️</button>
                     <button class="btn-icon-sm light" onclick="deleteDoc(<?= $doc['id'] ?>)" title="Supprimer">🗑</button>
