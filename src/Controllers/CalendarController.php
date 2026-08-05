@@ -36,7 +36,11 @@ class CalendarController extends BaseController
 
         $custodySchedules = \App\Models\Custody::getSchedules($familyId);
         $hasProjects = !empty(\App\Models\Project::getByFamily($familyId));
-        $friendFamilies = FamilyFriend::getAcceptedFor($familyId);
+        try {
+            $friendFamilies = FamilyFriend::getAcceptedFor($familyId);
+        } catch (\Throwable $e) {
+            $friendFamilies = [];
+        }
         require BASE_PATH . '/templates/calendar/index.php';
     }
 
@@ -224,12 +228,18 @@ class CalendarController extends BaseController
             }
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Nouvel événement', $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/calendar');
 
-            $shareFamilyIds = array_values(array_intersect(
-                array_map('intval', (array)($data['share_family_ids'] ?? [])),
-                array_column(FamilyFriend::getAcceptedFor((int)$user['family_id']), 'family_id')
-            ));
-            if ($shareFamilyIds) {
-                EventShare::invite($id, (int)$user['family_id'], $shareFamilyIds, (int)$user['id']);
+            // Le partage inter-familles ne doit jamais faire échouer la création d'un événement
+            // "normal" — tolère l'absence des tables si la migration n'est pas encore appliquée.
+            try {
+                $shareFamilyIds = array_values(array_intersect(
+                    array_map('intval', (array)($data['share_family_ids'] ?? [])),
+                    array_column(FamilyFriend::getAcceptedFor((int)$user['family_id']), 'family_id')
+                ));
+                if ($shareFamilyIds) {
+                    EventShare::invite($id, (int)$user['family_id'], $shareFamilyIds, (int)$user['id']);
+                }
+            } catch (\Throwable $e) {
+                error_log('EventShare invite error: ' . $e->getMessage());
             }
 
             return ['success' => true, 'id' => $id, 'event' => $event];
@@ -257,8 +267,13 @@ class CalendarController extends BaseController
                 $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']), BASE_URL . '/calendar');
 
             // Jamais répercuté automatiquement chez les familles participantes : ça crée une
-            // alerte à résoudre individuellement, voir EventShare::propagateUpdate().
-            EventShare::propagateUpdate($id, $data);
+            // alerte à résoudre individuellement, voir EventShare::propagateUpdate(). Ne doit
+            // jamais faire échouer la modification elle-même (ex. migration pas encore appliquée).
+            try {
+                EventShare::propagateUpdate($id, $data);
+            } catch (\Throwable $e) {
+                error_log('EventShare propagateUpdate error: ' . $e->getMessage());
+            }
 
             return ['success' => true];
         });
@@ -275,8 +290,13 @@ class CalendarController extends BaseController
                 return ['success' => false, 'error' => 'Non autorisé'];
             }
             // Avant suppression : les familles participantes reçoivent une alerte à résoudre
-            // (accepter ou refuser la suppression), jamais une répercussion automatique.
-            EventShare::propagateDelete($id);
+            // (accepter ou refuser la suppression), jamais une répercussion automatique — ne
+            // doit jamais empêcher la suppression elle-même (ex. migration pas encore appliquée).
+            try {
+                EventShare::propagateDelete($id);
+            } catch (\Throwable $e) {
+                error_log('EventShare propagateDelete error: ' . $e->getMessage());
+            }
             Event::delete($id);
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement supprimé',
                 $user['name'] . ' a supprimé : ' . $event['title'], BASE_URL . '/calendar');
