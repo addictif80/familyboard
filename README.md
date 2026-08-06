@@ -285,8 +285,11 @@ Configurez votre serveur SMTP dans **Paramètres → SMTP** pour activer :
 
 ```bash
 # Rappels e-mail (événements, tâches, courses), alertes budget récurrent,
-# veille informationnelle, synchronisation CalDAV — toutes les heures
-0 * * * * php /var/www/familyboard/cron.php
+# veille informationnelle, synchronisation CalDAV — toutes les minutes, pour
+# que la synchro CalDAV reste réactive (les rappels e-mail se dédupliquent
+# eux-mêmes sur une fenêtre de 24-25h, donc l'exécution fréquente ne renvoie
+# pas plusieurs fois le même rappel)
+* * * * * php /var/www/familyboard/cron.php
 ```
 
 ## PWA
