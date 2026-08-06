@@ -22,6 +22,7 @@ use App\Controllers\DashboardController;
 use App\Controllers\LegalController;
 use App\Controllers\HelpController;
 use App\Controllers\SearchController;
+use App\Controllers\AndroidController;
 use App\Controllers\CalendarController;
 use App\Controllers\WallController;
 use App\Controllers\FollowController;
@@ -203,6 +204,8 @@ $router->post('/reset-password/:token', [AuthController::class, 'resetPassword']
 $router->get('/confidentialite', [LegalController::class, 'privacy']);
 $router->get('/cgu', [LegalController::class, 'terms']);
 $router->get('/faq', [LegalController::class, 'faq']);
+$router->get('/android', [AndroidController::class, 'page']);
+$router->get('/android/download', [AndroidController::class, 'download']);
 
 // Guide d'utilisation (réservé aux utilisateurs connectés)
 $router->get('/aide', [HelpController::class, 'index']);

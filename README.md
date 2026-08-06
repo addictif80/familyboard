@@ -304,17 +304,27 @@ hors-ligne partiel grâce au Service Worker, et les notifications push ne
 sont délivrées sur iOS que depuis l'app installée (jamais depuis un onglet
 Safari classique — contrainte du système, pas de l'app).
 
-## Application Android native (optionnelle, hors promotion in-app)
+## Application Android native
 
 Un client Android natif (`android/`) existe en plus de la PWA — une app
 WebView légère qui demande l'adresse de votre serveur au premier lancement.
-Il n'est plus promu dans l'interface (la PWA couvre le même besoin sans
-installation manuelle d'APK) ; il reste disponible pour qui veut le
-compiler soi-même :
+Il est distribué en APK depuis le site lui-même (`/android`), volontairement
+**hors Play Store** :
 
-- **Build** : `.github/workflows/android-release.yml` compile et publie
-  l'APK sur GitHub Releases (déclenchable manuellement ou via un tag
-  `android-vX.Y.Z`).
+- **Téléchargement** : la page publique `/android` (aussi liée depuis
+  *Paramètres → 📲 Installer l'application*) redirige vers le dernier APK
+  publié.
+- **Mise à jour automatique** : au démarrage (et via le menu ⋮ → « Vérifier
+  les mises à jour »), l'app compare sa version installée au `version.json`
+  publié en même temps que l'APK ; si une version plus récente existe, elle
+  propose de la télécharger et de l'installer en un geste
+  (`UpdateChecker.kt`, nécessite l'autorisation Android « installer des
+  applications inconnues » au premier déclenchement).
+- **Build** : `.github/workflows/android-release.yml` compile l'APK, génère
+  son `version.json` (version + `versionCode`) et republie les deux comme
+  assets de la release GitHub `android-latest` (recréée à chaque build,
+  déclenchable manuellement ou via un tag `android-vX.Y.Z`) — ce sont ces
+  deux liens stables que le site et l'app consomment.
 - **Signature** : pour un APK installable (signé), configurez ces secrets
   du dépôt GitHub avant de lancer le workflow :
   - `FAMILYBOARD_KEYSTORE_BASE64` — un keystore encodé en base64

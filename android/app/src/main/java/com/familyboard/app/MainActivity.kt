@@ -73,6 +73,8 @@ class MainActivity : AppCompatActivity() {
         } else {
             showMainScreen(savedUrl)
         }
+
+        UpdateChecker.check(this, silent = true)
     }
 
     private fun showSetupScreen() {
@@ -216,6 +218,10 @@ class MainActivity : AppCompatActivity() {
                 webView.loadUrl("about:blank")
                 invalidateOptionsMenu()
                 showSetupScreen()
+                true
+            }
+            R.id.action_check_update -> {
+                UpdateChecker.check(this, silent = false)
                 true
             }
             else -> super.onOptionsItemSelected(item)

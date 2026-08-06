@@ -18,7 +18,7 @@ $sections = [
         ],
         [
             "Puis-je installer FamilyBoard comme une application sur mon téléphone ?",
-            "Oui, sans passer par un store : depuis Paramètres → 📲 Installer l'application, un bouton propose l'installation directe (Android/Chrome) ou un guide pas-à-pas (iPhone/iPad via Safari → Partager → Sur l'écran d'accueil). L'app fonctionne ensuite hors-ligne partiellement et peut recevoir des notifications.",
+            "Oui, sans passer par un store : depuis Paramètres → 📲 Installer l'application, un bouton propose l'installation directe (Android/Chrome) ou un guide pas-à-pas (iPhone/iPad via Safari → Partager → Sur l'écran d'accueil). L'app fonctionne ensuite hors-ligne partiellement et peut recevoir des notifications. Une alternative existe aussi côté Android : un APK à télécharger directement depuis <a href=\"" . BASE_URL . "/android\">cette page</a>, qui vérifie lui-même ses mises à jour.",
         ],
     ],
     'Compte & famille' => [
