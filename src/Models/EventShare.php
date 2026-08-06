@@ -135,6 +135,16 @@ class EventShare
     /** Appelé juste avant la suppression réelle de l'événement source. */
     public static function propagateDelete(int $eventId): void
     {
+        // Invitations encore en attente : aucune copie n'a jamais été créée, donc rien à
+        // notifier via event_share_changes — on les retire simplement pour ne pas laisser une
+        // ligne dont origin_event_id pointe vers un événement qui n'existe plus (event_shares
+        // n'a plus de contrainte de clé étrangère depuis add_family_sharing_no_fk.sql, donc rien
+        // ne le ferait automatiquement).
+        Database::execute(
+            "UPDATE event_shares SET status='declined', ended_at=NOW() WHERE origin_event_id=? AND status='pending' AND ended_at IS NULL",
+            [$eventId]
+        );
+
         $shares = Database::fetchAll(
             "SELECT * FROM event_shares WHERE origin_event_id=? AND status='accepted' AND ended_at IS NULL",
             [$eventId]

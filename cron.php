@@ -1,8 +1,9 @@
 <?php
 /**
  * FamilyBoard — Cron script for email reminders.
- * Run via cron: * * * * * php /path/to/familyboard/cron.php >> /var/log/familyboard-cron.log 2>&1
- * Recommended: every hour  →  0 * * * *
+ * Recommended: every minute  →  * * * * * php /path/to/familyboard/cron.php >> /var/log/familyboard-cron.log 2>&1
+ * (needed for a responsive CalDAV sync; reminder dedup is time-window based, not run-count
+ * based, so the frequent execution never causes duplicate reminders)
  */
 declare(strict_types=1);
 
@@ -35,13 +36,30 @@ use App\Models\Budget;
 use App\Models\Birthday;
 use App\Models\Custody;
 use App\Core\EmailLayout;
+use App\Models\AppSetting;
+
+// Le cron tourne chaque minute (pour la synchro CalDAV) mais un run peut dépasser 60s (envois
+// SMTP séquentiels, appels HTTP externes) — un verrou évite que deux exécutions se chevauchent
+// et lisent email_logs avant que l'autre n'ait eu le temps d'y insérer sa ligne, ce qui
+// recréerait le problème de doublons que la dédup ci-dessous cherche justement à éviter.
+$lockHandle = fopen(sys_get_temp_dir() . '/familyboard-cron.lock', 'c');
+if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
+    echo "Une autre exécution de cron.php est déjà en cours, on abandonne." . PHP_EOL;
+    exit(0);
+}
 
 $appUrl = (getenv('APP_URL') ?: 'https://board.abhd.fr') . BASE_URL;
 
 // Veille informationnelle (alertes enlèvement/canicule/inondation/feu de forêt/climatique/
-// industrielle) : voir App\Core\OfficialAlertFeed pour les limites de cette approche.
+// industrielle) : le contenu de ces flux ne change pas à la minute près, donc on ne les
+// interroge qu'au maximum une fois toutes les 15 minutes malgré la fréquence du cron, pour ne
+// pas marteler ces services externes.
 try {
-    \App\Core\OfficialAlertFeed::poll();
+    $lastPoll = AppSetting::get('official_alert_feed_last_poll');
+    if (!$lastPoll || strtotime($lastPoll) <= time() - 15 * 60) {
+        \App\Core\OfficialAlertFeed::poll();
+        AppSetting::set('official_alert_feed_last_poll', date('Y-m-d H:i:s'));
+    }
 } catch (\Throwable $e) {
     error_log('OfficialAlertFeed poll error: ' . $e->getMessage());
 }
@@ -168,8 +186,8 @@ function sendEventReminders(int $familyId, array $members, string $appUrl): void
             // control completely.
             $marker = '<!-- evt:' . $event['id'] . ' -->';
             $alreadySent = Database::fetch(
-                'SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ?
-                 AND created_at > DATE_SUB(NOW(), INTERVAL 25 HOUR)',
+                "SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ? AND status='sent'
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 25 HOUR)",
                 [$familyId, 'event_reminder', $member['email'], '%' . $marker . '%']
             );
             if ($alreadySent) continue;
