@@ -185,6 +185,10 @@ ob_start();
                 </ol>
             </details>
         </div>
+        <p style="margin-top:1rem;font-size:.85rem;color:var(--text-muted)">
+            Vous préférez une app Android installable (APK) plutôt qu'une PWA ?
+            <a href="<?= BASE_URL ?>/android">Téléchargez-la ici</a> — elle vérifie elle-même ses mises à jour.
+        </p>
     </div>
 
     <!-- Barre de navigation rapide (bas d'écran, mobile/PWA) -->

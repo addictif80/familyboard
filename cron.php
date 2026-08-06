@@ -1,8 +1,9 @@
 <?php
 /**
  * FamilyBoard — Cron script for email reminders.
- * Run via cron: * * * * * php /path/to/familyboard/cron.php >> /var/log/familyboard-cron.log 2>&1
- * Recommended: every hour  →  0 * * * *
+ * Recommended: every minute  →  * * * * * php /path/to/familyboard/cron.php >> /var/log/familyboard-cron.log 2>&1
+ * (needed for a responsive CalDAV sync; reminder dedup is time-window based, not run-count
+ * based, so the frequent execution never causes duplicate reminders)
  */
 declare(strict_types=1);
 
@@ -35,13 +36,38 @@ use App\Models\Budget;
 use App\Models\Birthday;
 use App\Models\Custody;
 use App\Core\EmailLayout;
+use App\Models\AppSetting;
+
+// Le cron tourne chaque minute (pour la synchro CalDAV) mais un run peut dépasser 60s (envois
+// SMTP séquentiels, appels HTTP externes) — un verrou évite que deux exécutions se chevauchent
+// et lisent email_logs avant que l'autre n'ait eu le temps d'y insérer sa ligne, ce qui
+// recréerait le problème de doublons que la dédup ci-dessous cherche justement à éviter.
+// Nom de fichier qualifié par le chemin de l'appli (pas juste "familyboard-cron.lock") pour ne
+// pas entrer en collision avec une autre instance (staging, autre client) partageant le même
+// /tmp sur un hébergement mutualisé.
+$lockPath = sys_get_temp_dir() . '/familyboard-cron-' . md5(__DIR__) . '.lock';
+$lockHandle = fopen($lockPath, 'c');
+if (!$lockHandle || !flock($lockHandle, LOCK_EX | LOCK_NB)) {
+    echo "Une autre exécution de cron.php est déjà en cours, on abandonne." . PHP_EOL;
+    exit(0);
+}
+register_shutdown_function(function () use ($lockHandle) {
+    flock($lockHandle, LOCK_UN);
+    fclose($lockHandle);
+});
 
 $appUrl = (getenv('APP_URL') ?: 'https://board.abhd.fr') . BASE_URL;
 
 // Veille informationnelle (alertes enlèvement/canicule/inondation/feu de forêt/climatique/
-// industrielle) : voir App\Core\OfficialAlertFeed pour les limites de cette approche.
+// industrielle) : le contenu de ces flux ne change pas à la minute près, donc on ne les
+// interroge qu'au maximum une fois toutes les 15 minutes malgré la fréquence du cron, pour ne
+// pas marteler ces services externes.
 try {
-    \App\Core\OfficialAlertFeed::poll();
+    $lastPoll = AppSetting::get('official_alert_feed_last_poll');
+    if (!$lastPoll || strtotime($lastPoll) <= time() - 15 * 60) {
+        \App\Core\OfficialAlertFeed::poll();
+        AppSetting::set('official_alert_feed_last_poll', date('Y-m-d H:i:s'));
+    }
 } catch (\Throwable $e) {
     error_log('OfficialAlertFeed poll error: ' . $e->getMessage());
 }
@@ -168,8 +194,8 @@ function sendEventReminders(int $familyId, array $members, string $appUrl): void
             // control completely.
             $marker = '<!-- evt:' . $event['id'] . ' -->';
             $alreadySent = Database::fetch(
-                'SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ?
-                 AND created_at > DATE_SUB(NOW(), INTERVAL 25 HOUR)',
+                "SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ? AND status='sent'
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 25 HOUR)",
                 [$familyId, 'event_reminder', $member['email'], '%' . $marker . '%']
             );
             if ($alreadySent) continue;
@@ -223,8 +249,8 @@ function sendBirthdayReminders(int $familyId, array $members, string $appUrl): v
             // destinataire, il ne doit contenir aucun marqueur technique.
             $key = 'birthday_' . $b['type'] . '_' . $b['id'] . '_' . date('Y');
             $alreadySent = Database::fetch(
-                'SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ?
-                 AND created_at > DATE_SUB(NOW(), INTERVAL 8 DAY)',
+                "SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ? AND status='sent'
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 8 DAY)",
                 [$familyId, 'birthday_reminder', $member['email'], '%' . $key . '%']
             );
             if ($alreadySent) continue;
@@ -274,8 +300,8 @@ function sendTaskReminders(int $familyId, array $members, string $appUrl): void
             if (empty($member['email'])) continue;
 
             $alreadySent = Database::fetch(
-                'SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=?
-                 AND created_at > DATE_SUB(NOW(), INTERVAL 8 DAY)',
+                "SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND status='sent'
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 8 DAY)",
                 [$familyId, 'task_reminder', $member['email']]
             );
             if ($alreadySent) continue;
@@ -396,14 +422,6 @@ function sendShoppingReminders(int $familyId, array $members, string $appUrl): v
     );
 
     foreach ($lists as $list) {
-        // Already sent reminder for this list this week?
-        $alreadySent = Database::fetch(
-            'SELECT id FROM email_logs WHERE family_id=? AND type=? AND subject LIKE ?
-             AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)',
-            [$familyId, 'shopping_reminder', '%' . $list['name'] . '%']
-        );
-        if ($alreadySent) continue;
-
         $items = Database::fetchAll(
             'SELECT title FROM tasks WHERE list_id=? AND is_completed=0 ORDER BY created_at',
             [$list['id']]
@@ -414,6 +432,15 @@ function sendShoppingReminders(int $familyId, array $members, string $appUrl): v
 
         foreach ($members as $member) {
             if (empty($member['email'])) continue;
+
+            // Déduplication par membre (pas juste par liste) : un envoi en échec pour un membre
+            // ne doit pas priver les autres membres de la famille du rappel.
+            $alreadySent = Database::fetch(
+                "SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND subject LIKE ? AND status='sent'
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)",
+                [$familyId, 'shopping_reminder', $member['email'], '%' . $list['name'] . '%']
+            );
+            if ($alreadySent) continue;
 
             $rendered = EmailContent::render('shopping_reminder', [
                 'user_name' => $member['name'],
@@ -454,8 +481,8 @@ function sendTomorrowEventDigest(int $familyId, array $members, string $appUrl):
 
         // Deduplicate: one digest per member per day
         $alreadySent = Database::fetch(
-            'SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=?
-             AND DATE(created_at) = CURDATE()',
+            "SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND status='sent'
+             AND DATE(created_at) = CURDATE()",
             [$familyId, 'event_tomorrow_digest', $member['email']]
         );
         if ($alreadySent) continue;
@@ -525,7 +552,7 @@ function sendWeeklyDigest(int $familyId, array $family, array $members, string $
         if (empty($member['email'])) continue;
 
         $alreadySent = Database::fetch(
-            "SELECT id FROM email_logs WHERE family_id=? AND type='weekly_digest' AND to_email=? AND DATE(created_at)=CURDATE()",
+            "SELECT id FROM email_logs WHERE family_id=? AND type='weekly_digest' AND to_email=? AND status='sent' AND DATE(created_at)=CURDATE()",
             [$familyId, $member['email']]
         );
         if ($alreadySent) continue;
@@ -586,7 +613,7 @@ function sendCoparentWeeklyDigests(string $appUrl): void
         if (empty($schedules)) continue;
 
         $alreadySent = Database::fetch(
-            "SELECT id FROM email_logs WHERE type='weekly_digest_coparent' AND to_email=? AND DATE(created_at)=CURDATE()",
+            "SELECT id FROM email_logs WHERE type='weekly_digest_coparent' AND to_email=? AND status='sent' AND DATE(created_at)=CURDATE()",
             [$user['email']]
         );
         if ($alreadySent) continue;

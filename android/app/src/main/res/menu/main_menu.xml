@@ -10,4 +10,9 @@
         android:title="@string/change_server"
         android:icon="@android:drawable/ic_menu_manage"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_check_update"
+        android:title="@string/check_update"
+        android:icon="@android:drawable/ic_popup_sync"
+        app:showAsAction="never" />
 </menu>

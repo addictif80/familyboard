@@ -72,13 +72,26 @@ jobs:
           fi
           cp "$apk" familyboard.apk
 
-      # Le lien "https://github.com/<repo>/releases/latest/download/familyboard.apk"
-      # (utilisé par l'app web) pointe toujours vers cet asset : la release
-      # "android-latest" est recréée à chaque build.
+      # Consommé par l'app elle-même (UpdateChecker.kt) pour savoir si une nouvelle version
+      # est disponible, sans dépendre du rate-limit de l'API GitHub à chaque lancement.
+      - name: Write version.json
+        run: |
+          cat > version.json <<EOF
+          {
+            "version": "${{ steps.version.outputs.name }}",
+            "versionCode": ${{ github.run_number }}
+          }
+          EOF
+
+      # Les liens "https://github.com/<repo>/releases/download/android-latest/familyboard.apk"
+      # et ".../android-latest/version.json" (utilisés par le site et par l'app) pointent
+      # toujours vers ces assets : la release "android-latest" est recréée à chaque build.
       - name: Publish/replace the "latest" release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-latest
           name: "FamilyBoard Android ${{ steps.version.outputs.name }}"
           make_latest: true
-          files: familyboard.apk
+          files: |
+            familyboard.apk
+            version.json

@@ -610,6 +610,7 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   transition: background .15s, border-color .15s;
 }
 .nav-search-trigger:hover { background: var(--card-bg-alt); border-color: var(--primary-light); }
+.nav-search-trigger-mobile { display: none; }
 .nav-search-kbd {
   font-size: .68rem;
   font-weight: 700;
@@ -1454,6 +1455,7 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
   .content-area { padding: 1rem; padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)); }
   .bottom-nav { display: flex; }
   .nav-search-trigger { display: none; }
+  .nav-search-trigger-mobile { display: inline-flex; align-items: center; justify-content: center; }
   .sidebar-search { display: flex; }
 
   .dashboard-grid { grid-template-columns: 1fr; }

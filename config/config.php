@@ -2,6 +2,9 @@
 // Application Configuration
 define('APP_NAME', 'FamilyBoard');
 define('BASE_PATH', dirname(__DIR__));
+// Dépôt GitHub public utilisé pour distribuer l'APK Android (release "android-latest",
+// republiée à chaque build par .github/workflows/android-release.yml).
+define('GITHUB_REPO', 'addictif80/familyboard');
 // Assets version — auto-updates whenever any CSS/JS asset changes (no manual
 // bump needed). Must cover every file under public/css and public/js, not
 // just app.css: the service worker caches all /public/ assets together under
