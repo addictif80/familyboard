@@ -160,12 +160,17 @@ function sendEventReminders(int $familyId, array $members, string $appUrl): void
         foreach ($members as $member) {
             if (empty($member['email'])) continue;
 
-            // Avoid duplicate: check if reminder already sent for this event+member
-            $key = 'event_' . $event['id'];
+            // Avoid duplicate: check if reminder already sent for this event+member. The
+            // subject only contains the event title (never its id), so a LIKE on the id was
+            // never matching anything — this silently resent the same reminder every hour for
+            // as long as the event stayed in the 24h window (hourly for a recurring event, for
+            // as many days as it kept recurring). Marker embedded in the body instead, which we
+            // control completely.
+            $marker = '<!-- evt:' . $event['id'] . ' -->';
             $alreadySent = Database::fetch(
-                'SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND subject LIKE ?
+                'SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ?
                  AND created_at > DATE_SUB(NOW(), INTERVAL 25 HOUR)',
-                [$familyId, 'event_reminder', $member['email'], '%' . $event['id'] . '%']
+                [$familyId, 'event_reminder', $member['email'], '%' . $marker . '%']
             );
             if ($alreadySent) continue;
 
@@ -184,7 +189,7 @@ function sendEventReminders(int $familyId, array $members, string $appUrl): void
             $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
                 'label' => 'Voir le calendrier',
                 'url'   => $appUrl . '/calendar',
-            ], $extra);
+            ], $extra) . $marker;
 
             Mail::send($familyId, $member['email'], $member['name'],
                 $rendered['subject'], $html, 'event_reminder');
