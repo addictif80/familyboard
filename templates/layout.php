@@ -438,6 +438,7 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
                     <span>🔎 Rechercher…</span>
                     <span class="nav-search-kbd">Ctrl K</span>
                 </button>
+                <button class="btn-icon nav-search-trigger-mobile" onclick="openNavSearch()" title="Rechercher">🔎</button>
                 <button class="btn-icon" onclick="openReportIssueModal()" title="Signaler un problème">🐞</button>
                 <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème">
                     <span class="theme-icon-sun">☀️</span>
