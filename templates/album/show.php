@@ -13,6 +13,12 @@ ob_start();
         </div>
         <?php if ($canManage): ?>
         <div class="album-header-actions">
+            <select class="album-wall-scope-select" title="Afficher dans l'onglet Photos du mur" onchange="albumSetWallScope(<?= (int)$album['id'] ?>, this.value)">
+                <option value="" <?= empty($album['wall_scope']) ? 'selected' : '' ?>>🚫 Pas sur le mur</option>
+                <option value="family" <?= ($album['wall_scope'] ?? '') === 'family' ? 'selected' : '' ?>>🏠 Mur — Famille</option>
+                <option value="personal" <?= ($album['wall_scope'] ?? '') === 'personal' ? 'selected' : '' ?>>🙋 Mur — Amis</option>
+                <option value="network" <?= ($album['wall_scope'] ?? '') === 'network' ? 'selected' : '' ?>>🤝 Mur — Familles amies</option>
+            </select>
             <button class="btn btn-secondary btn-sm" onclick="albumOpenEditModal(<?= (int)$album['id'] ?>, <?= htmlspecialchars(json_encode($album['title']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($album['description'] ?? ''), ENT_QUOTES) ?>)">Renommer</button>
             <?php if ($user['role'] === 'admin'): ?>
             <button class="btn btn-secondary btn-sm" onclick="albumOpenShareModal(<?= (int)$album['id'] ?>, <?= json_encode($album['custody_schedule_ids'] ?? '') ?>)">Partager</button>
@@ -47,7 +53,7 @@ ob_start();
             <div class="album-photo-meta">
                 <span title="<?= htmlspecialchars($photoAuthor) ?>" style="color:<?= htmlspecialchars($photoColor) ?>">● <?= htmlspecialchars($photoAuthor) ?></span>
                 <?php if ((int)$photo['user_id'] === (int)$user['id']): ?>
-                    <button class="album-photo-delete" onclick="shareToWall(<?= (int)$photo['id'] ?>)" title="Partager sur le mur">📤</button>
+                    <button class="album-photo-delete" onclick="openShareToWallModal(<?= (int)$photo['id'] ?>)" title="Partager sur le mur">📤</button>
                 <?php endif; ?>
                 <?php if ($canDeletePhoto): ?>
                     <button class="album-photo-delete" onclick="albumDeletePhoto(<?= (int)$photo['id'] ?>, this)" title="Supprimer">✕</button>
@@ -155,6 +161,35 @@ ob_start();
     </div>
 </div>
 
+<!-- Share to wall modal -->
+<div class="modal-overlay" id="album-share-to-wall-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>📤 Partager sur le mur</h3>
+            <button onclick="closeModal('album-share-to-wall-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="share-to-wall-photo-id">
+            <div class="form-group">
+                <label>Légende (optionnel)</label>
+                <textarea id="share-to-wall-caption" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Visible par</label>
+                <select id="share-to-wall-scope">
+                    <option value="personal">🙋 Amis (mes abonnés)</option>
+                    <option value="family">🏠 Ma famille</option>
+                    <option value="network">🤝 Familles amies</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('album-share-to-wall-modal')">Annuler</button>
+            <button class="btn btn-primary" onclick="confirmShareToWall()">Partager</button>
+        </div>
+    </div>
+</div>
+
 <!-- Lightbox -->
 <div class="modal-overlay" id="album-lightbox" style="display:none" onclick="closeModal('album-lightbox')">
     <img id="album-lightbox-img" src="" alt="" style="max-width:92vw;max-height:92vh;border-radius:8px">
@@ -163,7 +198,8 @@ ob_start();
 <style>
 .album-header { margin-bottom: 1rem; }
 .album-header-row { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-top:.5rem; }
-.album-header-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+.album-header-actions { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.album-wall-scope-select { padding:.4rem .6rem; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); color:var(--text); font-size:.8rem; }
 .album-upload-card { padding:1rem; margin-bottom:1rem; }
 .album-meta { font-size:.8rem; color:var(--text-muted); }
 .album-photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.75rem; }

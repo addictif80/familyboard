@@ -69,6 +69,27 @@ class AlbumController extends BaseController
         });
     }
 
+    /** Affiche/retire un album de l'onglet "Photos" du mur, avec sa portée — propriétaire ou admin famille. */
+    public function setWallScope(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user  = Session::user();
+            $album = Album::getById((int)$params['id']);
+            if (!$album || (int)$album['family_id'] !== (int)$user['family_id']) {
+                return ['success' => false, 'error' => 'Album introuvable.'];
+            }
+            if (!$this->canManageAlbum($album, $user)) return ['success' => false, 'error' => 'Non autorisé.'];
+
+            $scope = $this->jsonInput()['scope'] ?? null;
+            if ($scope !== null && !in_array($scope, ['personal', 'family', 'network'], true)) {
+                return ['success' => false, 'error' => 'Portée invalide.'];
+            }
+            Album::setWallScope($album['id'], $scope);
+            return ['success' => true];
+        });
+    }
+
     public function delete(array $params): void
     {
         $this->requireAuth();

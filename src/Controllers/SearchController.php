@@ -138,7 +138,8 @@ class SearchController extends BaseController
 
             if ($enabled('wall')) {
                 $visibleAuthorIds = Follow::getVisibleAuthorIds((int)$user['id']);
-                foreach (Post::searchVisible($familyId, (int)$user['id'], $visibleAuthorIds, $like, 5) as $r) {
+                $friendFamilyIds = \App\Models\FamilyFriend::getAcceptedFamilyIds($familyId);
+                foreach (Post::searchVisible($familyId, (int)$user['id'], $visibleAuthorIds, $friendFamilyIds, $like, 5) as $r) {
                     $excerpt = mb_strimwidth(trim(strip_tags((string)$r['content'])), 0, 80, '…');
                     if ($excerpt === '') continue;
                     $results[] = ['group' => 'Mur familial', 'icon' => '📸', 'label' => $excerpt, 'url' => '/wall'];

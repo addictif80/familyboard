@@ -178,13 +178,40 @@ function albumCopyPublicLink() {
     navigator.clipboard?.writeText(input.value).then(() => Dialog.toast('Lien copié.', 'success'));
 }
 
+// ---- Portée d'affichage dans l'onglet Photos du mur ----
+
+async function albumSetWallScope(albumId, scope) {
+    const r = await apiFetch(BASE_URL + '/api/albums/' + albumId + '/wall-scope', {
+        method: 'POST',
+        body: JSON.stringify({ scope: scope || null }),
+    });
+    if (r.success) {
+        Dialog.toast(scope ? 'Album affiché sur le mur.' : 'Album retiré du mur.', 'success');
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}
+
 // ---- Partage vers le mur familial ----
 
-async function shareToWall(photoId) {
-    const caption = window.prompt('Légende (optionnelle) pour cette publication sur le mur :') || '';
-    const r = await apiFetch(BASE_URL + '/api/wall/share-photo', { method: 'POST', body: JSON.stringify({ photo_id: photoId, caption }) });
+function openShareToWallModal(photoId) {
+    document.getElementById('share-to-wall-photo-id').value = photoId;
+    document.getElementById('share-to-wall-caption').value = '';
+    document.getElementById('share-to-wall-scope').value = 'personal';
+    openModal('album-share-to-wall-modal');
+}
+
+async function confirmShareToWall() {
+    const photoId = document.getElementById('share-to-wall-photo-id').value;
+    const caption = document.getElementById('share-to-wall-caption').value.trim();
+    const scope = document.getElementById('share-to-wall-scope').value;
+    const r = await apiFetch(BASE_URL + '/api/wall/share-photo', {
+        method: 'POST',
+        body: JSON.stringify({ photo_id: photoId, caption, scope }),
+    });
     if (r.success) {
-        Dialog.toast('Photo partagée sur le mur !');
+        closeModal('album-share-to-wall-modal');
+        Dialog.toast(r.pending ? 'Publication envoyée à l\'administrateur pour validation.' : 'Photo partagée sur le mur !');
     } else {
         Dialog.toast(r.error || 'Erreur.', 'error');
     }

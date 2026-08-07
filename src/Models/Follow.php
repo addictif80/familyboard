@@ -3,8 +3,9 @@ namespace App\Models;
 
 use App\Core\Database;
 
-/** Abonnements entre membres d'une même famille (jamais entre familles différentes, jamais
- *  avec un compte co-parent — filtré au niveau contrôleur). */
+/** Abonnements entre membres FamilyBoard — au sein d'une même famille, ou entre deux familles
+ *  amies (scope "Amis" du mur social) — jamais avec un compte co-parent, ni entre deux familles
+ *  qui ne sont pas amies (voir FollowController::validTarget, seul point de contrôle). */
 class Follow
 {
     public static function status(int $followerId, int $followeeId): ?string
@@ -50,7 +51,8 @@ class Follow
     public static function getFollowing(int $userId, string $status = 'accepted'): array
     {
         return Database::fetchAll(
-            'SELECT f.*, u.name, u.avatar, u.color FROM follows f JOIN users u ON u.id=f.followee_id
+            'SELECT f.*, u.name, u.avatar, u.color, u.family_id, fam.name as family_name
+             FROM follows f JOIN users u ON u.id=f.followee_id JOIN families fam ON fam.id=u.family_id
              WHERE f.follower_id=? AND f.status=? ORDER BY u.name',
             [$userId, $status]
         );
@@ -59,7 +61,8 @@ class Follow
     public static function getFollowers(int $userId, string $status = 'accepted'): array
     {
         return Database::fetchAll(
-            'SELECT f.*, u.name, u.avatar, u.color FROM follows f JOIN users u ON u.id=f.follower_id
+            'SELECT f.*, u.name, u.avatar, u.color, u.family_id, fam.name as family_name
+             FROM follows f JOIN users u ON u.id=f.follower_id JOIN families fam ON fam.id=u.family_id
              WHERE f.followee_id=? AND f.status=? ORDER BY u.name',
             [$userId, $status]
         );

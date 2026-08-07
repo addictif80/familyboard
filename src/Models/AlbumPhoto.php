@@ -45,6 +45,18 @@ class AlbumPhoto
         );
     }
 
+    /** Mes propres photos, toutes familles confondues, pour le sélecteur "Depuis un album" du
+     *  mur — jamais celles d'un autre membre, même dans un album partagé. */
+    public static function getByUser(int $userId, int $limit = 60): array
+    {
+        return Database::fetchAll(
+            'SELECT p.*, a.title as album_title
+             FROM album_photos p JOIN albums a ON a.id=p.album_id
+             WHERE p.user_id=? ORDER BY p.created_at DESC LIMIT ?',
+            [$userId, $limit]
+        );
+    }
+
     public static function delete(int $id): void
     {
         Database::execute('DELETE FROM album_photos WHERE id=?', [$id]);

@@ -5,6 +5,8 @@
             <strong><?= htmlspecialchars($post['user_name']) ?></strong>
             <?php if (($post['post_type'] ?? 'personal') === 'family'): ?>
                 <span class="badge-custom" title="Publié au nom de la famille">🏠 Famille</span>
+            <?php elseif (($post['post_type'] ?? 'personal') === 'network'): ?>
+                <span class="badge-custom" title="Visible par les familles amies">🤝 Familles amies</span>
             <?php endif; ?>
             <span class="post-date"><?= \App\Core\DateHelper::fromUtc($post['created_at'], 'd/m/Y \à H:i') ?></span>
         </div>
