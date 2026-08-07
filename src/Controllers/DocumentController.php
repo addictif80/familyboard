@@ -53,6 +53,18 @@ class DocumentController extends BaseController
                 };
                 return ['success' => false, 'error' => $message];
             }
+            // Détection de doublon : sauf si l'utilisateur a déjà tranché (remplacer / garder
+            // les deux), un titre proche d'un document existant (même famille, même type)
+            // suspend la création et renvoie le document trouvé pour confirmation côté client.
+            $replaceId        = (int)($data['replace_document_id'] ?? 0);
+            $confirmDuplicate = !empty($data['confirm_duplicate']);
+            if (!$replaceId && !$confirmDuplicate) {
+                $similar = Document::findSimilar($user['family_id'], $data['title'] ?? '', $data['doc_type'] ?? '');
+                if ($similar) {
+                    return ['success' => false, 'duplicate' => $similar];
+                }
+            }
+
             $familyMemberIds = array_map('intval', array_column(User::getByFamily($user['family_id']), 'id'));
             $userId = (int)($data['user_id'] ?? $user['id']);
             if (!in_array($userId, $familyMemberIds, true)) $userId = $user['id'];
@@ -67,6 +79,12 @@ class DocumentController extends BaseController
             foreach ($data['custody_schedule_ids'] as $scheduleId) {
                 CustodyActivityLog::record($scheduleId, $user['id'], 'document_uploaded', $data['title'] ?? null);
             }
+
+            if ($replaceId) {
+                $old = Document::findById($replaceId, $user['family_id']);
+                if ($old) Document::archiveAndReplace($replaceId, $id, $user['family_id']);
+            }
+
             Notification::notifyFamily($user['family_id'], $user['id'], 'documents', 'Nouveau document',
                 $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/documents');
             return ['success' => true, 'id' => $id];
@@ -109,6 +127,17 @@ class DocumentController extends BaseController
                 CustodyActivityLog::record($scheduleId, $user['id'], 'document_updated', $data['title'] ?? null);
             }
             return ['success' => true];
+        });
+    }
+
+    public function history(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id   = (int)$params['id'];
+            if (!Document::findById($id, $user['family_id'])) return ['success' => false];
+            return ['success' => true, 'items' => Document::getPredecessors($id, $user['family_id'])];
         });
     }
 

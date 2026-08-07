@@ -512,6 +512,7 @@ $router->post('/api/documents/ocr', [DocumentController::class, 'ocr']);
 $router->get('/api/documents/search', [DocumentController::class, 'search']);
 $router->post('/api/documents/:id', [DocumentController::class, 'update']);
 $router->post('/api/documents/:id/delete', [DocumentController::class, 'delete']);
+$router->get('/api/documents/:id/history', [DocumentController::class, 'history']);
 
 // Baby
 $router->get('/baby', [BabyController::class, 'index']);

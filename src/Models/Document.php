@@ -6,10 +6,14 @@ use App\Core\OcrHelper;
 
 class Document
 {
-    public static function getAll(int $familyId, string $search = '', string $type = '', int $userId = 0): array
+    public static function getAll(int $familyId, string $search = '', string $type = '', int $userId = 0, bool $includeArchived = false): array
     {
         $where  = ['d.family_id = ?'];
         $params = [$familyId];
+
+        if (!$includeArchived) {
+            $where[] = 'd.archived_at IS NULL';
+        }
 
         if ($type !== '') {
             $where[]  = 'd.doc_type = ?';
@@ -70,7 +74,7 @@ class Document
     public static function getTypeCounts(int $familyId): array
     {
         $rows = Database::fetchAll(
-            'SELECT doc_type, COUNT(*) as cnt FROM documents WHERE family_id=? GROUP BY doc_type',
+            'SELECT doc_type, COUNT(*) as cnt FROM documents WHERE family_id=? AND archived_at IS NULL GROUP BY doc_type',
             [$familyId]
         );
         $map = [];
@@ -83,7 +87,7 @@ class Document
         $rows = Database::fetchAll(
             'SELECT d.*, COALESCE(u.name, d.former_user_name) as user_name, u.color as user_color, u.avatar as user_avatar
              FROM documents d LEFT JOIN users u ON u.id=d.user_id
-             WHERE d.family_id=?
+             WHERE d.family_id=? AND d.archived_at IS NULL
                AND d.expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
              ORDER BY d.expiry_date ASC',
             [$familyId, $days]
@@ -194,6 +198,67 @@ class Document
         return array_map([self::class, 'decorate'], $rows);
     }
 
+    /** Cherche un document existant (non archivé) au titre proche — même famille, même type si
+     *  précisé. Utilisé à l'ajout pour proposer de remplacer une version précédente plutôt que
+     *  de créer un doublon sans lien entre les deux. */
+    public static function findSimilar(int $familyId, string $title, string $type = ''): ?array
+    {
+        $norm = self::normalizeTitle($title);
+        if ($norm === '') return null;
+
+        $where  = ['family_id = ?', 'archived_at IS NULL'];
+        $params = [$familyId];
+        if ($type !== '' && $type !== 'auto') {
+            $where[]  = 'doc_type = ?';
+            $params[] = $type;
+        }
+
+        $rows = Database::fetchAll(
+            'SELECT id, title, doc_type, created_at FROM documents WHERE ' . implode(' AND ', $where) . ' ORDER BY created_at DESC',
+            $params
+        );
+        foreach ($rows as $row) {
+            $rowNorm = self::normalizeTitle($row['title']);
+            if ($rowNorm === $norm) return $row;
+            if (mb_strlen($norm) >= 4 && mb_strlen($rowNorm) >= 4
+                && (str_contains($rowNorm, $norm) || str_contains($norm, $rowNorm))) {
+                return $row;
+            }
+        }
+        return null;
+    }
+
+    private static function normalizeTitle(string $title): string
+    {
+        return preg_replace('/\s+/', ' ', mb_strtolower(trim($title)));
+    }
+
+    /** Archive l'ancien document (retiré de la liste par défaut, gardé pour historique) et le
+     *  lie à celui qui le remplace. */
+    public static function archiveAndReplace(int $oldId, int $newId, int $familyId): void
+    {
+        Database::execute(
+            'UPDATE documents SET archived_at=?, replaced_by_id=? WHERE id=? AND family_id=?',
+            [date('Y-m-d H:i:s'), $newId, $oldId, $familyId]
+        );
+    }
+
+    /** Chaîne des versions précédentes d'un document (la plus récente en premier). */
+    public static function getPredecessors(int $id, int $familyId): array
+    {
+        $chain = [];
+        $current = Database::fetch('SELECT id FROM documents WHERE replaced_by_id=? AND family_id=?', [$id, $familyId]);
+        $guard = 0;
+        while ($current && $guard < 20) {
+            $doc = self::findById((int)$current['id'], $familyId);
+            if (!$doc) break;
+            $chain[] = $doc;
+            $current = Database::fetch('SELECT id FROM documents WHERE replaced_by_id=? AND family_id=?', [$doc['id'], $familyId]);
+            $guard++;
+        }
+        return $chain;
+    }
+
     public static function delete(int $id, int $familyId): void
     {
         $row = Database::fetch('SELECT file_path FROM documents WHERE id=? AND family_id=?', [$id, $familyId]);
@@ -294,6 +359,7 @@ class Document
 
     private static function decorate(array $row): array
     {
+        $row['is_archived'] = !empty($row['archived_at']);
         $row['type_label'] = OcrHelper::typeLabel($row['doc_type']);
         $row['type_icon']  = OcrHelper::typeIcon($row['doc_type']);
         $row['type_color'] = OcrHelper::typeColor($row['doc_type']);

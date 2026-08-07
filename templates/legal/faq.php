@@ -116,7 +116,7 @@ $sections = [
         ],
         [
             "🗂️ Documents",
-            "Un coffre-fort documentaire familial avec OCR et recherche plein texte dans les documents scannés.",
+            "Un coffre-fort documentaire familial avec OCR et recherche plein texte dans les documents scannés. En ajoutant un document au titre proche d'un document déjà présent, l'app propose de le remplacer (l'ancien est alors archivé et reste consultable depuis l'historique de la nouvelle version) ou de garder les deux.",
         ],
         [
             "📇 Répertoire",
