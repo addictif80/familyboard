@@ -727,6 +727,7 @@ function fmtDayNames() {
 }
 
 function formatTime(datetime) {
+    if (!datetime) return '';
     // Le serveur stocke et renvoie les dates en UTC sans indicateur de fuseau
     // ("2026-08-07 17:06:00") : sans "Z", la plupart des moteurs JS interprètent une
     // chaîne non-ISO comme une heure LOCALE, pas UTC, ce qui décale l'affichage de
