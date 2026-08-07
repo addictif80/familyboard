@@ -202,8 +202,11 @@ class WallController extends BaseController
         $id = (int)$params['id'];
         $post = Post::getById($id);
         if ($post && ($post['user_id'] === $user['id'] || $user['role'] === 'admin') && $post['family_id'] === $user['family_id']) {
-            if ($post['image_path'] && file_exists(BASE_PATH . '/public' . $post['image_path'])) {
-                unlink(BASE_PATH . '/public' . $post['image_path']);
+            // image_path est déjà préfixé par "/public" (voir uploadImage()/sharePhoto()) : ne
+            // pas reconcaténer "/public" ici, sous peine de chercher /public/public/... (bug
+            // préexistant qui empêchait silencieusement la suppression du fichier).
+            if ($post['image_path'] && file_exists(BASE_PATH . $post['image_path'])) {
+                unlink(BASE_PATH . $post['image_path']);
             }
             Post::delete($id);
         }
@@ -344,7 +347,10 @@ class WallController extends BaseController
             // la photo dans l'album (qui efface le fichier disque) ne doit jamais casser
             // l'image d'une publication déjà partagée sur le mur — les deux doivent pouvoir
             // vivre et être supprimées indépendamment l'une de l'autre.
-            $sourcePath = BASE_PATH . '/public' . $photo['image_path'];
+            // image_path (ex. "/public/uploads/xxx.jpg") est déjà préfixé par "/public" — ne pas
+            // reconcaténer "/public" ici (bug préexistant qui rendait la copie introuvable et
+            // cassait silencieusement tout le partage photo→mur).
+            $sourcePath = BASE_PATH . $photo['image_path'];
             $ext = pathinfo($photo['image_path'], PATHINFO_EXTENSION) ?: 'jpg';
             $newRelativePath = null;
             if (is_file($sourcePath)) {
