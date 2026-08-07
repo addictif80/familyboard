@@ -727,7 +727,13 @@ function fmtDayNames() {
 }
 
 function formatTime(datetime) {
-    const d = new Date(datetime);
+    // Le serveur stocke et renvoie les dates en UTC sans indicateur de fuseau
+    // ("2026-08-07 17:06:00") : sans "Z", la plupart des moteurs JS interprètent une
+    // chaîne non-ISO comme une heure LOCALE, pas UTC, ce qui décale l'affichage de
+    // toute la différence de fuseau (ex. "il y a 2h" pour une notification qui vient
+    // d'arriver, en UTC+2). On force l'interprétation UTC en passant au format ISO.
+    const iso = datetime.replace(' ', 'T');
+    const d = new Date(/[Z+]|-\d{2}:\d{2}$/.test(iso) ? iso : iso + 'Z');
     const now = new Date();
     const diff = now - d;
     if (diff < 60000) return 'à l\'instant';
