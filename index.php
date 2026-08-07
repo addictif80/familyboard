@@ -293,6 +293,8 @@ $router->post('/album/:token/photos', [AlbumController::class, 'publicUpload']);
 $router->get('/tasks', [TaskController::class, 'index']);
 $router->post('/tasks/list', [TaskController::class, 'createList']);
 $router->post('/tasks/list/:id/delete', [TaskController::class, 'deleteList']);
+$router->post('/api/tasks/list/:id/link-event', [TaskController::class, 'linkEvent']);
+$router->post('/api/tasks/list/:id/unlink-event', [TaskController::class, 'unlinkEvent']);
 $router->post('/api/tasks/list/:id/task', [TaskController::class, 'createTask']);
 $router->post('/api/tasks/task/:id/toggle', [TaskController::class, 'toggleTask']);
 $router->post('/api/tasks/task/:id/update', [TaskController::class, 'updateTask']);

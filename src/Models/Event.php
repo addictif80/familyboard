@@ -91,6 +91,20 @@ class Event
         Database::execute('DELETE FROM events WHERE caldav_source_id=?', [$sourceId]);
     }
 
+    /** Événements récents/à venir sélectionnables pour rattacher une checklist (voir
+     *  TaskList::linkToEvent) — fenêtre plus large que getUpcoming() puisqu'on veut pouvoir
+     *  choisir un événement commencé il y a peu (ex. relier la checklist après coup). */
+    public static function getSelectableForFamily(int $familyId): array
+    {
+        $from = date('Y-m-d H:i:s', strtotime('-30 days'));
+        return Database::fetchAll(
+            'SELECT id, title, start_datetime FROM events
+             WHERE family_id=? AND start_datetime >= ?
+             ORDER BY start_datetime LIMIT 100',
+            [$familyId, $from]
+        );
+    }
+
     public static function getUpcoming(int $familyId, int $days = 7): array
     {
         // start_datetime est enregistré tel quel depuis un <input datetime-local> (heure locale

@@ -1035,6 +1035,7 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .badge-task, .badge-shopping { font-size: .85rem; }
 .tasks-main { flex: 1; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem; }
 .tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.list-event-link { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .82rem; color: var(--text-muted); margin: -.5rem 0 1rem; }
 .task-list { list-style: none; display: flex; flex-direction: column; gap: .4rem; }
 .task-item { display: flex; align-items: center; gap: .75rem; padding: .6rem .75rem; border-radius: 10px; border: 1px solid var(--border); background: var(--card-bg); transition: all .15s; }
 .task-item:hover { box-shadow: var(--shadow); }
