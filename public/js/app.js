@@ -368,6 +368,26 @@ function toggleNotifications() {
     if (notifOpen) loadNotifications();
 }
 
+// Un type par origine de notification, pour que l'utilisateur distingue au premier coup d'œil
+// une annonce système (tous utilisateurs), une annonce de son admin famille, et les
+// notifications automatiques de chaque module (icône + couleur + libellé de niveau).
+const NOTIF_TYPES = {
+    system:       { icon: '🛡️', color: '#8E44AD', level: 'Annonce système' },
+    family_admin: { icon: '📣', color: '#E67E22', level: 'Admin famille' },
+    calendar:     { icon: '📅', color: '#2E86DE', level: 'Calendrier' },
+    task:         { icon: '✅', color: '#27AE60', level: 'Tâches' },
+    wall:         { icon: '📝', color: '#D6336C', level: 'Mur familial' },
+    chat:         { icon: '💬', color: '#16A2A2', level: 'Chat' },
+    custody:      { icon: '👨‍👧', color: '#4A5FC1', level: 'Garde partagée' },
+    comm_log:     { icon: '📓', color: '#4A5FC1', level: 'Journal parental' },
+    location:     { icon: '📍', color: '#E74C3C', level: 'Position' },
+    documents:    { icon: '📄', color: '#7F8C8D', level: 'Documents' },
+    projects:     { icon: '🗂️', color: '#8E44AD', level: 'Projets' },
+    warranties:   { icon: '🧾', color: '#A0692B', level: 'Garanties' },
+    addition:     { icon: '💶', color: '#27AE60', level: 'Additions' },
+};
+const NOTIF_TYPE_DEFAULT = { icon: '🔔', color: 'var(--accent)', level: null };
+
 function loadNotifications() {
     fetch(BASE_URL + '/api/notifications')
         .then(r => r.json())
@@ -385,13 +405,17 @@ function loadNotifications() {
                 list.innerHTML = '<p style="padding:.75rem 1rem;color:var(--text-muted);font-size:.8rem">Aucune notification.</p>';
                 return;
             }
-            list.innerHTML = unread.map(n => `
-                <div class="notif-item notif-unread" data-notif-id="${n.id}" data-notif-link="${escapeHtml(n.link || '#')}">
-                    <div class="notif-title">${escapeHtml(n.title)}</div>
+            list.innerHTML = unread.map(n => {
+                const t = NOTIF_TYPES[n.type] || NOTIF_TYPE_DEFAULT;
+                return `
+                <div class="notif-item notif-unread" data-notif-id="${n.id}" data-notif-link="${escapeHtml(n.link || '#')}" style="--notif-color:${t.color}">
+                    <div class="notif-title"><span class="notif-icon">${t.icon}</span>${escapeHtml(n.title)}</div>
+                    ${t.level ? `<div class="notif-level">${escapeHtml(t.level)}</div>` : ''}
                     <div class="notif-msg">${escapeHtml(n.message)}</div>
                     <div class="notif-time">${formatTime(n.created_at)}</div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
             list.querySelectorAll('.notif-item').forEach(el => {
                 el.addEventListener('click', () => readNotif(el.dataset.notifId, el.dataset.notifLink));
             });
@@ -506,9 +530,11 @@ const style = document.createElement('style');
 style.textContent = `
 .notif-item { padding: .75rem 1rem; cursor: pointer; border-bottom: 1px solid var(--border); font-size: .8rem; border-left: 3px solid transparent; transition: background .15s; }
 .notif-item:hover { background: var(--bg); }
-.notif-unread { background: color-mix(in srgb, var(--primary) 8%, var(--card-bg)); border-left-color: var(--accent); }
+.notif-unread { background: color-mix(in srgb, var(--notif-color, var(--accent)) 8%, var(--card-bg)); border-left-color: var(--notif-color, var(--accent)); }
 .notif-title { font-weight: 600; margin-bottom: .15rem; display: flex; align-items: center; gap: .4rem; }
-.notif-unread .notif-title::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.notif-icon { flex-shrink: 0; }
+.notif-unread .notif-title::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--notif-color, var(--accent)); flex-shrink: 0; margin-left: auto; }
+.notif-level { color: var(--notif-color, var(--accent)); font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; margin-bottom: .25rem; }
 .notif-msg { color: var(--text-muted); }
 .notif-time { color: var(--text-muted); font-size: .7rem; margin-top: .2rem; }
 `;
