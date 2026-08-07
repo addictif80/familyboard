@@ -5,124 +5,61 @@ use App\Models\AppSetting;
 use App\Models\OfficialAlert;
 
 /**
- * Veille informationnelle par mots-clés sur des flux RSS d'actualité français, complétée si
- * possible par la véritable API officielle Vigilance de Météo-France (canicule + autres
- * risques météo, par département — voir pollMeteoFranceVigilance()). Aucun flux officiel
- * temps réel ne couvre l'ensemble des catégories visées (FR-Alert ne propose aucune API —
- * c'est un système de diffusion cellulaire, pas un flux consultable ; l'alerte enlèvement n'a
- * plus de flux RSS actif) : les catégories restantes détectent donc les articles pertinents
- * par mots-clés dans des flux RSS d'actualité générale, ce qui peut rater des alertes réelles
- * ou, plus rarement, mal classer un article — à traiter comme un complément de veille, pas
- * comme une source officielle temps réel.
- *
- * Pour les catégories géolocalisées (canicule, inondation, climatique, industrielle), un
- * article RSS n'est retenu que si le nom de la ville d'une famille (App\Models\Family::weather_city)
- * apparaît dans le texte — approximation par mot-clé également, pas un géociblage précis.
+ * Veille informationnelle : les alertes proviennent d'un unique flux RSS, la catégorie dédiée
+ * "familyboard-alert" du blog familial (leblogateur.fr), complétée par la véritable API
+ * officielle Vigilance de Météo-France (canicule + autres risques météo, par département —
+ * voir pollMeteoFranceVigilance()). Contrairement à une veille automatique par mots-clés sur
+ * des flux d'actualité générale (imprécise, faux positifs), chaque article de cette catégorie
+ * est rédigé volontairement pour FamilyBoard : le titre doit commencer par un préfixe indiquant
+ * la catégorie d'alerte, avec une ville optionnelle pour les catégories géolocalisées, ex. :
+ *   "[canicule] Vague de chaleur cette semaine"          → alerte nationale
+ *   "[inondation:Bordeaux] Crue de la Garonne"            → alerte ciblée sur la ville "Bordeaux"
+ * Le préfixe doit correspondre à une clé de App\Models\OfficialAlert::CATEGORIES ; un article
+ * sans préfixe reconnu est ignoré (et journalisé) plutôt que deviné.
  */
 class OfficialAlertFeed
 {
-    private const FEEDS = [
-        ['name' => 'France Info',       'url' => 'https://www.francetvinfo.fr/titres.rss'],
-        ['name' => 'France Info',       'url' => 'https://www.francetvinfo.fr/faits-divers.rss'],
-        ['name' => 'Le Monde',          'url' => 'https://www.lemonde.fr/rss/une.xml'],
-        ['name' => 'BFMTV',             'url' => 'https://www.bfmtv.com/rss/news-24-7/'],
-        ['name' => 'Ici (France Bleu)', 'url' => 'https://www.francebleu.fr/rss/a-la-une.xml'],
-    ];
+    private const FEED_URL = 'https://leblogateur.fr/categories/familyboard-alert/rss.xml';
+    private const SOURCE_NAME = 'Le Blogateur';
 
-    /**
-     * 'any' : catégorie retenue si un seul de ces mots-clés apparaît (termes déjà assez
-     * spécifiques pour ne pas avoir besoin de contexte supplémentaire).
-     * 'combo' : [groupeA, groupeB] — retenue seulement si AU MOINS UN mot de groupeA ET AU
-     * MOINS UN mot de groupeB apparaissent tous les deux. Sert pour les mots génériques
-     * ("incendie", "feu") qui, seuls, donneraient trop de faux positifs (explosion sans
-     * rapport, incendie d'entrepôt lors d'une frappe de drone…) — combinés à un mot de
-     * contexte (hectares, évacuation, pompiers…) ils deviennent fiables. Ajouté après
-     * constat que la presse ne dit presque jamais littéralement "feu de forêt" dans ses
-     * titres, même en pleine crise (elle écrit "incendie en Gironde", "le feu se dirige
-     * vers...", "44 000 évacués"…) — voir l'historique de ce fichier.
-     */
-    private const KEYWORDS = [
-        'enlevement'   => ['any' => ['alerte enlevement', 'enfant enleve', 'enfant disparu', 'avis de recherche']],
-        'canicule'     => ['any' => ['canicule', 'vague de chaleur', 'chaleur extreme', 'vigilance canicule']],
-        'inondation'   => [
-            'any'   => ['inondation', 'crue', 'crues', 'vigilance crues'],
-            'combo' => [['submersion', 'debordement'], ['fleuve', 'riviere', 'quartier', 'habitants', 'evacu']],
-        ],
-        'feu_foret'    => [
-            'any'   => ['feu de foret', 'feux de foret', 'incendie de foret', 'incendie de vegetation', 'megafeu', 'feu de vegetation', 'incendie ravage', 'incendies ravagent', 'brasier'],
-            'combo' => [
-                ['incendie', 'incendies', 'le feu', 'les feux', 'flammes', 'pyrocumulonimbus'],
-                ['hectares', 'evacu', 'pompiers', 'foret', 'vegetation', 'canadair', 'plan blanc', 'presqu\'ile', 'gironde', 'landes'],
-            ],
-        ],
-        'climatique'   => [
-            'any'   => ['catastrophe naturelle', 'tempete', 'evenement climatique extreme', 'vigilance rouge', 'vigilance orange'],
-            'combo' => [['orages', 'vent violent', 'grele', 'neige', 'verglas'], ['vigilance', 'degats', 'coupure', 'evacu']],
-        ],
-        'industrielle' => [
-            'any'   => ['accident industriel', 'usine seveso', 'explosion usine', 'fuite chimique', 'nuage toxique', 'confinement des populations'],
-            'combo' => [['explosion', 'incendie'], ['usine', 'site industriel', 'distillerie', 'entrepot chimique', 'raffinerie']],
-        ],
-    ];
+    /** Préfixe de titre : "[categorie]" ou "[categorie:Ville]". */
+    private const TITLE_PREFIX_PATTERN = '/^\[([a-z_]+)(?::([^\]]+))?\]\s*(.+)$/ui';
 
     public static function poll(): void
     {
-        $cities = self::getDistinctFamilyCities();
-
-        foreach (self::FEEDS as $feed) {
-            try {
-                $items = self::fetchItems($feed['url']);
-            } catch (\Throwable $e) {
-                error_log('OfficialAlertFeed fetch error (' . $feed['url'] . '): ' . $e->getMessage());
-                continue;
-            }
+        try {
+            $items = self::fetchItems(self::FEED_URL);
             foreach ($items as $item) {
-                self::processItem($feed['name'], $item, $cities);
+                self::processItem($item);
             }
+        } catch (\Throwable $e) {
+            error_log('OfficialAlertFeed fetch error (' . self::FEED_URL . '): ' . $e->getMessage());
         }
 
         try {
-            self::pollMeteoFranceVigilance($cities);
+            self::pollMeteoFranceVigilance(self::getDistinctFamilyCities());
         } catch (\Throwable $e) {
             error_log('OfficialAlertFeed Météo-France Vigilance error: ' . $e->getMessage());
         }
     }
 
-    private static function processItem(string $sourceName, array $item, array $cities): void
+    private static function processItem(array $item): void
     {
-        $haystack = self::normalize($item['title'] . ' ' . $item['description']);
-
-        foreach (self::KEYWORDS as $category => $rule) {
-            if (!self::ruleMatches($haystack, $rule)) continue;
-
-            if (OfficialAlert::CATEGORIES[$category]['scoped']) {
-                foreach ($cities as $city) {
-                    if (self::matchesCity($haystack, $city)) {
-                        self::saveAlert($category, $item, $sourceName, $city);
-                    }
-                }
-            } else {
-                self::saveAlert($category, $item, $sourceName, null);
-            }
+        if (!preg_match(self::TITLE_PREFIX_PATTERN, trim($item['title']), $m)) {
+            error_log('OfficialAlertFeed: article sans préfixe de catégorie ignoré — ' . $item['link']);
+            return;
         }
-    }
 
-    private static function ruleMatches(string $haystack, array $rule): bool
-    {
-        if (self::containsAny($haystack, $rule['any'] ?? [])) return true;
-        if (isset($rule['combo'])) {
-            [$groupA, $groupB] = $rule['combo'];
-            return self::containsAny($haystack, $groupA) && self::containsAny($haystack, $groupB);
-        }
-        return false;
-    }
+        $category = mb_strtolower($m[1]);
+        $city = isset($m[2]) && $m[2] !== '' ? trim($m[2]) : null;
+        $title = trim($m[3]);
 
-    private static function containsAny(string $haystack, array $keywords): bool
-    {
-        foreach ($keywords as $kw) {
-            if (str_contains($haystack, self::normalize($kw))) return true;
+        if (!isset(OfficialAlert::CATEGORIES[$category])) {
+            error_log('OfficialAlertFeed: catégorie inconnue "' . $category . '" ignorée — ' . $item['link']);
+            return;
         }
-        return false;
+
+        self::saveAlert($category, array_merge($item, ['title' => $title]), self::SOURCE_NAME, $city);
     }
 
     /** Délai minimum entre deux notifications push pour une même catégorie (et ville) : évite
@@ -356,20 +293,6 @@ class OfficialAlertFeed
     {
         $rows = Database::fetchAll("SELECT DISTINCT weather_city FROM families WHERE weather_city IS NOT NULL AND weather_city <> ''");
         return array_column($rows, 'weather_city');
-    }
-
-    private static function matchesCity(string $normalizedHaystack, string $city): bool
-    {
-        $needle = self::normalize($city);
-        if ($needle === '') return false;
-        return (bool)preg_match('/\b' . preg_quote($needle, '/') . '\b/u', $normalizedHaystack);
-    }
-
-    private static function normalize(string $s): string
-    {
-        $s = mb_strtolower($s, 'UTF-8');
-        $translit = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $s);
-        return $translit !== false ? $translit : $s;
     }
 
     private static function fetchItems(string $url): array
