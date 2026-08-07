@@ -8,6 +8,32 @@ function openNewListModal() {
     openModal('new-list-modal');
 }
 
+function openLinkEventModal() {
+    document.getElementById('link-event-select').value = '';
+    openModal('link-event-modal');
+}
+
+async function linkListEvent() {
+    const eventId = document.getElementById('link-event-select').value;
+    if (!eventId) return;
+    const res = await apiFetch(BASE_URL + '/api/tasks/list/' + LIST_ID + '/link-event', {
+        method: 'POST',
+        body: JSON.stringify({ event_id: eventId }),
+    });
+    if (res && res.success) {
+        location.reload();
+    } else {
+        Dialog.alert((res && res.error) || "Impossible de lier cet événement.");
+    }
+}
+
+async function unlinkListEvent() {
+    const confirmed = await Dialog.confirm('Délier cette liste de l\'événement ? Les tâches déjà cochées restent inchangées.');
+    if (!confirmed) return;
+    const res = await apiFetch(BASE_URL + '/api/tasks/list/' + LIST_ID + '/unlink-event', { method: 'POST' });
+    if (res && res.success) location.reload();
+}
+
 function openNewTaskModal() {
     editingTaskId = null;
     document.getElementById('task-modal-title').textContent = 'Nouvelle tâche';

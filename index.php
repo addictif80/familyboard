@@ -293,6 +293,8 @@ $router->post('/album/:token/photos', [AlbumController::class, 'publicUpload']);
 $router->get('/tasks', [TaskController::class, 'index']);
 $router->post('/tasks/list', [TaskController::class, 'createList']);
 $router->post('/tasks/list/:id/delete', [TaskController::class, 'deleteList']);
+$router->post('/api/tasks/list/:id/link-event', [TaskController::class, 'linkEvent']);
+$router->post('/api/tasks/list/:id/unlink-event', [TaskController::class, 'unlinkEvent']);
 $router->post('/api/tasks/list/:id/task', [TaskController::class, 'createTask']);
 $router->post('/api/tasks/task/:id/toggle', [TaskController::class, 'toggleTask']);
 $router->post('/api/tasks/task/:id/update', [TaskController::class, 'updateTask']);
@@ -510,6 +512,7 @@ $router->post('/api/documents/ocr', [DocumentController::class, 'ocr']);
 $router->get('/api/documents/search', [DocumentController::class, 'search']);
 $router->post('/api/documents/:id', [DocumentController::class, 'update']);
 $router->post('/api/documents/:id/delete', [DocumentController::class, 'delete']);
+$router->get('/api/documents/:id/history', [DocumentController::class, 'history']);
 
 // Baby
 $router->get('/baby', [BabyController::class, 'index']);

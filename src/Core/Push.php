@@ -60,9 +60,16 @@ class Push
         }
 
         foreach ($webPush->flush() as $report) {
-            if (!$report->isSuccess() && $report->isSubscriptionExpired()) {
+            if ($report->isSuccess()) continue;
+            if ($report->isSubscriptionExpired()) {
                 PushSubscription::deleteByEndpoint($report->getEndpoint());
+                continue;
             }
+            // Échec non lié à l'expiration (timeout, erreur serveur du service de push...) :
+            // on ne supprime pas l'abonnement (il peut redevenir valide), mais on trace
+            // l'échec pour qu'un problème récurrent (ex. mauvaise config VAPID) soit visible
+            // dans les logs plutôt que silencieusement avalé.
+            error_log('[Push] Envoi échoué vers ' . $report->getEndpoint() . ' : ' . $report->getReason());
         }
     }
 }

@@ -242,8 +242,10 @@
 
         <h2 style="margin-top:2rem">Veille informationnelle — Météo-France Vigilance</h2>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Le bandeau d'alertes (canicule, inondation, alerte climatique, catastrophe industrielle…) repose par
-            défaut sur une veille par mots-clés dans des flux RSS d'actualité. En complément, renseignez ici une
+            Le bandeau d'alertes (canicule, inondation, alerte climatique, catastrophe industrielle…) repose sur la
+            catégorie « familyboard-alert » du blog <a href="https://leblogateur.fr" target="_blank" rel="noopener">leblogateur.fr</a>
+            (un article dont le titre commence par <code>[categorie]</code>, ex. <code>[canicule]</code> ou
+            <code>[inondation:Bordeaux]</code>, devient une alerte). En complément, renseignez ici une
             clé API Vigilance de Météo-France pour des alertes canicule/météo officielles, précises par
             département. Clé gratuite à créer sur
             <a href="https://portail-api.meteofrance.fr/" target="_blank" rel="noopener">portail-api.meteofrance.fr</a>

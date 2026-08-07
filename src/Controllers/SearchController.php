@@ -145,6 +145,67 @@ class SearchController extends BaseController
                 }
             }
 
+            if ($enabled('additions')) {
+                foreach (Database::fetchAll(
+                    'SELECT id, title, is_cagnotte FROM additions WHERE family_id = ? AND (title LIKE ? OR description LIKE ?) ORDER BY created_at DESC LIMIT 5',
+                    [$familyId, $like, $like]
+                ) as $r) {
+                    $results[] = [
+                        'group' => $r['is_cagnotte'] ? 'Cagnotte' : 'Additions',
+                        'icon'  => $r['is_cagnotte'] ? '🐷' : '🧾',
+                        'label' => $r['title'],
+                        'url'   => '/additions',
+                    ];
+                }
+            }
+
+            if ($enabled('albums')) {
+                foreach (Database::fetchAll(
+                    'SELECT id, title FROM albums WHERE family_id = ? AND title LIKE ? ORDER BY created_at DESC LIMIT 5',
+                    [$familyId, $like]
+                ) as $r) {
+                    $results[] = ['group' => 'Albums photo', 'icon' => '🖼️', 'label' => $r['title'], 'url' => '/albums/' . (int)$r['id']];
+                }
+            }
+
+            if ($enabled('chat')) {
+                foreach (Database::fetchAll(
+                    'SELECT id, content FROM messages WHERE family_id = ? AND content LIKE ? ORDER BY created_at DESC LIMIT 5',
+                    [$familyId, $like]
+                ) as $r) {
+                    $excerpt = mb_strimwidth(trim((string)$r['content']), 0, 80, '…');
+                    if ($excerpt === '') continue;
+                    $results[] = ['group' => 'Chat familial', 'icon' => '💬', 'label' => $excerpt, 'url' => '/chat'];
+                }
+            }
+
+            if ($enabled('comm_log')) {
+                foreach (Database::fetchAll(
+                    'SELECT id, content FROM comm_log_messages WHERE family_id = ? AND content LIKE ? ORDER BY created_at DESC LIMIT 5',
+                    [$familyId, $like]
+                ) as $r) {
+                    $excerpt = mb_strimwidth(trim((string)$r['content']), 0, 80, '…');
+                    if ($excerpt === '') continue;
+                    $results[] = ['group' => 'Journal parental', 'icon' => '📝', 'label' => $excerpt, 'url' => '/comm-log'];
+                }
+            }
+
+            // Messages privés : toujours cherchés (pas de bascule de module — fonctionnalité liée au
+            // compte, pas à la famille), strictement limités aux fils où l'utilisateur est partie
+            // prenante — jamais une conversation entre deux tiers.
+            $myId = (int)$user['id'];
+            foreach (Database::fetchAll(
+                'SELECT dm.id, dm.content, IF(t.user_a_id = ?, t.user_b_id, t.user_a_id) as other_user_id
+                 FROM dm_messages dm JOIN dm_threads t ON t.id = dm.thread_id
+                 WHERE (t.user_a_id = ? OR t.user_b_id = ?) AND dm.content LIKE ?
+                 ORDER BY dm.created_at DESC LIMIT 5',
+                [$myId, $myId, $myId, $like]
+            ) as $r) {
+                $excerpt = mb_strimwidth(trim((string)$r['content']), 0, 80, '…');
+                if ($excerpt === '') continue;
+                $results[] = ['group' => 'Messages privés', 'icon' => '✉️', 'label' => $excerpt, 'url' => '/messages/' . (int)$r['other_user_id']];
+            }
+
             return ['results' => array_slice($results, 0, 40)];
         });
     }

@@ -43,6 +43,19 @@ ob_start();
                 <button class="btn btn-primary btn-sm" onclick="openNewTaskModal()">+ Ajouter</button>
             </div>
 
+            <?php if ($selectedList['user_id'] === $user['id'] || $user['role'] === 'admin'): ?>
+            <div class="list-event-link">
+                <?php if (!empty($selectedList['linked_event_id'])): ?>
+                    <span>🔗 Réinitialisée à chaque nouvelle occasion liée à
+                        <strong><?= htmlspecialchars($selectedList['linked_event_title']) ?></strong>
+                        (<?= date('d/m/Y', strtotime($selectedList['linked_event_start'])) ?>)</span>
+                    <button type="button" class="btn-text" onclick="unlinkListEvent()">Délier</button>
+                <?php else: ?>
+                    <button type="button" class="btn-text" onclick="openLinkEventModal()">🔗 Lier à un événement (réinitialisation auto à chaque nouvelle occasion)</button>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
             <ul class="task-list" id="task-list">
                 <?php foreach ($tasks as $task): ?>
                     <li class="task-item <?= $task['is_completed'] ? 'completed' : '' ?>" data-task-id="<?= $task['id'] ?>">
@@ -111,6 +124,36 @@ ob_start();
                 <button type="submit" class="btn btn-primary">Créer</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Link to event Modal -->
+<div class="modal-overlay" id="link-event-modal" style="display:none">
+    <div class="modal modal-sm">
+        <div class="modal-header">
+            <h3>Lier la liste à un événement</h3>
+            <button onclick="closeModal('link-event-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="color:var(--text-muted);font-size:.85rem">
+                À chaque fois que vous rattachez cette liste à un nouvel événement (ex. l'édition
+                de l'an prochain de « Vacances d'été »), les cases sont automatiquement décochées —
+                pratique pour une checklist réutilisée d'une occasion sur l'autre.
+            </p>
+            <div class="form-group">
+                <label>Événement</label>
+                <select id="link-event-select">
+                    <option value="">— Choisir —</option>
+                    <?php foreach ($selectableEvents as $ev): ?>
+                        <option value="<?= $ev['id'] ?>"><?= htmlspecialchars($ev['title']) ?> — <?= date('d/m/Y', strtotime($ev['start_datetime'])) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('link-event-modal')">Annuler</button>
+            <button type="button" class="btn btn-primary" onclick="linkListEvent()">Lier</button>
+        </div>
     </div>
 </div>
 

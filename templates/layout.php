@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= htmlspecialchars($pageTitle ?? APP_NAME) ?></title>
     <!-- Apply saved theme before first paint to avoid a flash of the wrong theme -->
     <script>
@@ -24,6 +24,37 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="FamilyBoard">
     <link rel="apple-touch-icon" href="<?= BASE_URL ?>/public/icons/icon-192.png">
+    <?php
+    // Écrans de démarrage iOS (apple-touch-startup-image) : sans eux, Safari affiche un flash
+    // blanc à l'ouverture de l'app installée le temps que la page charge, au lieu d'une
+    // transition douce. Un fichier par profil d'appareil × orientation (générés dans
+    // public/icons/splash/, fond = background_color du manifest). Ignoré par tout ce qui
+    // n'est pas Safari/iOS — sans coût pour les autres navigateurs.
+    $__iosSplashDevices = [
+        ['iphone-se',       375, 667,  2],
+        ['iphone-standard', 390, 844,  3],
+        ['iphone-pro',      393, 852,  3],
+        ['iphone-plus',     414, 736,  3],
+        ['iphone-xr-11',    414, 896,  2],
+        ['iphone-max',      428, 926,  3],
+        ['iphone-pro-max',  430, 932,  3],
+        ['ipad',            768, 1024, 2],
+        ['ipad-air',        820, 1180, 2],
+        ['ipad-pro-11',     834, 1194, 2],
+        ['ipad-pro-129',    1024, 1366, 2],
+    ];
+    foreach ($__iosSplashDevices as [$__name, $__w, $__h, $__ratio]):
+        foreach (['portrait', 'landscape'] as $__orientation):
+            [$__mw, $__mh] = $__orientation === 'portrait' ? [$__w, $__h] : [$__h, $__w];
+    ?>
+    <link rel="apple-touch-startup-image"
+          media="(device-width: <?= $__mw ?>px) and (device-height: <?= $__mh ?>px) and (-webkit-device-pixel-ratio: <?= $__ratio ?>) and (orientation: <?= $__orientation ?>)"
+          href="<?= BASE_URL ?>/public/icons/splash/<?= $__name ?>-<?= $__orientation ?>.png">
+    <?php
+        endforeach;
+    endforeach;
+    unset($__iosSplashDevices, $__name, $__w, $__h, $__ratio, $__orientation, $__mw, $__mh);
+    ?>
     <!-- Styles -->
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css?v=<?= APP_VERSION ?>">
     <?php if (isset($extraCss)): ?>
@@ -37,6 +68,9 @@
 <body>
 
 <div id="top-banners">
+<div class="impersonation-banner" id="offline-banner" style="background:#6B5B3D;display:none">
+    📴 Hors connexion — les données affichées peuvent être obsolètes.
+</div>
 <?php if (\App\Core\Session::isLoggedIn() && !empty($_SESSION['impersonation'])): ?>
 <div class="impersonation-banner">
     🕵️ Connecté en tant que <strong><?= htmlspecialchars(\App\Core\Session::user()['name'] ?? '') ?></strong> (accès support admin)

@@ -5,6 +5,7 @@ use App\Core\Session;
 use App\Models\TaskList;
 use App\Models\User;
 use App\Models\Notification;
+use App\Models\Event;
 
 class TaskController extends BaseController
 {
@@ -28,6 +29,7 @@ class TaskController extends BaseController
             $selectedListId = $selectedList['id'];
             $tasks = TaskList::getTasks($selectedListId);
         }
+        $selectableEvents = Event::getSelectableForFamily($user['family_id']);
         require BASE_PATH . '/templates/tasks/index.php';
     }
 
@@ -56,6 +58,43 @@ class TaskController extends BaseController
         }
         header('Location: ' . BASE_URL . '/tasks');
         exit;
+    }
+
+    public function linkEvent(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $listId = (int)$params['id'];
+            $list = TaskList::getById($listId);
+            if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
+            if ($list['user_id'] !== $user['id'] && $user['role'] !== 'admin') return ['success' => false, 'error' => 'Accès refusé.'];
+
+            $data = $this->jsonInput();
+            $eventId = (int)($data['event_id'] ?? 0);
+            $event = $eventId ? Event::getById($eventId) : null;
+            if (!$event || (int)$event['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Événement introuvable.'];
+            }
+
+            TaskList::linkToEvent($listId, $eventId);
+            return ['success' => true, 'list' => TaskList::getById($listId)];
+        });
+    }
+
+    public function unlinkEvent(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $listId = (int)$params['id'];
+            $list = TaskList::getById($listId);
+            if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
+            if ($list['user_id'] !== $user['id'] && $user['role'] !== 'admin') return ['success' => false, 'error' => 'Accès refusé.'];
+
+            TaskList::unlinkEvent($listId);
+            return ['success' => true];
+        });
     }
 
     public function createTask(array $params): void

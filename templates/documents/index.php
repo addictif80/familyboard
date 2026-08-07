@@ -315,6 +315,31 @@ $totalDocs = array_sum($typeCounts);
     </div>
 </div>
 
+<!-- ── Duplicate detection Modal ────────────────────────────────────────── -->
+<div class="modal-overlay" id="duplicate-doc-modal" style="display:none">
+    <div class="modal modal-sm">
+        <div class="modal-header">
+            <h3>Document similaire trouvé</h3>
+            <button onclick="closeModal('duplicate-doc-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p>
+                Un document au titre proche existe déjà : <strong id="duplicate-doc-title"></strong>
+                (ajouté le <span id="duplicate-doc-date"></span>).
+            </p>
+            <p style="color:var(--text-muted);font-size:.85rem">
+                « Remplacer » garde l'ancien en archive (retiré de la liste, mais consultable depuis
+                l'historique du nouveau document) — ou gardez les deux comme documents distincts.
+            </p>
+        </div>
+        <div class="modal-footer" style="flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="closeModal('duplicate-doc-modal')">Annuler</button>
+            <button class="btn btn-secondary" onclick="resolveDuplicateDoc('keep')">Garder les deux</button>
+            <button class="btn btn-primary" onclick="resolveDuplicateDoc('replace')">Remplacer</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const DOC_TYPES = <?= json_encode(array_map(fn($k, $v) => ['key'=>$k,'label'=>$v['label'],'icon'=>$v['icon'],'color'=>$v['color']], array_keys($allTypes), $allTypes)) ?>;
 const DOC_CURRENT_FILTER_TYPE = <?= json_encode($filterType) ?>;

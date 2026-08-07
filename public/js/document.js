@@ -279,7 +279,7 @@ function parseDocOcrFields(text) {
 
 // ── Save / Delete ─────────────────────────────────────────────────────────
 
-async function saveDoc() {
+async function saveDoc(duplicateChoice) {
     const title = document.getElementById('doc-title').value.trim();
     if (!title) { Dialog.toast('L\'intitulé est obligatoire.', 'error'); return; }
 
@@ -307,6 +307,8 @@ async function saveDoc() {
         fd.append('member_ids[]', cb.value);
     });
     if (_docFile) fd.append('file', _docFile);
+    if (duplicateChoice === 'replace') fd.append('replace_document_id', _duplicateCandidate.id);
+    if (duplicateChoice === 'keep')    fd.append('confirm_duplicate', '1');
 
     const url = id ? `${BASE_URL}/api/documents/${id}` : `${BASE_URL}/api/documents`;
     const fail = msg => { Dialog.toast(msg, 'error'); btn.disabled = false; btn.textContent = 'Enregistrer'; };
@@ -333,8 +335,26 @@ async function saveDoc() {
         fail(`Erreur serveur (code ${res.status}). Réessayez ou signalez le problème si ça persiste.`);
         return;
     }
-    if (data.success) { closeModal('doc-modal'); location.reload(); }
-    else fail(data.error || 'Erreur.');
+    if (data.success) { closeModal('doc-modal'); location.reload(); return; }
+    if (data.duplicate) {
+        // Titre proche d'un document existant : suspendu côté serveur en attente du choix de
+        // l'utilisateur (remplacer / garder les deux), plutôt que refusé ou créé en doublon silencieux.
+        btn.disabled = false;
+        btn.textContent = 'Enregistrer';
+        _duplicateCandidate = data.duplicate;
+        document.getElementById('duplicate-doc-title').textContent = data.duplicate.title;
+        document.getElementById('duplicate-doc-date').textContent = fmtDate(data.duplicate.created_at.slice(0, 10));
+        openModal('duplicate-doc-modal');
+        return;
+    }
+    fail(data.error || 'Erreur.');
+}
+
+let _duplicateCandidate = null;
+
+function resolveDuplicateDoc(choice) {
+    closeModal('duplicate-doc-modal');
+    saveDoc(choice);
 }
 
 async function deleteDoc(id) {
@@ -386,10 +406,32 @@ function openDocDetail(item) {
             <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Texte OCR extrait</summary>
             <pre style="font-size:.72rem;white-space:pre-wrap;margin-top:.4rem;background:var(--bg);padding:.75rem;border-radius:var(--radius)">${escapeHtml(item.ocr_text)}</pre>
         </details>` : ''}
+        <div id="doc-detail-history"></div>
     `;
 
     document.getElementById('doc-detail-edit-btn').onclick = () => openEditDocModal(item);
     openModal('doc-detail-modal');
+    loadDocHistory(item.id);
+}
+
+async function loadDocHistory(id) {
+    const container = document.getElementById('doc-detail-history');
+    if (!container) return;
+    const res = await apiFetch(`${BASE_URL}/api/documents/${id}/history`);
+    if (!res || !res.success || !res.items || !res.items.length) return;
+    container.innerHTML = `
+        <details style="margin-top:.75rem">
+            <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">🕓 Versions précédentes (${res.items.length})</summary>
+            <ul style="list-style:none;margin:.5rem 0 0;padding:0;font-size:.82rem">
+                ${res.items.map(v => `
+                    <li style="padding:.4rem 0;border-top:1px solid var(--border)">
+                        ${escapeHtml(v.title)} — ajouté le ${fmtDate(v.created_at.slice(0,10))}
+                        ${v.file_path ? `<a href="${BASE_URL}/documents/file/${v.id}" target="_blank" rel="noopener" style="margin-left:.4rem">Voir le fichier</a>` : ''}
+                    </li>
+                `).join('')}
+            </ul>
+        </details>
+    `;
 }
 
 function fmtDate(d) {

@@ -92,7 +92,7 @@ $sections = [
     'Organisation' => [
         [
             "✅ Tâches & Courses",
-            "Listes partagées avec assignation, priorités, échéances et rappels automatiques par e-mail pour les tâches en attente depuis plusieurs jours. Depuis le planning repas, les ingrédients des recettes de la semaine peuvent être ajoutés en un clic à la liste de courses, sans doublon.",
+            "Listes partagées avec assignation, priorités, échéances et rappels automatiques par e-mail pour les tâches en attente depuis plusieurs jours. Depuis le planning repas, les ingrédients des recettes de la semaine peuvent être ajoutés en un clic à la liste de courses, sans doublon. Une liste peut aussi être rattachée à un événement du calendrier (ex. « Vacances d'été ») : en la reliant à une nouvelle occasion, ses cases sont automatiquement décochées, pratique pour une checklist réutilisée d'une fois sur l'autre.",
         ],
         [
             "💰 Budget partagé",
@@ -116,7 +116,7 @@ $sections = [
         ],
         [
             "🗂️ Documents",
-            "Un coffre-fort documentaire familial avec OCR et recherche plein texte dans les documents scannés.",
+            "Un coffre-fort documentaire familial avec OCR et recherche plein texte dans les documents scannés. En ajoutant un document au titre proche d'un document déjà présent, l'app propose de le remplacer (l'ancien est alors archivé et reste consultable depuis l'historique de la nouvelle version) ou de garder les deux.",
         ],
         [
             "📇 Répertoire",
