@@ -6,6 +6,40 @@ let wallOffset = 20;
 let wallLoading = false;
 let postQuill = null;
 let editQuill = null;
+let selectedAlbumPhotoId = null;
+
+// ---- Tabs (Fil d'actualité / Photos) ----
+function switchWallTab(tab) {
+    document.getElementById('wall-panel-feed').style.display = tab === 'feed' ? 'block' : 'none';
+    document.getElementById('wall-panel-photos').style.display = tab === 'photos' ? 'block' : 'none';
+    document.getElementById('wall-tab-feed').classList.toggle('active', tab === 'feed');
+    document.getElementById('wall-tab-photos').classList.toggle('active', tab === 'photos');
+}
+
+// ---- Import d'une photo depuis un de mes albums ----
+async function openAlbumPicker() {
+    openModal('wall-album-picker-modal');
+    const grid = document.getElementById('wall-album-picker-grid');
+    const data = await apiFetch(BASE_URL + '/api/wall/my-album-photos');
+    const photos = data.photos || [];
+    if (!photos.length) {
+        grid.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucune photo dans vos albums pour l\'instant.</p>';
+        return;
+    }
+    grid.innerHTML = photos.map(p => `
+        <div class="album-photo" onclick="pickAlbumPhoto(${p.id}, '${escapeHtml(p.image_path)}')">
+            <img src="${BASE_URL}${escapeHtml(p.image_path)}" alt="" loading="lazy">
+        </div>
+    `).join('');
+}
+
+function pickAlbumPhoto(photoId, path) {
+    selectedAlbumPhotoId = photoId;
+    document.getElementById('post-image').value = '';
+    document.getElementById('preview-img').src = BASE_URL + path;
+    document.getElementById('image-preview').style.display = 'block';
+    closeModal('wall-album-picker-modal');
+}
 
 // ---- Quill toolbar config ----
 const QUILL_TOOLBAR = [
@@ -41,15 +75,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const isEmpty = postQuill.getText().trim() === '';
 
             // Allow submit if image is attached even if text is empty
-            const hasImage = document.getElementById('post-image')?.files?.length > 0;
+            const hasImage = document.getElementById('post-image')?.files?.length > 0 || selectedAlbumPhotoId;
             if (isEmpty && !hasImage) {
                 e.preventDefault();
                 Dialog.toast('Rédigez un message ou ajoutez une photo.', 'error');
                 return;
             }
+            if (!btn || btn.disabled) { e.preventDefault(); return; }
+
+            // Photo importée d'un album : le formulaire ne l'a jamais chargée (elle vit déjà sur
+            // le serveur), on passe donc par l'API de partage plutôt qu'un envoi multipart.
+            if (selectedAlbumPhotoId) {
+                e.preventDefault();
+                btn.disabled = true;
+                btn.textContent = 'Publication…';
+                apiFetch(BASE_URL + '/api/wall/share-photo', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        photo_id: selectedAlbumPhotoId,
+                        caption: isEmpty ? '' : html,
+                        scope: document.getElementById('post-type-select').value,
+                    }),
+                }).then(r => {
+                    if (r.success) {
+                        if (r.pending) Dialog.toast('Publication envoyée à l\'administrateur pour validation.');
+                        window.location.reload();
+                    } else {
+                        Dialog.toast(r.error || 'Erreur lors de la publication.', 'error');
+                        btn.disabled = false;
+                        btn.textContent = 'Publier';
+                    }
+                });
+                return;
+            }
 
             document.getElementById('post-content-hidden').value = isEmpty ? '' : html;
-            if (!btn || btn.disabled) { e.preventDefault(); return; }
             btn.disabled = true;
             btn.textContent = 'Publication…';
         });
@@ -58,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ---- Image upload preview ----
 function previewImage(input) {
+    selectedAlbumPhotoId = null;
     if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = e => {
@@ -72,6 +133,7 @@ function clearImage() {
     document.getElementById('post-image').value = '';
     document.getElementById('image-preview').style.display = 'none';
     document.getElementById('preview-img').src = '';
+    selectedAlbumPhotoId = null;
 }
 
 // ---- Reactions ----

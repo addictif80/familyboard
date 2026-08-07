@@ -82,6 +82,13 @@ class FamilyFriend
         );
     }
 
+    /** Simple liste des family_id des familles amies acceptées — pour les contrôles de
+     *  visibilité du mur social (scope "network") sans avoir à repasser par getAcceptedFor(). */
+    public static function getAcceptedFamilyIds(int $familyId): array
+    {
+        return array_map('intval', array_column(self::getAcceptedFor($familyId), 'family_id'));
+    }
+
     /** Demandes reçues, en attente de réponse. */
     public static function getPendingIncoming(int $familyId): array
     {

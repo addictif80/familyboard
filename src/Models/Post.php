@@ -6,42 +6,61 @@ use App\Core\Database;
 class Post
 {
     /**
-     * Fil visible par $viewerId : les publications "famille" publiées, plus les publications
-     * personnelles publiées de tout auteur que $viewerId suit (ou lui-même). La jointure sur
-     * une liste d'ids passée en paramètre (jamais construite par concaténation de valeurs
-     * utilisateur) reste une requête préparée standard.
+     * Fil visible par $viewerId : les publications "famille" de ma propre famille, les
+     * publications "amis" de tout auteur que $viewerId suit (ou lui-même — même famille ou
+     * famille amie, voir Follow), et les publications "familles amies" de ma famille ou de
+     * toute famille amie de la mienne. Les listes d'ids passées en paramètre (jamais
+     * construites par concaténation de valeurs utilisateur) restent des requêtes préparées
+     * standard.
      */
-    public static function getVisibleForUser(int $familyId, int $viewerId, array $visibleAuthorIds, int $limit = 20, int $offset = 0): array
+    public static function getVisibleForUser(int $familyId, int $viewerId, array $visibleAuthorIds, array $friendFamilyIds, int $limit = 20, int $offset = 0): array
     {
-        $authorIds = array_values(array_unique(array_map('intval', $visibleAuthorIds)));
-        $ph = $authorIds ? implode(',', array_fill(0, count($authorIds), '?')) : '0';
+        [$authorPh, $authorIds, $friendPh, $friendIds] = self::visibilityPlaceholders($visibleAuthorIds, $friendFamilyIds);
         return Database::fetchAll(
             "SELECT p.*, u.name as user_name, u.avatar as user_avatar, u.color as user_color,
              (SELECT COUNT(*) FROM post_reactions pr WHERE pr.post_id=p.id) as reaction_count,
              (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id=p.id) as comment_count
              FROM posts p JOIN users u ON u.id=p.user_id
-             WHERE p.family_id=? AND p.status='published'
-               AND (p.post_type='family' OR (p.post_type='personal' AND p.user_id IN ($ph)))
+             WHERE p.status='published'
+               AND (
+                 (p.post_type='family' AND p.family_id=?)
+                 OR (p.post_type='personal' AND p.user_id IN ($authorPh))
+                 OR (p.post_type='network' AND (p.family_id=? OR p.family_id IN ($friendPh)))
+               )
              ORDER BY p.created_at DESC LIMIT ? OFFSET ?",
-            [$familyId, ...$authorIds, $limit, $offset]
+            [$familyId, ...$authorIds, $familyId, ...$friendIds, $limit, $offset]
         );
     }
 
     /** Comme getVisibleForUser(), avec un filtre texte en plus — pour la recherche globale.
      *  Réutilise exactement les mêmes conditions de visibilité, jamais une variante allégée. */
-    public static function searchVisible(int $familyId, int $viewerId, array $visibleAuthorIds, string $query, int $limit = 5): array
+    public static function searchVisible(int $familyId, int $viewerId, array $visibleAuthorIds, array $friendFamilyIds, string $query, int $limit = 5): array
     {
-        $authorIds = array_values(array_unique(array_map('intval', $visibleAuthorIds)));
-        $ph = $authorIds ? implode(',', array_fill(0, count($authorIds), '?')) : '0';
+        [$authorPh, $authorIds, $friendPh, $friendIds] = self::visibilityPlaceholders($visibleAuthorIds, $friendFamilyIds);
         return Database::fetchAll(
             "SELECT p.*, u.name as user_name
              FROM posts p JOIN users u ON u.id=p.user_id
-             WHERE p.family_id=? AND p.status='published'
-               AND (p.post_type='family' OR (p.post_type='personal' AND p.user_id IN ($ph)))
+             WHERE p.status='published'
+               AND (
+                 (p.post_type='family' AND p.family_id=?)
+                 OR (p.post_type='personal' AND p.user_id IN ($authorPh))
+                 OR (p.post_type='network' AND (p.family_id=? OR p.family_id IN ($friendPh)))
+               )
                AND p.content LIKE ?
              ORDER BY p.created_at DESC LIMIT ?",
-            [$familyId, ...$authorIds, $query, $limit]
+            [$familyId, ...$authorIds, $familyId, ...$friendIds, $query, $limit]
         );
+    }
+
+    /** Fabrique les placeholders SQL + valeurs pour les listes d'auteurs suivis et de familles
+     *  amies, dédupliquées, avec un '0' de secours pour qu'une liste vide reste une clause SQL valide. */
+    private static function visibilityPlaceholders(array $visibleAuthorIds, array $friendFamilyIds): array
+    {
+        $authorIds = array_values(array_unique(array_map('intval', $visibleAuthorIds)));
+        $friendIds = array_values(array_unique(array_map('intval', $friendFamilyIds)));
+        $authorPh = $authorIds ? implode(',', array_fill(0, count($authorIds), '?')) : '0';
+        $friendPh = $friendIds ? implode(',', array_fill(0, count($friendIds), '?')) : '0';
+        return [$authorPh, $authorIds, $friendPh, $friendIds];
     }
 
     /** File d'attente des publications "famille" proposées par un membre, à valider par l'admin. */
@@ -64,12 +83,16 @@ class Post
         );
     }
 
-    /** True si $viewerId peut voir cette publication (déjà chargée) selon les règles de visibilité. */
-    public static function isVisibleTo(array $post, int $viewerId, array $visibleAuthorIds): bool
+    /** True si $viewerId (de la famille $viewerFamilyId) peut voir cette publication (déjà
+     *  chargée) selon ses règles de visibilité — famille, amis (suivi) ou familles amies. */
+    public static function isVisibleTo(array $post, int $viewerId, int $viewerFamilyId, array $visibleAuthorIds, array $friendFamilyIds): bool
     {
         if ($post['status'] !== 'published') return (int)$post['user_id'] === $viewerId;
-        if ($post['post_type'] === 'family') return true;
-        return in_array((int)$post['user_id'], $visibleAuthorIds, true);
+        return match ($post['post_type']) {
+            'family'  => (int)$post['family_id'] === $viewerFamilyId,
+            'network' => (int)$post['family_id'] === $viewerFamilyId || in_array((int)$post['family_id'], $friendFamilyIds, true),
+            default   => in_array((int)$post['user_id'], $visibleAuthorIds, true), // 'personal'
+        };
     }
 
     public static function create(int $familyId, int $userId, string $content, ?string $imagePath, string $postType, string $status): int

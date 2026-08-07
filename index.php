@@ -261,6 +261,7 @@ $router->get('/api/wall/more', [WallController::class, 'loadMore']);
 $router->post('/wall/:id/approve', [WallController::class, 'approve']);
 $router->post('/wall/:id/reject', [WallController::class, 'reject']);
 $router->post('/api/wall/share-photo', [WallController::class, 'sharePhoto']);
+$router->get('/api/wall/my-album-photos', [WallController::class, 'myAlbumPhotos']);
 
 // Abonnements (mur familial "réseau social")
 $router->post('/api/follow/request', [FollowController::class, 'request']);
@@ -281,6 +282,7 @@ $router->post('/api/albums', [AlbumController::class, 'create']);
 $router->post('/api/albums/:id', [AlbumController::class, 'update']);
 $router->post('/api/albums/:id/delete', [AlbumController::class, 'delete']);
 $router->post('/api/albums/:id/share', [AlbumController::class, 'share']);
+$router->post('/api/albums/:id/wall-scope', [AlbumController::class, 'setWallScope']);
 $router->post('/albums/:id/photos', [AlbumController::class, 'addPhoto']);
 $router->post('/api/albums/photos/:id/delete', [AlbumController::class, 'deletePhoto']);
 $router->post('/api/albums/:id/public-link', [AlbumController::class, 'publicLinkCreate']);

@@ -3,11 +3,14 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\Follow;
+use App\Models\FamilyFriend;
 use App\Models\Notification;
 use App\Models\User;
 
-/** Abonnements entre membres d'une même famille — jamais un compte co-parent, ni d'un membre
- *  d'une autre famille. Le "réseau social" du mur familial reste cloisonné par famille. */
+/** Abonnements ("Amis" du mur social) entre membres d'une même famille, ou entre deux familles
+ *  amies (App\Models\FamilyFriend) — jamais avec un compte co-parent, ni avec le membre d'une
+ *  famille qui n'est pas amie de la mienne : l'amitié de famille reste la seule porte d'entrée
+ *  vers des comptes extérieurs, pas de recherche libre parmi tous les utilisateurs FamilyBoard. */
 class FollowController extends BaseController
 {
     public function request(array $params): void
@@ -67,12 +70,14 @@ class FollowController extends BaseController
         });
     }
 
-    /** Un id de membre valide : même famille, pas co-parent, pas soi-même. */
+    /** Un id de membre valide : même famille, ou membre d'une famille amie — jamais co-parent, jamais soi-même. */
     private function validTarget(int $targetId, array $user): ?array
     {
         if ($targetId === (int)$user['id']) return null;
         $target = User::findById($targetId);
-        if (!$target || $target['family_id'] !== $user['family_id'] || $target['role'] === 'coparent') return null;
-        return $target;
+        if (!$target || $target['role'] === 'coparent') return null;
+        if ((int)$target['family_id'] === (int)$user['family_id']) return $target;
+        if (FamilyFriend::areFriends((int)$user['family_id'], (int)$target['family_id'])) return $target;
+        return null;
     }
 }

@@ -951,7 +951,14 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 
 /* ---- Wall ---- */
 .wall-container { max-width: 680px; margin: 0 auto; }
-.wall-toolbar { display: flex; gap: .6rem; justify-content: flex-end; margin-bottom: 1rem; flex-wrap: wrap; }
+.wall-toolbar { display: flex; gap: .6rem; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+.wall-tabs { display: flex; gap: .3rem; }
+.wall-tab { padding: .45rem .9rem; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text-muted); font-size: .85rem; cursor: pointer; font-weight: 600; }
+.wall-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.wall-album-section { margin-bottom: 1.5rem; }
+.wall-album-title { font-size: .95rem; margin: 0 0 .6rem; display: flex; align-items: baseline; gap: .5rem; }
+.wall-album-owner { font-size: .75rem; color: var(--text-muted); font-weight: 400; }
+.member-group-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted); margin: .6rem 0 .2rem; }
 .post-type-select { padding: .4rem .6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: .82rem; }
 .member-row { display: flex; align-items: center; gap: .6rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
 .member-row:last-child { border-bottom: none; }

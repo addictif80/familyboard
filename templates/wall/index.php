@@ -6,6 +6,10 @@ ob_start();
 ?>
 <div class="wall-container">
     <div class="wall-toolbar">
+        <div class="wall-tabs">
+            <button class="wall-tab active" id="wall-tab-feed" onclick="switchWallTab('feed')">📰 Fil d'actualité</button>
+            <button class="wall-tab" id="wall-tab-photos" onclick="switchWallTab('photos')">📷 Photos</button>
+        </div>
         <button class="btn btn-secondary" onclick="openModal('members-modal')">
             👥 Membres
             <?php if (!empty($pendingFollowRequests)): ?><span class="badge"><?= count($pendingFollowRequests) ?></span><?php endif; ?>
@@ -40,54 +44,99 @@ ob_start();
     </div>
     <?php endif; ?>
 
-    <!-- Post form -->
-    <div class="card post-form-card">
-        <form method="POST" action="<?= BASE_URL ?>/wall" enctype="multipart/form-data" id="post-form"><?= \App\Core\Csrf::field() ?>
-            <div class="post-input-row">
-                <div class="user-avatar" style="background:<?= htmlspecialchars($user['color']) ?>">
-                    <?php if ($user['avatar']): ?>
-                        <img src="<?= BASE_URL . htmlspecialchars($user['avatar']) ?>" alt="">
-                    <?php else: ?>
-                        <?= mb_substr($user['name'], 0, 1) ?>
-                    <?php endif; ?>
+    <!-- Fil d'actualité -->
+    <div id="wall-panel-feed">
+        <!-- Post form -->
+        <div class="card post-form-card">
+            <form method="POST" action="<?= BASE_URL ?>/wall" enctype="multipart/form-data" id="post-form"><?= \App\Core\Csrf::field() ?>
+                <div class="post-input-row">
+                    <div class="user-avatar" style="background:<?= htmlspecialchars($user['color']) ?>">
+                        <?php if ($user['avatar']): ?>
+                            <img src="<?= BASE_URL . htmlspecialchars($user['avatar']) ?>" alt="">
+                        <?php else: ?>
+                            <?= mb_substr($user['name'], 0, 1) ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="post-quill-wrap">
+                        <div id="post-quill-editor"></div>
+                        <input type="hidden" name="content" id="post-content-hidden">
+                    </div>
                 </div>
-                <div class="post-quill-wrap">
-                    <div id="post-quill-editor"></div>
-                    <input type="hidden" name="content" id="post-content-hidden">
+                <div class="post-image-preview" id="image-preview" style="display:none">
+                    <img id="preview-img" src="" alt="">
+                    <button type="button" onclick="clearImage()">✕</button>
                 </div>
-            </div>
-            <div class="post-image-preview" id="image-preview" style="display:none">
-                <img id="preview-img" src="" alt="">
-                <button type="button" onclick="clearImage()">✕</button>
-            </div>
-            <div class="post-actions">
-                <label class="btn btn-secondary" for="post-image">
-                    📷 Photo
-                    <input type="file" id="post-image" name="image" accept="image/*" style="display:none" onchange="previewImage(this)">
-                </label>
-                <select name="post_type" class="post-type-select" title="Publier en tant que">
-                    <option value="personal">🙋 En mon nom (visible par mes abonnés)</option>
-                    <option value="family">🏠 Au nom de la famille<?= $user['role'] === 'admin' ? '' : ' (soumis à validation)' ?></option>
-                </select>
-                <button type="submit" class="btn btn-primary">Publier</button>
-            </div>
-        </form>
+                <div class="post-actions">
+                    <label class="btn btn-secondary" for="post-image">
+                        📷 Photo
+                        <input type="file" id="post-image" name="image" accept="image/*" style="display:none" onchange="previewImage(this)">
+                    </label>
+                    <button type="button" class="btn btn-secondary" onclick="openAlbumPicker()">🖼️ Depuis un album</button>
+                    <select name="post_type" id="post-type-select" class="post-type-select" title="Publier en tant que">
+                        <option value="personal">🙋 Amis (mes abonnés)</option>
+                        <option value="family">🏠 Ma famille<?= $user['role'] === 'admin' ? '' : ' (soumis à validation)' ?></option>
+                        <option value="network">🤝 Familles amies</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">Publier</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Posts feed -->
+        <div id="posts-feed">
+            <?php foreach ($posts as $post): ?>
+                <?php include __DIR__ . '/post.php'; ?>
+            <?php endforeach; ?>
+            <?php if (empty($posts)): ?>
+                <div class="empty-state-card">
+                    <p>🌟 Soyez le premier à publier quelque chose ! Abonnez-vous à d'autres membres (bouton « Membres ») pour voir leurs publications personnelles.</p>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <div class="load-more-container" id="load-more-container">
+            <button class="btn btn-secondary" onclick="loadMorePosts()" id="load-more-btn">Charger plus</button>
+        </div>
     </div>
 
-    <!-- Posts feed -->
-    <div id="posts-feed">
-        <?php foreach ($posts as $post): ?>
-            <?php include __DIR__ . '/post.php'; ?>
-        <?php endforeach; ?>
-        <?php if (empty($posts)): ?>
+    <!-- Photos -->
+    <div id="wall-panel-photos" style="display:none">
+        <?php if (empty($wallAlbums)): ?>
             <div class="empty-state-card">
-                <p>🌟 Soyez le premier à publier quelque chose ! Abonnez-vous à d'autres membres (bouton « Membres ») pour voir leurs publications personnelles.</p>
+                <p>📷 Aucun album affiché sur le mur pour l'instant. Depuis un album (page « Albums »), choisissez une portée dans le menu « Pas sur le mur » pour qu'il apparaisse ici.</p>
             </div>
         <?php endif; ?>
+        <?php foreach ($wallAlbums as $wa): ?>
+            <?php if (empty($wa['photos'])) continue; ?>
+            <div class="wall-album-section">
+                <h3 class="wall-album-title">
+                    <a href="<?= BASE_URL ?>/albums/<?= (int)$wa['id'] ?>"><?= htmlspecialchars($wa['title']) ?></a>
+                    <span class="wall-album-owner">par <?= htmlspecialchars($wa['user_name']) ?></span>
+                </h3>
+                <div class="album-photo-grid">
+                    <?php foreach ($wa['photos'] as $photo): ?>
+                        <div class="album-photo">
+                            <img src="<?= BASE_URL . htmlspecialchars($photo['image_path']) ?>" alt="" loading="lazy" onclick="openLightbox(this.src)">
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
     </div>
+</div>
 
-    <div class="load-more-container" id="load-more-container">
-        <button class="btn btn-secondary" onclick="loadMorePosts()" id="load-more-btn">Charger plus</button>
+<!-- Album photo picker (import depuis un album pour le formulaire de publication) -->
+<div class="modal-overlay" id="wall-album-picker-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>🖼️ Choisir une photo</h3>
+            <button onclick="closeModal('wall-album-picker-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="album-photo-grid" id="wall-album-picker-grid">
+                <p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -122,7 +171,10 @@ ob_start();
             <?php foreach ($pendingFollowRequests as $req): ?>
             <div class="member-row">
                 <?= \App\Core\Avatar::html($req['avatar'], $req['color'], $req['name'], 'user-avatar-sm') ?>
-                <span class="member-row-name"><?= htmlspecialchars($req['name']) ?></span>
+                <span class="member-row-name">
+                    <?= htmlspecialchars($req['name']) ?>
+                    <?php if ((int)$req['family_id'] !== (int)$user['family_id']): ?><small style="color:var(--text-muted)">(<?= htmlspecialchars($req['family_name']) ?>)</small><?php endif; ?>
+                </span>
                 <button class="btn btn-primary btn-sm" onclick="acceptFollow(<?= (int)$req['follower_id'] ?>)">Accepter</button>
                 <button class="btn btn-secondary btn-sm" onclick="removeFollower(<?= (int)$req['follower_id'] ?>)">Refuser</button>
             </div>
@@ -147,6 +199,31 @@ ob_start();
                 <?php endif; ?>
             </div>
             <?php endforeach; ?>
+
+            <?php if (!empty($friendFamilyMembers)): ?>
+            <hr class="divider">
+            <h4 style="margin:0 0 .5rem">Familles amies</h4>
+            <p style="color:var(--text-muted);font-size:.78rem;margin:0 0 .5rem">S'abonner à un membre d'une famille amie fait apparaître ses publications « Amis » dans votre fil.</p>
+            <?php foreach ($friendFamilyMembers as $group): ?>
+                <div class="member-group-label"><?= htmlspecialchars($group['family_name']) ?></div>
+                <?php foreach ($group['members'] as $m): ?>
+                <div class="member-row">
+                    <?= \App\Core\Avatar::html($m['avatar'], $m['color'], $m['name'], 'user-avatar-sm') ?>
+                    <span class="member-row-name">
+                        <?= htmlspecialchars($m['name']) ?>
+                        <?php if ($m['follows_me']): ?><small style="color:var(--text-muted)">vous suit</small><?php endif; ?>
+                    </span>
+                    <?php if ($m['follow_status'] === 'accepted'): ?>
+                        <button class="btn btn-secondary btn-sm" onclick="unfollow(<?= (int)$m['id'] ?>)">Abonné(e) ✓</button>
+                    <?php elseif ($m['follow_status'] === 'pending'): ?>
+                        <button class="btn btn-secondary btn-sm" disabled>Demande envoyée</button>
+                    <?php else: ?>
+                        <button class="btn btn-primary btn-sm" onclick="requestFollow(<?= (int)$m['id'] ?>)">S'abonner</button>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+            <?php endforeach; ?>
+            <?php endif; ?>
         </div>
     </div>
 </div>

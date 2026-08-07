@@ -65,6 +65,22 @@ class Notification
     }
 
     /**
+     * Notification envoyée à ma famille ET à toutes mes familles amies (scope "familles amies"
+     * du mur social) — réutilise notifyFamily() pour ma propre famille (mêmes règles co-parent),
+     * puis notifie tous les membres non co-parent de chaque famille amie.
+     */
+    public static function notifyNetwork(int $familyId, int $excludeUserId, string $type, string $title, string $message, ?string $link = null): void
+    {
+        self::notifyFamily($familyId, $excludeUserId, $type, $title, $message, $link);
+        foreach (\App\Models\FamilyFriend::getAcceptedFor($familyId) as $friendFamily) {
+            foreach (User::getByFamily((int)$friendFamily['family_id']) as $member) {
+                if ($member['role'] === 'coparent') continue;
+                self::create((int)$member['id'], $type, $title, $message, $link);
+            }
+        }
+    }
+
+    /**
      * Notification système envoyée par un administrateur à tous les utilisateurs, toutes
      * familles confondues. Le contenu long (WYSIWYG) est stocké une seule fois dans
      * system_notifications ; chaque destinataire reçoit une notification pointant vers sa page

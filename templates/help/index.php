@@ -7,10 +7,11 @@ $isCoparent = $user['role'] === 'coparent';
 // slug => [icône+titre (facultatif, sinon Family::MODULES est utilisé), étapes/astuces en HTML]
 $moduleHelp = [
     'wall' => [
-        "Chaque publication est soit personnelle (author = vous, visible par les membres qui vous suivent), soit « au nom de la famille » (visible par tous, mais doit d'abord être validée par un administrateur).",
-        "Pour publier : bouton <strong>+ Publier</strong> en haut du mur, choisissez le type de publication puis rédigez votre texte et joignez éventuellement une photo.",
-        "Pour partager une photo de vos albums directement sur le mur, ouvrez la photo dans un album puis utilisez l'action <strong>Partager sur le mur</strong>.",
-        "Suivre un membre : ouvrez son profil et cliquez sur <strong>Suivre</strong> — la demande doit être acceptée par la personne visée avant que vous voyiez son contenu personnel.",
+        "Chaque publication a une portée : <strong>Amis</strong> (visible par les membres, même d'une autre famille, qui vous suivent), <strong>Famille</strong> (visible par toute votre famille, mais doit d'abord être validée par un administrateur) ou <strong>Familles amies</strong> (visible par votre famille et toutes celles qui lui sont amies, publié immédiatement).",
+        "Pour publier : rédigez votre texte dans le champ en haut du mur, choisissez la portée dans le menu déroulant, joignez éventuellement une photo (import direct ou <strong>Depuis un album</strong>), puis <strong>Publier</strong>.",
+        "Pour partager une photo de vos albums directement sur le mur avec sa propre portée, ouvrez la photo dans un album puis utilisez l'action <strong>Partager sur le mur</strong> (icône 📤).",
+        "Onglet <strong>Photos</strong> du mur : affiche les albums que leurs propriétaires ont choisi d'y mettre en avant (menu de portée en haut de chaque album).",
+        "Suivre un membre : bouton <strong>Membres</strong>, y compris les membres des familles amies de la vôtre — la demande doit être acceptée par la personne visée avant que vous voyiez ses publications « Amis ».",
         "Une fois deux membres abonnés l'un à l'autre, une conversation privée devient possible depuis leur profil (icône ✉️).",
     ],
     'albums' => $isCoparent ? [
@@ -19,7 +20,8 @@ $moduleHelp = [
     ] : [
         "Créez un album depuis <strong>+ Nouvel album</strong>, puis glissez-déposez vos photos ou utilisez le sélecteur de fichiers.",
         "Un album peut être partagé avec un accès restreint (co-parent) via l'option <strong>Partager avec…</strong> dans les réglages de l'album.",
-        "Chaque photo peut être commentée ou partagée directement sur le mur familial depuis le bouton dédié dans la visionneuse.",
+        "Le menu <strong>Pas sur le mur</strong> en haut de l'album permet de l'afficher dans l'onglet Photos du mur familial, avec la portée de votre choix (famille, amis, familles amies).",
+        "Chaque photo peut être partagée individuellement sur le mur (avec sa propre portée) depuis le bouton dédié (📤) dans la visionneuse.",
     ],
     'calendar' => $isCoparent ? [
         "Vous voyez uniquement les événements liés à l'enfant pour lequel vous avez un accès de garde partagée.",

@@ -5,6 +5,8 @@ use App\Core\Session;
 use App\Core\Mail;
 use App\Models\Post;
 use App\Models\Follow;
+use App\Models\FamilyFriend;
+use App\Models\Album;
 use App\Models\User;
 use App\Models\Notification;
 use App\Models\EmailContent;
@@ -18,7 +20,9 @@ class WallController extends BaseController
         $this->requireModule('wall');
         $user = Session::user();
         $visibleAuthorIds = Follow::getVisibleAuthorIds((int)$user['id']);
-        $posts = Post::getVisibleForUser($user['family_id'], (int)$user['id'], $visibleAuthorIds, 20);
+        $friendFamilies = FamilyFriend::getAcceptedFor((int)$user['family_id']);
+        $friendFamilyIds = array_map(fn($f) => (int)$f['family_id'], $friendFamilies);
+        $posts = Post::getVisibleForUser($user['family_id'], (int)$user['id'], $visibleAuthorIds, $friendFamilyIds, 20);
         foreach ($posts as &$post) {
             $post['comments'] = Post::getComments($post['id']);
             $post['user_reaction'] = Post::getUserReaction($post['id'], $user['id']);
@@ -38,7 +42,34 @@ class WallController extends BaseController
             $m['follows_me'] = Follow::isAccepted((int)$m['id'], (int)$user['id']);
         }
         unset($m);
+
+        // Membres des familles amies : même mécanique de suivi que ci-dessus, mais groupés par
+        // famille pour rester lisibles dans le panneau "Membres" (scope "Amis" du mur social).
+        $friendFamilyMembers = [];
+        foreach ($friendFamilies as $ff) {
+            $famMembers = array_values(array_filter(
+                User::getByFamily((int)$ff['family_id']),
+                fn($m) => $m['role'] !== 'coparent'
+            ));
+            foreach ($famMembers as &$m) {
+                $m['follow_status'] = Follow::status((int)$user['id'], (int)$m['id']);
+                $m['follows_me'] = Follow::isAccepted((int)$m['id'], (int)$user['id']);
+            }
+            unset($m);
+            if ($famMembers) {
+                $friendFamilyMembers[] = ['family_name' => $ff['family_name'], 'members' => $famMembers];
+            }
+        }
+
         $pendingFollowRequests = Follow::getPendingForApproval((int)$user['id']);
+
+        // Onglet "Photos" : albums que leurs propriétaires ont choisi d'afficher sur le mur,
+        // filtrés avec exactement les mêmes règles de portée que les publications.
+        $wallAlbums = Album::getWallVisibleForUser((int)$user['family_id'], $visibleAuthorIds, $friendFamilyIds);
+        foreach ($wallAlbums as &$wa) {
+            $wa['photos'] = \App\Models\AlbumPhoto::getByAlbum((int)$wa['id']);
+        }
+        unset($wa);
 
         require BASE_PATH . '/templates/wall/index.php';
     }
@@ -63,21 +94,16 @@ class WallController extends BaseController
             exit;
         }
 
-        $postType = ($_POST['post_type'] ?? 'personal') === 'family' ? 'family' : 'personal';
+        $postType = in_array($_POST['post_type'] ?? '', ['family', 'network'], true) ? $_POST['post_type'] : 'personal';
         // Une publication "au nom de la famille" attend la validation d'un admin — sauf si
-        // c'est justement un admin qui la publie : son approbation est déjà acquise.
+        // c'est justement un admin qui la publie : son approbation est déjà acquise. Les
+        // publications "amis" et "familles amies" sont, elles, toujours publiées immédiatement.
         $status = ($postType === 'family' && $user['role'] !== 'admin') ? 'pending' : 'published';
 
         $postId = Post::create($user['family_id'], (int)$user['id'], $content, $imagePath, $postType, $status);
 
         if ($status === 'pending') {
-            foreach (User::getByFamily($user['family_id']) as $admin) {
-                if ($admin['role'] !== 'admin') continue;
-                Notification::create((int)$admin['id'], 'wall',
-                    'Publication à valider',
-                    $user['name'] . ' propose une publication au nom de la famille.',
-                    BASE_URL . '/wall');
-            }
+            $this->notifyAdminsPending($user);
             Session::flash('success', 'Publication envoyée à l\'administrateur pour validation.');
             header('Location: ' . BASE_URL . '/wall');
             exit;
@@ -89,13 +115,34 @@ class WallController extends BaseController
         exit;
     }
 
-    /** Notifie (cloche + e-mail) les personnes concernées par une publication qui vient
-     *  d'être publiée : toute la famille si "famille", seulement les abonnés acceptés sinon. */
+    /** Prévient les admins de la famille de $user qu'une publication "famille" attend leur validation. */
+    private function notifyAdminsPending(array $user): void
+    {
+        foreach (User::getByFamily($user['family_id']) as $admin) {
+            if ($admin['role'] !== 'admin') continue;
+            Notification::create((int)$admin['id'], 'wall',
+                'Publication à valider',
+                $user['name'] . ' propose une publication au nom de la famille.',
+                BASE_URL . '/wall');
+        }
+    }
+
+    /** Notifie (cloche + e-mail) les personnes concernées par une publication qui vient d'être
+     *  publiée : toute la famille si "famille", ma famille + toutes mes familles amies si
+     *  "familles amies", seulement les abonnés acceptés (même famille ou famille amie) sinon. */
     private function notifyNewPost(array $user, string $postType, string $content): void
     {
         if ($postType === 'family') {
             Notification::notifyFamily((int)$user['family_id'], (int)$user['id'], 'wall', 'Nouveau post', $user['name'] . ' a publié sur le mur familial.', BASE_URL . '/wall');
             $recipients = array_values(array_filter(User::getByFamily($user['family_id']), fn($m) => (int)$m['id'] !== (int)$user['id']));
+        } elseif ($postType === 'network') {
+            Notification::notifyNetwork((int)$user['family_id'], (int)$user['id'], 'wall', 'Nouveau post', $user['name'] . ' a publié pour les familles amies.', BASE_URL . '/wall');
+            $recipients = array_values(array_filter(User::getByFamily($user['family_id']), fn($m) => (int)$m['id'] !== (int)$user['id']));
+            foreach (FamilyFriend::getAcceptedFor((int)$user['family_id']) as $ff) {
+                foreach (User::getByFamily((int)$ff['family_id']) as $m) {
+                    if ($m['role'] !== 'coparent') $recipients[] = $m;
+                }
+            }
         } else {
             $recipients = [];
             foreach (Follow::getFollowers((int)$user['id']) as $follower) {
@@ -197,10 +244,7 @@ class WallController extends BaseController
             $user = Session::user();
             $postId = (int)$params['id'];
             $post = Post::getById($postId);
-            if (!$post || $post['family_id'] !== $user['family_id']) {
-                return ['success' => false];
-            }
-            if (!Post::isVisibleTo($post, (int)$user['id'], Follow::getVisibleAuthorIds((int)$user['id']))) {
+            if (!$post || !$this->postVisible($post, $user)) {
                 return ['success' => false];
             }
             $content = trim($this->jsonInput()['content'] ?? '');
@@ -232,10 +276,7 @@ class WallController extends BaseController
             $user = Session::user();
             $postId = (int)$params['id'];
             $post = Post::getById($postId);
-            if (!$post || $post['family_id'] !== $user['family_id']) {
-                return ['success' => false];
-            }
-            if (!Post::isVisibleTo($post, (int)$user['id'], Follow::getVisibleAuthorIds((int)$user['id']))) {
+            if (!$post || !$this->postVisible($post, $user)) {
                 return ['success' => false];
             }
             $action = Post::toggleReaction($postId, $user['id']);
@@ -257,12 +298,32 @@ class WallController extends BaseController
             $user = Session::user();
             $offset = (int)($_GET['offset'] ?? 0);
             $visibleAuthorIds = Follow::getVisibleAuthorIds((int)$user['id']);
-            $posts = Post::getVisibleForUser($user['family_id'], (int)$user['id'], $visibleAuthorIds, 10, $offset);
+            $friendFamilyIds = FamilyFriend::getAcceptedFamilyIds((int)$user['family_id']);
+            $posts = Post::getVisibleForUser($user['family_id'], (int)$user['id'], $visibleAuthorIds, $friendFamilyIds, 10, $offset);
             foreach ($posts as &$post) {
                 $post['comments'] = Post::getComments($post['id']);
                 $post['user_reaction'] = Post::getUserReaction($post['id'], $user['id']);
             }
             return ['posts' => $posts, 'has_more' => count($posts) === 10];
+        });
+    }
+
+    /** Vrai si $user peut voir $post, quelle que soit sa famille — centralise l'appel à
+     *  Post::isVisibleTo() avec le contexte (abonnements + familles amies) de $user. */
+    private function postVisible(array $post, array $user): bool
+    {
+        $visibleAuthorIds = Follow::getVisibleAuthorIds((int)$user['id']);
+        $friendFamilyIds = FamilyFriend::getAcceptedFamilyIds((int)$user['family_id']);
+        return Post::isVisibleTo($post, (int)$user['id'], (int)$user['family_id'], $visibleAuthorIds, $friendFamilyIds);
+    }
+
+    /** Mes propres photos d'albums, pour le sélecteur "Depuis un album" du formulaire de publication. */
+    public function myAlbumPhotos(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            return ['photos' => \App\Models\AlbumPhoto::getByUser((int)$user['id'])];
         });
     }
 
@@ -273,7 +334,8 @@ class WallController extends BaseController
         $this->requireAuth();
         $this->json(function () {
             $user = Session::user();
-            $photoId = (int)($this->jsonInput()['photo_id'] ?? 0);
+            $data = $this->jsonInput();
+            $photoId = (int)($data['photo_id'] ?? 0);
             $photo = \App\Models\AlbumPhoto::getById($photoId);
             if (!$photo || (int)$photo['user_id'] !== (int)$user['id'] || $photo['family_id'] !== $user['family_id']) {
                 return ['success' => false, 'error' => 'Vous ne pouvez partager que vos propres photos.'];
@@ -295,10 +357,16 @@ class WallController extends BaseController
                 return ['success' => false, 'error' => 'Photo introuvable sur le serveur.'];
             }
 
-            $content = $this->sanitizeHtml(trim($this->jsonInput()['caption'] ?? ''));
-            $postId = Post::create($user['family_id'], (int)$user['id'], $content, $newRelativePath, 'personal', 'published');
-            $this->notifyNewPost($user, 'personal', $content);
-            return ['success' => true, 'post_id' => $postId];
+            $content = $this->sanitizeHtml(trim($data['caption'] ?? ''));
+            $postType = in_array($data['scope'] ?? '', ['family', 'network'], true) ? $data['scope'] : 'personal';
+            $status = ($postType === 'family' && $user['role'] !== 'admin') ? 'pending' : 'published';
+            $postId = Post::create($user['family_id'], (int)$user['id'], $content, $newRelativePath, $postType, $status);
+            if ($status === 'pending') {
+                $this->notifyAdminsPending($user);
+            } else {
+                $this->notifyNewPost($user, $postType, $content);
+            }
+            return ['success' => true, 'post_id' => $postId, 'pending' => $status === 'pending'];
         });
     }
 }
