@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= htmlspecialchars($pageTitle ?? APP_NAME) ?></title>
     <!-- Apply saved theme before first paint to avoid a flash of the wrong theme -->
     <script>
@@ -37,6 +37,9 @@
 <body>
 
 <div id="top-banners">
+<div class="impersonation-banner" id="offline-banner" style="background:#6B5B3D;display:none">
+    📴 Hors connexion — les données affichées peuvent être obsolètes.
+</div>
 <?php if (\App\Core\Session::isLoggedIn() && !empty($_SESSION['impersonation'])): ?>
 <div class="impersonation-banner">
     🕵️ Connecté en tant que <strong><?= htmlspecialchars(\App\Core\Session::user()['name'] ?? '') ?></strong> (accès support admin)

@@ -2,6 +2,18 @@
 // FamilyBoard - Core JS
 // ============================================
 
+// ---- Bannière hors-ligne ----
+function updateOfflineBanner() {
+    const banner = document.getElementById('offline-banner');
+    if (!banner) return;
+    banner.style.display = navigator.onLine ? 'none' : 'block';
+    const container = document.getElementById('top-banners');
+    if (container) document.documentElement.style.setProperty('--banners-h', container.offsetHeight + 'px');
+}
+window.addEventListener('online', updateOfflineBanner);
+window.addEventListener('offline', updateOfflineBanner);
+updateOfflineBanner();
+
 // ---- Theme (clair / sombre) ----
 function toggleTheme() {
     const root = document.documentElement;
@@ -805,6 +817,18 @@ async function initPushSubscription() {
         }
     } catch { /* ignore — retried on next page load */ }
 }
+
+// La déconnexion (bouton, lien) doit vider le cache SW des pages/données dynamiques : sur
+// un appareil partagé (tablette familiale, co-parent), sans ça, les données de la personne
+// précédente resteraient consultables hors-ligne après qu'un autre membre se soit connecté.
+document.addEventListener('click', e => {
+    const link = e.target.closest('a[href]');
+    if (!link || !/\/logout(\?|$)/.test(link.getAttribute('href') || '')) return;
+    e.preventDefault();
+    (('caches' in window) ? caches.delete('familyboard-data') : Promise.resolve())
+        .catch(() => {})
+        .then(() => { window.location.href = link.href; });
+});
 
 // Auto-dismiss alerts
 document.querySelectorAll('.alert').forEach(el => {
