@@ -57,7 +57,7 @@
                     'unblocked'           => 'Utilisateur débloqué.',
                     'smtp_saved'          => 'Configuration SMTP enregistrée.',
                     'email_saved'         => 'Contenu de l\'email enregistré.',
-                    'notification_sent'   => 'Notification envoyée à tous les utilisateurs.',
+                    'notification_sent'   => 'Notification envoyée.',
                     'meteofrance_saved'   => 'Clé API Météo-France enregistrée.',
                     '2fa_policy_saved'    => 'Politique de double authentification enregistrée.',
                     'highlight_saved'     => 'Mise en avant enregistrée.',
@@ -196,11 +196,35 @@
         <?php elseif ($tab === 'notifications'): ?>
         <h2>Notification système</h2>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Envoie une notification (push + dans l'application) à <strong>tous les utilisateurs</strong>, toutes familles confondues.
-            Le clic sur la notification (depuis la cloche du site ou le push du navigateur) ouvre une page dédiée
-            affichant le titre, la date et le contenu détaillé.
+            Envoie une notification (push + dans l'application) à <strong>tous les utilisateurs</strong> ou à une sélection
+            précise, toutes familles confondues. Le clic sur la notification (depuis la cloche du site ou le push du
+            navigateur) ouvre une page dédiée affichant le titre, la date et le contenu détaillé.
         </p>
         <form method="POST" action="<?= BASE_URL ?>/admin/notifications/send" class="card" style="padding:1.25rem;max-width:640px" id="system-notify-form" onsubmit="return prepareSystemNotifyForm()"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>Destinataires</label>
+                <label class="radio-option">
+                    <input type="radio" name="recipients" value="all" checked onchange="toggleSystemNotifyRecipients()">
+                    <span>Tous les utilisateurs</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="recipients" value="specific" onchange="toggleSystemNotifyRecipients()">
+                    <span>Utilisateurs spécifiques</span>
+                </label>
+            </div>
+            <div class="form-group" id="system-notify-recipient-picker" style="display:none">
+                <label>Rechercher (nom, email ou famille)</label>
+                <input type="text" id="system-notify-user-search" placeholder="Tapez pour filtrer…" oninput="filterSystemNotifyUsers(this.value)">
+                <div id="system-notify-user-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.5rem;margin-top:.5rem">
+                    <?php foreach ($users as $u): ?>
+                    <label class="radio-option system-notify-user-row" data-search="<?= htmlspecialchars(mb_strtolower($u['name'] . ' ' . $u['email'] . ' ' . $u['family_name'])) ?>">
+                        <input type="checkbox" name="user_ids[]" value="<?= (int)$u['id'] ?>">
+                        <span><?= htmlspecialchars($u['name']) ?> <small style="color:var(--text-muted)"><?= htmlspecialchars($u['email']) ?> · <?= htmlspecialchars($u['family_name']) ?></small></span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+                <small id="system-notify-user-count" style="color:var(--text-muted)">0 destinataire(s) sélectionné(s)</small>
+            </div>
             <div class="form-group">
                 <label>Titre</label>
                 <input type="text" name="title" maxlength="150" required>
@@ -216,7 +240,7 @@
                 </div>
                 <textarea name="content" id="system-notify-content" style="display:none"></textarea>
             </div>
-            <button type="submit" class="btn btn-primary">Envoyer à tous les utilisateurs</button>
+            <button type="submit" class="btn btn-primary" id="system-notify-submit-btn">Envoyer à tous les utilisateurs</button>
         </form>
         <script>
         (function () {
@@ -228,12 +252,44 @@
                     placeholder: 'Contenu détaillé de la notification…',
                     modules: { toolbar: [['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['link'], ['clean']] },
                 });
+                document.querySelectorAll('#system-notify-user-list input[type=checkbox]').forEach(function (cb) {
+                    cb.addEventListener('change', updateSystemNotifyUserCount);
+                });
             });
+
+            window.toggleSystemNotifyRecipients = function () {
+                var specific = document.querySelector('input[name="recipients"]:checked').value === 'specific';
+                document.getElementById('system-notify-recipient-picker').style.display = specific ? 'block' : 'none';
+                document.getElementById('system-notify-submit-btn').textContent = specific
+                    ? 'Envoyer aux utilisateurs sélectionnés' : 'Envoyer à tous les utilisateurs';
+            };
+
+            window.filterSystemNotifyUsers = function (query) {
+                query = query.trim().toLowerCase();
+                document.querySelectorAll('.system-notify-user-row').forEach(function (row) {
+                    row.style.display = row.dataset.search.includes(query) ? 'flex' : 'none';
+                });
+            };
+
+            window.updateSystemNotifyUserCount = function () {
+                var n = document.querySelectorAll('#system-notify-user-list input[type=checkbox]:checked').length;
+                document.getElementById('system-notify-user-count').textContent = n + ' destinataire(s) sélectionné(s)';
+            };
+
             window.prepareSystemNotifyForm = function () {
                 if (editor) document.getElementById('system-notify-content').value = editor.root.innerHTML;
                 if (!editor || editor.getText().trim() === '') {
                     alert('Le contenu détaillé est requis.');
                     return false;
+                }
+                var specific = document.querySelector('input[name="recipients"]:checked').value === 'specific';
+                if (specific) {
+                    var n = document.querySelectorAll('#system-notify-user-list input[type=checkbox]:checked').length;
+                    if (n === 0) {
+                        alert('Sélectionnez au moins un destinataire.');
+                        return false;
+                    }
+                    return confirm('Envoyer cette notification à ' + n + ' utilisateur(s) sélectionné(s) ?');
                 }
                 return confirm('Envoyer cette notification à tous les utilisateurs de toutes les familles ?');
             };
