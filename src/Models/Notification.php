@@ -88,12 +88,35 @@ class Notification
      */
     public static function broadcastToAll(string $title, string $shortText, string $contentHtml): int
     {
+        $userIds = array_map(fn($row) => (int)$row['id'], Database::fetchAll('SELECT id FROM users'));
+        return self::sendSystemNotification($userIds, $title, $shortText, $contentHtml);
+    }
+
+    /**
+     * Variante ciblée de broadcastToAll() : même mécanique (contenu stocké une seule fois dans
+     * system_notifications, page dédiée au clic) mais réservée aux comptes listés dans
+     * $userIds — pour un administrateur système qui veut prévenir un ou quelques utilisateurs
+     * précis plutôt que tout FamilyBoard. Les ids invalides (utilisateur supprimé entre-temps,
+     * id qui n'existe pas) sont silencieusement ignorés plutôt que de faire échouer l'envoi aux
+     * destinataires valides.
+     */
+    public static function sendToUsers(array $userIds, string $title, string $shortText, string $contentHtml): int
+    {
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+        if (!$userIds) return 0;
+        $ph = implode(',', array_fill(0, count($userIds), '?'));
+        $validIds = array_map(fn($row) => (int)$row['id'], Database::fetchAll("SELECT id FROM users WHERE id IN ($ph)", $userIds));
+        return self::sendSystemNotification($validIds, $title, $shortText, $contentHtml);
+    }
+
+    private static function sendSystemNotification(array $userIds, string $title, string $shortText, string $contentHtml): int
+    {
+        if (!$userIds) return 0;
         $sysId = SystemNotification::create($title, $shortText, $contentHtml);
         $link  = BASE_URL . '/notifications/' . $sysId;
 
-        $userIds = Database::fetchAll('SELECT id FROM users');
-        foreach ($userIds as $row) {
-            self::create((int)$row['id'], 'system', $title, $shortText, $link);
+        foreach ($userIds as $id) {
+            self::create($id, 'system', $title, $shortText, $link);
         }
         return count($userIds);
     }

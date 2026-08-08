@@ -448,7 +448,7 @@ class AdminController extends BaseController
         $this->redirect('/admin/tickets/' . $id);
     }
 
-    // ── Notifications système (broadcast à tous les utilisateurs) ─
+    // ── Notifications système (à tous les utilisateurs, ou ciblée) ─
 
     public function sendSystemNotification(array $params): void
     {
@@ -457,9 +457,15 @@ class AdminController extends BaseController
         $shortText  = trim($_POST['short_text'] ?? '');
         $contentHtml = $this->sanitizeHtml(trim($_POST['content'] ?? ''));
         $contentIsEmpty = trim(strip_tags($contentHtml)) === '';
+        $recipients = ($_POST['recipients'] ?? 'all') === 'specific' ? 'specific' : 'all';
 
         if ($title && $shortText && !$contentIsEmpty && mb_strlen($title) <= 150 && mb_strlen($shortText) <= 300) {
-            Notification::broadcastToAll($title, $shortText, $contentHtml);
+            if ($recipients === 'specific') {
+                $userIds = array_map('intval', (array)($_POST['user_ids'] ?? []));
+                Notification::sendToUsers($userIds, $title, $shortText, $contentHtml);
+            } else {
+                Notification::broadcastToAll($title, $shortText, $contentHtml);
+            }
         }
         $this->redirect('/admin?tab=notifications&msg=notification_sent');
     }
