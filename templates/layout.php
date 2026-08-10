@@ -135,6 +135,7 @@ $family = \App\Models\Family::findById($currentUser['family_id']);
 $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
 $_hasCustodyAccess = \App\Models\Custody::getSchedulesForUser($currentUser['id']);
 $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
+$_vaultwarden = \App\Models\VaultwardenSettings::get();
 ?>
 <?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
 <div class="app-wrapper">
@@ -347,9 +348,17 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('baby') || $_navEnabled('location') || $_navEnabled('emergency')): ?>
+            <?php if ($_navEnabled('baby') || $_navEnabled('location') || $_navEnabled('emergency') || $_vaultwarden): ?>
             <li class="nav-section-label" data-section-toggle="suivi-securite" role="button" tabindex="0">
                 <span>Suivi & sécurité</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_vaultwarden): ?>
+            <li class="nav-item" data-section="suivi-securite">
+                <a href="<?= htmlspecialchars($_vaultwarden['url']) ?>" class="nav-link" target="_blank" rel="noopener">
+                    <span class="nav-icon">🔐</span>
+                    <span class="nav-label">Coffre-fort</span>
+                </a>
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('baby')): ?>

@@ -17,6 +17,8 @@ use App\Models\SmtpSettings;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Core\EmailLayout;
+use App\Core\Vaultwarden;
+use App\Models\VaultwardenSettings;
 
 class AdminController extends BaseController
 {
@@ -181,6 +183,7 @@ class AdminController extends BaseController
         $legalTermsIsCustom   = LegalContent::isCustom('terms');
         $deletedUsers = AccountDeletion::getDeletedUsers();
         $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
+        $vaultwardenSettings = VaultwardenSettings::get();
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
 
@@ -500,6 +503,34 @@ class AdminController extends BaseController
             }
             return ['ok' => true];
         });
+    }
+
+    // ── Vaultwarden (coffre-fort de mots de passe, réservé aux membres non co-parent) ──
+
+    public function updateVaultwardenSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $url = trim($_POST['url'] ?? '');
+        $newToken = trim($_POST['admin_token'] ?? '');
+        // Comme pour la clé Météo-France : champ jeton vide + keep_existing=1 veut dire "panneau
+        // non ouvert", pas "effacer le jeton" — sinon recharger la page suffirait à le vider.
+        if ($newToken === '' && !empty($_POST['keep_existing'])) {
+            $existing = VaultwardenSettings::get();
+            $newToken = $existing['token'] ?? '';
+        }
+        if ($url && $newToken) {
+            VaultwardenSettings::save($url, $newToken);
+        } else {
+            AppSetting::set('vaultwarden_url', '');
+            AppSetting::set('vaultwarden_admin_token', '');
+        }
+        $this->redirect('/admin?tab=notifications&msg=vaultwarden_saved');
+    }
+
+    public function testVaultwardenConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => Vaultwarden::testConnection());
     }
 
     // ── Mises en avant ABHD (jamais "publicité" dans le code/l'UI) ─────────────

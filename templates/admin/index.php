@@ -51,7 +51,7 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable']) ? 'error' : (in_array($msg, ['blocked','unblocked','smtp_saved','email_saved','notification_sent','meteofrance_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable']) ? 'error' : (in_array($msg, ['blocked','unblocked','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
@@ -59,6 +59,7 @@
                     'email_saved'         => 'Contenu de l\'email enregistré.',
                     'notification_sent'   => 'Notification envoyée.',
                     'meteofrance_saved'   => 'Clé API Météo-France enregistrée.',
+                    'vaultwarden_saved'   => 'Configuration Vaultwarden enregistrée.',
                     '2fa_policy_saved'    => 'Politique de double authentification enregistrée.',
                     'highlight_saved'     => 'Mise en avant enregistrée.',
                     'highlight_deleted'   => 'Mise en avant supprimée.',
@@ -328,6 +329,41 @@
                 <?php endif; ?>
             </div>
             <div id="meteofrance-test-result" style="margin-top:.75rem"></div>
+        </form>
+
+        <h2 style="margin-top:2rem">Coffre-fort de mots de passe (Vaultwarden)</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Propose aux membres de famille (jamais aux co-parents) de créer un coffre-fort de mots de passe/2FA
+            sur votre instance Vaultwarden auto-hébergée. FamilyBoard se contente de déclencher l'invitation par
+            e-mail depuis le panneau admin de Vaultwarden — il ne connaît jamais le mot de passe maître du
+            coffre, choisi par chaque membre directement sur Vaultwarden. Nécessite une instance configurée en
+            <code>SIGNUPS_ALLOWED=false</code> / <code>INVITATIONS_ALLOWED=true</code>.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/vaultwarden" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>URL de l'instance Vaultwarden</label>
+                <input type="url" name="url" value="<?= htmlspecialchars($vaultwardenSettings['url'] ?? '') ?>" placeholder="https://pwd.votredomaine.fr">
+            </div>
+            <div class="form-group">
+                <label>Jeton d'administration (ADMIN_TOKEN)</label>
+                <?php if (!empty($vaultwardenSettings['token'])): ?>
+                    <input type="text" value="•••••••••••••• <?= htmlspecialchars(substr($vaultwardenSettings['token'], -4)) ?>" disabled>
+                    <input type="hidden" name="keep_existing" value="1">
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer ou désactiver le jeton</summary>
+                        <input type="text" name="admin_token" placeholder="Nouveau jeton (laisser vide pour désactiver)" autocomplete="off" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="text" name="admin_token" placeholder="Laisser vide pour désactiver cette fonctionnalité" autocomplete="off">
+                <?php endif; ?>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+                <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                <?php if (!empty($vaultwardenSettings['token'])): ?>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testVaultwarden()">🔌 Tester la connexion</button>
+                <?php endif; ?>
+            </div>
+            <div id="vaultwarden-test-result" style="margin-top:.75rem"></div>
         </form>
 
         <h2 style="margin-top:2rem">Sécurité — Double authentification</h2>

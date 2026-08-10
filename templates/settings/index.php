@@ -122,6 +122,35 @@ ob_start();
         <p id="tfa-message" style="font-size:.8rem;margin-top:.5rem"></p>
     </div>
 
+    <?php if (!empty($vaultwardenEnabled)): ?>
+    <!-- Coffre-fort de mots de passe (Vaultwarden) -->
+    <div class="card settings-section">
+        <h3>🔐 Coffre-fort de mots de passe</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Un coffre-fort chiffré pour vos mots de passe et codes de double authentification,
+            hébergé séparément de FamilyBoard (comme Bitwarden) — votre mot de passe maître n'est
+            jamais connu de FamilyBoard.
+        </p>
+        <?php if (empty($user['vault_invited_at'])): ?>
+            <button type="button" class="btn btn-primary" id="vault-invite-btn" onclick="requestVaultInvite()">Créer mon coffre-fort</button>
+        <?php else: ?>
+            <p class="alert alert-success" style="margin-bottom:.75rem">
+                Invitation envoyée le <?= htmlspecialchars(substr($user['vault_invited_at'], 0, 10)) ?>. Vérifiez vos e-mails
+                pour finaliser la création de votre coffre.
+            </p>
+        <?php endif; ?>
+        <a href="<?= htmlspecialchars(\App\Models\VaultwardenSettings::get()['url'] ?? '#') ?>" target="_blank" rel="noopener" class="btn btn-secondary" style="margin-top:.5rem">
+            🔗 Ouvrir mon coffre-fort
+        </a>
+        <p style="font-size:.8rem;margin-top:.5rem" id="vault-invite-message"></p>
+        <p style="color:var(--text-muted);font-size:.78rem;margin-top:.75rem">
+            Pour le remplissage automatique des mots de passe, installez l'application ou l'extension
+            <a href="https://bitwarden.com/download/" target="_blank" rel="noopener">Bitwarden</a> et connectez-la à votre coffre
+            avec l'adresse de votre instance auto-hébergée.
+        </p>
+    </div>
+    <?php endif; ?>
+
     <!-- Mes données -->
     <div class="card settings-section">
         <h3>📁 Mes données</h3>

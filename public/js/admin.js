@@ -52,6 +52,20 @@ async function testMeteoFranceKey() {
     }
 }
 
+async function testVaultwarden() {
+    const box = document.getElementById('vaultwarden-test-result');
+    box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';
+    try {
+        const res = await fetch(BASE_URL + '/admin/vaultwarden/test', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await res.json();
+        box.innerHTML = data.ok
+            ? '<p style="color:var(--success)">✅ Connexion réussie.</p>'
+            : '<p style="color:var(--danger)">❌ ' + escapeHtml(data.error || 'Échec du test.') + '</p>';
+    } catch {
+        box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
+    }
+}
+
 async function testSmtp() {
     const box = document.getElementById('smtp-test-result');
     box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';

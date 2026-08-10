@@ -29,6 +29,23 @@ async function confirmLogoutAllDevices() {
     window.location.href = BASE_URL + '/logout';
 }
 
+// ---- Coffre-fort de mots de passe (Vaultwarden) ----
+async function requestVaultInvite() {
+    const btn = document.getElementById('vault-invite-btn');
+    const msg = document.getElementById('vault-invite-message');
+    btn.disabled = true;
+    btn.textContent = 'Envoi en cours…';
+    const r = await apiFetch(BASE_URL + '/settings/vault/invite', { method: 'POST' });
+    if (r.success) {
+        window.location.reload();
+        return;
+    }
+    msg.style.color = 'var(--danger)';
+    msg.textContent = r.error || 'Erreur lors de l\'envoi de l\'invitation.';
+    btn.disabled = false;
+    btn.textContent = 'Créer mon coffre-fort';
+}
+
 // ---- Double authentification (2FA) ----
 function tfaShowStatus(mode) {
     ['none', 'totp', 'email'].forEach(m => {

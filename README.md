@@ -327,6 +327,13 @@ Safari classique — contrainte du système, pas de l'app).
   automatique de tous les autres appareils/sessions à chaque changement.
 - **Secret TOTP chiffré au repos** (`APP_KEY`, voir ci-dessous) — une fuite de
   la seule base de données ne suffit pas à régénérer des codes 2FA valides.
+- **Coffre-fort de mots de passe (Vaultwarden, optionnel)** : si l'administrateur
+  système renseigne l'URL et le jeton admin d'une instance Vaultwarden
+  auto-hébergée (`/admin` → onglet Notifications), les membres (jamais les
+  comptes co-parent) peuvent y créer un coffre-fort chiffré. FamilyBoard ne
+  fait que déclencher l'invitation par e-mail (API admin de Vaultwarden,
+  mode invitation uniquement) — le mot de passe maître du coffre est choisi
+  directement sur Vaultwarden et n'est jamais connu de FamilyBoard.
 - **Anti brute-force par IP *et* par compte** sur la connexion, la 2FA et
   l'espace admin — un attaquant distribué sur plusieurs IP ne peut pas
   contourner la limite en visant un compte précis.

@@ -32,7 +32,29 @@ class SettingsController extends BaseController
         $friendFamiliesAccepted = \App\Models\FamilyFriend::getAcceptedFor((int)$user['family_id']);
         $friendFamiliesIncoming = \App\Models\FamilyFriend::getPendingIncoming((int)$user['family_id']);
         $friendFamiliesOutgoing = \App\Models\FamilyFriend::getPendingOutgoing((int)$user['family_id']);
+        $vaultwardenEnabled = \App\Models\VaultwardenSettings::get() !== null;
         require BASE_PATH . '/templates/settings/index.php';
+    }
+
+    // ── Coffre-fort de mots de passe (Vaultwarden) ──────────────────
+
+    /** Déclenche l'invitation Vaultwarden pour ce compte — jamais pour un co-parent (accès
+     *  restreint à la garde partagée, sans rapport avec le coffre-fort familial). */
+    public function requestVaultInvite(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            if ($user['role'] === 'coparent') {
+                return ['success' => false, 'error' => 'Non disponible pour ce type de compte.'];
+            }
+            $result = \App\Core\Vaultwarden::inviteUser($user['email']);
+            if (!$result['ok']) {
+                return ['success' => false, 'error' => $result['error']];
+            }
+            \App\Core\Database::execute('UPDATE users SET vault_invited_at=NOW() WHERE id=?', [$user['id']]);
+            return ['success' => true];
+        });
     }
 
     /** Déconnecte tous les appareils : révoque les jetons "se souvenir de moi" et invalide
