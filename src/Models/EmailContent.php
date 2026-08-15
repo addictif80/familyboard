@@ -60,6 +60,10 @@ class EmailContent
             'subject' => 'Réinitialisation de votre mot de passe FamilyBoard',
             'message' => "Bonjour {{user_name}},\n\nVous avez demandé la réinitialisation de votre mot de passe. Ce lien est valable 1 heure et à usage unique.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail : votre mot de passe reste inchangé.",
         ],
+        'account_deleted' => [
+            'subject' => 'Votre compte FamilyBoard a été supprimé',
+            'message' => "Bonjour {{user_name}},\n\nVotre compte FamilyBoard a été supprimé par un administrateur système, pour le motif suivant :\n\n{{reason}}\n\nSi vous pensez qu'il s'agit d'une erreur, contactez le support.",
+        ],
     ];
 
     public static function get(string $type): array
@@ -132,6 +136,7 @@ class EmailContent
             'weekly_digest'         => 'Résumé hebdomadaire (dimanche soir)',
             'weekly_digest_coparent'=> 'Résumé hebdomadaire — accès co-parent',
             'password_reset'        => 'Réinitialisation de mot de passe',
+            'account_deleted'       => 'Compte supprimé par un administrateur système',
             default                => $type,
         };
     }
@@ -151,6 +156,7 @@ class EmailContent
             'weekly_digest'         => ['user_name', 'family_name'],
             'weekly_digest_coparent'=> ['user_name', 'child_names'],
             'password_reset'        => ['user_name'],
+            'account_deleted'       => ['user_name', 'reason'],
             default                 => [],
         };
     }

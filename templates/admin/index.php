@@ -51,10 +51,13 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable']) ? 'error' : (in_array($msg, ['blocked','unblocked','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
+                    'user_deleted'        => 'Compte supprimé, e-mail de notification envoyé.',
+                    'delete_failed'       => 'Suppression annulée : motif requis.',
+                    'delete_admin_blocked'=> 'Impossible de supprimer un compte administrateur depuis ce panneau (transfert de rôle ou suppression de la famille à faire depuis le compte lui-même).',
                     'smtp_saved'          => 'Configuration SMTP enregistrée.',
                     'email_saved'         => 'Contenu de l\'email enregistré.',
                     'notification_sent'   => 'Notification envoyée.',
@@ -141,6 +144,14 @@
                         </form>
                         <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/impersonate" onsubmit="return confirm('Se connecter en tant que <?= htmlspecialchars(addslashes($u['name'])) ?> ? Cette action est journalisée.')"><?= \App\Core\Csrf::field() ?>
                             <button class="btn btn-secondary btn-sm" title="Se connecter en tant que cet utilisateur">🕵️ Impersoner</button>
+                        </form>
+                    <?php endif; ?>
+                    <?php if ($u['role'] !== 'admin'): ?>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/delete" style="display:flex;gap:.3rem"
+                              onsubmit="return confirm('Supprimer définitivement le compte de <?= htmlspecialchars(addslashes($u['name'])) ?> ? Un e-mail avec le motif lui sera envoyé. Cette action est irréversible (le contenu créé est conservé, mais le compte disparaît).')">
+                            <?= \App\Core\Csrf::field() ?>
+                            <input type="text" name="reason" placeholder="Motif (requis)" required style="font-size:.78rem;padding:.2rem .4rem;border:1px solid var(--border);border-radius:4px;width:140px">
+                            <button class="btn btn-danger btn-sm">🗑️ Supprimer</button>
                         </form>
                     <?php endif; ?>
                 </td>

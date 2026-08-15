@@ -320,6 +320,49 @@ class AdminController extends BaseController
     }
 
     /**
+     * Suppression d'un compte membre ou co-parent par l'administrateur système, avec motif
+     * obligatoire envoyé par e-mail au titulaire du compte avant suppression (le contenu créé
+     * est préservé, jamais supprimé en cascade — voir AccountDeletion::deleteUser()).
+     * Volontairement limité aux rôles membre/co-parent : supprimer un compte administrateur de
+     * famille nécessite de transférer son rôle ou de supprimer toute la famille (choix qui
+     * appartient à cette famille, pas à un administrateur système agissant seul).
+     */
+    public function deleteUserAccount(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)$params['id'];
+        $reason = trim($_POST['reason'] ?? '');
+        $target = User::findById($id);
+
+        if (!$target || $reason === '') {
+            $this->redirect('/admin?tab=users&msg=delete_failed');
+            return;
+        }
+        if ($target['role'] === 'admin') {
+            $this->redirect('/admin?tab=users&msg=delete_admin_blocked');
+            return;
+        }
+
+        try {
+            $rendered = EmailContent::render('account_deleted', [
+                'user_name' => $target['name'],
+                'reason'    => $reason,
+            ]);
+            $html = EmailLayout::render($rendered['subject'], $rendered['message_html']);
+            Mail::send((int)$target['family_id'], $target['email'], $target['name'], $rendered['subject'], $html, 'account_deleted');
+        } catch (\Throwable $e) {
+            error_log('Account deletion email error: ' . $e->getMessage());
+        }
+
+        if ($target['role'] === 'coparent') {
+            AccountDeletion::deleteCoparent($id, 'system_admin');
+        } else {
+            AccountDeletion::deleteUser($id, (int)$target['family_id'], 'system_admin');
+        }
+        $this->redirect('/admin?tab=users&msg=user_deleted');
+    }
+
+    /**
      * Purge définitive des données conservées d'un compte supprimé (membre classique ou
      * co-parent, quel que soit qui a initié la suppression) — action irréversible.
      */
