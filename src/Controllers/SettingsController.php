@@ -259,9 +259,24 @@ class SettingsController extends BaseController
                     header('Location: ' . BASE_URL . '/settings');
                     exit;
                 }
+                // Un co-parent retiré perd son accès à la garde partagée : journalisé dans le
+                // journal d'activité (immuable) de chaque planning concerné, avant suppression
+                // du compte — cohérent avec les autres actions liées à la garde partagée, voir
+                // CustodyActivityLog. Sans effet si la journalisation n'est pas encore active
+                // pour un planning (le co-parent ne s'y est jamais connecté).
+                if ($member['role'] === 'coparent') {
+                    foreach (Custody::getSchedulesForUser($id) as $schedule) {
+                        CustodyActivityLog::record((int)$schedule['id'], (int)$user['id'], 'coparent_access_removed');
+                    }
+                }
+
                 // Contenu préservé (jamais supprimé en cascade) et tracé dans deleted_users,
-                // pour tout membre — voir AccountDeletion::deleteUser().
-                AccountDeletion::deleteUser($id, (int)$member['family_id'], 'family_admin');
+                // pour tout membre — voir AccountDeletion::deleteUser()/deleteCoparent().
+                if ($member['role'] === 'coparent') {
+                    AccountDeletion::deleteCoparent($id, 'family_admin');
+                } else {
+                    AccountDeletion::deleteUser($id, (int)$member['family_id'], 'family_admin');
+                }
             }
         }
         header('Location: ' . BASE_URL . '/settings');

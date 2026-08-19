@@ -474,7 +474,7 @@ ob_start();
                         </small>
                     </div>
                     <?php $founderProtected = !empty($member['is_founder']) && empty($user['is_founder']); ?>
-                    <?php if ($member['id'] !== $user['id'] && $user['role'] === 'admin' && $member['role'] !== 'coparent'): ?>
+                    <?php if ($member['id'] !== $user['id'] && $user['role'] === 'admin'): ?>
                         <div style="display:flex;gap:.4rem">
                         <?php if ($member['role'] === 'member'): ?>
                             <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/promote" onsubmit="return confirmSubmit(this,'Promouvoir <?= htmlspecialchars(addslashes($member['name'])) ?> administrateur ?')"><?= \App\Core\Csrf::field() ?>
@@ -486,8 +486,11 @@ ob_start();
                             </form>
                         <?php endif; ?>
                         <?php if (!$founderProtected): ?>
-                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars(addslashes($member['name'])) ?> de la famille ?')"><?= \App\Core\Csrf::field() ?>
-                                <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
+                            <?php $removeConfirm = $member['role'] === 'coparent'
+                                ? "Retirer l'accès de {$member['name']} à la garde partagée ? Son compte sera supprimé : il ne pourra plus consulter le planning, le journal parental ni les documents liés à la garde partagée."
+                                : "Retirer {$member['name']} de la famille ?"; ?>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'<?= htmlspecialchars(addslashes($removeConfirm), ENT_QUOTES) ?>')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-danger btn-sm"><?= $member['role'] === 'coparent' ? '🔒 Retirer l\'accès' : 'Retirer' ?></button>
                             </form>
                         <?php endif; ?>
                         </div>
