@@ -3,8 +3,10 @@ $pageTitle = 'Paramètres';
 $extraJs = ['vendor/qrcode.min.js', 'settings.js'];
 ob_start();
 ?>
+<?php $isCoparentSettings = ($user['role'] ?? null) === 'coparent'; ?>
 <div class="settings-container">
 
+    <?php if (!$isCoparentSettings): ?>
     <div class="settings-tabs">
         <button type="button" class="settings-tab-btn" data-tab="compte" onclick="switchSettingsTab('compte')">👤 Mon compte</button>
         <button type="button" class="settings-tab-btn" data-tab="app" onclick="switchSettingsTab('app')">📲 Application</button>
@@ -14,6 +16,7 @@ ob_start();
         <button type="button" class="settings-tab-btn" data-tab="historique" onclick="switchSettingsTab('historique')">📨 Historique</button>
         <?php endif; ?>
     </div>
+    <?php endif; ?>
 
     <!-- ═══ Onglet : Mon compte ═══ -->
     <div class="settings-tab-panel" data-tab="compte">
@@ -122,6 +125,35 @@ ob_start();
         <p id="tfa-message" style="font-size:.8rem;margin-top:.5rem"></p>
     </div>
 
+    <?php if (!empty($vaultwardenEnabled)): ?>
+    <!-- Coffre-fort de mots de passe (Vaultwarden) -->
+    <div class="card settings-section">
+        <h3>🔐 Coffre-fort de mots de passe</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Un coffre-fort chiffré pour vos mots de passe et codes de double authentification,
+            hébergé séparément de FamilyBoard (comme Bitwarden) — votre mot de passe maître n'est
+            jamais connu de FamilyBoard.
+        </p>
+        <?php if (empty($user['vault_invited_at'])): ?>
+            <button type="button" class="btn btn-primary" id="vault-invite-btn" onclick="requestVaultInvite()">Créer mon coffre-fort</button>
+        <?php else: ?>
+            <p class="alert alert-success" style="margin-bottom:.75rem">
+                Invitation envoyée le <?= htmlspecialchars(substr($user['vault_invited_at'], 0, 10)) ?>. Vérifiez vos e-mails
+                pour finaliser la création de votre coffre.
+            </p>
+        <?php endif; ?>
+        <a href="<?= htmlspecialchars(\App\Models\VaultwardenSettings::get()['url'] ?? '#') ?>" target="_blank" rel="noopener" class="btn btn-secondary" style="margin-top:.5rem">
+            🔗 Ouvrir mon coffre-fort
+        </a>
+        <p style="font-size:.8rem;margin-top:.5rem" id="vault-invite-message"></p>
+        <p style="color:var(--text-muted);font-size:.78rem;margin-top:.75rem">
+            Pour le remplissage automatique des mots de passe, installez l'application ou l'extension
+            <a href="https://bitwarden.com/download/" target="_blank" rel="noopener">Bitwarden</a> et connectez-la à votre coffre
+            avec l'adresse de votre instance auto-hébergée.
+        </p>
+    </div>
+    <?php endif; ?>
+
     <!-- Mes données -->
     <div class="card settings-section">
         <h3>📁 Mes données</h3>
@@ -153,6 +185,7 @@ ob_start();
     </div>
     <!-- ═══ /Onglet : Mon compte ═══ -->
 
+    <?php if (!$isCoparentSettings): ?>
     <!-- ═══ Onglet : Application ═══ -->
     <div class="settings-tab-panel" data-tab="app">
 
@@ -238,7 +271,9 @@ ob_start();
 
     </div>
     <!-- ═══ /Onglet : Application ═══ -->
+    <?php endif; ?>
 
+    <?php if (!$isCoparentSettings): ?>
     <!-- ═══ Onglet : Famille ═══ -->
     <div class="settings-tab-panel" data-tab="famille">
 
@@ -445,7 +480,7 @@ ob_start();
                         </small>
                     </div>
                     <?php $founderProtected = !empty($member['is_founder']) && empty($user['is_founder']); ?>
-                    <?php if ($member['id'] !== $user['id'] && $user['role'] === 'admin' && $member['role'] !== 'coparent'): ?>
+                    <?php if ($member['id'] !== $user['id'] && $user['role'] === 'admin'): ?>
                         <div style="display:flex;gap:.4rem">
                         <?php if ($member['role'] === 'member'): ?>
                             <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/promote" onsubmit="return confirmSubmit(this,'Promouvoir <?= htmlspecialchars(addslashes($member['name'])) ?> administrateur ?')"><?= \App\Core\Csrf::field() ?>
@@ -457,8 +492,11 @@ ob_start();
                             </form>
                         <?php endif; ?>
                         <?php if (!$founderProtected): ?>
-                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'Retirer <?= htmlspecialchars(addslashes($member['name'])) ?> de la famille ?')"><?= \App\Core\Csrf::field() ?>
-                                <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
+                            <?php $removeConfirm = $member['role'] === 'coparent'
+                                ? "Retirer l'accès de {$member['name']} à la garde partagée ? Son compte sera supprimé : il ne pourra plus consulter le planning, le journal parental ni les documents liés à la garde partagée."
+                                : "Retirer {$member['name']} de la famille ?"; ?>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/remove" onsubmit="return confirmSubmit(this,'<?= htmlspecialchars(addslashes($removeConfirm), ENT_QUOTES) ?>')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-danger btn-sm"><?= $member['role'] === 'coparent' ? '🔒 Retirer l\'accès' : 'Retirer' ?></button>
                             </form>
                         <?php endif; ?>
                         </div>
@@ -501,7 +539,9 @@ ob_start();
 
     </div>
     <!-- ═══ /Onglet : Famille ═══ -->
+    <?php endif; ?>
 
+    <?php if (!$isCoparentSettings): ?>
     <!-- ═══ Onglet : Accès partagés ═══ -->
     <div class="settings-tab-panel" data-tab="acces">
 
@@ -595,6 +635,7 @@ ob_start();
 
     </div>
     <!-- ═══ /Onglet : Accès partagés ═══ -->
+    <?php endif; ?>
 
     <?php if (!empty($emailLogs)): ?>
     <!-- ═══ Onglet : Historique ═══ -->

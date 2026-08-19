@@ -51,14 +51,18 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable']) ? 'error' : (in_array($msg, ['blocked','unblocked','smtp_saved','email_saved','notification_sent','meteofrance_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
+                    'user_deleted'        => 'Compte supprimé, e-mail de notification envoyé.',
+                    'delete_failed'       => 'Suppression annulée : motif requis.',
+                    'delete_admin_blocked'=> 'Impossible de supprimer un compte administrateur depuis ce panneau (transfert de rôle ou suppression de la famille à faire depuis le compte lui-même).',
                     'smtp_saved'          => 'Configuration SMTP enregistrée.',
                     'email_saved'         => 'Contenu de l\'email enregistré.',
                     'notification_sent'   => 'Notification envoyée.',
                     'meteofrance_saved'   => 'Clé API Météo-France enregistrée.',
+                    'vaultwarden_saved'   => 'Configuration Vaultwarden enregistrée.',
                     '2fa_policy_saved'    => 'Politique de double authentification enregistrée.',
                     'highlight_saved'     => 'Mise en avant enregistrée.',
                     'highlight_deleted'   => 'Mise en avant supprimée.',
@@ -140,6 +144,17 @@
                         </form>
                         <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/impersonate" onsubmit="return confirm('Se connecter en tant que <?= htmlspecialchars(addslashes($u['name'])) ?> ? Cette action est journalisée.')"><?= \App\Core\Csrf::field() ?>
                             <button class="btn btn-secondary btn-sm" title="Se connecter en tant que cet utilisateur">🕵️ Impersoner</button>
+                        </form>
+                    <?php endif; ?>
+                    <?php if ($u['role'] !== 'admin'): ?>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/delete" style="display:flex;gap:.3rem;align-items:center;flex-wrap:wrap"
+                              onsubmit="return confirmUserDelete(this, '<?= htmlspecialchars(addslashes($u['name']), ENT_QUOTES) ?>')">
+                            <?= \App\Core\Csrf::field() ?>
+                            <input type="text" name="reason" placeholder="Motif (requis)" required style="font-size:.78rem;padding:.2rem .4rem;border:1px solid var(--border);border-radius:4px;width:140px">
+                            <label style="display:flex;align-items:center;gap:.25rem;font-size:.72rem;color:var(--text-muted);white-space:nowrap" title="Supprime aussi le contenu normalement conservé (documents, événements, photos…), pas seulement le compte">
+                                <input type="checkbox" name="purge_all" value="1"> Tout supprimer
+                            </label>
+                            <button class="btn btn-danger btn-sm">🗑️ Supprimer</button>
                         </form>
                     <?php endif; ?>
                 </td>
@@ -328,6 +343,41 @@
                 <?php endif; ?>
             </div>
             <div id="meteofrance-test-result" style="margin-top:.75rem"></div>
+        </form>
+
+        <h2 style="margin-top:2rem">Coffre-fort de mots de passe (Vaultwarden)</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Propose aux membres de famille (jamais aux co-parents) de créer un coffre-fort de mots de passe/2FA
+            sur votre instance Vaultwarden auto-hébergée. FamilyBoard se contente de déclencher l'invitation par
+            e-mail depuis le panneau admin de Vaultwarden — il ne connaît jamais le mot de passe maître du
+            coffre, choisi par chaque membre directement sur Vaultwarden. Nécessite une instance configurée en
+            <code>SIGNUPS_ALLOWED=false</code> / <code>INVITATIONS_ALLOWED=true</code>.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/vaultwarden" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>URL de l'instance Vaultwarden</label>
+                <input type="url" name="url" value="<?= htmlspecialchars($vaultwardenSettings['url'] ?? '') ?>" placeholder="https://pwd.votredomaine.fr">
+            </div>
+            <div class="form-group">
+                <label>Jeton d'administration (ADMIN_TOKEN)</label>
+                <?php if (!empty($vaultwardenSettings['token'])): ?>
+                    <input type="text" value="•••••••••••••• <?= htmlspecialchars(substr($vaultwardenSettings['token'], -4)) ?>" disabled>
+                    <input type="hidden" name="keep_existing" value="1">
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer ou désactiver le jeton</summary>
+                        <input type="text" name="admin_token" placeholder="Nouveau jeton (laisser vide pour désactiver)" autocomplete="off" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="text" name="admin_token" placeholder="Laisser vide pour désactiver cette fonctionnalité" autocomplete="off">
+                <?php endif; ?>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+                <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                <?php if (!empty($vaultwardenSettings['token'])): ?>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testVaultwarden()">🔌 Tester la connexion</button>
+                <?php endif; ?>
+            </div>
+            <div id="vaultwarden-test-result" style="margin-top:.75rem"></div>
         </form>
 
         <h2 style="margin-top:2rem">Sécurité — Double authentification</h2>

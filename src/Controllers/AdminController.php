@@ -17,6 +17,9 @@ use App\Models\SmtpSettings;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Core\EmailLayout;
+use App\Core\Vaultwarden;
+use App\Models\VaultwardenSettings;
+use App\Models\DataExport;
 
 class AdminController extends BaseController
 {
@@ -181,6 +184,7 @@ class AdminController extends BaseController
         $legalTermsIsCustom   = LegalContent::isCustom('terms');
         $deletedUsers = AccountDeletion::getDeletedUsers();
         $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
+        $vaultwardenSettings = VaultwardenSettings::get();
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
 
@@ -314,6 +318,72 @@ class AdminController extends BaseController
         $id = (int)$params['id'];
         Database::execute('UPDATE users SET blocked_at=NULL, blocked_reason=NULL WHERE id=?', [$id]);
         $this->redirect('/admin?tab=users&msg=unblocked');
+    }
+
+    /**
+     * Suppression d'un compte membre ou co-parent par l'administrateur système, avec motif
+     * obligatoire envoyé par e-mail au titulaire du compte avant suppression, accompagné d'une
+     * copie de ses données (mêmes données que "Télécharger mes données" en Paramètres) — pour
+     * qu'il en garde une trace même si "Tout supprimer" est coché (purge immédiate des données
+     * normalement conservées, ex. former_user_id, plutôt que le comportement par défaut de
+     * AccountDeletion::deleteUser(), qui les préserve sans suppression en cascade).
+     * Volontairement limité aux rôles membre/co-parent : supprimer un compte administrateur de
+     * famille nécessite de transférer son rôle ou de supprimer toute la famille (choix qui
+     * appartient à cette famille, pas à un administrateur système agissant seul).
+     */
+    public function deleteUserAccount(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)$params['id'];
+        $reason = trim($_POST['reason'] ?? '');
+        $purgeAll = !empty($_POST['purge_all']);
+        $target = User::findById($id);
+
+        if (!$target || $reason === '') {
+            $this->redirect('/admin?tab=users&msg=delete_failed');
+            return;
+        }
+        if ($target['role'] === 'admin') {
+            $this->redirect('/admin?tab=users&msg=delete_admin_blocked');
+            return;
+        }
+
+        $attachments = [];
+        try {
+            $zipPath = DataExport::build((int)$target['id'], (int)$target['family_id'], false);
+            $attachments[] = [
+                'filename' => 'mes-donnees-' . date('Y-m-d') . '.zip',
+                'content'  => file_get_contents($zipPath),
+                'mime'     => 'application/zip',
+            ];
+            @unlink($zipPath);
+        } catch (\Throwable $e) {
+            error_log('Account deletion data export error: ' . $e->getMessage());
+        }
+
+        try {
+            $rendered = EmailContent::render('account_deleted', [
+                'user_name' => $target['name'],
+                'reason'    => $reason,
+            ]);
+            $html = EmailLayout::render($rendered['subject'], $rendered['message_html']);
+            Mail::send((int)$target['family_id'], $target['email'], $target['name'], $rendered['subject'], $html, 'account_deleted', null, $attachments);
+        } catch (\Throwable $e) {
+            error_log('Account deletion email error: ' . $e->getMessage());
+        }
+
+        if ($target['role'] === 'coparent') {
+            AccountDeletion::deleteCoparent($id, 'system_admin');
+        } else {
+            AccountDeletion::deleteUser($id, (int)$target['family_id'], 'system_admin');
+        }
+
+        if ($purgeAll) {
+            $deletedRow = Database::fetch('SELECT id FROM deleted_users WHERE original_user_id=? ORDER BY id DESC LIMIT 1', [$id]);
+            if ($deletedRow) AccountDeletion::purgeDeletedUserData((int)$deletedRow['id']);
+        }
+
+        $this->redirect('/admin?tab=users&msg=user_deleted');
     }
 
     /**
@@ -500,6 +570,34 @@ class AdminController extends BaseController
             }
             return ['ok' => true];
         });
+    }
+
+    // ── Vaultwarden (coffre-fort de mots de passe, réservé aux membres non co-parent) ──
+
+    public function updateVaultwardenSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $url = trim($_POST['url'] ?? '');
+        $newToken = trim($_POST['admin_token'] ?? '');
+        // Comme pour la clé Météo-France : champ jeton vide + keep_existing=1 veut dire "panneau
+        // non ouvert", pas "effacer le jeton" — sinon recharger la page suffirait à le vider.
+        if ($newToken === '' && !empty($_POST['keep_existing'])) {
+            $existing = VaultwardenSettings::get();
+            $newToken = $existing['token'] ?? '';
+        }
+        if ($url && $newToken) {
+            VaultwardenSettings::save($url, $newToken);
+        } else {
+            AppSetting::set('vaultwarden_url', '');
+            AppSetting::set('vaultwarden_admin_token', '');
+        }
+        $this->redirect('/admin?tab=notifications&msg=vaultwarden_saved');
+    }
+
+    public function testVaultwardenConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => Vaultwarden::testConnection());
     }
 
     // ── Mises en avant ABHD (jamais "publicité" dans le code/l'UI) ─────────────

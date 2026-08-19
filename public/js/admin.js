@@ -52,6 +52,28 @@ async function testMeteoFranceKey() {
     }
 }
 
+function confirmUserDelete(form, name) {
+    const purgeAll = form.querySelector('input[name="purge_all"]').checked;
+    const msg = purgeAll
+        ? `Supprimer DÉFINITIVEMENT le compte de ${name} ET toutes ses données, y compris celles normalement conservées (documents, événements, photos…) ? Une copie de ses données lui sera envoyée par e-mail avant suppression, avec le motif. Cette action est totalement irréversible.`
+        : `Supprimer le compte de ${name} ? Un e-mail avec le motif et une copie de ses données lui sera envoyé. Le contenu créé est conservé, seul le compte disparaît.`;
+    return confirm(msg);
+}
+
+async function testVaultwarden() {
+    const box = document.getElementById('vaultwarden-test-result');
+    box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';
+    try {
+        const res = await fetch(BASE_URL + '/admin/vaultwarden/test', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await res.json();
+        box.innerHTML = data.ok
+            ? '<p style="color:var(--success)">✅ Connexion réussie.</p>'
+            : '<p style="color:var(--danger)">❌ ' + escapeHtml(data.error || 'Échec du test.') + '</p>';
+    } catch {
+        box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
+    }
+}
+
 async function testSmtp() {
     const box = document.getElementById('smtp-test-result');
     box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';

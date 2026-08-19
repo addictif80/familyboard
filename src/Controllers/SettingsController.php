@@ -19,8 +19,30 @@ class SettingsController extends BaseController
 {
     public function index(array $params): void
     {
-        $this->requireAuth();
+        // Accès autorisé au co-parent (allowCoparent=true) : lui aussi doit pouvoir gérer son
+        // profil, sa double authentification, exporter ses données ou supprimer son compte —
+        // seul l'onglet "Mon compte" lui est montré (voir $isCoparentSettings dans le template),
+        // jamais les données de la famille (membres, modules, historique email...).
+        $this->requireAuth(true);
         $user = Session::user();
+
+        if ($user['role'] === 'coparent') {
+            $family = null;
+            $members = [];
+            $coparentChildren = [];
+            $emailLogs = [];
+            $sitterLinks = [];
+            $kioskLinks = [];
+            $coparentsForNotify = [];
+            $friendFamiliesAccepted = [];
+            $friendFamiliesIncoming = [];
+            $friendFamiliesOutgoing = [];
+            $vaultwardenEnabled = false;
+            $twoFactorMethod = TwoFactorAuth::getMethod($user['id']);
+            require BASE_PATH . '/templates/settings/index.php';
+            return;
+        }
+
         $family = Family::findById($user['family_id']);
         $members = User::getByFamily($user['family_id']);
         $coparentChildren = \App\Models\Custody::getChildNamesByUserIds(array_column($members, 'id'));
@@ -32,14 +54,36 @@ class SettingsController extends BaseController
         $friendFamiliesAccepted = \App\Models\FamilyFriend::getAcceptedFor((int)$user['family_id']);
         $friendFamiliesIncoming = \App\Models\FamilyFriend::getPendingIncoming((int)$user['family_id']);
         $friendFamiliesOutgoing = \App\Models\FamilyFriend::getPendingOutgoing((int)$user['family_id']);
+        $vaultwardenEnabled = \App\Models\VaultwardenSettings::get() !== null;
         require BASE_PATH . '/templates/settings/index.php';
+    }
+
+    // ── Coffre-fort de mots de passe (Vaultwarden) ──────────────────
+
+    /** Déclenche l'invitation Vaultwarden pour ce compte — jamais pour un co-parent (accès
+     *  restreint à la garde partagée, sans rapport avec le coffre-fort familial). */
+    public function requestVaultInvite(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            if ($user['role'] === 'coparent') {
+                return ['success' => false, 'error' => 'Non disponible pour ce type de compte.'];
+            }
+            $result = \App\Core\Vaultwarden::inviteUser($user['email']);
+            if (!$result['ok']) {
+                return ['success' => false, 'error' => $result['error']];
+            }
+            \App\Core\Database::execute('UPDATE users SET vault_invited_at=NOW() WHERE id=?', [$user['id']]);
+            return ['success' => true];
+        });
     }
 
     /** Déconnecte tous les appareils : révoque les jetons "se souvenir de moi" et invalide
      *  toute session déjà ouverte (y compris celle-ci — l'appelant doit rediriger vers /logout). */
     public function logoutAllDevices(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             \App\Core\Database::execute('UPDATE users SET force_logout_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s'), $user['id']]);
@@ -54,7 +98,7 @@ class SettingsController extends BaseController
      *  n'est pas confirmé) et le place en session le temps de la vérification. */
     public function startTwoFactorTotp(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             $secret = Totp::generateSecret();
@@ -69,7 +113,7 @@ class SettingsController extends BaseController
 
     public function confirmTwoFactorTotp(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             $secret = Session::get('pending_totp_secret');
@@ -85,7 +129,7 @@ class SettingsController extends BaseController
 
     public function enableTwoFactorEmail(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             TwoFactorAuth::enableEmail((int)$user['id']);
@@ -97,7 +141,7 @@ class SettingsController extends BaseController
      *  (mais sans le mot de passe) désactiver la protection. */
     public function disableTwoFactor(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             $password = $this->jsonInput()['password'] ?? '';
@@ -111,7 +155,7 @@ class SettingsController extends BaseController
 
     public function updateProfile(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $user = Session::user();
         $name = trim($_POST['name'] ?? '');
         $color = $this->safeColor($_POST['color'] ?? null);
@@ -237,9 +281,24 @@ class SettingsController extends BaseController
                     header('Location: ' . BASE_URL . '/settings');
                     exit;
                 }
+                // Un co-parent retiré perd son accès à la garde partagée : journalisé dans le
+                // journal d'activité (immuable) de chaque planning concerné, avant suppression
+                // du compte — cohérent avec les autres actions liées à la garde partagée, voir
+                // CustodyActivityLog. Sans effet si la journalisation n'est pas encore active
+                // pour un planning (le co-parent ne s'y est jamais connecté).
+                if ($member['role'] === 'coparent') {
+                    foreach (Custody::getSchedulesForUser($id) as $schedule) {
+                        CustodyActivityLog::record((int)$schedule['id'], (int)$user['id'], 'coparent_access_removed');
+                    }
+                }
+
                 // Contenu préservé (jamais supprimé en cascade) et tracé dans deleted_users,
-                // pour tout membre — voir AccountDeletion::deleteUser().
-                AccountDeletion::deleteUser($id, (int)$member['family_id'], 'family_admin');
+                // pour tout membre — voir AccountDeletion::deleteUser()/deleteCoparent().
+                if ($member['role'] === 'coparent') {
+                    AccountDeletion::deleteCoparent($id, 'family_admin');
+                } else {
+                    AccountDeletion::deleteUser($id, (int)$member['family_id'], 'family_admin');
+                }
             }
         }
         header('Location: ' . BASE_URL . '/settings');
@@ -296,7 +355,7 @@ class SettingsController extends BaseController
 
     public function exportData(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $user = Session::user();
         $wholeFamily = ($_GET['scope'] ?? 'mine') === 'family';
         if ($wholeFamily && $user['role'] !== 'admin') {
@@ -328,7 +387,7 @@ class SettingsController extends BaseController
 
     public function deleteAccount(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             $familyId = (int)$user['family_id'];
