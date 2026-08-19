@@ -36,6 +36,12 @@ function openViewModal(contact) {
         birthdayFmt = `${d}/${m}/${y}`;
     }
 
+    let nameDayFmt = '';
+    if (contact.name_day) {
+        const [m, d] = contact.name_day.split('-');
+        nameDayFmt = `${d}/${m}`;
+    }
+
     const avatarHtml = contact.avatar
         ? `<img src="${BASE_URL}${contact.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
         : initial;
@@ -53,6 +59,7 @@ function openViewModal(contact) {
             ${contact.email  ? `<div class="contact-detail-row"><span class="cd-icon">✉️</span><a href="mailto:${esc(contact.email)}">${esc(contact.email)}</a></div>` : ''}
             ${contact.address ? `<div class="contact-detail-row"><span class="cd-icon">📍</span>${mapsUrl ? `<a href="${mapsUrl}" target="_blank" rel="noopener">${esc(contact.address).replace(/\n/g,'<br>')}</a>` : esc(contact.address).replace(/\n/g,'<br>')}</div>` : ''}
             ${contact.birthday ? `<div class="contact-detail-row"><span class="cd-icon">🎂</span>${esc(birthdayFmt)}</div>` : ''}
+            ${contact.name_day ? `<div class="contact-detail-row"><span class="cd-icon">🎉</span>Fête : ${esc(nameDayFmt)}</div>` : ''}
             ${contact.notes  ? `<div class="contact-detail-row"><span class="cd-icon">📝</span><span style="white-space:pre-wrap">${esc(contact.notes)}</span></div>` : ''}
         </div>
     `;

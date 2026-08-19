@@ -69,6 +69,10 @@ ob_start();
                 <?php if ($c['email']): ?>
                     <div class="contact-line">✉️ <a href="mailto:<?= htmlspecialchars($c['email']) ?>" onclick="event.stopPropagation()"><?= htmlspecialchars($c['email']) ?></a></div>
                 <?php endif; ?>
+                <?php if (!empty($c['name_day'])): ?>
+                    <?php [$fm, $fd] = explode('-', $c['name_day']); ?>
+                    <div class="contact-line contact-fete">🎉 Fête : <?= (int)$fd ?>/<?= (int)$fm ?></div>
+                <?php endif; ?>
             </div>
         </div>
         <?php endforeach; ?>

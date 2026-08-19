@@ -7,6 +7,7 @@ use App\Models\Custody;
 use App\Models\TaskList;
 use App\Models\Budget;
 use App\Models\Family;
+use App\Models\NameDay;
 
 class FamilyWallController extends BaseController
 {
@@ -18,6 +19,7 @@ class FamilyWallController extends BaseController
         $familyId = $user['family_id'];
         $family   = Family::findById($familyId);
         $weatherCity = $family['weather_city'] ?? '';
+        $todayNameDay = NameDay::today();
 
         [
             'byDate'         => $byDate,

@@ -87,6 +87,7 @@ function renderKioskBoard(data) {
                 <h1>🏠 ${kioskEscape(data.family_name)}</h1>
                 <div class="kiosk-date" id="kiosk-date"></div>
             </div>
+            ${data.name_day ? `<div class="kiosk-nameday">🎉 Fête : ${kioskEscape(data.name_day)}</div>` : ''}
             <div class="kiosk-clock" id="kiosk-clock"></div>
         </div>
 
