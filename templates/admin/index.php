@@ -51,13 +51,15 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
                     'user_deleted'        => 'Compte supprimé, e-mail de notification envoyé.',
                     'delete_failed'       => 'Suppression annulée : motif requis.',
                     'delete_admin_blocked'=> 'Impossible de supprimer un compte administrateur depuis ce panneau (transfert de rôle ou suppression de la famille à faire depuis le compte lui-même).',
+                    'report_resent'        => 'Rapport de suppression renvoyé.',
+                    'report_resend_failed' => 'Échec de l\'envoi du rapport.',
                     'smtp_saved'          => 'Configuration SMTP enregistrée.',
                     'email_saved'         => 'Contenu de l\'email enregistré.',
                     'notification_sent'   => 'Notification envoyée.',
@@ -193,13 +195,22 @@
                         <span class="badge badge-ok">📦 Données conservées</span>
                     <?php endif; ?>
                 </td>
-                <td>
+                <td style="display:flex;gap:.4rem;flex-wrap:wrap">
                     <?php if (!$du['purged_at']): ?>
                         <form method="POST" action="<?= BASE_URL ?>/admin/deleted-users/<?= $du['id'] ?>/purge"
                               onsubmit="return confirm('Purger définitivement les données de <?= htmlspecialchars(addslashes($du['name'])) ?> ? Cette action est irréversible : documents, événements, journal parental, photos et liens seront supprimés, fichiers compris.')">
                             <?= \App\Core\Csrf::field() ?>
                             <button class="btn btn-danger btn-sm">Purger les données</button>
                         </form>
+                    <?php endif; ?>
+                    <?php if (!empty($du['data_export_html']) || !empty($du['reason'])): ?>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/deleted-users/<?= $du['id'] ?>/resend-report"
+                              onsubmit="return confirm('Renvoyer le rapport de suppression à <?= htmlspecialchars(addslashes($du['email'])) ?> ?')">
+                            <?= \App\Core\Csrf::field() ?>
+                            <button class="btn btn-secondary btn-sm">📧 Renvoyer le rapport</button>
+                        </form>
+                    <?php else: ?>
+                        <span style="color:var(--text-muted);font-size:.72rem" title="Ce compte a été supprimé avant l'ajout de cette fonctionnalité">Rapport non disponible</span>
                     <?php endif; ?>
                 </td>
             </tr>

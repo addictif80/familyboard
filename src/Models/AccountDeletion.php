@@ -17,8 +17,13 @@ class AccountDeletion
      * activité par e-mail, avant la suppression, pendant qu'elle est encore reconstituable.
      *
      * $deletedBy : 'self' | 'family_admin' | 'system_admin' — qui a initié la suppression.
+     * $reason : motif optionnel (saisi par un admin système) — conservé avec un instantané des
+     * données personnelles (page HTML, voir DataExport::buildHtmlPage()) pour permettre de
+     * renvoyer le rapport plus tard, y compris après une purge définitive du contenu (voir
+     * resendDeletionReport() et App\Controllers\DeletedAccountController pour la demande en
+     * libre-service par l'ex-titulaire du compte).
      */
-    public static function deleteUser(int $userId, int $familyId, string $deletedBy = 'self'): void
+    public static function deleteUser(int $userId, int $familyId, string $deletedBy = 'self', ?string $reason = null): void
     {
         $user = Database::fetch('SELECT * FROM users WHERE id=?', [$userId]);
         if (!$user) return;
@@ -29,6 +34,17 @@ class AccountDeletion
             } catch (\Throwable $e) {
                 error_log('Coparent report error: ' . $e->getMessage());
             }
+        }
+
+        // Instantané des données personnelles AVANT anonymisation du contenu ci-dessous (le
+        // contenu est identifié par user_id, sur le point d'être mis à NULL) — voir docblock.
+        $exportHtml = null;
+        try {
+            $exportData = DataExport::collect($userId, $familyId, false);
+            unset($exportData['_file_paths']);
+            $exportHtml = DataExport::buildHtmlPage($exportData, $user['name']);
+        } catch (\Throwable $e) {
+            error_log('Account deletion data export snapshot error: ' . $e->getMessage());
         }
 
         // project_materials.user_id n'a pas de ON DELETE en base (ce sont des ressources
@@ -43,8 +59,8 @@ class AccountDeletion
         }
 
         Database::execute(
-            'INSERT INTO deleted_users (original_user_id, family_id, name, email, role, deleted_by) VALUES (?,?,?,?,?,?)',
-            [$userId, $familyId, $user['name'], $user['email'], $user['role'], $deletedBy]
+            'INSERT INTO deleted_users (original_user_id, family_id, name, email, role, deleted_by, reason, data_export_html) VALUES (?,?,?,?,?,?,?,?)',
+            [$userId, $familyId, $user['name'], $user['email'], $user['role'], $deletedBy, $reason, $exportHtml]
         );
 
         $name = $user['name'];
@@ -67,11 +83,51 @@ class AccountDeletion
     /** Alias explicite pour les appels côté suppression d'un accès co-parent — même logique
      *  que deleteUser() (qui gère déjà le rapport PDF selon le rôle), $familyId retrouvé
      *  automatiquement puisqu'un co-parent est toujours rattaché à la famille qui l'a invité. */
-    public static function deleteCoparent(int $userId, string $deletedBy = 'self'): void
+    public static function deleteCoparent(int $userId, string $deletedBy = 'self', ?string $reason = null): void
     {
         $user = Database::fetch('SELECT family_id FROM users WHERE id=?', [$userId]);
         if (!$user) return;
-        self::deleteUser($userId, (int)$user['family_id'], $deletedBy);
+        self::deleteUser($userId, (int)$user['family_id'], $deletedBy, $reason);
+    }
+
+    /**
+     * Renvoie l'e-mail "compte supprimé" (motif + page de données jointe si disponible) à
+     * partir d'une ligne deleted_users déjà chargée — utilisé aussi bien par l'admin système
+     * (bouton "Renvoyer le rapport") que par la demande en libre-service d'un ex-titulaire de
+     * compte (App\Controllers\DeletedAccountController). Fonctionne même après une purge
+     * définitive du contenu : le motif et l'export sont un instantané indépendant, jamais
+     * effacés par purgeDeletedUserData().
+     */
+    public static function resendDeletionReport(array $deletedUserRow): bool
+    {
+        try {
+            $rendered = EmailContent::render('account_deleted', [
+                'user_name' => $deletedUserRow['name'],
+                'reason'    => $deletedUserRow['reason'] ?: 'Non précisé.',
+            ]);
+            $html = \App\Core\EmailLayout::render($rendered['subject'], $rendered['message_html']);
+            $attachments = [];
+            if (!empty($deletedUserRow['data_export_html'])) {
+                $attachments[] = [
+                    'filename' => 'mes-donnees-' . date('Y-m-d') . '.html',
+                    'content'  => $deletedUserRow['data_export_html'],
+                    'mime'     => 'text/html',
+                ];
+            }
+            return \App\Core\Mail::send(
+                (int)$deletedUserRow['family_id'],
+                $deletedUserRow['email'],
+                $deletedUserRow['name'],
+                $rendered['subject'],
+                $html,
+                'account_deleted',
+                null,
+                $attachments
+            );
+        } catch (\Throwable $e) {
+            error_log('Resend deletion report error: ' . $e->getMessage());
+            return false;
+        }
     }
 
     /**

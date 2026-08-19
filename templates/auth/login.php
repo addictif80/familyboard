@@ -31,6 +31,7 @@ ob_start();
 
     <p class="auth-link"><a href="<?= BASE_URL ?>/forgot-password">Mot de passe oublié ?</a></p>
     <p class="auth-link">Pas encore de compte ? <a href="<?= BASE_URL ?>/register">Créer une famille</a></p>
+    <p class="auth-link"><a href="<?= BASE_URL ?>/compte-supprime">Compte supprimé ? Redemander mes données</a></p>
 </div>
 <?php
 $content = ob_get_clean();

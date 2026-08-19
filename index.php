@@ -18,6 +18,7 @@ spl_autoload_register(function (string $class) {
 use App\Core\Session;
 use App\Core\Router;
 use App\Controllers\AuthController;
+use App\Controllers\DeletedAccountController;
 use App\Controllers\DashboardController;
 use App\Controllers\LegalController;
 use App\Controllers\HelpController;
@@ -198,6 +199,8 @@ $router->get('/forgot-password', [AuthController::class, 'showForgotPassword']);
 $router->post('/forgot-password', [AuthController::class, 'forgotPassword']);
 $router->get('/reset-password/:token', [AuthController::class, 'showResetPassword']);
 $router->post('/reset-password/:token', [AuthController::class, 'resetPassword']);
+$router->get('/compte-supprime', [DeletedAccountController::class, 'showRequestForm']);
+$router->post('/compte-supprime', [DeletedAccountController::class, 'submitRequest']);
 
 // Pages publiques (accessibles sans compte)
 $router->get('/confidentialite', [LegalController::class, 'privacy']);
@@ -402,6 +405,7 @@ $router->post('/admin/users/:id/block', [AdminController::class, 'blockUser']);
 $router->post('/admin/users/:id/unblock', [AdminController::class, 'unblockUser']);
 $router->post('/admin/users/:id/delete', [AdminController::class, 'deleteUserAccount']);
 $router->post('/admin/deleted-users/:id/purge', [AdminController::class, 'purgeDeletedUser']);
+$router->post('/admin/deleted-users/:id/resend-report', [AdminController::class, 'resendDeletedUserReport']);
 $router->post('/admin/users/:id/impersonate', [AdminController::class, 'impersonate']);
 $router->get('/admin/stop-impersonating', [AdminController::class, 'stopImpersonating']);
 $router->post('/admin/ips', [AdminController::class, 'addIp']);
