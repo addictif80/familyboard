@@ -94,6 +94,15 @@ $todayStr = date('Y-m-d');
 
     .fw-weather-city { font-size: .72rem; opacity: .75; }
 
+    .fw-nameday {
+        font-size: .9rem;
+        font-weight: 500;
+        background: rgba(255,255,255,.15);
+        padding: .3rem .75rem;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
+
     .fw-exit {
         color: rgba(255,255,255,.7);
         text-decoration: none;
@@ -371,6 +380,7 @@ $todayStr = date('Y-m-d');
         .fw-grid { grid-template-columns: 1fr; overflow-y: auto; }
         .fw-clock { font-size: 2rem; }
         .fw-date { display: none; }
+        .fw-nameday { display: none; }
     }
     </style>
 </head>
@@ -391,6 +401,9 @@ $todayStr = date('Y-m-d');
         </div>
 
         <div class="fw-banner-right">
+            <?php if ($todayNameDay): ?>
+            <div class="fw-nameday">🎉 Fête : <?= htmlspecialchars($todayNameDay) ?></div>
+            <?php endif; ?>
             <div class="fw-weather" id="fwWeather">
                 <span id="fwWIcon"></span>
                 <span id="fwWTemp"></span>

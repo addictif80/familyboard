@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\Contact;
+use App\Models\NameDay;
 
 class ContactController extends BaseController
 {
@@ -13,6 +14,10 @@ class ContactController extends BaseController
         $user = Session::user();
         Contact::seedEmergency($user['family_id'], $user['id']);
         $contacts = Contact::getByFamily($user['family_id']);
+        foreach ($contacts as &$c) {
+            $c['name_day'] = NameDay::forName($c['first_name']);
+        }
+        unset($c);
         require BASE_PATH . '/templates/contacts/index.php';
     }
 

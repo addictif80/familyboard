@@ -44,6 +44,17 @@ html, body.kiosk-body {
 .kiosk-header h1 { font-family: var(--font-display); font-size: 1.4rem; }
 .kiosk-clock { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .kiosk-date { font-size: .85rem; color: rgba(255,255,255,.65); text-transform: capitalize; }
+.kiosk-nameday {
+    font-size: .9rem;
+    font-weight: 500;
+    background: rgba(255,255,255,.15);
+    padding: .3rem .75rem;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+@media (max-width: 700px) {
+    .kiosk-nameday { display: none; }
+}
 
 .kiosk-section {
     background: var(--card-bg);

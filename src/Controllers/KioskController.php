@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\Family;
 use App\Models\KioskLink;
 use App\Models\MealPlan;
+use App\Models\NameDay;
 use App\Models\SitterLink;
 use App\Models\TaskList;
 
@@ -162,6 +163,7 @@ class KioskController extends BaseController
             'events'         => $events,
             'meals'          => $meals,
             'contacts'       => $contacts,
+            'name_day'       => NameDay::today(),
         ];
     }
 
