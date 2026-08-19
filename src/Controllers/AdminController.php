@@ -19,7 +19,6 @@ use App\Models\User;
 use App\Core\EmailLayout;
 use App\Core\Vaultwarden;
 use App\Models\VaultwardenSettings;
-use App\Models\DataExport;
 
 class AdminController extends BaseController
 {
@@ -322,13 +321,11 @@ class AdminController extends BaseController
 
     /**
      * Suppression d'un compte membre ou co-parent par l'administrateur système, avec motif
-     * obligatoire envoyé par e-mail au titulaire du compte avant suppression, accompagné d'une
-     * page HTML autonome récapitulant ses données (mêmes données que "Télécharger mes données"
-     * en Paramètres, mais lisible directement dans un navigateur plutôt qu'un ZIP/JSON brut —
-     * voir DataExport::buildHtmlPage()) — pour qu'il en garde une trace même si "Tout supprimer"
-     * est coché (purge immédiate des données
-     * normalement conservées, ex. former_user_id, plutôt que le comportement par défaut de
-     * AccountDeletion::deleteUser(), qui les préserve sans suppression en cascade).
+     * obligatoire. AccountDeletion::deleteUser() capture un instantané des données personnelles
+     * (page HTML, voir DataExport::buildHtmlPage()) et le motif avant toute anonymisation ; cet
+     * instantané sert à envoyer l'e-mail de suppression ci-dessous, et reste disponible pour un
+     * renvoi ultérieur (voir resendDeletedUserReport()) même après une purge définitive du
+     * contenu si "Tout supprimer" est coché.
      * Volontairement limité aux rôles membre/co-parent : supprimer un compte administrateur de
      * famille nécessite de transférer son rôle ou de supprimer toute la famille (choix qui
      * appartient à cette famille, pas à un administrateur système agissant seul).
@@ -350,42 +347,30 @@ class AdminController extends BaseController
             return;
         }
 
-        $attachments = [];
-        try {
-            $exportData = DataExport::collect((int)$target['id'], (int)$target['family_id'], false);
-            unset($exportData['_file_paths']);
-            $attachments[] = [
-                'filename' => 'mes-donnees-' . date('Y-m-d') . '.html',
-                'content'  => DataExport::buildHtmlPage($exportData, $target['name']),
-                'mime'     => 'text/html',
-            ];
-        } catch (\Throwable $e) {
-            error_log('Account deletion data export error: ' . $e->getMessage());
-        }
-
-        try {
-            $rendered = EmailContent::render('account_deleted', [
-                'user_name' => $target['name'],
-                'reason'    => $reason,
-            ]);
-            $html = EmailLayout::render($rendered['subject'], $rendered['message_html']);
-            Mail::send((int)$target['family_id'], $target['email'], $target['name'], $rendered['subject'], $html, 'account_deleted', null, $attachments);
-        } catch (\Throwable $e) {
-            error_log('Account deletion email error: ' . $e->getMessage());
-        }
-
         if ($target['role'] === 'coparent') {
-            AccountDeletion::deleteCoparent($id, 'system_admin');
+            AccountDeletion::deleteCoparent($id, 'system_admin', $reason);
         } else {
-            AccountDeletion::deleteUser($id, (int)$target['family_id'], 'system_admin');
+            AccountDeletion::deleteUser($id, (int)$target['family_id'], 'system_admin', $reason);
         }
 
-        if ($purgeAll) {
-            $deletedRow = Database::fetch('SELECT id FROM deleted_users WHERE original_user_id=? ORDER BY id DESC LIMIT 1', [$id]);
-            if ($deletedRow) AccountDeletion::purgeDeletedUserData((int)$deletedRow['id']);
+        $deletedRow = Database::fetch('SELECT * FROM deleted_users WHERE original_user_id=? ORDER BY id DESC LIMIT 1', [$id]);
+        if ($deletedRow) {
+            AccountDeletion::resendDeletionReport($deletedRow);
+            if ($purgeAll) AccountDeletion::purgeDeletedUserData((int)$deletedRow['id']);
         }
 
         $this->redirect('/admin?tab=users&msg=user_deleted');
+    }
+
+    /** Renvoie le rapport de suppression (motif + export de données, si disponibles) à un
+     *  compte déjà supprimé — fonctionne même après une purge définitive du contenu. */
+    public function resendDeletedUserReport(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)$params['id'];
+        $row = Database::fetch('SELECT * FROM deleted_users WHERE id=?', [$id]);
+        $ok = $row && AccountDeletion::resendDeletionReport($row);
+        $this->redirect('/admin?tab=deleted-accounts&msg=' . ($ok ? 'report_resent' : 'report_resend_failed'));
     }
 
     /**
