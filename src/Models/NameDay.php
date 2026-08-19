@@ -122,6 +122,7 @@ class NameDay
     /** Prénoms/variantes courantes non listées comme entrée du jour mais renvoyées vers une date existante. */
     private static array $aliases = [
         'jean baptiste' => '06-24',
+        'baptiste'      => '04-07',
         'matthieu'      => '09-21',
         'mathieu'       => '09-21',
         'catherine'     => '11-25',
@@ -134,8 +135,24 @@ class NameDay
         'come'          => '09-26',
         'damien'        => '02-21',
         'elisabeth'     => '11-17',
+        'elise'         => '11-17',
         'gael'          => '12-17',
         'noe'           => '08-15',
+        // Diminutifs et variantes courantes non listées comme entrée officielle du jour,
+        // renvoyées vers le prénom canonique du calendrier le plus proche.
+        'leo'           => '11-10', // Léon
+        'theo'          => '12-20', // Théophile
+        'tom'           => '01-28', // Thomas
+        'lucas'         => '10-18', // Luc
+        'gabriel'       => '09-29',
+        'raphael'       => '09-29',
+        'manon'         => '08-15', // Marie
+        'marion'        => '08-15', // Marie
+        'mathis'        => '09-21', // Matthieu
+        'matteo'        => '09-21', // Matthieu
+        'matheo'        => '09-21', // Matthieu
+        'julia'         => '04-08',
+        'anthony'       => '06-13',
     ];
 
     private static ?array $reverse = null;
