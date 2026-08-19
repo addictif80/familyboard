@@ -323,8 +323,10 @@ class AdminController extends BaseController
     /**
      * Suppression d'un compte membre ou co-parent par l'administrateur système, avec motif
      * obligatoire envoyé par e-mail au titulaire du compte avant suppression, accompagné d'une
-     * copie de ses données (mêmes données que "Télécharger mes données" en Paramètres) — pour
-     * qu'il en garde une trace même si "Tout supprimer" est coché (purge immédiate des données
+     * page HTML autonome récapitulant ses données (mêmes données que "Télécharger mes données"
+     * en Paramètres, mais lisible directement dans un navigateur plutôt qu'un ZIP/JSON brut —
+     * voir DataExport::buildHtmlPage()) — pour qu'il en garde une trace même si "Tout supprimer"
+     * est coché (purge immédiate des données
      * normalement conservées, ex. former_user_id, plutôt que le comportement par défaut de
      * AccountDeletion::deleteUser(), qui les préserve sans suppression en cascade).
      * Volontairement limité aux rôles membre/co-parent : supprimer un compte administrateur de
@@ -350,13 +352,13 @@ class AdminController extends BaseController
 
         $attachments = [];
         try {
-            $zipPath = DataExport::build((int)$target['id'], (int)$target['family_id'], false);
+            $exportData = DataExport::collect((int)$target['id'], (int)$target['family_id'], false);
+            unset($exportData['_file_paths']);
             $attachments[] = [
-                'filename' => 'mes-donnees-' . date('Y-m-d') . '.zip',
-                'content'  => file_get_contents($zipPath),
-                'mime'     => 'application/zip',
+                'filename' => 'mes-donnees-' . date('Y-m-d') . '.html',
+                'content'  => DataExport::buildHtmlPage($exportData, $target['name']),
+                'mime'     => 'text/html',
             ];
-            @unlink($zipPath);
         } catch (\Throwable $e) {
             error_log('Account deletion data export error: ' . $e->getMessage());
         }

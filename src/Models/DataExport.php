@@ -112,6 +112,20 @@ class DataExport
      */
     public static function build(int $userId, int $familyId, bool $wholeFamily): string
     {
+        $data = self::collect($userId, $familyId, $wholeFamily);
+        $filePaths = $data['_file_paths'];
+        unset($data['_file_paths']);
+        return self::zip($data, $filePaths);
+    }
+
+    /**
+     * Assemble les mêmes données que build(), mais retourne le tableau associatif brut plutôt
+     * qu'un ZIP — pour un usage qui n'a pas besoin des fichiers joints (ex. la page HTML envoyée
+     * par e-mail lors d'une suppression de compte, voir buildHtmlPage()). La clé interne
+     * '_file_paths' n'est pas destinée à l'affichage, seulement à build() ci-dessus.
+     */
+    public static function collect(int $userId, int $familyId, bool $wholeFamily): array
+    {
         $family = Family::findById($familyId);
         $data = [
             'genere_le' => date('Y-m-d H:i:s'),
@@ -173,7 +187,8 @@ class DataExport
             if (!empty($me['avatar'])) $filePaths[] = $me['avatar'];
         }
 
-        return self::zip($data, $filePaths);
+        $data['_file_paths'] = $filePaths;
+        return $data;
     }
 
     private static function collectFilePaths(int $familyId, ?int $userId): array
@@ -217,5 +232,117 @@ class DataExport
 
         $zip->close();
         return $tmpZip;
+    }
+
+    /**
+     * Rend les mêmes données que collect() sous forme d'une page HTML autonome (une seule
+     * balise <style>, aucune ressource externe) — utilisée en pièce jointe de l'e-mail envoyé
+     * lors d'une suppression de compte par un administrateur système : plus lisible qu'un JSON
+     * brut, ouvrable directement dans un navigateur. Les pièces jointes (photos, documents...)
+     * ne sont volontairement pas incluses ici (voir build()/zip() pour l'export complet avec
+     * fichiers, réservé au téléchargement volontaire par l'utilisateur lui-même).
+     */
+    public static function buildHtmlPage(array $data, string $userName): string
+    {
+        $generatedAt = htmlspecialchars($data['genere_le'] ?? date('Y-m-d H:i:s'), ENT_QUOTES, 'UTF-8');
+        unset($data['genere_le'], $data['perimetre'], $data['_file_paths']);
+
+        $sections = '';
+        foreach ($data as $key => $value) {
+            if ($value === null || $value === []) continue;
+            $label = ucfirst(str_replace('_', ' ', $key));
+            $sections .= self::isSingleRecord($value)
+                ? self::renderRecordSection($label, $value)
+                : self::renderListSection($label, $value);
+        }
+
+        if ($sections === '') {
+            $sections = '<p style="color:#7C7568">Aucune donnée personnelle enregistrée.</p>';
+        }
+
+        $safeName = htmlspecialchars($userName, ENT_QUOTES, 'UTF-8');
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Données FamilyBoard de {$safeName}</title>
+<style>
+    body { margin:0; padding:32px 16px; background:#F6F2EA; font-family:Inter,Arial,sans-serif; color:#23201B; }
+    .wrap { max-width:900px; margin:0 auto; }
+    h1 { font-family:Georgia,'Fraunces',serif; font-size:24px; color:#3D5A8A; margin:0 0 4px; }
+    .meta { color:#7C7568; font-size:.85rem; margin-bottom:28px; }
+    section { background:#FFFFFF; border:1px solid #E6DFD1; border-radius:14px; padding:20px 24px; margin-bottom:18px; box-shadow:0 2px 10px rgba(35,32,27,.06); }
+    h2 { font-family:Georgia,'Fraunces',serif; font-size:17px; color:#3D5A8A; margin:0 0 12px; }
+    table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    th, td { text-align:left; padding:.4rem .6rem; border-bottom:1px solid #E6DFD1; vertical-align:top; word-break:break-word; }
+    th { color:#7C7568; font-weight:600; white-space:nowrap; }
+    dl { display:grid; grid-template-columns:auto 1fr; gap:.3rem 1rem; font-size:.85rem; margin:0; }
+    dt { color:#7C7568; }
+    dd { margin:0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <h1>🏡 Données FamilyBoard de {$safeName}</h1>
+    <p class="meta">Généré le {$generatedAt}</p>
+    {$sections}
+</div>
+</body>
+</html>
+HTML;
+    }
+
+    /** Vrai pour un enregistrement unique (ex. issu de Database::fetch()) plutôt qu'une liste de lignes. */
+    private static function isSingleRecord(array $value): bool
+    {
+        return $value !== [] && !array_is_list($value);
+    }
+
+    private static function renderRecordSection(string $label, array $record): string
+    {
+        $rows = '';
+        foreach ($record as $field => $val) {
+            if ($val === null || $val === '') continue;
+            $rows .= '<dt>' . htmlspecialchars(ucfirst(str_replace('_', ' ', (string)$field)), ENT_QUOTES, 'UTF-8') . '</dt>'
+                   . '<dd>' . htmlspecialchars(self::stringify($val), ENT_QUOTES, 'UTF-8') . '</dd>';
+        }
+        if ($rows === '') return '';
+        return '<section><h2>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2><dl>' . $rows . '</dl></section>';
+    }
+
+    private static function renderListSection(string $label, array $rows): string
+    {
+        // Ne garde que les lignes qui sont elles-mêmes des tableaux associatifs (schéma
+        // hétérogène improbable mais pas impossible selon la source) ; ignore silencieusement
+        // les autres pour ne jamais faire planter l'export sur une donnée inattendue.
+        $rows = array_values(array_filter($rows, 'is_array'));
+        if (!$rows) return '';
+
+        $columns = array_keys($rows[0]);
+        $head = implode('', array_map(
+            fn($c) => '<th>' . htmlspecialchars(ucfirst(str_replace('_', ' ', (string)$c)), ENT_QUOTES, 'UTF-8') . '</th>',
+            $columns
+        ));
+
+        $body = '';
+        foreach ($rows as $row) {
+            $body .= '<tr>' . implode('', array_map(
+                fn($c) => '<td>' . htmlspecialchars(self::stringify($row[$c] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>',
+                $columns
+            )) . '</tr>';
+        }
+
+        return '<section><h2>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . ' <small style="color:#7C7568;font-weight:400">(' . count($rows) . ')</small></h2>'
+             . '<table><thead><tr>' . $head . '</tr></thead><tbody>' . $body . '</tbody></table></section>';
+    }
+
+    /** Aplati une valeur (scalaire, ou tableau imbriqué du JSON export) en texte affichable, tronqué si très long. */
+    private static function stringify($val): string
+    {
+        if (is_array($val)) $val = json_encode($val, JSON_UNESCAPED_UNICODE);
+        return mb_strimwidth((string)$val, 0, 300, '…');
     }
 }
