@@ -62,7 +62,7 @@ class EmailContent
         ],
         'account_deleted' => [
             'subject' => 'Votre compte FamilyBoard a été supprimé',
-            'message' => "Bonjour {{user_name}},\n\nVotre compte FamilyBoard a été supprimé par un administrateur système, pour le motif suivant :\n\n{{reason}}\n\nSi vous pensez qu'il s'agit d'une erreur, contactez le support.",
+            'message' => "Bonjour {{user_name}},\n\nVotre compte FamilyBoard a été supprimé{{deleted_by}}, pour le motif suivant :\n\n{{reason}}\n\nSi vous pensez qu'il s'agit d'une erreur, contactez le support.",
         ],
     ];
 
@@ -136,7 +136,7 @@ class EmailContent
             'weekly_digest'         => 'Résumé hebdomadaire (dimanche soir)',
             'weekly_digest_coparent'=> 'Résumé hebdomadaire — accès co-parent',
             'password_reset'        => 'Réinitialisation de mot de passe',
-            'account_deleted'       => 'Compte supprimé par un administrateur système',
+            'account_deleted'       => 'Compte supprimé (motif et attribution renvoyés par l\'admin système ou en libre-service)',
             default                => $type,
         };
     }
@@ -156,7 +156,7 @@ class EmailContent
             'weekly_digest'         => ['user_name', 'family_name'],
             'weekly_digest_coparent'=> ['user_name', 'child_names'],
             'password_reset'        => ['user_name'],
-            'account_deleted'       => ['user_name', 'reason'],
+            'account_deleted'       => ['user_name', 'deleted_by', 'reason'],
             default                 => [],
         };
     }
