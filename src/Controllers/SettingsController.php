@@ -19,8 +19,30 @@ class SettingsController extends BaseController
 {
     public function index(array $params): void
     {
-        $this->requireAuth();
+        // Accès autorisé au co-parent (allowCoparent=true) : lui aussi doit pouvoir gérer son
+        // profil, sa double authentification, exporter ses données ou supprimer son compte —
+        // seul l'onglet "Mon compte" lui est montré (voir $isCoparentSettings dans le template),
+        // jamais les données de la famille (membres, modules, historique email...).
+        $this->requireAuth(true);
         $user = Session::user();
+
+        if ($user['role'] === 'coparent') {
+            $family = null;
+            $members = [];
+            $coparentChildren = [];
+            $emailLogs = [];
+            $sitterLinks = [];
+            $kioskLinks = [];
+            $coparentsForNotify = [];
+            $friendFamiliesAccepted = [];
+            $friendFamiliesIncoming = [];
+            $friendFamiliesOutgoing = [];
+            $vaultwardenEnabled = false;
+            $twoFactorMethod = TwoFactorAuth::getMethod($user['id']);
+            require BASE_PATH . '/templates/settings/index.php';
+            return;
+        }
+
         $family = Family::findById($user['family_id']);
         $members = User::getByFamily($user['family_id']);
         $coparentChildren = \App\Models\Custody::getChildNamesByUserIds(array_column($members, 'id'));
@@ -61,7 +83,7 @@ class SettingsController extends BaseController
      *  toute session déjà ouverte (y compris celle-ci — l'appelant doit rediriger vers /logout). */
     public function logoutAllDevices(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             \App\Core\Database::execute('UPDATE users SET force_logout_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s'), $user['id']]);
@@ -76,7 +98,7 @@ class SettingsController extends BaseController
      *  n'est pas confirmé) et le place en session le temps de la vérification. */
     public function startTwoFactorTotp(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             $secret = Totp::generateSecret();
@@ -91,7 +113,7 @@ class SettingsController extends BaseController
 
     public function confirmTwoFactorTotp(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             $secret = Session::get('pending_totp_secret');
@@ -107,7 +129,7 @@ class SettingsController extends BaseController
 
     public function enableTwoFactorEmail(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             TwoFactorAuth::enableEmail((int)$user['id']);
@@ -119,7 +141,7 @@ class SettingsController extends BaseController
      *  (mais sans le mot de passe) désactiver la protection. */
     public function disableTwoFactor(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             $password = $this->jsonInput()['password'] ?? '';
@@ -133,7 +155,7 @@ class SettingsController extends BaseController
 
     public function updateProfile(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $user = Session::user();
         $name = trim($_POST['name'] ?? '');
         $color = $this->safeColor($_POST['color'] ?? null);
@@ -333,7 +355,7 @@ class SettingsController extends BaseController
 
     public function exportData(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $user = Session::user();
         $wholeFamily = ($_GET['scope'] ?? 'mine') === 'family';
         if ($wholeFamily && $user['role'] !== 'admin') {
@@ -365,7 +387,7 @@ class SettingsController extends BaseController
 
     public function deleteAccount(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAuth(true);
         $this->json(function () {
             $user = Session::user();
             $familyId = (int)$user['family_id'];

@@ -112,6 +112,7 @@ document.documentElement.style.setProperty('--banners-h', document.getElementByI
             <span>Garde partagée</span>
         </div>
         <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+            <a href="<?= BASE_URL ?>/settings" class="btn btn-secondary btn-sm">⚙️ Paramètres</a>
             <a href="<?= BASE_URL ?>/aide" class="btn btn-secondary btn-sm">🧭 Guide</a>
             <a href="<?= BASE_URL ?>/faq" class="btn btn-secondary btn-sm">❓ FAQ</a>
             <a href="<?= BASE_URL ?>/support" class="btn btn-secondary btn-sm">🎫 Support</a>

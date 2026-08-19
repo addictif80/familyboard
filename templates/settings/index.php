@@ -3,8 +3,10 @@ $pageTitle = 'Paramètres';
 $extraJs = ['vendor/qrcode.min.js', 'settings.js'];
 ob_start();
 ?>
+<?php $isCoparentSettings = ($user['role'] ?? null) === 'coparent'; ?>
 <div class="settings-container">
 
+    <?php if (!$isCoparentSettings): ?>
     <div class="settings-tabs">
         <button type="button" class="settings-tab-btn" data-tab="compte" onclick="switchSettingsTab('compte')">👤 Mon compte</button>
         <button type="button" class="settings-tab-btn" data-tab="app" onclick="switchSettingsTab('app')">📲 Application</button>
@@ -14,6 +16,7 @@ ob_start();
         <button type="button" class="settings-tab-btn" data-tab="historique" onclick="switchSettingsTab('historique')">📨 Historique</button>
         <?php endif; ?>
     </div>
+    <?php endif; ?>
 
     <!-- ═══ Onglet : Mon compte ═══ -->
     <div class="settings-tab-panel" data-tab="compte">
@@ -182,6 +185,7 @@ ob_start();
     </div>
     <!-- ═══ /Onglet : Mon compte ═══ -->
 
+    <?php if (!$isCoparentSettings): ?>
     <!-- ═══ Onglet : Application ═══ -->
     <div class="settings-tab-panel" data-tab="app">
 
@@ -267,7 +271,9 @@ ob_start();
 
     </div>
     <!-- ═══ /Onglet : Application ═══ -->
+    <?php endif; ?>
 
+    <?php if (!$isCoparentSettings): ?>
     <!-- ═══ Onglet : Famille ═══ -->
     <div class="settings-tab-panel" data-tab="famille">
 
@@ -533,7 +539,9 @@ ob_start();
 
     </div>
     <!-- ═══ /Onglet : Famille ═══ -->
+    <?php endif; ?>
 
+    <?php if (!$isCoparentSettings): ?>
     <!-- ═══ Onglet : Accès partagés ═══ -->
     <div class="settings-tab-panel" data-tab="acces">
 
@@ -627,6 +635,7 @@ ob_start();
 
     </div>
     <!-- ═══ /Onglet : Accès partagés ═══ -->
+    <?php endif; ?>
 
     <?php if (!empty($emailLogs)): ?>
     <!-- ═══ Onglet : Historique ═══ -->

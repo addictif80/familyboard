@@ -147,10 +147,13 @@
                         </form>
                     <?php endif; ?>
                     <?php if ($u['role'] !== 'admin'): ?>
-                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/delete" style="display:flex;gap:.3rem"
-                              onsubmit="return confirm('Supprimer définitivement le compte de <?= htmlspecialchars(addslashes($u['name'])) ?> ? Un e-mail avec le motif lui sera envoyé. Cette action est irréversible (le contenu créé est conservé, mais le compte disparaît).')">
+                        <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/delete" style="display:flex;gap:.3rem;align-items:center;flex-wrap:wrap"
+                              onsubmit="return confirmUserDelete(this, '<?= htmlspecialchars(addslashes($u['name']), ENT_QUOTES) ?>')">
                             <?= \App\Core\Csrf::field() ?>
                             <input type="text" name="reason" placeholder="Motif (requis)" required style="font-size:.78rem;padding:.2rem .4rem;border:1px solid var(--border);border-radius:4px;width:140px">
+                            <label style="display:flex;align-items:center;gap:.25rem;font-size:.72rem;color:var(--text-muted);white-space:nowrap" title="Supprime aussi le contenu normalement conservé (documents, événements, photos…), pas seulement le compte">
+                                <input type="checkbox" name="purge_all" value="1"> Tout supprimer
+                            </label>
                             <button class="btn btn-danger btn-sm">🗑️ Supprimer</button>
                         </form>
                     <?php endif; ?>

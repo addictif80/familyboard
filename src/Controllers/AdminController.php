@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Core\EmailLayout;
 use App\Core\Vaultwarden;
 use App\Models\VaultwardenSettings;
+use App\Models\DataExport;
 
 class AdminController extends BaseController
 {
@@ -321,8 +322,11 @@ class AdminController extends BaseController
 
     /**
      * Suppression d'un compte membre ou co-parent par l'administrateur système, avec motif
-     * obligatoire envoyé par e-mail au titulaire du compte avant suppression (le contenu créé
-     * est préservé, jamais supprimé en cascade — voir AccountDeletion::deleteUser()).
+     * obligatoire envoyé par e-mail au titulaire du compte avant suppression, accompagné d'une
+     * copie de ses données (mêmes données que "Télécharger mes données" en Paramètres) — pour
+     * qu'il en garde une trace même si "Tout supprimer" est coché (purge immédiate des données
+     * normalement conservées, ex. former_user_id, plutôt que le comportement par défaut de
+     * AccountDeletion::deleteUser(), qui les préserve sans suppression en cascade).
      * Volontairement limité aux rôles membre/co-parent : supprimer un compte administrateur de
      * famille nécessite de transférer son rôle ou de supprimer toute la famille (choix qui
      * appartient à cette famille, pas à un administrateur système agissant seul).
@@ -332,6 +336,7 @@ class AdminController extends BaseController
         $this->requireSuperAdmin();
         $id = (int)$params['id'];
         $reason = trim($_POST['reason'] ?? '');
+        $purgeAll = !empty($_POST['purge_all']);
         $target = User::findById($id);
 
         if (!$target || $reason === '') {
@@ -343,13 +348,26 @@ class AdminController extends BaseController
             return;
         }
 
+        $attachments = [];
+        try {
+            $zipPath = DataExport::build((int)$target['id'], (int)$target['family_id'], false);
+            $attachments[] = [
+                'filename' => 'mes-donnees-' . date('Y-m-d') . '.zip',
+                'content'  => file_get_contents($zipPath),
+                'mime'     => 'application/zip',
+            ];
+            @unlink($zipPath);
+        } catch (\Throwable $e) {
+            error_log('Account deletion data export error: ' . $e->getMessage());
+        }
+
         try {
             $rendered = EmailContent::render('account_deleted', [
                 'user_name' => $target['name'],
                 'reason'    => $reason,
             ]);
             $html = EmailLayout::render($rendered['subject'], $rendered['message_html']);
-            Mail::send((int)$target['family_id'], $target['email'], $target['name'], $rendered['subject'], $html, 'account_deleted');
+            Mail::send((int)$target['family_id'], $target['email'], $target['name'], $rendered['subject'], $html, 'account_deleted', null, $attachments);
         } catch (\Throwable $e) {
             error_log('Account deletion email error: ' . $e->getMessage());
         }
@@ -359,6 +377,12 @@ class AdminController extends BaseController
         } else {
             AccountDeletion::deleteUser($id, (int)$target['family_id'], 'system_admin');
         }
+
+        if ($purgeAll) {
+            $deletedRow = Database::fetch('SELECT id FROM deleted_users WHERE original_user_id=? ORDER BY id DESC LIMIT 1', [$id]);
+            if ($deletedRow) AccountDeletion::purgeDeletedUserData((int)$deletedRow['id']);
+        }
+
         $this->redirect('/admin?tab=users&msg=user_deleted');
     }
 
