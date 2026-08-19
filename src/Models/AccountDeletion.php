@@ -100,10 +100,28 @@ class AccountDeletion
      */
     public static function resendDeletionReport(array $deletedUserRow): bool
     {
+        // Compte supprimé avant l'ajout de cet instantané (ou par une voie qui n'en capture
+        // pas) : rien de fiable à renvoyer. Envoyer quand même un e-mail générique imputerait
+        // à tort la suppression à "un administrateur système" avec un motif "non précisé" —
+        // trompeur pour un compte en réalité auto-supprimé ou retiré par son admin de famille.
+        if (empty($deletedUserRow['reason']) && empty($deletedUserRow['data_export_html'])) {
+            return false;
+        }
+
         try {
+            // Le texte doit refléter qui a réellement supprimé le compte : renvoyer ce rapport
+            // pour une auto-suppression ou un retrait par l'admin de famille en affirmant "par
+            // un administrateur système" serait faux, quelle que soit l'origine de la demande
+            // de renvoi (bouton admin ou libre-service).
+            $deletedByText = match ($deletedUserRow['deleted_by'] ?? '') {
+                'system_admin' => ' par un administrateur système',
+                'family_admin' => " par l'administrateur de votre famille",
+                default        => '',
+            };
             $rendered = EmailContent::render('account_deleted', [
-                'user_name' => $deletedUserRow['name'],
-                'reason'    => $deletedUserRow['reason'] ?: 'Non précisé.',
+                'user_name'  => $deletedUserRow['name'],
+                'deleted_by' => $deletedByText,
+                'reason'     => $deletedUserRow['reason'] ?: 'Non précisé.',
             ]);
             $html = \App\Core\EmailLayout::render($rendered['subject'], $rendered['message_html']);
             $attachments = [];
