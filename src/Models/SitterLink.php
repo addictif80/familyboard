@@ -13,12 +13,12 @@ class SitterLink
         );
     }
 
-    public static function create(int $familyId, int $userId, string $label, string $expiresAt): array
+    public static function create(int $familyId, int $userId, string $label, string $expiresAt, ?string $instructions = null): array
     {
         $token = bin2hex(random_bytes(24));
         $id = Database::insert(
-            'INSERT INTO sitter_links (family_id, label, token, created_by, expires_at) VALUES (?,?,?,?,?)',
-            [$familyId, $label, $token, $userId, $expiresAt]
+            'INSERT INTO sitter_links (family_id, label, token, created_by, expires_at, instructions) VALUES (?,?,?,?,?,?)',
+            [$familyId, $label, $token, $userId, $expiresAt, $instructions ?: null]
         );
         return Database::fetch('SELECT * FROM sitter_links WHERE id=?', [$id]);
     }

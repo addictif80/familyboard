@@ -58,6 +58,11 @@ ob_start();
                 <small style="color:var(--text-muted)">Permet à votre famille de voir un rappel avant votre anniversaire.</small>
             </div>
             <div class="form-group">
+                <label>📞 Téléphone (optionnel)</label>
+                <input type="tel" name="phone" value="<?= htmlspecialchars($user['phone'] ?? '') ?>" placeholder="06 12 34 56 78">
+                <small style="color:var(--text-muted)">Affiché à une baby-sitter pendant un accès actif — nulle part ailleurs.</small>
+            </div>
+            <div class="form-group">
                 <label style="display:flex;align-items:center;gap:.5rem">
                     <input type="checkbox" name="location_tracking_enabled" value="1" <?= !empty($user['location_tracking_enabled']) ? 'checked' : '' ?>>
                     Suivi de position pour les minuteurs
@@ -464,6 +469,51 @@ ob_start();
         <p id="home-location-status" style="font-size:.82rem;margin-top:.5rem"></p>
     </div>
 
+    <!-- Mode sombre programmé (écran mural / kiosque) -->
+    <div class="card settings-section">
+        <h3>🌙 Mode sombre — écran mural / kiosque</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Bascule automatiquement l'écran mural et le kiosque en sombre, pour ne pas éblouir la
+            pièce la nuit. Sans effet sur l'application normale (chacun garde son propre réglage
+            clair/sombre).
+        </p>
+        <?php $darkType = $family['dark_mode_type'] ?? 'off'; ?>
+        <form method="POST" action="<?= BASE_URL ?>/settings/family">
+            <?= \App\Core\Csrf::field() ?>
+            <input type="hidden" name="family_name" value="<?= htmlspecialchars($family['name']) ?>">
+            <input type="hidden" name="timezone" value="<?= htmlspecialchars($family['timezone'] ?? 'Europe/Paris') ?>">
+            <input type="hidden" name="weather_city" value="<?= htmlspecialchars($family['weather_city'] ?? '') ?>">
+            <input type="hidden" name="school_zone" value="<?= htmlspecialchars($family['school_zone'] ?? '') ?>">
+            <input type="hidden" name="caldav_sync_interval" value="<?= (int)($family['caldav_sync_interval'] ?? 0) ?>">
+            <div class="form-group">
+                <label><input type="radio" name="dark_mode_type" value="off" <?= $darkType === 'off' ? 'checked' : '' ?> onchange="toggleDarkModeFields()"> Désactivé</label><br>
+                <label><input type="radio" name="dark_mode_type" value="fixed" <?= $darkType === 'fixed' ? 'checked' : '' ?> onchange="toggleDarkModeFields()"> Horaires fixes</label><br>
+                <label>
+                    <input type="radio" name="dark_mode_type" value="sunset" <?= $darkType === 'sunset' ? 'checked' : '' ?> onchange="toggleDarkModeFields()" <?= empty($family['home_lat']) ? 'disabled' : '' ?>>
+                    Du coucher au lever du soleil
+                    <?php if (empty($family['home_lat'])): ?><small style="color:var(--text-muted)">(configurez d'abord le Domicile ci-dessus)</small><?php endif; ?>
+                </label>
+            </div>
+            <div class="form-row" id="dark-mode-fixed-fields" style="<?= $darkType === 'fixed' ? '' : 'display:none' ?>">
+                <div class="form-group">
+                    <label>Début</label>
+                    <input type="time" name="dark_mode_start" value="<?= htmlspecialchars($family['dark_mode_start'] ?? '20:00') ?>">
+                </div>
+                <div class="form-group">
+                    <label>Fin</label>
+                    <input type="time" name="dark_mode_end" value="<?= htmlspecialchars($family['dark_mode_end'] ?? '07:00') ?>">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" style="margin-top:.5rem">Enregistrer</button>
+        </form>
+    </div>
+    <script>
+    function toggleDarkModeFields() {
+        const isFixed = document.querySelector('input[name="dark_mode_type"]:checked')?.value === 'fixed';
+        document.getElementById('dark-mode-fixed-fields').style.display = isFixed ? '' : 'none';
+    }
+    </script>
+
     <!-- Modules (admin only) -->
     <?php $_disabledMods = \App\Models\Family::getDisabledModules($family ?? []); ?>
     <div class="card settings-section">
@@ -585,8 +635,9 @@ ob_start();
     <div class="card settings-section">
         <h3>👶 Accès baby-sitter</h3>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Générez un lien temporaire donnant un accès limité en lecture seule (planning du jour, tâches
-            ouvertes, fiches urgence) — sans connexion, sans accès au reste des données familiales.
+            Générez un lien temporaire donnant un accès limité en lecture seule (contacts des parents,
+            numéros de secours, consignes, suivi bébé) — sans connexion, sans accès au reste des
+            données familiales.
         </p>
         <div class="form-row">
             <div class="form-group flex-2">
@@ -602,6 +653,10 @@ ob_start();
                     <option value="72">3 jours</option>
                 </select>
             </div>
+        </div>
+        <div class="form-group">
+            <label>Consignes pour la baby-sitter (optionnel)</label>
+            <textarea id="sitter-instructions" rows="3" placeholder="Ex : coucher à 20h, pas d'écran après le dîner…"></textarea>
         </div>
         <button type="button" class="btn btn-primary" onclick="createSitterLink()">+ Générer un lien</button>
         <div id="sitter-new-link" style="margin-top:1rem"></div>
@@ -682,7 +737,7 @@ ob_start();
             <label style="display:flex;align-items:center;gap:.35rem;font-size:.85rem">
                 <input type="checkbox" name="show_on_wall" value="1" checked> Afficher sur l'écran mural
             </label>
-            <button class="btn btn-primary btn-sm">Ajouter</button>
+            <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
         </form>
 
         <div style="margin-top:1.25rem">
@@ -696,7 +751,7 @@ ob_start();
                     <small><?= (int)$t['duration_minutes'] ?> min · <?= $t['show_on_wall'] ? '✅ Affiché sur l\'écran mural' : '➖ Non affiché' ?></small>
                 </div>
                 <form method="POST" action="<?= BASE_URL ?>/settings/timers/<?= (int)$t['id'] ?>/delete"><?= \App\Core\Csrf::field() ?>
-                    <button class="btn btn-danger btn-sm">Supprimer</button>
+                    <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
                 </form>
             </div>
             <?php endforeach; ?>

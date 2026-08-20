@@ -83,14 +83,27 @@ class Family
         $syncInterval = isset($settings['caldav_sync_interval']) ? (int)$settings['caldav_sync_interval'] : 0;
         $syncInterval = in_array($syncInterval, $allowedIntervals, true) ? $syncInterval : null;
 
+        $darkModeType = $settings['dark_mode_type'] ?? 'off';
+        if (!in_array($darkModeType, ['off', 'fixed', 'sunset'], true)) $darkModeType = 'off';
+        $timePattern = '/^([01]\d|2[0-3]):[0-5]\d$/';
+        $darkStart = ($darkModeType === 'fixed' && preg_match($timePattern, $settings['dark_mode_start'] ?? '')) ? $settings['dark_mode_start'] : null;
+        $darkEnd   = ($darkModeType === 'fixed' && preg_match($timePattern, $settings['dark_mode_end'] ?? ''))   ? $settings['dark_mode_end']   : null;
+        // Horaires fixes incomplets (un seul des deux renseigné) : la programmation ne peut pas
+        // fonctionner, on retombe sur "désactivé" plutôt que de bloquer en sombre ou en clair.
+        if ($darkModeType === 'fixed' && (!$darkStart || !$darkEnd)) $darkModeType = 'off';
+
         Database::execute(
-            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, school_zone=?, caldav_sync_interval=? WHERE id=?',
+            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, school_zone=?, caldav_sync_interval=?,
+             dark_mode_type=?, dark_mode_start=?, dark_mode_end=? WHERE id=?',
             [
                 $name,
                 $settings['timezone'] ?: null,
                 isset($settings['weather_city']) ? (trim($settings['weather_city']) ?: null) : null,
                 $schoolZone,
                 $syncInterval,
+                $darkModeType,
+                $darkStart,
+                $darkEnd,
                 $id,
             ]
         );

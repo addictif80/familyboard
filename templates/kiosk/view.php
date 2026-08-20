@@ -13,11 +13,19 @@ $kioskToken = $params['token'] ?? '';
     <title><?= htmlspecialchars($family['name'] ?? 'FamilyBoard') ?> — Écran mural</title>
     <script>
     (function () {
-        try {
-            var stored = localStorage.getItem('fb-theme');
-            var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.setAttribute('data-theme', theme);
-        } catch (e) {}
+        // Un kiosque est un écran partagé fixe, pas "un" utilisateur : sa programmation sombre
+        // (réglée dans les paramètres famille) prime toujours sur les préférences du navigateur.
+        // Sans programmation active, on retombe sur le comportement précédent (préférence système).
+        var darkScheduleActive = <?= $darkScheduleActive ? 'true' : 'false' ?>;
+        var theme;
+        if (darkScheduleActive) {
+            theme = <?= $isDark ? "'dark'" : "'light'" ?>;
+        } else {
+            try {
+                theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            } catch (e) { theme = 'light'; }
+        }
+        document.documentElement.setAttribute('data-theme', theme);
     })();
     </script>
     <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon.svg" type="image/svg+xml">

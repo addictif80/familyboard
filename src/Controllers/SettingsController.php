@@ -96,7 +96,7 @@ class SettingsController extends BaseController
                 [$user['family_id']]
             );
         }
-        header('Location: ' . BASE_URL . '/settings?tab=famille');
+        header('Location: ' . BASE_URL . '/settings#tab-famille');
         exit;
     }
 
@@ -111,7 +111,7 @@ class SettingsController extends BaseController
                 FamilyTimer::create($user['family_id'], $label, $minutes, !empty($_POST['show_on_wall']), (int)$user['id']);
             }
         }
-        header('Location: ' . BASE_URL . '/settings?tab=acces');
+        header('Location: ' . BASE_URL . '/settings#tab-acces');
         exit;
     }
 
@@ -122,7 +122,7 @@ class SettingsController extends BaseController
         if ($user['role'] === 'admin') {
             FamilyTimer::delete((int)$params['id'], $user['family_id']);
         }
-        header('Location: ' . BASE_URL . '/settings?tab=acces');
+        header('Location: ' . BASE_URL . '/settings#tab-acces');
         exit;
     }
 
@@ -237,6 +237,10 @@ class SettingsController extends BaseController
         if ($avatar) $data['avatar'] = $avatar;
         $trackingEnabled = !empty($_POST['location_tracking_enabled']) ? 1 : 0;
         $data['location_tracking_enabled'] = $trackingEnabled;
+        // User::update() ignore un champ valant null (isset() sur $data) : une chaîne vide plutôt
+        // que null permet de bien effacer le téléphone si le champ est vidé, pas seulement de le
+        // renseigner.
+        $data['phone'] = trim($_POST['phone'] ?? '');
         $birthday = trim($_POST['birthday'] ?? '');
         if ($birthday !== '') {
             $d = \DateTime::createFromFormat('Y-m-d', $birthday);
@@ -299,6 +303,9 @@ class SettingsController extends BaseController
             'weather_city'         => trim($_POST['weather_city']         ?? ''),
             'school_zone'          => trim($_POST['school_zone']          ?? ''),
             'caldav_sync_interval' => trim($_POST['caldav_sync_interval'] ?? ''),
+            'dark_mode_type'       => trim($_POST['dark_mode_type']       ?? 'off'),
+            'dark_mode_start'      => trim($_POST['dark_mode_start']      ?? ''),
+            'dark_mode_end'        => trim($_POST['dark_mode_end']        ?? ''),
         ]);
         Session::flash('success', 'Famille mise à jour.');
         header('Location: ' . BASE_URL . '/settings');
