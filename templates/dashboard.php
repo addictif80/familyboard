@@ -10,6 +10,9 @@ ob_start();
             <span class="hero-name">Bonjour, <?= htmlspecialchars($user['name']) ?> 👋</span>
             <span class="hero-date"><?= ucfirst(\App\Core\DateHelper::format(date('Y-m-d'), 'l j F Y')) ?></span>
         </div>
+        <?php if (!empty($todayNameDay)): ?>
+        <div class="hero-nameday">🎉 Fête : <?= htmlspecialchars($todayNameDay) ?></div>
+        <?php endif; ?>
         <div class="hero-weather" id="hero-weather">
             <span class="weather-loading">…</span>
         </div>

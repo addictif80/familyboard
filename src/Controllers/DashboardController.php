@@ -9,6 +9,7 @@ use App\Models\TaskList;
 use App\Models\Baby;
 use App\Models\Birthday;
 use App\Models\Family;
+use App\Models\NameDay;
 use App\Core\Session;
 
 class DashboardController extends \App\Controllers\BaseController
@@ -45,6 +46,7 @@ class DashboardController extends \App\Controllers\BaseController
         $family          = Family::findById($familyId);
         $disabledModules = Family::getDisabledModules($family ?? []);
         $widgetConfig    = $this->getUserWidgets($user, $disabledModules);
+        $todayNameDay    = NameDay::today();
 
         // Fetch data for each enabled widget
         $widgetData = [];
