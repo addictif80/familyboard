@@ -28,7 +28,7 @@
             <span>🔐 Admin</span>
         </div>
         <ul class="admin-nav">
-            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','deleted-accounts'=>'🗑️ Comptes supprimés','notifications'=>'📣 Notifications','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP','email'=>'📧 Emails','highlights'=>'🏢 Mises en avant ABHD','links'=>'🔗 Liens certifiés','legal'=>'📜 Contenu légal'] as $t=>$label): ?>
+            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','deleted-accounts'=>'🗑️ Comptes supprimés','notifications'=>'📣 Notifications','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP','email'=>'📧 Emails','namedays'=>'🎉 Fêtes des prénoms','highlights'=>'🏢 Mises en avant ABHD','links'=>'🔗 Liens certifiés','legal'=>'📜 Contenu légal'] as $t=>$label): ?>
             <li class="<?= $tab === $t ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
             </li>
@@ -51,7 +51,7 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
@@ -73,6 +73,8 @@
                     'link_deleted'        => 'Lien certifié supprimé.',
                     'link_invalid'        => 'Lien (http/https) requis.',
                     'link_unreachable'    => 'Ce lien n\'a pas pu être vérifié (adresse non autorisée ou site injoignable).',
+                    'nameday_added'       => 'Fête ajoutée au calendrier des prénoms.',
+                    'nameday_invalid'     => 'Prénom et date requis.',
                     default       => ''
                 } ?>
             </div>
@@ -454,6 +456,40 @@
                 <td>
                     <form method="POST" action="<?= BASE_URL ?>/admin/ips/<?= $ip['id'] ?>/delete"><?= \App\Core\Csrf::field() ?>
                         <button class="btn btn-secondary btn-sm">Débloquer</button>
+                    </form>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+
+        <?php elseif ($tab === 'namedays'): ?>
+        <h2>Fêtes des prénoms</h2>
+        <p style="color:var(--text-muted);font-size:.88rem;margin-bottom:1rem">
+            Complète ou corrige le calendrier intégré des fêtes (affichées sur les fiches contact,
+            le tableau de bord, l'écran mural et le kiosque). Une entrée ajoutée ici prend le pas
+            sur le calendrier par défaut pour ce prénom.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/namedays" class="admin-inline-form"><?= \App\Core\Csrf::field() ?>
+            <input type="text" name="name" placeholder="Prénom (ex : Elouan)" required style="width:200px">
+            <input type="date" name="name_day" required>
+            <button class="btn btn-primary btn-sm">Ajouter</button>
+        </form>
+        <?php if (empty($customNameDays)): ?>
+            <p class="empty-state">Aucune fête personnalisée pour l'instant.</p>
+        <?php else: ?>
+        <table class="admin-table" style="margin-top:1rem">
+            <thead><tr><th>Prénom</th><th>Date</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($customNameDays as $nd): ?>
+            <?php [$ndm, $ndd] = explode('-', $nd['name_day']); ?>
+            <tr>
+                <td><?= htmlspecialchars($nd['name']) ?></td>
+                <td><?= (int)$ndd ?>/<?= (int)$ndm ?></td>
+                <td>
+                    <form method="POST" action="<?= BASE_URL ?>/admin/namedays/<?= $nd['id'] ?>/delete"><?= \App\Core\Csrf::field() ?>
+                        <button class="btn btn-secondary btn-sm">Supprimer</button>
                     </form>
                 </td>
             </tr>

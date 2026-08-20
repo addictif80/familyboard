@@ -1,12 +1,19 @@
 <?php
 namespace App\Models;
 
+use App\Core\Database;
+
 /**
  * Calendrier des prénoms français ("éphéméride") — association jour → prénom fêté ce
  * jour-là, telle qu'imprimée sur la plupart des agendas/calendriers français. Purement
  * statique et culturelle : ne modifie rien en base, ne crée aucun événement, ne déclenche
  * aucun rappel. Deux usages : afficher la date de fête d'un contact sur sa fiche
  * (recherche par prénom), et afficher la fête du jour sur l'écran mural / le kiosque.
+ *
+ * Le calendrier intégré ci-dessous est forcément incomplet (prénoms modernes, régionaux,
+ * étrangers...) — un administrateur système peut compléter ou corriger une date via la
+ * table custom_name_days (admin/index.php, onglet "Fêtes des prénoms"), prioritaire sur
+ * les entrées codées en dur.
  */
 class NameDay
 {
@@ -85,7 +92,8 @@ class NameDay
         '08-30' => 'Fiacre',    '08-31' => 'Aristide',
 
         '09-01' => 'Gilles',    '09-02' => 'Ingrid',    '09-03' => 'Grégoire',  '09-04' => 'Rosalie',
-        '09-05' => 'Raïssa',    '09-06' => 'Bertrand',  '09-07' => 'Reine',     '09-09' => 'Alain',
+        '09-05' => 'Raïssa',    '09-06' => 'Bertrand',  '09-07' => 'Reine',     '09-08' => 'Adrien',
+        '09-09' => 'Alain',
         '09-10' => 'Inès',      '09-11' => 'Adelphe',   '09-12' => 'Apollinaire','09-13' => 'Aimé',
         '09-15' => 'Roland',    '09-16' => 'Édith',     '09-17' => 'Renaud',    '09-18' => 'Nadège',
         '09-19' => 'Émilie',    '09-20' => 'Davy',      '09-21' => 'Matthieu',  '09-22' => 'Maurice',
@@ -153,9 +161,12 @@ class NameDay
         'matheo'        => '09-21', // Matthieu
         'julia'         => '04-08',
         'anthony'       => '06-13',
+        'laetitia'      => '08-18',
     ];
 
     private static ?array $reverse = null;
+    private static ?array $customReverse = null;
+    private static ?array $customForward = null;
 
     private static function normalize(string $name): string
     {
@@ -190,17 +201,40 @@ class NameDay
         return self::$reverse;
     }
 
+    /** Charge les entrées ajoutées par un administrateur système (prioritaires sur le
+     *  calendrier codé en dur), une seule fois par requête. */
+    private static function loadCustom(): void
+    {
+        if (self::$customReverse !== null) return;
+        self::$customReverse = [];
+        self::$customForward = [];
+        try {
+            foreach (Database::fetchAll('SELECT name, name_day FROM custom_name_days') as $row) {
+                $key = self::normalize($row['name']);
+                if ($key !== '') self::$customReverse[$key] = $row['name_day'];
+                self::$customForward[$row['name_day']] = $row['name'];
+            }
+        } catch (\Throwable) {
+            // Table pas encore migrée — le calendrier codé en dur reste pleinement fonctionnel.
+        }
+    }
+
     /** Renvoie 'MM-DD' de la fête correspondant à ce prénom, ou null si inconnu du calendrier. */
     public static function forName(?string $firstName): ?string
     {
         if (!$firstName) return null;
-        $index = self::reverseIndex();
-
+        self::loadCustom();
         $full = self::normalize($firstName);
+
+        if (isset(self::$customReverse[$full])) return self::$customReverse[$full];
+
+        $index = self::reverseIndex();
         if (isset($index[$full])) return $index[$full];
 
         foreach (preg_split('/[\s\-]+/', $full) as $part) {
-            if ($part !== '' && isset($index[$part])) return $index[$part];
+            if ($part === '') continue;
+            if (isset(self::$customReverse[$part])) return self::$customReverse[$part];
+            if (isset($index[$part])) return $index[$part];
         }
         return null;
     }
@@ -208,12 +242,45 @@ class NameDay
     /** Prénom fêté à cette date ('MM-DD'), ou null. */
     public static function forDate(string $mmdd): ?string
     {
-        return self::$calendar[$mmdd] ?? null;
+        self::loadCustom();
+        return self::$customForward[$mmdd] ?? self::$calendar[$mmdd] ?? null;
     }
 
     /** Fête du jour (heure locale du serveur). */
     public static function today(): ?string
     {
         return self::forDate(date('m-d'));
+    }
+
+    // ── Gestion admin (App\Controllers\AdminController) ────────────────
+
+    /** @return array<int, array{id:int,name:string,name_day:string}> triées par date */
+    public static function getCustomEntries(): array
+    {
+        try {
+            return Database::fetchAll('SELECT * FROM custom_name_days ORDER BY name_day ASC');
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    public static function addCustom(string $name, string $mmdd): bool
+    {
+        $name = trim($name);
+        if ($name === '' || !preg_match('/^\d{2}-\d{2}$/', $mmdd)) return false;
+        [$m, $d] = array_map('intval', explode('-', $mmdd));
+        if (!checkdate($m, $d, 2024)) return false;
+
+        Database::execute(
+            'INSERT INTO custom_name_days (name, name_day) VALUES (?, ?)
+             ON DUPLICATE KEY UPDATE name_day = VALUES(name_day)',
+            [$name, $mmdd]
+        );
+        return true;
+    }
+
+    public static function deleteCustom(int $id): void
+    {
+        Database::execute('DELETE FROM custom_name_days WHERE id=?', [$id]);
     }
 }

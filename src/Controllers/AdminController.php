@@ -12,6 +12,7 @@ use App\Models\EmailContent;
 use App\Models\LegalContent;
 use App\Core\OfficialAlertFeed;
 use App\Models\ImpersonationLog;
+use App\Models\NameDay;
 use App\Models\Notification;
 use App\Models\SmtpSettings;
 use App\Models\SupportTicket;
@@ -186,6 +187,7 @@ class AdminController extends BaseController
         $vaultwardenSettings = VaultwardenSettings::get();
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
+        $customNameDays = NameDay::getCustomEntries();
 
         require BASE_PATH . '/templates/admin/index.php';
     }
@@ -461,6 +463,27 @@ class AdminController extends BaseController
         $id = (int)$params['id'];
         Database::execute('DELETE FROM blocked_ips WHERE id=?', [$id]);
         $this->redirect('/admin?tab=ips');
+    }
+
+    // ── Calendrier des prénoms (éphéméride) ────────────────────────
+
+    public function addNameDay(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $name = trim($_POST['name'] ?? '');
+        // <input type="date"> renvoie AAAA-MM-JJ ; seuls le mois et le jour sont pertinents
+        // pour une fête, qui revient chaque année.
+        $date = trim($_POST['name_day'] ?? '');
+        $mmdd = preg_match('/^\d{4}-(\d{2}-\d{2})$/', $date, $m) ? $m[1] : '';
+        $ok   = $name && $mmdd && NameDay::addCustom($name, $mmdd);
+        $this->redirect('/admin?tab=namedays' . ($ok ? '&msg=nameday_added' : '&msg=nameday_invalid'));
+    }
+
+    public function deleteNameDay(array $params): void
+    {
+        $this->requireSuperAdmin();
+        NameDay::deleteCustom((int)$params['id']);
+        $this->redirect('/admin?tab=namedays');
     }
 
     // ── Support tickets ──────────────────────────────────────────
