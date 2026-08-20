@@ -410,6 +410,8 @@ $router->post('/admin/users/:id/impersonate', [AdminController::class, 'imperson
 $router->get('/admin/stop-impersonating', [AdminController::class, 'stopImpersonating']);
 $router->post('/admin/ips', [AdminController::class, 'addIp']);
 $router->post('/admin/ips/:id/delete', [AdminController::class, 'deleteIp']);
+$router->post('/admin/namedays', [AdminController::class, 'addNameDay']);
+$router->post('/admin/namedays/:id/delete', [AdminController::class, 'deleteNameDay']);
 $router->get('/admin/tickets/:id', [AdminController::class, 'viewTicket']);
 $router->post('/admin/tickets/:id/reply', [AdminController::class, 'replyTicket']);
 $router->post('/admin/tickets/:id/close', [AdminController::class, 'closeTicket']);
