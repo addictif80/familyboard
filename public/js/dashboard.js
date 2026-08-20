@@ -30,11 +30,11 @@ var Dashboard = (() => {
 
         fetch(_baseUrl + '/api/dashboard/widgets', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({ widgets: ordered }),
         })
-        .then(r => r.json())
-        .then(() => closeWidgetManager())
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(() => location.reload())
         .catch(e => alert('Erreur: ' + e.message));
     }
 
