@@ -200,7 +200,11 @@ async function runDocOcr(file) {
 
     let data;
     try {
-        const resp = await fetch(`${BASE_URL}/api/documents/ocr`, { method: 'POST', body: fd });
+        const resp = await fetch(`${BASE_URL}/api/documents/ocr`, {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
         data = await resp.json();
     } catch(e) {
         status.textContent = '⚠️ Erreur lors de l\'OCR.';
@@ -315,7 +319,11 @@ async function saveDoc(duplicateChoice) {
 
     let res;
     try {
-        res = await fetch(url, { method: 'POST', body: fd });
+        res = await fetch(url, {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
     } catch (e) {
         // fetch() ne rejette que si la requête n'a jamais atteint le serveur (coupure réseau,
         // DNS...) — c'est le seul cas où "Erreur réseau" est le bon diagnostic.
