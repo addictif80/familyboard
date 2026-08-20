@@ -6,7 +6,7 @@ $moisLong = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Aoû
 $todayStr = date('Y-m-d');
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="<?= $isDark ? 'dark' : 'light' ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">

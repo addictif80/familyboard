@@ -34,7 +34,7 @@ class User
 
     public static function getByFamily(int $familyId): array
     {
-        return Database::fetchAll('SELECT id, name, email, role, avatar, color, created_at FROM users WHERE family_id = ? ORDER BY name', [$familyId]);
+        return Database::fetchAll('SELECT id, name, email, phone, role, avatar, color, created_at FROM users WHERE family_id = ? ORDER BY name', [$familyId]);
     }
 
     /**
@@ -50,7 +50,7 @@ class User
 
     public static function update(int $id, array $data): void
     {
-        $allowed = ['name', 'email', 'avatar', 'color', 'birthday', 'location_tracking_enabled'];
+        $allowed = ['name', 'email', 'avatar', 'color', 'birthday', 'location_tracking_enabled', 'phone'];
         $sets = [];
         $params = [];
         foreach ($allowed as $field) {

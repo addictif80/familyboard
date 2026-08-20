@@ -314,6 +314,19 @@ class Baby
 
     // ── Stats helpers ─────────────────────────────────────────
 
+    /** Horodatage du dernier événement de chaque type (feeding, diaper, stool, urine, bath...),
+     *  pour un affichage "dernier repas il y a 2h" plutôt qu'un simple compteur du jour. */
+    public static function getLastEventTimes(int $babyId): array
+    {
+        $rows = Database::fetchAll(
+            'SELECT type, MAX(event_at) as last_at FROM baby_events WHERE baby_id=? GROUP BY type',
+            [$babyId]
+        );
+        $out = [];
+        foreach ($rows as $r) $out[$r['type']] = $r['last_at'];
+        return $out;
+    }
+
     public static function getDailyStats(int $babyId, string $date): array
     {
         $events = self::getEventsByDay($babyId, $date);

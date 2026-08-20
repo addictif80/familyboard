@@ -34,6 +34,9 @@ async function fetchKioskData() {
         const res = await fetch(BASE_URL + '/kiosk/' + KIOSK_TOKEN + '/data');
         const data = await res.json();
         if (!data.success) return;
+        if (typeof data.dark === 'boolean') {
+            document.documentElement.setAttribute('data-theme', data.dark ? 'dark' : 'light');
+        }
         if (data.sitter_active) {
             renderKioskPrivacy(data.sitter_url);
         } else {

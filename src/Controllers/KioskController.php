@@ -12,6 +12,7 @@ use App\Models\NameDay;
 use App\Models\FamilyTimer;
 use App\Models\SitterLink;
 use App\Models\TaskList;
+use App\Core\DarkSchedule;
 
 class KioskController extends BaseController
 {
@@ -52,6 +53,8 @@ class KioskController extends BaseController
         $kiosk = KioskLink::findValidByToken($token);
         if (!$kiosk) {
             http_response_code(404);
+            $isDark = false;
+            $darkScheduleActive = false;
             require BASE_PATH . '/templates/kiosk/view.php';
             return;
         }
@@ -61,6 +64,8 @@ class KioskController extends BaseController
         $sitterUrl     = $activeSitter
             ? rtrim($this->originUrl(), '/') . BASE_URL . '/sitter/' . $activeSitter['token']
             : null;
+        $isDark        = DarkSchedule::isDarkNow($family ?? []);
+        $darkScheduleActive = ($family['dark_mode_type'] ?? 'off') !== 'off';
 
         require BASE_PATH . '/templates/kiosk/view.php';
     }
@@ -189,6 +194,7 @@ class KioskController extends BaseController
             'meals'          => $meals,
             'contacts'       => $contacts,
             'name_day'       => NameDay::today(),
+            'dark'           => DarkSchedule::isDarkNow($family ?? []),
             'timers'         => FamilyTimer::getForWall($familyId),
         ];
     }

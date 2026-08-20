@@ -207,14 +207,17 @@ async function createSitterLink() {
     const labelInput = document.getElementById('sitter-label');
     const label = labelInput.value.trim();
     const hours = parseInt(document.getElementById('sitter-hours').value, 10);
+    const instructionsInput = document.getElementById('sitter-instructions');
+    const instructions = instructionsInput.value.trim();
     const r = await apiFetch(BASE_URL + '/api/sitter/links', {
         method: 'POST',
-        body: JSON.stringify({ label, hours }),
+        body: JSON.stringify({ label, hours, instructions }),
     });
     if (!r.success) {
         Dialog.toast(r.error || 'Erreur.', 'error');
         return;
     }
+    instructionsInput.value = '';
 
     // Stays on screen (no auto-dismiss / no reload) so there's time to copy the link.
     document.getElementById('sitter-new-link').innerHTML = `

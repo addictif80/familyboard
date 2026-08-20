@@ -9,6 +9,7 @@ use App\Models\Budget;
 use App\Models\Family;
 use App\Models\NameDay;
 use App\Models\FamilyTimer;
+use App\Core\DarkSchedule;
 
 class FamilyWallController extends BaseController
 {
@@ -22,6 +23,7 @@ class FamilyWallController extends BaseController
         $weatherCity = $family['weather_city'] ?? '';
         $todayNameDay = NameDay::today();
         $timers = FamilyTimer::getForWall($familyId);
+        $isDark = DarkSchedule::isDarkNow($family ?? []);
 
         [
             'byDate'         => $byDate,
