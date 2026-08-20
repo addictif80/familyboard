@@ -183,8 +183,8 @@ function renderKioskContacts(contacts) {
 function renderKioskTimers(timers) {
     return `<div class="kiosk-timers">` + timers.map(t => `
         <div class="kiosk-timer${t.run_id ? ' running' : ''}" id="kiosk-timer-${t.id}"
-             data-timer-id="${t.id}" data-duration-min="${t.duration_minutes}"
-             ${t.run_id ? `data-run-id="${t.run_id}" data-ends-at="${kioskEscape(t.ends_at)}"` : ''}>
+             data-timer-id="${t.id}" data-duration-min="${t.duration_minutes}" data-label="${kioskEscape(t.label)}"
+             ${t.run_id ? `data-run-id="${t.run_id}" data-ends-at="${kioskEscape(t.ends_at)}" data-held="${t.held_for_return ? '1' : '0'}"` : ''}>
             <span class="kiosk-timer-label">${kioskEscape(t.label)}</span>
             <span class="kiosk-timer-value">${t.run_id ? '--:--' : t.duration_minutes + ' min'}</span>
             <button type="button" class="kiosk-timer-btn kiosk-timer-start" onclick="kioskStartTimer(${t.id})" ${t.run_id ? 'style="display:none"' : ''}>▶</button>
@@ -195,6 +195,8 @@ function renderKioskTimers(timers) {
 
 // L'échéance ("alarming") se déduit localement de data-ends-at à chaque tick — jamais un état
 // serveur —, ce qui garde écran mural et kiosque cohérents sans synchronisation particulière.
+// held_for_return (personne à la maison), lui, vient du serveur (cron.php) et est simplement
+// relu à chaque rafraîchissement du tableau (toutes les 20s).
 let _kioskAlarmCtx = null;
 let _kioskAlarmInterval = null;
 
@@ -213,10 +215,31 @@ function _kioskBeep() {
     } catch (_) {}
 }
 
+function _kioskShowAlarmOverlay(label) {
+    const overlay = document.getElementById('kioskAlarmOverlay');
+    if (!overlay) return;
+    document.getElementById('kioskAlarmLabel').textContent = label;
+    overlay.style.display = 'flex';
+}
+
+function _kioskHideAlarmOverlay() {
+    const overlay = document.getElementById('kioskAlarmOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function _kioskDismissAllAlarms() {
+    document.querySelectorAll('.kiosk-timer.alarming').forEach(el => kioskStopTimer(el.dataset.timerId));
+    _kioskHideAlarmOverlay();
+    clearInterval(_kioskAlarmInterval);
+    _kioskAlarmInterval = null;
+}
+
 function _kioskTimersTick() {
     const els = document.querySelectorAll('.kiosk-timer[data-run-id]');
     let anyAlarming = false;
+    let alarmLabel = '';
     els.forEach(el => {
+        const held = el.dataset.held === '1';
         const endsAt = new Date(el.dataset.endsAt.replace(' ', 'T') + 'Z').getTime();
         const remaining = Math.round((endsAt - Date.now()) / 1000);
         const valueEl = el.querySelector('.kiosk-timer-value');
@@ -225,10 +248,14 @@ function _kioskTimersTick() {
             const s = String(remaining % 60).padStart(2, '0');
             if (valueEl) valueEl.textContent = `${m}:${s}`;
             el.classList.remove('alarming');
+        } else if (held) {
+            if (valueEl) valueEl.textContent = '🏃 absent';
+            el.classList.remove('alarming');
         } else {
             if (valueEl) valueEl.textContent = '00:00';
             el.classList.add('alarming');
             anyAlarming = true;
+            alarmLabel = el.dataset.label || '';
         }
     });
     if (anyAlarming) {
@@ -236,9 +263,11 @@ function _kioskTimersTick() {
             _kioskBeep();
             _kioskAlarmInterval = setInterval(_kioskBeep, 1200);
         }
+        _kioskShowAlarmOverlay(alarmLabel);
     } else {
         clearInterval(_kioskAlarmInterval);
         _kioskAlarmInterval = null;
+        _kioskHideAlarmOverlay();
     }
 }
 
@@ -250,6 +279,7 @@ async function kioskStartTimer(id) {
     if (!el) return;
     el.dataset.runId = data.run_id;
     el.dataset.endsAt = data.ends_at;
+    el.dataset.held = '0';
     el.classList.add('running');
     el.querySelector('.kiosk-timer-start').style.display = 'none';
     el.querySelector('.kiosk-timer-stop').style.display = '';
@@ -262,6 +292,7 @@ async function kioskStopTimer(id) {
     if (!el) return;
     delete el.dataset.runId;
     delete el.dataset.endsAt;
+    delete el.dataset.held;
     el.classList.remove('running', 'alarming');
     el.querySelector('.kiosk-timer-value').textContent = el.dataset.durationMin + ' min';
     el.querySelector('.kiosk-timer-start').style.display = '';
@@ -290,3 +321,5 @@ fetchKioskData();
 setInterval(fetchKioskData, KIOSK_REFRESH_SECONDS * 1000);
 setInterval(updateKioskClock, 1000);
 setInterval(_kioskTimersTick, 1000);
+
+document.getElementById('kioskAlarmOverlay')?.addEventListener('click', _kioskDismissAllAlarms);

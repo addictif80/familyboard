@@ -37,6 +37,8 @@ use App\Models\Birthday;
 use App\Models\Custody;
 use App\Core\EmailLayout;
 use App\Models\AppSetting;
+use App\Core\Push;
+use App\Models\HomePresence;
 
 // Le cron tourne chaque minute (pour la synchro CalDAV) mais un run peut dépasser 60s (envois
 // SMTP séquentiels, appels HTTP externes) — un verrou évite que deux exécutions se chevauchent
@@ -99,6 +101,12 @@ foreach ($families as $family) {
     sendShoppingReminders($familyId, $membersExcludingCoparent, $appUrl);
     sendRecurringAlerts($familyId, $appUrl);
     sendWeeklyDigest($familyId, $family, $membersExcludingCoparent, $appUrl);
+
+    try {
+        checkTimerAlerts($familyId, $membersExcludingCoparent);
+    } catch (\Throwable $e) {
+        error_log('checkTimerAlerts error: ' . $e->getMessage());
+    }
 }
 
 // Résumé hebdomadaire des accès de garde partagée (co-parent) — transverse à toutes les
@@ -165,6 +173,47 @@ function syncCalDAVSources(): void
             }
             CalDAVSource::updateSyncTime($source['id']);
             echo "  [CalDAV] Source #{$source['id']} ({$source['name']}): {$count} événement(s) synchronisé(s)." . PHP_EOL;
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Minuteurs familiaux : quand un lancement en cours dépasse son échéance, décide s'il faut
+// l'alerte normale (déjà gérée côté client, rien à faire ici) ou la retenir + notifier par push
+// si personne n'est chez soi (held_for_return), puis la libérer dès que quelqu'un revient — voir
+// App\Models\FamilyTimer et App\Models\HomePresence.
+// ──────────────────────────────────────────────────────────────────────────
+function checkTimerAlerts(int $familyId, array $members): void
+{
+    $runs = Database::fetchAll(
+        "SELECT r.id, r.held_for_return, t.label FROM family_timer_runs r
+         JOIN family_timers t ON t.id = r.timer_id
+         WHERE r.family_id=? AND r.status='running' AND r.ends_at <= NOW()",
+        [$familyId]
+    );
+    if (!$runs) return;
+
+    $isHome = HomePresence::isAnyoneHome($familyId);
+
+    foreach ($runs as $run) {
+        if (!$run['held_for_return']) {
+            if ($isHome) continue; // rien à faire : l'alarme sonne déjà normalement côté client
+            Database::execute(
+                'UPDATE family_timer_runs SET held_for_return=1, away_notified_at=NOW() WHERE id=?',
+                [$run['id']]
+            );
+            foreach ($members as $m) {
+                Push::sendToUser(
+                    (int)$m['id'],
+                    '⏰ Minuteur terminé',
+                    $run['label'] . ' est terminé, mais personne n\'est à la maison.',
+                    BASE_URL . '/family-wall'
+                );
+            }
+        } elseif ($isHome) {
+            // Quelqu'un vient de rentrer : on relâche, le client déclenche l'alarme dès son
+            // prochain rafraîchissement (poll de l'écran mural / kiosque).
+            Database::execute('UPDATE family_timer_runs SET held_for_return=0 WHERE id=?', [$run['id']]);
         }
     }
 }

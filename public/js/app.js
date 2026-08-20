@@ -751,6 +751,30 @@ async function apiFetch(url, options = {}) {
     return res.json();
 }
 
+// ---- Suivi de position (minuteurs — "quelqu'un est-il à la maison ?") ----
+// Actif uniquement si LOCATION_TRACKING_ENABLED (défini par layout.php : connecté + pas
+// désactivé dans le profil). Une position ponctuelle par envoi, jamais un tracé continu — voir
+// App\Models\HomePresence. Ne tourne que sur les pages "normales" (layout.php) : l'écran mural
+// et le kiosque sont des écrans partagés fixes, pas le téléphone d'une personne.
+function _locationPing() {
+    if (typeof LOCATION_TRACKING_ENABLED === 'undefined' || !LOCATION_TRACKING_ENABLED) return;
+    if (!('geolocation' in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            apiFetch(BASE_URL + '/api/location/ping', {
+                method: 'POST',
+                body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            }).catch(() => {});
+        },
+        () => { /* refusé ou indisponible — on retentera au prochain intervalle/chargement */ },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+    );
+}
+if (typeof LOCATION_TRACKING_ENABLED !== 'undefined' && LOCATION_TRACKING_ENABLED) {
+    setTimeout(_locationPing, 5000);
+    setInterval(_locationPing, 5 * 60 * 1000);
+}
+
 // ---- Push notifications ----
 
 // iOS only supports Web Push for an app added to the home screen (iOS 16.4+).

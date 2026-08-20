@@ -495,6 +495,8 @@ $router->post('/settings/logout-all-devices', [SettingsController::class, 'logou
 $router->post('/settings/vault/invite', [SettingsController::class, 'requestVaultInvite']);
 $router->post('/settings/timers', [SettingsController::class, 'createTimer']);
 $router->post('/settings/timers/:id/delete', [SettingsController::class, 'deleteTimer']);
+$router->post('/settings/home-location', [SettingsController::class, 'updateHomeLocation']);
+$router->post('/settings/home-location/clear', [SettingsController::class, 'clearHomeLocation']);
 $router->get('/notifications/:id', [NotificationController::class, 'show']);
 $router->get('/api/alerts/active', [AlertController::class, 'active']);
 $router->get('/alertes/:category', [AlertController::class, 'category']);
@@ -555,6 +557,7 @@ $router->post('/api/baby/:baby_id/consultations/:id/delete', [BabyController::cl
 // Family Wall (écran mural)
 $router->get('/family-wall', [FamilyWallController::class, 'index']);
 $router->get('/api/family-wall/data', [FamilyWallController::class, 'apiData']);
+$router->get('/api/family-wall/timers-status', [FamilyWallController::class, 'timersStatus']);
 $router->post('/api/family-wall/timers/:timerId/start', [FamilyWallController::class, 'startTimer']);
 $router->post('/api/family-wall/timers/:timerId/stop', [FamilyWallController::class, 'stopTimer']);
 
@@ -565,6 +568,7 @@ $router->post('/api/location/places', [LocationController::class, 'createPlace']
 $router->post('/api/location/places/:id/delete', [LocationController::class, 'deletePlace']);
 $router->post('/api/location/checkin', [LocationController::class, 'checkin']);
 $router->post('/api/location/clear', [LocationController::class, 'clear']);
+$router->post('/api/location/ping', [LocationController::class, 'ping']);
 
 // Emergency cards (fiches urgence)
 $router->get('/emergency', [EmergencyController::class, 'index']);

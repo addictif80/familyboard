@@ -299,3 +299,29 @@ async function revokeKioskLink(id) {
     const r = await apiFetch(BASE_URL + '/api/kiosk/links/' + id + '/revoke', { method: 'POST' });
     if (r.success) window.location.reload();
 }
+
+// ── Domicile (minuteurs) ────────────────────────────────────
+function setHomeLocation() {
+    const status = document.getElementById('home-location-status');
+    if (!('geolocation' in navigator)) {
+        status.textContent = "❌ La géolocalisation n'est pas supportée par ce navigateur.";
+        return;
+    }
+    status.textContent = '⏳ Localisation en cours…';
+    navigator.geolocation.getCurrentPosition(
+        async pos => {
+            const r = await apiFetch(BASE_URL + '/settings/home-location', {
+                method: 'POST',
+                body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            });
+            if (r.success) {
+                status.textContent = '✅ Domicile enregistré.';
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                status.textContent = '❌ ' + (r.error || 'Erreur.');
+            }
+        },
+        err => { status.textContent = '❌ Impossible d\'obtenir votre position : ' + err.message; },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
+}

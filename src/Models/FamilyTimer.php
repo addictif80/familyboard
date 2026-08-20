@@ -6,8 +6,9 @@ use App\Core\Database;
 /**
  * Minuteurs prédéfinis par l'admin de famille (ex. "Machine à laver" / 40 min), démarrables
  * d'un bouton sur l'écran mural ou le kiosque. Le "temps écoulé" (alarme) n'est jamais un statut
- * écrit en base : chaque affichage le déduit lui-même de ends_at, ce qui évite d'avoir besoin
- * d'un cron pour faire la transition et garde plusieurs écrans synchronisés sans effort.
+ * écrit en base pour le cas normal : chaque affichage le déduit lui-même de ends_at. Seul le cas
+ * "personne à la maison" (held_for_return) est piloté par cron.php + HomePresence, pour pouvoir
+ * différer l'alarme jusqu'au retour de quelqu'un et notifier par push entre-temps.
  */
 class FamilyTimer
 {
@@ -23,7 +24,7 @@ class FamilyTimer
     public static function getForWall(int $familyId): array
     {
         return Database::fetchAll(
-            'SELECT t.*, r.id as run_id, r.ends_at, r.started_at
+            'SELECT t.*, r.id as run_id, r.ends_at, r.started_at, r.held_for_return
              FROM family_timers t
              LEFT JOIN family_timer_runs r ON r.timer_id = t.id AND r.status = "running"
              WHERE t.family_id=? AND t.show_on_wall=1

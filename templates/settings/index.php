@@ -58,6 +58,17 @@ ob_start();
                 <small style="color:var(--text-muted)">Permet à votre famille de voir un rappel avant votre anniversaire.</small>
             </div>
             <div class="form-group">
+                <label style="display:flex;align-items:center;gap:.5rem">
+                    <input type="checkbox" name="location_tracking_enabled" value="1" <?= !empty($user['location_tracking_enabled']) ? 'checked' : '' ?>>
+                    Suivi de position pour les minuteurs
+                </label>
+                <small style="color:var(--text-muted)">
+                    Permet de savoir si quelqu'un est à la maison quand un minuteur se termine (pour
+                    l'alerte différée). Position mise à jour périodiquement pendant que l'app est
+                    ouverte, jamais conservée en historique. Désactivable ici à tout moment.
+                </small>
+            </div>
+            <div class="form-group">
                 <label>Nouveau mot de passe (laisser vide pour ne pas changer)</label>
                 <input type="password" name="password" minlength="8" placeholder="••••••••" autocomplete="new-password">
             </div>
@@ -428,6 +439,29 @@ ob_start();
                 Un lien valide 7 jours sera envoyé par email. Requiert la configuration SMTP.
             </small>
         </div>
+    </div>
+
+    <!-- Domicile (pour les minuteurs) -->
+    <div class="card settings-section">
+        <h3>🏠 Domicile</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Utilisé uniquement pour l'alerte différée des minuteurs : si un minuteur se termine et
+            que personne n'est géolocalisé chez vous, une notification push est envoyée à la place
+            de sonner dans le vide, et l'alarme se déclenche dès le retour de quelqu'un. Repose sur
+            le suivi de position de chaque membre (réglable individuellement dans « Mon profil »).
+        </p>
+        <?php if (!empty($family['home_lat'])): ?>
+            <p>✅ Domicile configuré (rayon : <?= (int)($family['home_radius_m'] ?? 150) ?> m).</p>
+        <?php else: ?>
+            <p style="color:var(--text-muted)">Non configuré — l'alerte différée est inactive, les minuteurs sonnent normalement.</p>
+        <?php endif; ?>
+        <button type="button" class="btn btn-primary btn-sm" onclick="setHomeLocation()">📍 Utiliser ma position actuelle</button>
+        <?php if (!empty($family['home_lat'])): ?>
+        <form method="POST" action="<?= BASE_URL ?>/settings/home-location/clear" style="display:inline"><?= \App\Core\Csrf::field() ?>
+            <button type="submit" class="btn btn-secondary btn-sm">Effacer</button>
+        </form>
+        <?php endif; ?>
+        <p id="home-location-status" style="font-size:.82rem;margin-top:.5rem"></p>
     </div>
 
     <!-- Modules (admin only) -->

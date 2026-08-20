@@ -37,6 +37,12 @@ $kioskToken = $params['token'] ?? '';
 
     <div id="kiosk-board" class="kiosk-board"></div>
 
+    <div id="kioskAlarmOverlay" class="kiosk-alarm-overlay" style="display:none">
+        <div class="kiosk-alarm-icon">⏰</div>
+        <div class="kiosk-alarm-label" id="kioskAlarmLabel"></div>
+        <div class="kiosk-alarm-hint">Touchez l'écran pour arrêter</div>
+    </div>
+
     <div id="kiosk-privacy" class="kiosk-privacy" style="display:none">
         <div class="kiosk-privacy-card">
             <h1>👶 Mode baby-sitter actif</h1>

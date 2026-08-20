@@ -564,6 +564,7 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
 const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const APP_TIMEZONE = <?= json_encode(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Paris') ?>;
 const APP_VERSION = <?= json_encode((string)APP_VERSION) ?>;
+const LOCATION_TRACKING_ENABLED = <?= json_encode(\App\Core\Session::isLoggedIn() && !empty(\App\Core\Session::user()['location_tracking_enabled'])) ?>;
 </script>
 <script src="<?= ASSETS_URL ?>/js/app.js?v=<?= APP_VERSION ?>"></script>
 <script>
