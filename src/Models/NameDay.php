@@ -85,7 +85,8 @@ class NameDay
         '08-30' => 'Fiacre',    '08-31' => 'Aristide',
 
         '09-01' => 'Gilles',    '09-02' => 'Ingrid',    '09-03' => 'Grégoire',  '09-04' => 'Rosalie',
-        '09-05' => 'Raïssa',    '09-06' => 'Bertrand',  '09-07' => 'Reine',     '09-09' => 'Alain',
+        '09-05' => 'Raïssa',    '09-06' => 'Bertrand',  '09-07' => 'Reine',     '09-08' => 'Adrien',
+        '09-09' => 'Alain',
         '09-10' => 'Inès',      '09-11' => 'Adelphe',   '09-12' => 'Apollinaire','09-13' => 'Aimé',
         '09-15' => 'Roland',    '09-16' => 'Édith',     '09-17' => 'Renaud',    '09-18' => 'Nadège',
         '09-19' => 'Émilie',    '09-20' => 'Davy',      '09-21' => 'Matthieu',  '09-22' => 'Maurice',
@@ -153,6 +154,7 @@ class NameDay
         'matheo'        => '09-21', // Matthieu
         'julia'         => '04-08',
         'anthony'       => '06-13',
+        'laetitia'      => '08-18',
     ];
 
     private static ?array $reverse = null;
