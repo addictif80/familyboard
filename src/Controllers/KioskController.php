@@ -9,6 +9,7 @@ use App\Models\Family;
 use App\Models\KioskLink;
 use App\Models\MealPlan;
 use App\Models\NameDay;
+use App\Models\FamilyTimer;
 use App\Models\SitterLink;
 use App\Models\TaskList;
 
@@ -119,6 +120,30 @@ class KioskController extends BaseController
         });
     }
 
+    public function startTimer(array $params): void
+    {
+        $this->json(function () use ($params) {
+            $kiosk = KioskLink::findValidByToken($params['token'] ?? '');
+            if (!$kiosk) return ['success' => false];
+
+            $runId = FamilyTimer::start((int)$params['timerId'], (int)$kiosk['family_id'], (int)$kiosk['created_by']);
+            if (!$runId) return ['success' => false];
+            $run = Database::fetch('SELECT ends_at FROM family_timer_runs WHERE id=?', [$runId]);
+            return ['success' => true, 'run_id' => $runId, 'ends_at' => $run['ends_at']];
+        });
+    }
+
+    public function stopTimer(array $params): void
+    {
+        $this->json(function () use ($params) {
+            $kiosk = KioskLink::findValidByToken($params['token'] ?? '');
+            if (!$kiosk) return ['success' => false];
+
+            FamilyTimer::stop((int)$params['timerId'], (int)$kiosk['family_id']);
+            return ['success' => true];
+        });
+    }
+
     private function buildBoard(int $familyId): array
     {
         $family = Family::findById($familyId);
@@ -164,6 +189,7 @@ class KioskController extends BaseController
             'meals'          => $meals,
             'contacts'       => $contacts,
             'name_day'       => NameDay::today(),
+            'timers'         => FamilyTimer::getForWall($familyId),
         ];
     }
 

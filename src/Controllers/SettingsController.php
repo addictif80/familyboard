@@ -14,6 +14,7 @@ use App\Models\Notification;
 use App\Models\EmailLog;
 use App\Models\SitterLink;
 use App\Models\KioskLink;
+use App\Models\FamilyTimer;
 
 class SettingsController extends BaseController
 {
@@ -55,7 +56,36 @@ class SettingsController extends BaseController
         $friendFamiliesIncoming = \App\Models\FamilyFriend::getPendingIncoming((int)$user['family_id']);
         $friendFamiliesOutgoing = \App\Models\FamilyFriend::getPendingOutgoing((int)$user['family_id']);
         $vaultwardenEnabled = \App\Models\VaultwardenSettings::get() !== null;
+        $familyTimers = ($user['role'] === 'admin') ? FamilyTimer::getByFamily($user['family_id']) : [];
         require BASE_PATH . '/templates/settings/index.php';
+    }
+
+    // ── Minuteurs de l'écran mural / kiosque ────────────────────────
+
+    public function createTimer(array $params): void
+    {
+        $this->requireAuth();
+        $user = Session::user();
+        if ($user['role'] === 'admin') {
+            $label = trim($_POST['label'] ?? '');
+            $minutes = (int)($_POST['duration_minutes'] ?? 0);
+            if ($label && $minutes > 0 && $minutes <= 1440) {
+                FamilyTimer::create($user['family_id'], $label, $minutes, !empty($_POST['show_on_wall']), (int)$user['id']);
+            }
+        }
+        header('Location: ' . BASE_URL . '/settings?tab=acces');
+        exit;
+    }
+
+    public function deleteTimer(array $params): void
+    {
+        $this->requireAuth();
+        $user = Session::user();
+        if ($user['role'] === 'admin') {
+            FamilyTimer::delete((int)$params['id'], $user['family_id']);
+        }
+        header('Location: ' . BASE_URL . '/settings?tab=acces');
+        exit;
     }
 
     // ── Coffre-fort de mots de passe (Vaultwarden) ──────────────────

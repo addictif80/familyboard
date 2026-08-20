@@ -95,6 +95,30 @@ html, body.kiosk-body {
 .kiosk-contact-phone { color: var(--text-muted); margin-left: auto; white-space: nowrap; }
 .kiosk-empty { color: var(--text-muted); font-size: .85rem; padding: .5rem 0; }
 
+/* ---- Minuteurs ---- */
+.kiosk-timers-section { grid-column: 1 / -1; max-height: none; }
+.kiosk-timers { display: flex; flex-wrap: wrap; gap: .75rem; }
+.kiosk-timer {
+    display: flex; align-items: center; gap: .6rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: .6rem 1rem;
+}
+.kiosk-timer.running { border-color: var(--primary); }
+.kiosk-timer.alarming {
+    border-color: #E74C3C; background: rgba(231,76,60,.12);
+    animation: kiosk-timer-pulse 1s ease-in-out infinite;
+}
+@keyframes kiosk-timer-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,.5); } 50% { box-shadow: 0 0 0 8px rgba(231,76,60,0); } }
+.kiosk-timer-label { font-weight: 600; }
+.kiosk-timer-value { font-variant-numeric: tabular-nums; color: var(--text-muted); min-width: 3.2em; }
+.kiosk-timer.alarming .kiosk-timer-value { color: #E74C3C; font-weight: 700; }
+.kiosk-timer-btn {
+    border: none; border-radius: 50%; width: 34px; height: 34px;
+    background: var(--primary); color: #fff; font-size: .9rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+}
+.kiosk-timer.alarming .kiosk-timer-btn.kiosk-timer-stop { background: #E74C3C; }
+
 /* ---- Privacy screen (babysitter mode) ---- */
 .kiosk-privacy {
     position: fixed;

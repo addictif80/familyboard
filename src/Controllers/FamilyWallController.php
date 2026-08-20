@@ -8,6 +8,7 @@ use App\Models\TaskList;
 use App\Models\Budget;
 use App\Models\Family;
 use App\Models\NameDay;
+use App\Models\FamilyTimer;
 
 class FamilyWallController extends BaseController
 {
@@ -20,6 +21,7 @@ class FamilyWallController extends BaseController
         $family   = Family::findById($familyId);
         $weatherCity = $family['weather_city'] ?? '';
         $todayNameDay = NameDay::today();
+        $timers = FamilyTimer::getForWall($familyId);
 
         [
             'byDate'         => $byDate,
@@ -39,6 +41,28 @@ class FamilyWallController extends BaseController
         $this->json(function () {
             $familyId = Session::user()['family_id'];
             return ['success' => true] + $this->buildData($familyId);
+        });
+    }
+
+    public function startTimer(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $runId = FamilyTimer::start((int)$params['timerId'], (int)$user['family_id'], (int)$user['id']);
+            if (!$runId) return ['success' => false];
+            $run = \App\Core\Database::fetch('SELECT ends_at FROM family_timer_runs WHERE id=?', [$runId]);
+            return ['success' => true, 'run_id' => $runId, 'ends_at' => $run['ends_at']];
+        });
+    }
+
+    public function stopTimer(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            FamilyTimer::stop((int)$params['timerId'], (int)$user['family_id']);
+            return ['success' => true];
         });
     }
 
