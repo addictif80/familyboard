@@ -442,6 +442,9 @@ $router->post('/admin/links/:id/delete', [AdminController::class, 'deleteCertifi
 $router->post('/admin/links/:id/refresh-preview', [AdminController::class, 'refreshCertifiedLinkPreview']);
 $router->post('/admin/legal', [AdminController::class, 'updateLegalContent']);
 $router->post('/admin/legal/:type/reset', [AdminController::class, 'resetLegalContent']);
+$router->post('/admin/roadmap', [AdminController::class, 'createRoadmapItem']);
+$router->post('/admin/roadmap/:id', [AdminController::class, 'updateRoadmapItem']);
+$router->post('/admin/roadmap/:id/delete', [AdminController::class, 'deleteRoadmapItem']);
 
 // Support (user-facing)
 $router->get('/support', [SupportController::class, 'index']);
@@ -605,6 +608,8 @@ $router->get('/sitter/:token', [SitterController::class, 'view']);
 // Mode kiosque (écran mural)
 $router->post('/api/kiosk/links', [KioskController::class, 'create']);
 $router->post('/api/kiosk/links/:id/revoke', [KioskController::class, 'revoke']);
+$router->get('/tv', [KioskController::class, 'tvEntry']);
+$router->post('/tv', [KioskController::class, 'tvRedeem']);
 $router->get('/kiosk/:token', [KioskController::class, 'view']);
 $router->get('/kiosk/:token/data', [KioskController::class, 'data']);
 $router->post('/kiosk/:token/tasks', [KioskController::class, 'createTask']);

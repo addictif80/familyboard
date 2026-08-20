@@ -12,6 +12,7 @@ use App\Models\NameDay;
 use App\Models\FamilyTimer;
 use App\Models\SitterLink;
 use App\Models\TaskList;
+use App\Models\LoginAttempt;
 use App\Core\DarkSchedule;
 
 class KioskController extends BaseController
@@ -43,6 +44,42 @@ class KioskController extends BaseController
             KioskLink::revoke($link['id']);
             return ['success' => true];
         });
+    }
+
+    // ── Accès rapide TV (saisie d'un code court plutôt que l'URL complète) ──
+
+    public function tvEntry(array $params): void
+    {
+        $error = null;
+        if ($_SESSION['tv_error'] ?? null) {
+            $error = $_SESSION['tv_error'];
+            unset($_SESSION['tv_error']);
+        }
+        require BASE_PATH . '/templates/kiosk/tv_entry.php';
+    }
+
+    public function tvRedeem(array $params): void
+    {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (LoginAttempt::isLocked('tv', $ip)) {
+            $_SESSION['tv_error'] = 'Trop de tentatives. Réessayez dans ' . LoginAttempt::minutesUntilUnlock() . ' minutes.';
+            header('Location: ' . BASE_URL . '/tv');
+            exit;
+        }
+
+        $code = preg_replace('/\D/', '', $_POST['code'] ?? '');
+        $kiosk = ($code !== '' && strlen($code) === 6) ? KioskLink::findValidByShortCode($code) : null;
+
+        if (!$kiosk) {
+            LoginAttempt::record('tv', $ip);
+            $_SESSION['tv_error'] = 'Code invalide ou expiré.';
+            header('Location: ' . BASE_URL . '/tv');
+            exit;
+        }
+
+        LoginAttempt::clear('tv', $ip);
+        header('Location: ' . BASE_URL . '/kiosk/' . $kiosk['token']);
+        exit;
     }
 
     // ── Public kiosk display (token-scoped, no login) ───────────────
