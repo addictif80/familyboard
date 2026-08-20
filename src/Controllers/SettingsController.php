@@ -62,6 +62,44 @@ class SettingsController extends BaseController
 
     // ── Minuteurs de l'écran mural / kiosque ────────────────────────
 
+    // ── Domicile (minuteurs) ─────────────────────────────────────
+
+    public function updateHomeLocation(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            if ($user['role'] !== 'admin') {
+                return ['success' => false, 'error' => 'Réservé à l\'administrateur de famille.'];
+            }
+            $data = $this->jsonInput();
+            $lat = $data['lat'] ?? null;
+            $lng = $data['lng'] ?? null;
+            if ($lat === null || $lng === null) {
+                return ['success' => false, 'error' => 'Position manquante.'];
+            }
+            \App\Core\Database::execute(
+                'UPDATE families SET home_lat=?, home_lng=? WHERE id=?',
+                [(float)$lat, (float)$lng, $user['family_id']]
+            );
+            return ['success' => true];
+        });
+    }
+
+    public function clearHomeLocation(array $params): void
+    {
+        $this->requireAuth();
+        $user = Session::user();
+        if ($user['role'] === 'admin') {
+            \App\Core\Database::execute(
+                'UPDATE families SET home_lat=NULL, home_lng=NULL WHERE id=?',
+                [$user['family_id']]
+            );
+        }
+        header('Location: ' . BASE_URL . '/settings?tab=famille');
+        exit;
+    }
+
     public function createTimer(array $params): void
     {
         $this->requireAuth();
@@ -197,6 +235,8 @@ class SettingsController extends BaseController
 
         $data = ['name' => $name ?: $user['name'], 'color' => $color];
         if ($avatar) $data['avatar'] = $avatar;
+        $trackingEnabled = !empty($_POST['location_tracking_enabled']) ? 1 : 0;
+        $data['location_tracking_enabled'] = $trackingEnabled;
         $birthday = trim($_POST['birthday'] ?? '');
         if ($birthday !== '') {
             $d = \DateTime::createFromFormat('Y-m-d', $birthday);
@@ -205,6 +245,13 @@ class SettingsController extends BaseController
             $data['birthday'] = null;
         }
         User::update($user['id'], $data);
+        if (!$trackingEnabled) {
+            // Minimisation : une position n'a plus aucune utilité dès que le suivi est coupé.
+            \App\Core\Database::execute(
+                'UPDATE users SET last_lat=NULL, last_lng=NULL, last_location_at=NULL WHERE id=?',
+                [$user['id']]
+            );
+        }
 
         $passwordError = null;
         $password = $_POST['password'] ?? '';

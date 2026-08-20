@@ -44,6 +44,17 @@ class FamilyWallController extends BaseController
         });
     }
 
+    /** Poll léger (toutes les ~15s) pour refléter rapidement un held_for_return relâché par le
+     *  cron (quelqu'un vient de rentrer) sans attendre le rechargement complet de la page (5 min). */
+    public function timersStatus(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $familyId = Session::user()['family_id'];
+            return ['success' => true, 'timers' => FamilyTimer::getForWall($familyId)];
+        });
+    }
+
     public function startTimer(array $params): void
     {
         $this->requireAuth();

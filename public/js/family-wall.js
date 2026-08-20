@@ -142,10 +142,32 @@ function _timerStopAlarmLoop() {
     _timerAlarmInterval = null;
 }
 
+function _showAlarmOverlay(label) {
+    const overlay = document.getElementById('fwAlarmOverlay');
+    if (!overlay) return;
+    document.getElementById('fwAlarmLabel').textContent = label;
+    overlay.style.display = 'flex';
+}
+
+function _hideAlarmOverlay() {
+    const overlay = document.getElementById('fwAlarmOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+/** Arrête tous les minuteurs actuellement en alarme — déclenché en tapant n'importe où sur le
+ *  calque plein écran, peu importe le nombre de minuteurs sonnant en même temps. */
+function _dismissAllAlarms() {
+    document.querySelectorAll('.fw-timer.alarming').forEach(el => wallStopTimer(el.dataset.timerId));
+    _hideAlarmOverlay();
+    _timerStopAlarmLoop();
+}
+
 function _timersTick() {
     const els = document.querySelectorAll('.fw-timer[data-run-id]');
     let anyAlarming = false;
+    let alarmLabel = '';
     els.forEach(el => {
+        const held = el.dataset.held === '1';
         const endsAt = new Date(el.dataset.endsAt.replace(' ', 'T') + 'Z').getTime();
         const remaining = Math.round((endsAt - Date.now()) / 1000);
         const valueEl = el.querySelector('.fw-timer-value');
@@ -154,14 +176,58 @@ function _timersTick() {
             const s = String(remaining % 60).padStart(2, '0');
             if (valueEl) valueEl.textContent = `${m}:${s}`;
             el.classList.remove('alarming');
+        } else if (held) {
+            // Personne à la maison à l'échéance : en attente d'un retour (voir cron.php),
+            // pas d'alarme tant que held_for_return n'est pas relâché côté serveur.
+            if (valueEl) valueEl.textContent = '🏃 absent';
+            el.classList.remove('alarming');
         } else {
             if (valueEl) valueEl.textContent = '00:00';
             el.classList.add('alarming');
             anyAlarming = true;
+            alarmLabel = el.dataset.label || '';
         }
     });
-    if (anyAlarming) _timerStartAlarmLoop();
-    else _timerStopAlarmLoop();
+    if (anyAlarming) {
+        _timerStartAlarmLoop();
+        _showAlarmOverlay(alarmLabel);
+    } else {
+        _timerStopAlarmLoop();
+        _hideAlarmOverlay();
+    }
+}
+
+/** Rafraîchit held_for_return/ends_at/run_id depuis le serveur sans recharger toute la page —
+ *  sinon un held_for_return relâché par le cron (quelqu'un vient de rentrer) attendrait jusqu'à
+ *  5 minutes (le prochain rechargement complet) avant de sonner. */
+async function _timersPoll() {
+    try {
+        const data = await apiFetch(`${BASE_URL}/api/family-wall/timers-status`);
+        if (!data.success) return;
+        data.timers.forEach(t => {
+            const el = document.getElementById('fw-timer-' + t.id);
+            if (!el) return;
+            if (t.run_id) {
+                el.dataset.runId = t.run_id;
+                el.dataset.endsAt = t.ends_at;
+                el.dataset.held = t.held_for_return ? '1' : '0';
+                if (!el.classList.contains('running')) {
+                    el.classList.add('running');
+                    el.querySelector('.fw-timer-start').style.display = 'none';
+                    el.querySelector('.fw-timer-stop').style.display = '';
+                }
+            } else if (el.dataset.runId) {
+                delete el.dataset.runId;
+                delete el.dataset.endsAt;
+                delete el.dataset.held;
+                el.classList.remove('running', 'alarming');
+                el.querySelector('.fw-timer-value').textContent = el.dataset.durationMin + ' min';
+                el.querySelector('.fw-timer-start').style.display = '';
+                el.querySelector('.fw-timer-stop').style.display = 'none';
+            }
+        });
+        _timersTick();
+    } catch (_) {}
 }
 
 async function wallStartTimer(id) {
@@ -171,6 +237,7 @@ async function wallStartTimer(id) {
     if (!el) return;
     el.dataset.runId = data.run_id;
     el.dataset.endsAt = data.ends_at;
+    el.dataset.held = '0';
     el.classList.add('running');
     el.querySelector('.fw-timer-start').style.display = 'none';
     el.querySelector('.fw-timer-stop').style.display = '';
@@ -183,6 +250,7 @@ async function wallStopTimer(id) {
     if (!el) return;
     delete el.dataset.runId;
     delete el.dataset.endsAt;
+    delete el.dataset.held;
     el.classList.remove('running', 'alarming');
     el.querySelector('.fw-timer-value').textContent = el.dataset.durationMin + ' min';
     el.querySelector('.fw-timer-start').style.display = '';
@@ -236,6 +304,9 @@ _timersTick();
 setInterval(_wallClock, 1000);
 setInterval(_tickRefresh, 1000);
 setInterval(_timersTick, 1000);
+setInterval(_timersPoll, 15000);
+
+document.getElementById('fwAlarmOverlay')?.addEventListener('click', _dismissAllAlarms);
 
 _wallWeather();
 _wakeLock();

@@ -143,6 +143,19 @@ $todayStr = date('Y-m-d');
     }
     .fw-timer.alarming .fw-timer-btn.fw-timer-stop { background: #E74C3C; }
 
+    /* ── Alarme plein écran ── */
+    .fw-alarm-overlay {
+        position: fixed; inset: 0; z-index: 999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 1rem; cursor: pointer;
+        background: #C0392B;
+        animation: fw-alarm-flash .6s step-start infinite;
+    }
+    @keyframes fw-alarm-flash { 50% { background: #1a1a1a; } }
+    .fw-alarm-icon { font-size: 6rem; }
+    .fw-alarm-label { font-size: 3rem; font-weight: 800; color: #fff; text-align: center; padding: 0 2rem; }
+    .fw-alarm-hint { font-size: 1.2rem; color: rgba(255,255,255,.85); }
+
     /* ── Card grid ── */
     .fw-grid {
         display: grid;
@@ -449,9 +462,11 @@ $todayStr = date('Y-m-d');
              id="fw-timer-<?= (int)$t['id'] ?>"
              data-timer-id="<?= (int)$t['id'] ?>"
              data-duration-min="<?= (int)$t['duration_minutes'] ?>"
+             data-label="<?= htmlspecialchars($t['label']) ?>"
              <?php if ($t['run_id']): ?>
              data-run-id="<?= (int)$t['run_id'] ?>"
              data-ends-at="<?= htmlspecialchars($t['ends_at']) ?>"
+             data-held="<?= $t['held_for_return'] ? '1' : '0' ?>"
              <?php endif; ?>>
             <span class="fw-timer-label"><?= htmlspecialchars($t['label']) ?></span>
             <span class="fw-timer-value"><?= $t['run_id'] ? '--:--' : (int)$t['duration_minutes'] . ' min' ?></span>
@@ -461,6 +476,13 @@ $todayStr = date('Y-m-d');
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
+
+    <!-- ══ ALARME PLEIN ÉCRAN ══════════════════════════════════ -->
+    <div id="fwAlarmOverlay" class="fw-alarm-overlay" style="display:none">
+        <div class="fw-alarm-icon">⏰</div>
+        <div class="fw-alarm-label" id="fwAlarmLabel"></div>
+        <div class="fw-alarm-hint">Touchez l'écran pour arrêter</div>
+    </div>
 
     <!-- ══ GRID ════════════════════════════════════════════════ -->
     <div class="fw-grid">

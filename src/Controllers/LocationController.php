@@ -100,4 +100,30 @@ class LocationController extends BaseController
             return ['success' => true];
         });
     }
+
+    /** Dernière position connue (pas un historique) — alimente uniquement HomePresence pour les
+     *  minuteurs. Silencieusement ignoré si l'utilisateur a désactivé le suivi ("Ne plus me
+     *  suivre" dans son profil) : le client ne devrait déjà plus appeler cette route dans ce cas,
+     *  mais on ne fait jamais confiance au seul client pour une préférence de vie privée. */
+    public function ping(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            if (empty($user['location_tracking_enabled'])) {
+                return ['success' => false];
+            }
+            $data = $this->jsonInput();
+            $lat = $data['lat'] ?? null;
+            $lng = $data['lng'] ?? null;
+            if ($lat === null || $lng === null) {
+                return ['success' => false];
+            }
+            \App\Core\Database::execute(
+                'UPDATE users SET last_lat=?, last_lng=?, last_location_at=NOW() WHERE id=?',
+                [(float)$lat, (float)$lng, $user['id']]
+            );
+            return ['success' => true];
+        });
+    }
 }
