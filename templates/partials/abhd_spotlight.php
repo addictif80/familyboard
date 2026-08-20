@@ -6,7 +6,8 @@
 $_spotlight = \App\Models\AbhdHighlight::pickForPlacement($placement);
 if ($_spotlight):
 ?>
-<a class="abhd-spotlight" href="<?= BASE_URL ?>/highlights/<?= (int)$_spotlight['id'] ?>/go" target="_blank" rel="noopener noreferrer">
+<a class="abhd-spotlight<?= $_spotlight['image_path'] ? ' has-img' : '' ?>" href="<?= BASE_URL ?>/highlights/<?= (int)$_spotlight['id'] ?>/go" target="_blank" rel="noopener noreferrer"
+   <?php if ($_spotlight['image_path']): ?>style="--spotlight-bg:url('<?= htmlspecialchars(BASE_URL . $_spotlight['image_path'], ENT_QUOTES) ?>')"<?php endif; ?>>
     <?php if ($_spotlight['image_path']): ?>
         <img class="abhd-spotlight-img" src="<?= htmlspecialchars(BASE_URL . $_spotlight['image_path']) ?>" alt="<?= htmlspecialchars($_spotlight['title']) ?>">
     <?php endif; ?>

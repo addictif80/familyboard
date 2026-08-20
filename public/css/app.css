@@ -1675,20 +1675,63 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 }
 
 /* Sur PC, la carte pleine largeur (image en haut, ~380px de haut au total) prend trop de place
-   au-dessus du contenu de chaque module — repliée en bandeau "call to action" nettement plus bas
-   (~120px), mais l'image reste pleine largeur pour rester lisible (beaucoup de visuels ABHD
-   portent du texte incrusté : une vignette carrée les rendrait illisibles). Le mobile garde la
-   carte complète : l'écran est déjà pensé pour défiler, et la mise en avant a moins d'occasions
-   d'apparaître (une seule page à la fois). */
+   au-dessus du contenu de chaque module — repliée en bandeau "call to action" d'une hauteur fixe
+   (~110px) : l'image entière (non recadrée) colle au bord gauche, mise à l'échelle de la hauteur
+   du bandeau, son bord droit fondu vers l'arrière-plan ; le reste du bandeau reprend cette même
+   image en fond, assombrie par un dégradé pour que le titre/description/badge restent lisibles
+   par-dessus quel que soit le visuel. Le mobile garde la carte complète d'origine : l'écran est
+   déjà pensé pour défiler, et la mise en avant a moins d'occasions d'apparaître (une seule page
+   à la fois). */
 @media (min-width: 769px) {
-    .abhd-spotlight-img {
-        height: 90px; object-fit: cover;
+    .abhd-spotlight {
+        display: flex; align-items: stretch; height: 110px; overflow: hidden;
     }
-    .abhd-spotlight-footer { padding: .6rem .9rem; }
+    .abhd-spotlight-img {
+        height: 100%; width: auto; max-width: 55%; flex-shrink: 0;
+        object-fit: contain; border-radius: 0;
+    }
+    .abhd-spotlight-footer { padding: .75rem 1.2rem; flex: 1; min-width: 0; }
     .abhd-spotlight-title::after { content: ' →'; opacity: .55; }
     .abhd-spotlight-desc {
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
+
+    /* Uniquement quand une image existe : fond = même image mais floutée (::before, décalée au-delà
+       des bords pour ne pas laisser de liseré net au flou) + dégradé sombre par-dessus (::after) —
+       sans le flou, le texte éventuellement incrusté dans l'image se superposait, lisible, à celui
+       du bandeau. L'image de premier plan (nette, non affectée par le flou) fond dans ce fond sur
+       son bord droit. Sans image, la carte garde son style neutre habituel (fond clair, texte
+       standard). */
+    .abhd-spotlight.has-img {
+        position: relative;
+        overflow: hidden;
+        border-color: transparent;
+    }
+    .abhd-spotlight.has-img::before {
+        content: '';
+        position: absolute; inset: -12px;
+        background-image: var(--spotlight-bg);
+        background-size: cover;
+        background-position: center;
+        filter: blur(16px) brightness(.6) saturate(1.1);
+        z-index: 0;
+    }
+    .abhd-spotlight.has-img::after {
+        content: '';
+        position: absolute; inset: 0;
+        background: linear-gradient(90deg, rgba(15,15,20,.35) 0%, rgba(15,15,20,.72) 45%, rgba(15,15,20,.85) 100%);
+        z-index: 1;
+    }
+    .abhd-spotlight.has-img .abhd-spotlight-img {
+        position: relative; z-index: 2;
+        -webkit-mask-image: linear-gradient(to right, black 55%, transparent 96%);
+        mask-image: linear-gradient(to right, black 55%, transparent 96%);
+    }
+    .abhd-spotlight.has-img .abhd-spotlight-footer { position: relative; z-index: 2; }
+    .abhd-spotlight.has-img .abhd-spotlight-title,
+    .abhd-spotlight.has-img .abhd-spotlight-desc { color: #fff; }
+    .abhd-spotlight.has-img .abhd-spotlight-desc { color: rgba(255,255,255,.82); }
+    .abhd-spotlight.has-img .abhd-spotlight-tag { color: #fff; border-color: rgba(255,255,255,.4); }
 }
 
 /* ── Support thread ────────────────────────────────────────── */
