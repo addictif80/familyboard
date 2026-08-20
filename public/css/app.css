@@ -1684,15 +1684,17 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
    à la fois). */
 @media (min-width: 769px) {
     .abhd-spotlight {
-        display: flex; align-items: stretch; height: 110px; overflow: hidden;
+        display: flex; align-items: stretch; height: 160px; overflow: hidden;
     }
     .abhd-spotlight-img {
         height: 100%; width: auto; max-width: 55%; flex-shrink: 0;
         object-fit: contain; border-radius: 0;
     }
-    .abhd-spotlight-footer { padding: .75rem 1.2rem; flex: 1; min-width: 0; }
+    .abhd-spotlight-footer { padding: 1rem 1.3rem; flex: 1; min-width: 0; }
+    .abhd-spotlight-title { font-size: 1.15rem; }
     .abhd-spotlight-title::after { content: ' →'; opacity: .55; }
     .abhd-spotlight-desc {
+        font-size: .92rem;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
