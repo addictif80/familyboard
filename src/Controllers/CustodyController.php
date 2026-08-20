@@ -4,6 +4,7 @@ namespace App\Controllers;
 use App\Core\Session;
 use App\Models\Custody;
 use App\Models\CustodyActivityLog;
+use App\Models\CustodyChecklist;
 use App\Models\User;
 use App\Models\Notification;
 use App\Models\EmailContent;
@@ -18,7 +19,69 @@ class CustodyController extends BaseController
         $user = Session::user();
         $schedules = Custody::getSchedules($user['family_id']);
         $members = User::getByFamily($user['family_id']);
+        $checklistItems = CustodyChecklist::getItemsForFamily($user['family_id']);
+
+        // Plannings dont le transfert (début d'un bloc de garde) tombe aujourd'hui — c'est là,
+        // et seulement là, que la checklist a un sens ; elle reste hors de vue le reste du temps
+        // pour ne pas être un rappel permanent et fini par être ignorée.
+        $today = date('Y-m-d');
+        $todayEvents = Custody::getAllEventsForFamily($user['family_id'], $today, $today);
+        $handoffScheduleIds = array_values(array_unique(array_map(
+            fn($e) => (int)$e['schedule_id'],
+            array_filter($todayEvents, fn($e) => $e['start_date'] === $today)
+        )));
+        $handoffChecklists = [];
+        foreach ($handoffScheduleIds as $sid) {
+            $handoffChecklists[$sid] = CustodyChecklist::getForSchedule($sid, $user['family_id'], $today);
+        }
+
         require BASE_PATH . '/templates/custody/index.php';
+    }
+
+    // ── Checklist "à ne pas oublier" ─────────────────────────────────
+
+    public function addChecklistItem(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $label = trim($this->jsonInput()['label'] ?? '');
+            $scheduleId = (int)($this->jsonInput()['schedule_id'] ?? 0) ?: null;
+            if ($label === '') return ['success' => false, 'error' => 'Libellé requis.'];
+            if ($scheduleId) {
+                $schedule = Custody::getScheduleById($scheduleId);
+                if (!$schedule || $schedule['family_id'] !== $user['family_id']) {
+                    return ['success' => false, 'error' => 'Planning invalide.'];
+                }
+            }
+            $id = CustodyChecklist::create($user['family_id'], $scheduleId, $label, (int)$user['id']);
+            return ['success' => true, 'id' => $id];
+        });
+    }
+
+    public function deleteChecklistItem(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            CustodyChecklist::delete((int)$params['id'], $user['family_id']);
+            return ['success' => true];
+        });
+    }
+
+    public function toggleChecklistItem(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $date = $data['date'] ?? date('Y-m-d');
+            $itemId = (int)$params['id'];
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) return ['success' => false];
+            if (!CustodyChecklist::itemBelongsToFamily($itemId, $user['family_id'])) return ['success' => false];
+            CustodyChecklist::setChecked($itemId, $date, !empty($data['checked']), (int)$user['id']);
+            return ['success' => true];
+        });
     }
 
     public function apiEvents(array $params): void

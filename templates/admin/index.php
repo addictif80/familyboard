@@ -28,7 +28,7 @@
             <span>🔐 Admin</span>
         </div>
         <ul class="admin-nav">
-            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','deleted-accounts'=>'🗑️ Comptes supprimés','notifications'=>'📣 Notifications','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP','email'=>'📧 Emails','namedays'=>'🎉 Fêtes des prénoms','highlights'=>'🏢 Mises en avant ABHD','links'=>'🔗 Liens certifiés','legal'=>'📜 Contenu légal'] as $t=>$label): ?>
+            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','deleted-accounts'=>'🗑️ Comptes supprimés','notifications'=>'📣 Notifications','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP','email'=>'📧 Emails','namedays'=>'🎉 Fêtes des prénoms','highlights'=>'🏢 Mises en avant ABHD','links'=>'🔗 Liens certifiés','legal'=>'📜 Contenu légal','roadmap'=>'🗺️ Roadmap'] as $t=>$label): ?>
             <li class="<?= $tab === $t ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
             </li>
@@ -51,7 +51,7 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
@@ -75,6 +75,9 @@
                     'link_unreachable'    => 'Ce lien n\'a pas pu être vérifié (adresse non autorisée ou site injoignable).',
                     'nameday_added'       => 'Fête ajoutée au calendrier des prénoms.',
                     'nameday_invalid'     => 'Prénom et date requis.',
+                    'roadmap_saved'       => 'Idée enregistrée.',
+                    'roadmap_deleted'     => 'Idée supprimée.',
+                    'roadmap_invalid'     => 'Titre et statut requis.',
                     default       => ''
                 } ?>
             </div>
@@ -844,6 +847,74 @@
             </form>
             <?php endif; ?>
         </div>
+
+        <?php elseif ($tab === 'roadmap'): ?>
+        <h2>🗺️ Roadmap</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Liste interne d'idées de développement, visible uniquement ici (jamais montrée aux
+            familles). Les colonnes reflètent l'avancement : idée, en cours, fait.
+        </p>
+
+        <div class="card" style="padding:1.25rem;max-width:640px;margin-bottom:1.5rem">
+            <h3 style="margin-top:0">Ajouter une idée</h3>
+            <form method="POST" action="<?= BASE_URL ?>/admin/roadmap"><?= \App\Core\Csrf::field() ?>
+                <div class="form-group">
+                    <label>Titre</label>
+                    <input type="text" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label>Description (optionnel)</label>
+                    <textarea name="description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Statut</label>
+                    <select name="status">
+                        <option value="idea">💡 Idée</option>
+                        <option value="in_progress">🔧 En cours</option>
+                        <option value="done">✅ Fait</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
+            </form>
+        </div>
+
+        <?php
+        $roadmapLabels = ['idea' => '💡 Idée', 'in_progress' => '🔧 En cours', 'done' => '✅ Fait'];
+        if (empty($roadmapItems)):
+        ?>
+            <p style="color:var(--text-muted)">Aucune idée pour le moment.</p>
+        <?php else: foreach ($roadmapItems as $ri): ?>
+        <div class="card" style="padding:1.25rem;max-width:640px;margin-bottom:1rem">
+            <h3 style="margin-top:0;display:flex;align-items:center;gap:.5rem">
+                <?= htmlspecialchars($ri['title']) ?>
+                <span class="badge-custom"><?= $roadmapLabels[$ri['status']] ?></span>
+            </h3>
+            <form method="POST" action="<?= BASE_URL ?>/admin/roadmap/<?= (int)$ri['id'] ?>"><?= \App\Core\Csrf::field() ?>
+                <div class="form-group">
+                    <label>Titre</label>
+                    <input type="text" name="title" value="<?= htmlspecialchars($ri['title']) ?>" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" rows="3"><?= htmlspecialchars($ri['description'] ?? '') ?></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Statut</label>
+                    <select name="status">
+                        <?php foreach ($roadmapLabels as $sv => $sl): ?>
+                        <option value="<?= $sv ?>" <?= $ri['status'] === $sv ? 'selected' : '' ?>><?= $sl ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div style="display:flex;gap:.5rem">
+                    <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                </div>
+            </form>
+            <form method="POST" action="<?= BASE_URL ?>/admin/roadmap/<?= (int)$ri['id'] ?>/delete" style="margin-top:.5rem" onsubmit="return confirm('Supprimer cette idée ?')"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
+            </form>
+        </div>
+        <?php endforeach; endif; ?>
 
         <?php endif; ?>
     </main>

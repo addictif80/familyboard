@@ -9,6 +9,23 @@ foreach ($items as $it) {
     if (isset($byOwner[$it['user_id']])) $byOwner[$it['user_id']]['items'][] = $it;
 }
 $priorityLabel = ['low' => 'Envie', 'medium' => 'Souhaité', 'high' => 'Coup de cœur'];
+
+// Souhaits des familles amies (foyers séparés) : regroupés par famille puis par propriétaire,
+// à partir des colonnes owner_*/family_name déjà jointes par WishlistItem::getByFamily() —
+// pas besoin de la liste $members de ces familles-là.
+$friendByFamily = [];
+foreach ($friendItems as $it) {
+    $fid = (int)$it['family_id'];
+    if (!isset($friendByFamily[$fid])) $friendByFamily[$fid] = ['family_name' => $it['family_name'], 'byOwner' => []];
+    $uid = (int)$it['user_id'];
+    if (!isset($friendByFamily[$fid]['byOwner'][$uid])) {
+        $friendByFamily[$fid]['byOwner'][$uid] = [
+            'owner' => ['name' => $it['owner_name'], 'color' => $it['owner_color']],
+            'items' => [],
+        ];
+    }
+    $friendByFamily[$fid]['byOwner'][$uid]['items'][] = $it;
+}
 ?>
 <div class="content-header">
     <h2>🎁 Liste de cadeaux</h2>
@@ -73,6 +90,60 @@ $priorityLabel = ['low' => 'Envie', 'medium' => 'Souhaité', 'high' => 'Coup de 
     <?php endif; ?>
 </div>
 <?php endforeach; ?>
+
+<?php if (!empty($friendByFamily)): ?>
+<h3 style="margin:1.5rem 0 .75rem">🤝 Familles amies</h3>
+<p style="color:var(--text-muted);font-size:.82rem;margin-bottom:1rem">
+    Lecture seule — vous pouvez réserver un cadeau pour éviter un doublon entre les deux foyers,
+    mais pas modifier ni supprimer un souhait qui n'est pas le vôtre.
+</p>
+<?php foreach ($friendByFamily as $fgroup): ?>
+<div class="card settings-section" style="margin-bottom:1.25rem">
+    <h4 style="margin-bottom:.75rem"><?= htmlspecialchars($fgroup['family_name']) ?></h4>
+    <?php foreach ($fgroup['byOwner'] as $group): $owner = $group['owner']; ?>
+    <div style="margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;font-weight:600">
+            <span class="user-avatar" style="width:1.6rem;height:1.6rem;font-size:.8rem;background:<?= htmlspecialchars($owner['color']) ?>">
+                <?= mb_substr($owner['name'], 0, 1) ?>
+            </span>
+            <?= htmlspecialchars($owner['name']) ?>
+        </div>
+        <div class="wishlist-grid">
+            <?php foreach ($group['items'] as $it): ?>
+            <div class="wishlist-card <?= !empty($it['is_purchased']) ? 'wishlist-purchased' : '' ?>">
+                <div class="wishlist-card-head">
+                    <strong><?= htmlspecialchars($it['title']) ?></strong>
+                    <span class="badge-custom"><?= $priorityLabel[$it['priority']] ?? '' ?></span>
+                </div>
+                <?php if ($it['description']): ?><p style="color:var(--text-muted);font-size:.85rem"><?= nl2br(htmlspecialchars($it['description'])) ?></p><?php endif; ?>
+                <?php if ($it['price']): ?><p style="font-size:.85rem">💰 <?= number_format((float)$it['price'], 2, ',', ' ') ?> €</p><?php endif; ?>
+                <?php if ($it['url']): ?><p><a href="<?= htmlspecialchars($it['url']) ?>" target="_blank" rel="noopener noreferrer nofollow">🔗 Voir le produit</a></p><?php endif; ?>
+                <div style="margin-top:.5rem">
+                    <?php if (!empty($it['is_purchased'])): ?>
+                        <span class="badge-custom" style="background:var(--success)">✅ Acheté</span>
+                        <?php if (!empty($it['is_reserved_by_me'])): ?>
+                            <button class="btn btn-secondary btn-sm" onclick="setWishlistPurchased(<?= (int)$it['id'] ?>, false)">Annuler « acheté »</button>
+                        <?php endif; ?>
+                    <?php elseif (!empty($it['reserved_by'])): ?>
+                        <?php if (!empty($it['is_reserved_by_me'])): ?>
+                            <span class="badge-custom">🎀 Réservé par vous</span>
+                            <button class="btn btn-primary btn-sm" onclick="setWishlistPurchased(<?= (int)$it['id'] ?>, true)">Marquer acheté</button>
+                            <button class="btn btn-secondary btn-sm" onclick="unreserveWishlistItem(<?= (int)$it['id'] ?>)">Annuler</button>
+                        <?php else: ?>
+                            <span class="badge-custom">🎀 Réservé par <?= htmlspecialchars($it['reserved_by_name']) ?></span>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <button class="btn btn-primary btn-sm" onclick="reserveWishlistItem(<?= (int)$it['id'] ?>)">🎀 Réserver ce cadeau</button>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endforeach; ?>
+</div>
+<?php endforeach; ?>
+<?php endif; ?>
 
 <!-- Add/edit modal -->
 <div class="modal-overlay" id="wishlist-modal" style="display:none">

@@ -49,6 +49,12 @@ async function togglePollClosed(pollId) {
     else Dialog.toast(r.error || 'Erreur.', 'error');
 }
 
+async function actOnPoll(pollId, action) {
+    const r = await apiFetch(BASE_URL + '/api/polls/' + pollId + '/act', { method: 'POST', body: JSON.stringify({ action }) });
+    if (r.success) window.location.href = r.redirect;
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
 async function deletePoll(pollId) {
     const ok = await Dialog.confirm('Supprimer ce sondage et tous ses votes ?');
     if (!ok) return;

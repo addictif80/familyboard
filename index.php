@@ -345,6 +345,9 @@ $router->post('/api/custody/vacation/:id', [CustodyController::class, 'updateVac
 $router->post('/api/custody/vacation/:id/delete', [CustodyController::class, 'deleteVacationPeriod']);
 $router->post('/api/custody/schedule/:id/invite-coparent', [CustodyController::class, 'inviteCoparent']);
 $router->get('/api/custody/schedule/:id/activity-log', [CustodyController::class, 'activityLog']);
+$router->post('/api/custody/checklist', [CustodyController::class, 'addChecklistItem']);
+$router->post('/api/custody/checklist/:id/delete', [CustodyController::class, 'deleteChecklistItem']);
+$router->post('/api/custody/checklist/:id/toggle', [CustodyController::class, 'toggleChecklistItem']);
 
 // Vue co-parent à accès restreint
 $router->get('/coparent', [CoparentController::class, 'index']);
@@ -439,6 +442,9 @@ $router->post('/admin/links/:id/delete', [AdminController::class, 'deleteCertifi
 $router->post('/admin/links/:id/refresh-preview', [AdminController::class, 'refreshCertifiedLinkPreview']);
 $router->post('/admin/legal', [AdminController::class, 'updateLegalContent']);
 $router->post('/admin/legal/:type/reset', [AdminController::class, 'resetLegalContent']);
+$router->post('/admin/roadmap', [AdminController::class, 'createRoadmapItem']);
+$router->post('/admin/roadmap/:id', [AdminController::class, 'updateRoadmapItem']);
+$router->post('/admin/roadmap/:id/delete', [AdminController::class, 'deleteRoadmapItem']);
 
 // Support (user-facing)
 $router->get('/support', [SupportController::class, 'index']);
@@ -469,6 +475,7 @@ $router->get('/polls', [PollController::class, 'index']);
 $router->post('/api/polls', [PollController::class, 'create']);
 $router->post('/api/polls/:id/vote', [PollController::class, 'vote']);
 $router->post('/api/polls/:id/close', [PollController::class, 'close']);
+$router->post('/api/polls/:id/act', [PollController::class, 'actOnResult']);
 $router->post('/api/polls/:id/delete', [PollController::class, 'delete']);
 
 // Settings
@@ -601,6 +608,8 @@ $router->get('/sitter/:token', [SitterController::class, 'view']);
 // Mode kiosque (écran mural)
 $router->post('/api/kiosk/links', [KioskController::class, 'create']);
 $router->post('/api/kiosk/links/:id/revoke', [KioskController::class, 'revoke']);
+$router->get('/tv', [KioskController::class, 'tvEntry']);
+$router->post('/tv', [KioskController::class, 'tvRedeem']);
 $router->get('/kiosk/:token', [KioskController::class, 'view']);
 $router->get('/kiosk/:token/data', [KioskController::class, 'data']);
 $router->post('/kiosk/:token/tasks', [KioskController::class, 'createTask']);

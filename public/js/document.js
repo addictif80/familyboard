@@ -235,6 +235,12 @@ async function runDocOcr(file) {
     // Auto-fill fields from OCR text
     parseDocOcrFields(data.text, data.classified);
 
+    // Date d'échéance trouvée près d'un mot-clé ("expire le", "valable jusqu'au"...) — bien plus
+    // fiable que la première date du texte, souvent une date de naissance ou d'émission.
+    if (data.expiry_date && !document.getElementById('doc-expiry-date').value) {
+        document.getElementById('doc-expiry-date').value = data.expiry_date;
+    }
+
     // Auto-apply detected type if selector is on 'auto'
     if (document.getElementById('doc-type').value === 'auto' && data.classified?.type) {
         document.getElementById('doc-type').value = data.classified.type;

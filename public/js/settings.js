@@ -291,6 +291,7 @@ async function createKioskLink() {
             <strong>${escapeHtml(r.link.label)}</strong>
             <small>✅ Actif · créé le ${new Date(r.link.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('fr-FR')}</small>
         </div>
+        <button class="btn btn-secondary btn-sm" onclick="showKioskLinkModal('${r.link.token}', '${r.link.short_code}', '${escapeHtml(r.link.label).replace(/'/g, "\\'")}')">🔗 Voir le lien</button>
         <button class="btn btn-danger btn-sm" onclick="revokeKioskLink(${r.link.id})">Révoquer</button>
     `;
     list.prepend(div);
@@ -301,6 +302,22 @@ async function revokeKioskLink(id) {
     if (!ok) return;
     const r = await apiFetch(BASE_URL + '/api/kiosk/links/' + id + '/revoke', { method: 'POST' });
     if (r.success) window.location.reload();
+}
+
+function showKioskLinkModal(token, shortCode, label) {
+    const url = window.location.origin + BASE_URL + '/kiosk/' + token;
+    document.getElementById('kiosk-link-modal-title').textContent = 'Écran mural — ' + label;
+    const container = document.getElementById('kiosk-qr-container');
+    container.innerHTML = '';
+    const qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    container.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 4 });
+    document.getElementById('kiosk-qr-link').textContent = url;
+    document.getElementById('kiosk-qr-open-link').href = url;
+    document.getElementById('kiosk-qr-copy-btn').onclick = () => copyCode(url);
+    document.getElementById('kiosk-short-code').textContent = shortCode.replace(/(\d{3})(\d{3})/, '$1 $2');
+    openModal('kiosk-link-modal');
 }
 
 // ── Domicile (minuteurs) ────────────────────────────────────

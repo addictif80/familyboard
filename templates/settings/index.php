@@ -714,6 +714,7 @@ ob_start();
                         <small><?= $active ? '✅ Actif' : '⛔ Révoqué' ?> · créé le <?= \App\Core\DateHelper::fromUtc($link['created_at'], 'd/m/Y') ?></small>
                     </div>
                     <?php if ($active): ?>
+                    <button class="btn btn-secondary btn-sm" onclick="showKioskLinkModal('<?= htmlspecialchars($link['token'], ENT_QUOTES) ?>', '<?= htmlspecialchars($link['short_code'], ENT_QUOTES) ?>', '<?= htmlspecialchars($link['label'], ENT_QUOTES) ?>')">🔗 Voir le lien</button>
                     <button class="btn btn-danger btn-sm" onclick="revokeKioskLink(<?= $link['id'] ?>)">Révoquer</button>
                     <?php endif; ?>
                 </div>
@@ -721,6 +722,30 @@ ob_start();
         </div>
     </div>
     <?php endif; ?>
+
+    <!-- Kiosk link / QR modal -->
+    <div class="modal-overlay" id="kiosk-link-modal" style="display:none">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="kiosk-link-modal-title">Écran mural</h3>
+                <button onclick="closeModal('kiosk-link-modal')">✕</button>
+            </div>
+            <div class="modal-body" style="text-align:center">
+                <div id="kiosk-qr-container" style="display:inline-block;margin-bottom:1rem"></div>
+                <p style="word-break:break-all;font-size:.8rem" id="kiosk-qr-link"></p>
+                <div style="display:flex;gap:.5rem;justify-content:center;margin-bottom:1.25rem">
+                    <button type="button" class="btn btn-secondary btn-sm" id="kiosk-qr-copy-btn">📋 Copier le lien</button>
+                    <a href="#" target="_blank" class="btn btn-secondary btn-sm" id="kiosk-qr-open-link">Ouvrir</a>
+                </div>
+                <hr style="margin:1rem 0;border-color:var(--border-color)">
+                <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:.5rem">
+                    Ou, sur une TV connectée : ouvrez <strong><?= htmlspecialchars($_SERVER['HTTP_HOST'] ?? '') ?><?= BASE_URL ?>/tv</strong>
+                    et saisissez ce code :
+                </p>
+                <div id="kiosk-short-code" style="font-size:2rem;letter-spacing:.4rem;font-family:monospace;font-weight:700"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- Minuteurs de l'écran mural / kiosque -->
     <?php if ($user['role'] === 'admin'): ?>

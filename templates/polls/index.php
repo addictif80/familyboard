@@ -51,6 +51,23 @@ ob_start();
         </div>
         <?php endforeach; ?>
     </div>
+
+    <?php if ($poll['is_closed']): ?>
+        <?php $winner = \App\Models\Poll::getWinningOption((int)$poll['id']); ?>
+        <?php if (!empty($poll['decided_as'])): ?>
+        <div class="poll-decision poll-decision-done">
+            ✅ Décision actée : <?= $poll['decided_as'] === 'event' ? 'créée dans le calendrier' : 'créée dans les tâches ("Décisions")' ?>.
+        </div>
+        <?php elseif ($winner): ?>
+        <div class="poll-decision">
+            <span>🏆 <strong><?= htmlspecialchars($winner['label']) ?></strong> gagne</span>
+            <div style="display:flex;gap:.4rem">
+                <button class="btn btn-secondary btn-sm" onclick="actOnPoll(<?= (int)$poll['id'] ?>, 'event')">📅 Créer un événement</button>
+                <button class="btn btn-secondary btn-sm" onclick="actOnPoll(<?= (int)$poll['id'] ?>, 'task')">✅ Créer une tâche</button>
+            </div>
+        </div>
+        <?php endif; ?>
+    <?php endif; ?>
 </div>
 <?php endforeach; endif; ?>
 

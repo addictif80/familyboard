@@ -119,6 +119,13 @@ function closeModal(id) {
     document.body.style.overflow = '';
 }
 
+function copyCode(text) {
+    navigator.clipboard?.writeText(text).then(
+        () => Dialog.toast('Copié !'),
+        () => Dialog.toast('Impossible de copier.', 'error')
+    );
+}
+
 // Close modal on overlay click
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('modal-overlay')) {

@@ -72,4 +72,19 @@ class Poll
     {
         return (bool)Database::fetch('SELECT id FROM poll_options WHERE id=? AND poll_id=?', [$optionId, $pollId]);
     }
+
+    /** Option avec le plus de votes (départage par le premier créé) — null si aucun vote. */
+    public static function getWinningOption(int $pollId): ?array
+    {
+        $options = self::getOptions($pollId);
+        $withVotes = array_filter($options, fn($o) => (int)$o['votes'] > 0);
+        if (!$withVotes) return null;
+        usort($withVotes, fn($a, $b) => $b['votes'] <=> $a['votes']);
+        return $withVotes[0];
+    }
+
+    public static function markDecided(int $id, string $type): void
+    {
+        Database::execute('UPDATE polls SET decided_as=? WHERE id=?', [$type, $id]);
+    }
 }

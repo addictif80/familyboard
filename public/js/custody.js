@@ -925,5 +925,37 @@ async function openActivityLogModal(scheduleId, childName) {
     document.getElementById('activity-log-content').innerHTML = renderActivityLogHtml(data);
 }
 
+// ---- Checklist "à ne pas oublier" ----
+
+async function toggleCustodyChecklistItem(id, checked) {
+    await apiFetch(`${BASE_URL}/api/custody/checklist/${id}/toggle`, {
+        method: 'POST',
+        body: JSON.stringify({ checked }),
+    });
+}
+
+async function deleteCustodyChecklistItem(id) {
+    const ok = await Dialog.confirm('Retirer cet élément de la checklist (pour tous les prochains transferts) ?');
+    if (!ok) return;
+    await apiFetch(`${BASE_URL}/api/custody/checklist/${id}/delete`, { method: 'POST', body: '{}' });
+    window.location.reload();
+}
+
+async function addCustodyChecklistItem() {
+    const input = document.getElementById('custody-checklist-new-label');
+    const label = input.value.trim();
+    if (!label) return;
+    const scheduleId = document.getElementById('custody-checklist-new-schedule').value;
+    const r = await apiFetch(`${BASE_URL}/api/custody/checklist`, {
+        method: 'POST',
+        body: JSON.stringify({ label, schedule_id: scheduleId || null }),
+    });
+    if (r.success) {
+        window.location.reload();
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}
+
 // Init
 loadCustodyEvents();

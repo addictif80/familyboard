@@ -117,7 +117,7 @@ class WarrantyController extends BaseController
             return;
         }
 
-        echo json_encode(['success' => true, 'text' => $text]);
+        echo json_encode(['success' => true, 'text' => $text, 'expiry_date' => \App\Core\OcrHelper::extractExpiryDate($text)]);
     }
 
     /** OCR diagnostic endpoint — returns binary paths and PHP config */

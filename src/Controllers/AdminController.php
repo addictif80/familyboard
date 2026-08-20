@@ -7,6 +7,7 @@ use App\Core\Session;
 use App\Models\AbhdHighlight;
 use App\Models\AccountDeletion;
 use App\Models\PortalLink;
+use App\Models\RoadmapItem;
 use App\Models\AppSetting;
 use App\Models\EmailContent;
 use App\Models\LegalContent;
@@ -188,6 +189,7 @@ class AdminController extends BaseController
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
         $customNameDays = NameDay::getCustomEntries();
+        $roadmapItems = RoadmapItem::getAll();
 
         require BASE_PATH . '/templates/admin/index.php';
     }
@@ -778,6 +780,45 @@ class AdminController extends BaseController
             LegalContent::set($type, '');
         }
         $this->redirect('/admin?tab=legal&msg=legal_reset');
+    }
+
+    // ── Roadmap interne (idées de développement, usage sysadmin uniquement) ────
+
+    public function createRoadmapItem(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title = trim($_POST['title'] ?? '');
+        $status = $_POST['status'] ?? 'idea';
+        if ($title === '' || !in_array($status, ['idea', 'in_progress', 'done'], true)) {
+            $this->redirect('/admin?tab=roadmap&msg=roadmap_invalid');
+            return;
+        }
+        RoadmapItem::create($title, trim($_POST['description'] ?? '') ?: null, $status);
+        $this->redirect('/admin?tab=roadmap&msg=roadmap_saved');
+    }
+
+    public function updateRoadmapItem(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $item = RoadmapItem::getById((int)($params['id'] ?? 0));
+        if (!$item) { $this->redirect('/admin?tab=roadmap'); return; }
+
+        $title = trim($_POST['title'] ?? '');
+        $status = $_POST['status'] ?? 'idea';
+        if ($title === '' || !in_array($status, ['idea', 'in_progress', 'done'], true)) {
+            $this->redirect('/admin?tab=roadmap&msg=roadmap_invalid');
+            return;
+        }
+        RoadmapItem::update($item['id'], $title, trim($_POST['description'] ?? '') ?: null, $status);
+        $this->redirect('/admin?tab=roadmap&msg=roadmap_saved');
+    }
+
+    public function deleteRoadmapItem(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $item = RoadmapItem::getById((int)($params['id'] ?? 0));
+        if ($item) RoadmapItem::delete($item['id']);
+        $this->redirect('/admin?tab=roadmap&msg=roadmap_deleted');
     }
 
     // ── Helpers ──────────────────────────────────────────────────

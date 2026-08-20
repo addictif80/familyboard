@@ -73,6 +73,58 @@ class PollController extends BaseController
         });
     }
 
+    /** Transforme en un clic l'option gagnante d'un sondage clos en événement ou en tâche. */
+    public function actOnResult(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $poll = Poll::getById((int)$params['id']);
+            if (!$poll || $poll['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Sondage introuvable.'];
+            }
+            if (!$poll['is_closed']) {
+                return ['success' => false, 'error' => 'Le sondage doit d\'abord être clos.'];
+            }
+            if (!empty($poll['decided_as'])) {
+                return ['success' => false, 'error' => 'Une décision a déjà été actée pour ce sondage.'];
+            }
+            $winner = Poll::getWinningOption($poll['id']);
+            if (!$winner) {
+                return ['success' => false, 'error' => 'Aucun vote — rien à acter.'];
+            }
+
+            $action = $this->jsonInput()['action'] ?? '';
+            $title  = $poll['question'] . ' : ' . $winner['label'];
+
+            if ($action === 'task') {
+                $listId = \App\Models\TaskList::findOrCreateDecisionsList($user['family_id'], (int)$user['id']);
+                \App\Models\TaskList::createTask($listId, (int)$user['id'], ['title' => $title]);
+                Poll::markDecided($poll['id'], 'task');
+                return ['success' => true, 'redirect' => BASE_URL . '/tasks'];
+            }
+
+            if ($action === 'event') {
+                // Pas de date évidente à déduire d'un sondage ("où partir ?") — créé aujourd'hui,
+                // en journée entière, à ajuster ensuite depuis le calendrier plutôt que de
+                // bloquer ce "un clic" derrière un formulaire de date.
+                $today = date('Y-m-d');
+                \App\Models\Event::create([
+                    'family_id'      => $user['family_id'],
+                    'user_id'        => $user['id'],
+                    'title'          => $title,
+                    'start_datetime' => $today . ' 00:00:00',
+                    'end_datetime'   => $today . ' 23:59:59',
+                    'is_all_day'     => 1,
+                ]);
+                Poll::markDecided($poll['id'], 'event');
+                return ['success' => true, 'redirect' => BASE_URL . '/calendar'];
+            }
+
+            return ['success' => false, 'error' => 'Action invalide.'];
+        });
+    }
+
     public function delete(array $params): void
     {
         $this->requireAuth();
