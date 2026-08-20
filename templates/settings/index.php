@@ -633,6 +633,43 @@ ob_start();
     </div>
     <?php endif; ?>
 
+    <!-- Minuteurs de l'écran mural / kiosque -->
+    <?php if ($user['role'] === 'admin'): ?>
+    <div class="card settings-section">
+        <h3>⏰ Minuteurs de l'écran mural</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Créez des minuteurs prédéfinis (ex. « Machine à laver » — 40 min) que n'importe qui peut
+            démarrer d'un bouton depuis l'écran mural ou le kiosque. Une alarme sonne à échéance,
+            avec un bouton pour l'arrêter.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/settings/timers" class="admin-inline-form"><?= \App\Core\Csrf::field() ?>
+            <input type="text" name="label" placeholder="Ex : Machine à laver" required style="width:220px">
+            <input type="number" name="duration_minutes" placeholder="Minutes" min="1" max="1440" required style="width:100px">
+            <label style="display:flex;align-items:center;gap:.35rem;font-size:.85rem">
+                <input type="checkbox" name="show_on_wall" value="1" checked> Afficher sur l'écran mural
+            </label>
+            <button class="btn btn-primary btn-sm">Ajouter</button>
+        </form>
+
+        <div style="margin-top:1.25rem">
+            <?php if (empty($familyTimers)): ?>
+                <p style="color:var(--text-muted);font-size:.85rem">Aucun minuteur créé.</p>
+            <?php endif; ?>
+            <?php foreach ($familyTimers as $t): ?>
+            <div class="member-item">
+                <div class="member-info">
+                    <strong><?= htmlspecialchars($t['label']) ?></strong>
+                    <small><?= (int)$t['duration_minutes'] ?> min · <?= $t['show_on_wall'] ? '✅ Affiché sur l\'écran mural' : '➖ Non affiché' ?></small>
+                </div>
+                <form method="POST" action="<?= BASE_URL ?>/settings/timers/<?= (int)$t['id'] ?>/delete"><?= \App\Core\Csrf::field() ?>
+                    <button class="btn btn-danger btn-sm">Supprimer</button>
+                </form>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
     </div>
     <!-- ═══ /Onglet : Accès partagés ═══ -->
     <?php endif; ?>

@@ -115,6 +115,34 @@ $todayStr = date('Y-m-d');
     }
     .fw-exit:hover { color: #fff; border-color: rgba(255,255,255,.7); background: rgba(255,255,255,.1); }
 
+    /* ── Minuteurs ── */
+    .fw-timers {
+        display: flex; flex-wrap: wrap; gap: .6rem;
+        padding: .75rem 1.25rem 0;
+        flex-shrink: 0;
+    }
+    .fw-timer {
+        display: flex; align-items: center; gap: .5rem;
+        background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px;
+        padding: .5rem .8rem;
+        box-shadow: var(--shadow);
+    }
+    .fw-timer.running { border-color: var(--primary); }
+    .fw-timer.alarming {
+        border-color: #E74C3C; background: rgba(231,76,60,.12);
+        animation: fw-timer-pulse 1s ease-in-out infinite;
+    }
+    @keyframes fw-timer-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,.5); } 50% { box-shadow: 0 0 0 8px rgba(231,76,60,0); } }
+    .fw-timer-label { font-weight: 600; font-size: .88rem; }
+    .fw-timer-value { font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: .85rem; min-width: 3.2em; }
+    .fw-timer.alarming .fw-timer-value { color: #E74C3C; font-weight: 700; }
+    .fw-timer-btn {
+        border: none; border-radius: 50%; width: 30px; height: 30px;
+        background: var(--primary); color: #fff; font-size: .85rem; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .fw-timer.alarming .fw-timer-btn.fw-timer-stop { background: #E74C3C; }
+
     /* ── Card grid ── */
     .fw-grid {
         display: grid;
@@ -412,6 +440,27 @@ $todayStr = date('Y-m-d');
             <a href="<?= BASE_URL ?>/" class="fw-exit">← Retour</a>
         </div>
     </header>
+
+    <!-- ══ MINUTEURS ═══════════════════════════════════════════ -->
+    <?php if (!empty($timers)): ?>
+    <div class="fw-timers" id="fwTimers">
+        <?php foreach ($timers as $t): ?>
+        <div class="fw-timer<?= $t['run_id'] ? ' running' : '' ?>"
+             id="fw-timer-<?= (int)$t['id'] ?>"
+             data-timer-id="<?= (int)$t['id'] ?>"
+             data-duration-min="<?= (int)$t['duration_minutes'] ?>"
+             <?php if ($t['run_id']): ?>
+             data-run-id="<?= (int)$t['run_id'] ?>"
+             data-ends-at="<?= htmlspecialchars($t['ends_at']) ?>"
+             <?php endif; ?>>
+            <span class="fw-timer-label"><?= htmlspecialchars($t['label']) ?></span>
+            <span class="fw-timer-value"><?= $t['run_id'] ? '--:--' : (int)$t['duration_minutes'] . ' min' ?></span>
+            <button type="button" class="fw-timer-btn fw-timer-start" onclick="wallStartTimer(<?= (int)$t['id'] ?>)" <?= $t['run_id'] ? 'style="display:none"' : '' ?>>▶</button>
+            <button type="button" class="fw-timer-btn fw-timer-stop" onclick="wallStopTimer(<?= (int)$t['id'] ?>)" <?= $t['run_id'] ? '' : 'style="display:none"' ?>>⏹</button>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
 
     <!-- ══ GRID ════════════════════════════════════════════════ -->
     <div class="fw-grid">

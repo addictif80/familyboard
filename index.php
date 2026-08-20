@@ -493,6 +493,8 @@ $router->post('/settings/2fa/email/enable', [SettingsController::class, 'enableT
 $router->post('/settings/2fa/disable', [SettingsController::class, 'disableTwoFactor']);
 $router->post('/settings/logout-all-devices', [SettingsController::class, 'logoutAllDevices']);
 $router->post('/settings/vault/invite', [SettingsController::class, 'requestVaultInvite']);
+$router->post('/settings/timers', [SettingsController::class, 'createTimer']);
+$router->post('/settings/timers/:id/delete', [SettingsController::class, 'deleteTimer']);
 $router->get('/notifications/:id', [NotificationController::class, 'show']);
 $router->get('/api/alerts/active', [AlertController::class, 'active']);
 $router->get('/alertes/:category', [AlertController::class, 'category']);
@@ -553,6 +555,8 @@ $router->post('/api/baby/:baby_id/consultations/:id/delete', [BabyController::cl
 // Family Wall (écran mural)
 $router->get('/family-wall', [FamilyWallController::class, 'index']);
 $router->get('/api/family-wall/data', [FamilyWallController::class, 'apiData']);
+$router->post('/api/family-wall/timers/:timerId/start', [FamilyWallController::class, 'startTimer']);
+$router->post('/api/family-wall/timers/:timerId/stop', [FamilyWallController::class, 'stopTimer']);
 
 // Location (partage de position ponctuel)
 $router->get('/location', [LocationController::class, 'index']);
@@ -597,6 +601,8 @@ $router->get('/kiosk/:token', [KioskController::class, 'view']);
 $router->get('/kiosk/:token/data', [KioskController::class, 'data']);
 $router->post('/kiosk/:token/tasks', [KioskController::class, 'createTask']);
 $router->post('/kiosk/:token/tasks/:id/toggle', [KioskController::class, 'toggleTask']);
+$router->post('/kiosk/:token/timers/:timerId/start', [KioskController::class, 'startTimer']);
+$router->post('/kiosk/:token/timers/:timerId/stop', [KioskController::class, 'stopTimer']);
 
 // Invitations
 $router->get('/invite/:token', [InvitationController::class, 'show']);

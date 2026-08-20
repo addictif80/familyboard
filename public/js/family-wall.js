@@ -108,6 +108,88 @@ async function wallToggle(id, el) {
     }
 }
 
+// ── Minuteurs ────────────────────────────────────────────────
+// L'échéance ("alarming") n'est jamais un état serveur : chaque tick la déduit lui-même de
+// data-ends-at, ce qui garde tous les écrans (mural + kiosque) cohérents sans synchronisation
+// particulière. L'alarme est un bip généré via Web Audio API (pas de fichier audio à charger).
+
+let _timerAlarmCtx = null;
+let _timerAlarmInterval = null;
+
+function _timerBeep() {
+    try {
+        _timerAlarmCtx = _timerAlarmCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const osc = _timerAlarmCtx.createOscillator();
+        const gain = _timerAlarmCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.25, _timerAlarmCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, _timerAlarmCtx.currentTime + 0.4);
+        osc.connect(gain).connect(_timerAlarmCtx.destination);
+        osc.start();
+        osc.stop(_timerAlarmCtx.currentTime + 0.4);
+    } catch (_) { /* contexte audio indisponible (pas d'interaction utilisateur encore) */ }
+}
+
+function _timerStartAlarmLoop() {
+    if (_timerAlarmInterval) return;
+    _timerBeep();
+    _timerAlarmInterval = setInterval(_timerBeep, 1200);
+}
+
+function _timerStopAlarmLoop() {
+    clearInterval(_timerAlarmInterval);
+    _timerAlarmInterval = null;
+}
+
+function _timersTick() {
+    const els = document.querySelectorAll('.fw-timer[data-run-id]');
+    let anyAlarming = false;
+    els.forEach(el => {
+        const endsAt = new Date(el.dataset.endsAt.replace(' ', 'T') + 'Z').getTime();
+        const remaining = Math.round((endsAt - Date.now()) / 1000);
+        const valueEl = el.querySelector('.fw-timer-value');
+        if (remaining > 0) {
+            const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+            const s = String(remaining % 60).padStart(2, '0');
+            if (valueEl) valueEl.textContent = `${m}:${s}`;
+            el.classList.remove('alarming');
+        } else {
+            if (valueEl) valueEl.textContent = '00:00';
+            el.classList.add('alarming');
+            anyAlarming = true;
+        }
+    });
+    if (anyAlarming) _timerStartAlarmLoop();
+    else _timerStopAlarmLoop();
+}
+
+async function wallStartTimer(id) {
+    const data = await apiFetch(`${BASE_URL}/api/family-wall/timers/${id}/start`, { method: 'POST' });
+    if (!data.success) return;
+    const el = document.getElementById('fw-timer-' + id);
+    if (!el) return;
+    el.dataset.runId = data.run_id;
+    el.dataset.endsAt = data.ends_at;
+    el.classList.add('running');
+    el.querySelector('.fw-timer-start').style.display = 'none';
+    el.querySelector('.fw-timer-stop').style.display = '';
+    _timersTick();
+}
+
+async function wallStopTimer(id) {
+    await apiFetch(`${BASE_URL}/api/family-wall/timers/${id}/stop`, { method: 'POST' });
+    const el = document.getElementById('fw-timer-' + id);
+    if (!el) return;
+    delete el.dataset.runId;
+    delete el.dataset.endsAt;
+    el.classList.remove('running', 'alarming');
+    el.querySelector('.fw-timer-value').textContent = el.dataset.durationMin + ' min';
+    el.querySelector('.fw-timer-start').style.display = '';
+    el.querySelector('.fw-timer-stop').style.display = 'none';
+    _timersTick();
+}
+
 // ── Auto-refresh countdown ──────────────────────────────────
 
 let _refreshRemaining = 5 * 60;
@@ -150,8 +232,10 @@ async function _wakeLock() {
 // ── Init ────────────────────────────────────────────────────
 
 _wallClock();
+_timersTick();
 setInterval(_wallClock, 1000);
 setInterval(_tickRefresh, 1000);
+setInterval(_timersTick, 1000);
 
 _wallWeather();
 _wakeLock();
