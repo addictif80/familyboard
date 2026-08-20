@@ -29,6 +29,43 @@ ob_start();
         </div>
     </div>
 
+    <?php if (!empty($handoffChecklists)): ?>
+    <?php $scheduleById = array_column($schedules, null, 'id'); ?>
+    <div class="card settings-section" style="margin-bottom:1rem" id="custody-checklist-card">
+        <h3>📋 À ne pas oublier — transfert du jour</h3>
+        <?php foreach ($handoffChecklists as $scheduleId => $checklistItems): ?>
+        <?php $sched = $scheduleById[$scheduleId] ?? null; if (!$sched) continue; ?>
+        <div style="margin-bottom:1rem">
+            <div style="font-weight:600;margin-bottom:.4rem">👶 <?= htmlspecialchars($sched['child_name']) ?></div>
+            <?php if (empty($checklistItems)): ?>
+                <p style="color:var(--text-muted);font-size:.85rem">Aucun élément de checklist défini.</p>
+            <?php else: ?>
+            <div class="custody-checklist-items">
+                <?php foreach ($checklistItems as $ci): ?>
+                <label class="custody-checklist-item">
+                    <input type="checkbox" <?= $ci['checked'] ? 'checked' : '' ?>
+                           onchange="toggleCustodyChecklistItem(<?= (int)$ci['id'] ?>, this.checked)">
+                    <span><?= htmlspecialchars($ci['label']) ?></span>
+                    <button type="button" class="btn-chip" title="Supprimer ce modèle" onclick="deleteCustodyChecklistItem(<?= (int)$ci['id'] ?>)">✕</button>
+                </label>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+        <div style="display:flex;gap:.4rem;margin-top:.5rem">
+            <input type="text" id="custody-checklist-new-label" placeholder="Ex : Cartable, doudou, médicaments…" style="flex:1">
+            <select id="custody-checklist-new-schedule">
+                <option value="">Tous les enfants</option>
+                <?php foreach ($schedules as $s): ?>
+                <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['child_name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="addCustodyChecklistItem()">+ Ajouter</button>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div id="custody-calendar"></div>
     <div id="custody-mobile-agenda" class="cal-agenda" style="display:none"></div>
 

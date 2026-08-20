@@ -206,9 +206,10 @@ class DocumentController extends BaseController
         $classified = OcrHelper::classify($text);
 
         echo json_encode([
-            'success'    => true,
-            'text'       => $text,
-            'classified' => $classified,
+            'success'     => true,
+            'text'        => $text,
+            'classified'  => $classified,
+            'expiry_date' => OcrHelper::extractExpiryDate($text),
         ]);
     }
 

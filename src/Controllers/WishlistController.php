@@ -2,6 +2,7 @@
 namespace App\Controllers;
 
 use App\Core\Session;
+use App\Models\FamilyFriend;
 use App\Models\User;
 use App\Models\WishlistItem;
 
@@ -18,6 +19,16 @@ class WishlistController extends BaseController
             fn($i) => WishlistItem::scrubForViewer($i, (int)$user['id']),
             WishlistItem::getByFamily($user['family_id'])
         );
+
+        // Foyers séparés (familles amies) : leurs souhaits sont visibles en lecture seule pour
+        // éviter les doublons de cadeaux — jamais modifiables/supprimables par une autre famille,
+        // seule la réservation reste une action possible (voir reserve()/unreserve() ci-dessous).
+        $friendItems = [];
+        foreach (FamilyFriend::getAcceptedFamilyIds((int)$user['family_id']) as $friendFamilyId) {
+            foreach (WishlistItem::getByFamily($friendFamilyId) as $i) {
+                $friendItems[] = WishlistItem::scrubForViewer($i, (int)$user['id']);
+            }
+        }
 
         require BASE_PATH . '/templates/wishlist/index.php';
     }
@@ -77,8 +88,11 @@ class WishlistController extends BaseController
             $item = WishlistItem::getById((int)$params['id']);
             // On ne peut jamais réserver son propre souhait — et la vérification "déjà réservé"
             // est refaite en SQL (reserved_by IS NULL) pour éviter une course entre deux membres
-            // qui cliqueraient "réserver" au même instant sur le même item.
-            if (!$item || $item['family_id'] !== $user['family_id'] || (int)$item['user_id'] === (int)$user['id']) {
+            // qui cliqueraient "réserver" au même instant sur le même item. Un membre d'une
+            // famille amie (foyer séparé) peut réserver comme n'importe quel autre membre, pour
+            // éviter que les deux foyers achètent le même cadeau.
+            $sameOrFriendFamily = $item && ($item['family_id'] === $user['family_id'] || FamilyFriend::areFriends((int)$user['family_id'], (int)$item['family_id']));
+            if (!$item || !$sameOrFriendFamily || (int)$item['user_id'] === (int)$user['id']) {
                 return ['success' => false, 'error' => 'Action impossible.'];
             }
             WishlistItem::reserve($item['id'], (int)$user['id']);
@@ -93,8 +107,10 @@ class WishlistController extends BaseController
             $user = Session::user();
             $item = WishlistItem::getById((int)$params['id']);
             // Seule la personne qui a réservé peut annuler — pas le propriétaire du souhait
-            // (qui n'est pas censé savoir qu'une réservation existait), ni un tiers.
-            if (!$item || $item['family_id'] !== $user['family_id'] || (int)($item['reserved_by'] ?? 0) !== (int)$user['id']) {
+            // (qui n'est pas censé savoir qu'une réservation existait), ni un tiers. Le seul
+            // contrôle de famille nécessaire ici est "c'est bien elle qui a réservé" : peu
+            // importe que ce soit sa propre famille ou une famille amie.
+            if (!$item || (int)($item['reserved_by'] ?? 0) !== (int)$user['id']) {
                 return ['success' => false, 'error' => 'Action impossible.'];
             }
             WishlistItem::unreserve($item['id']);
@@ -108,7 +124,7 @@ class WishlistController extends BaseController
         $this->json(function () use ($params) {
             $user = Session::user();
             $item = WishlistItem::getById((int)$params['id']);
-            if (!$item || $item['family_id'] !== $user['family_id'] || (int)($item['reserved_by'] ?? 0) !== (int)$user['id']) {
+            if (!$item || (int)($item['reserved_by'] ?? 0) !== (int)$user['id']) {
                 return ['success' => false, 'error' => 'Action impossible.'];
             }
             $purchased = !empty($this->jsonInput()['purchased']);

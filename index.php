@@ -345,6 +345,9 @@ $router->post('/api/custody/vacation/:id', [CustodyController::class, 'updateVac
 $router->post('/api/custody/vacation/:id/delete', [CustodyController::class, 'deleteVacationPeriod']);
 $router->post('/api/custody/schedule/:id/invite-coparent', [CustodyController::class, 'inviteCoparent']);
 $router->get('/api/custody/schedule/:id/activity-log', [CustodyController::class, 'activityLog']);
+$router->post('/api/custody/checklist', [CustodyController::class, 'addChecklistItem']);
+$router->post('/api/custody/checklist/:id/delete', [CustodyController::class, 'deleteChecklistItem']);
+$router->post('/api/custody/checklist/:id/toggle', [CustodyController::class, 'toggleChecklistItem']);
 
 // Vue co-parent à accès restreint
 $router->get('/coparent', [CoparentController::class, 'index']);
@@ -469,6 +472,7 @@ $router->get('/polls', [PollController::class, 'index']);
 $router->post('/api/polls', [PollController::class, 'create']);
 $router->post('/api/polls/:id/vote', [PollController::class, 'vote']);
 $router->post('/api/polls/:id/close', [PollController::class, 'close']);
+$router->post('/api/polls/:id/act', [PollController::class, 'actOnResult']);
 $router->post('/api/polls/:id/delete', [PollController::class, 'delete']);
 
 // Settings

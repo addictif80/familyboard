@@ -380,4 +380,51 @@ class OcrHelper
     {
         return ['type' => 'other', 'label' => 'Autre', 'icon' => '📄', 'color' => '#95A5A6', 'confidence' => 0.0, 'score' => 0];
     }
+
+    // ── Date d'expiration ─────────────────────────────────────────────────────
+
+    /** Mots-clés à proximité desquels une date trouvée est probablement une échéance (plutôt
+     *  qu'une date de naissance, d'émission...). Cherchés dans le texte OCR brut (accents
+     *  conservés), pas dans la version normalisée servant à classify(). */
+    private const EXPIRY_KEYWORDS = [
+        "date d'expiration", 'date d\'expiration', 'expire le', 'expire fin',
+        "valable jusqu'au", "valable jusqu'en", 'date de validité', 'date limite de validité',
+        'fin de validité', 'expiry date', 'valid until', "date d'échéance", 'échéance le',
+        "à renouveler avant", 'renouvellement avant',
+    ];
+
+    /**
+     * Cherche une date d'échéance dans un texte OCR, à proximité d'un mot-clé connu
+     * (contrairement à la première date dd/mm/yyyy trouvée n'importe où, qui est bien plus
+     * souvent une date de naissance ou d'émission). Renvoie 'Y-m-d' ou null si rien de fiable.
+     */
+    public static function extractExpiryDate(string $text): ?string
+    {
+        if (trim($text) === '') return null;
+        $lower = mb_strtolower($text);
+        $datePattern = '(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})';
+
+        foreach (self::EXPIRY_KEYWORDS as $kw) {
+            $pos = mb_strpos($lower, mb_strtolower($kw));
+            if ($pos === false) continue;
+            // La date suit presque toujours le mot-clé sur la même ligne, à quelques mots —
+            // une fenêtre de 80 caractères après le mot-clé couvre ce cas sans déborder sur la
+            // ligne suivante d'un document dense.
+            $window = mb_substr($text, $pos, mb_strlen($kw) + 80);
+            if (preg_match('/' . $datePattern . '/', $window, $m)) {
+                $date = self::normalizeDateParts($m[1], $m[2], $m[3]);
+                if ($date) return $date;
+            }
+        }
+        return null;
+    }
+
+    private static function normalizeDateParts(string $d, string $m, string $y): ?string
+    {
+        if (strlen($y) === 2) $y = ((int)$y < 50 ? '20' : '19') . $y;
+        $d = str_pad($d, 2, '0', STR_PAD_LEFT);
+        $m = str_pad($m, 2, '0', STR_PAD_LEFT);
+        if (!checkdate((int)$m, (int)$d, (int)$y)) return null;
+        return "$y-$m-$d";
+    }
 }

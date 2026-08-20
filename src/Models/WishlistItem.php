@@ -15,9 +15,10 @@ class WishlistItem
     {
         return Database::fetchAll(
             'SELECT w.*, u.name as owner_name, u.color as owner_color, u.avatar as owner_avatar,
-                    r.name as reserved_by_name
+                    r.name as reserved_by_name, f.name as family_name
              FROM wishlist_items w
              JOIN users u ON u.id = w.user_id
+             JOIN families f ON f.id = w.family_id
              LEFT JOIN users r ON r.id = w.reserved_by
              WHERE w.family_id = ?
              ORDER BY w.is_purchased ASC, FIELD(w.priority,\'high\',\'medium\',\'low\'), w.created_at DESC',

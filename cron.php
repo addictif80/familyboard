@@ -101,6 +101,7 @@ foreach ($families as $family) {
     sendShoppingReminders($familyId, $membersExcludingCoparent, $appUrl);
     sendRecurringAlerts($familyId, $appUrl);
     sendWeeklyDigest($familyId, $family, $membersExcludingCoparent, $appUrl);
+    sendExpiryReminders($familyId, $membersExcludingCoparent, $appUrl);
 
     try {
         checkTimerAlerts($familyId, $membersExcludingCoparent);
@@ -214,6 +215,59 @@ function checkTimerAlerts(int $familyId, array $members): void
             // Quelqu'un vient de rentrer : on relâche, le client déclenche l'alarme dès son
             // prochain rafraîchissement (poll de l'écran mural / kiosque).
             Database::execute('UPDATE family_timer_runs SET held_for_return=0 WHERE id=?', [$run['id']]);
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Échéances Garanties/Documents : rappel à J-30 et J-7 avant warranty_end_date / expiry_date.
+// ──────────────────────────────────────────────────────────────────────────
+function sendExpiryReminders(int $familyId, array $members, string $appUrl): void
+{
+    $today = new \DateTime('today');
+    $items = [];
+
+    foreach (Database::fetchAll('SELECT id, title, warranty_end_date FROM warranties WHERE family_id=? AND warranty_end_date IS NOT NULL', [$familyId]) as $w) {
+        $items[] = ['kind' => 'La garantie', 'ref' => 'warranty_' . $w['id'], 'label' => $w['title'], 'date' => $w['warranty_end_date'], 'url' => '/warranties'];
+    }
+    foreach (Database::fetchAll('SELECT id, title, expiry_date FROM documents WHERE family_id=? AND expiry_date IS NOT NULL', [$familyId]) as $d) {
+        $items[] = ['kind' => 'Le document', 'ref' => 'document_' . $d['id'], 'label' => $d['title'], 'date' => $d['expiry_date'], 'url' => '/documents'];
+    }
+
+    foreach ($items as $item) {
+        $end = new \DateTime($item['date']);
+        $daysRemaining = (int)$today->diff($end)->days * ($end >= $today ? 1 : -1);
+        if (!in_array($daysRemaining, [30, 7], true)) continue;
+
+        foreach ($members as $member) {
+            if (empty($member['email'])) continue;
+
+            // Clé de déduplication propre à cet élément + ce seuil (J-30 et J-7 sont deux
+            // rappels distincts, chacun envoyé une seule fois) — voir sendBirthdayReminders()
+            // pour le même principe de marqueur dans le corps du mail.
+            $key = 'expiry_' . $item['ref'] . '_' . $daysRemaining . '_' . date('Y');
+            $alreadySent = Database::fetch(
+                "SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ? AND status='sent'
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 8 DAY)",
+                [$familyId, 'expiry_reminder', $member['email'], '%' . $key . '%']
+            );
+            if ($alreadySent) continue;
+
+            $rendered = EmailContent::render('expiry_reminder', [
+                'user_name'      => $member['name'],
+                'item_label'     => $item['label'],
+                'item_kind'      => $item['kind'],
+                'expiry_date'    => date('d/m/Y', strtotime($item['date'])),
+                'days_remaining' => (string)$daysRemaining,
+            ]);
+            $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+                'label' => 'Voir',
+                'url'   => $appUrl . $item['url'],
+            ]) . "<!-- {$key} -->";
+
+            Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'expiry_reminder');
+
+            echo "  → Expiry reminder sent to {$member['email']} for {$item['label']} (J-{$daysRemaining})" . PHP_EOL;
         }
     }
 }

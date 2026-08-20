@@ -1,6 +1,6 @@
 <?php
 $pageTitle = 'Journal parental';
-$extraJs = ['comm_log.js'];
+$extraJs = ['tone-check.js', 'comm_log.js'];
 ob_start();
 ?>
 <div class="chat-container">

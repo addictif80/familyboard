@@ -1128,6 +1128,10 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 /* ---- Custody ---- */
 .custody-container { }
 .custody-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.custody-checklist-items { display: flex; flex-direction: column; gap: .3rem; }
+.custody-checklist-item { display: flex; align-items: center; gap: .5rem; font-size: .9rem; padding: .2rem 0; }
+.custody-checklist-item .btn-chip { margin-left: auto; opacity: .5; }
+.custody-checklist-item .btn-chip:hover { opacity: 1; }
 .schedule-list { display: flex; gap: .5rem; flex-wrap: wrap; }
 .schedule-chip { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .75rem; border-radius: 20px; border: 2px solid; font-size: .8rem; font-weight: 500; }
 .btn-chip { background: none; border: none; cursor: pointer; font-size: .8rem; opacity: .7; padding: 0; }
@@ -1607,6 +1611,12 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .poll-option-bar { position: absolute; inset: 0; background: var(--primary); opacity: .12; z-index: 0; transition: width .3s; }
 .poll-option-content { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: .5rem; }
 .poll-option.poll-option-voted { border-color: var(--primary); }
+.poll-decision {
+    margin-top: .85rem; padding-top: .75rem; border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap;
+    font-size: .88rem;
+}
+.poll-decision-done { color: var(--text-muted); }
 
 /* ── Portail de liens ─────────────────────────────────────────── */
 .links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.1rem; margin-top: 1rem; }

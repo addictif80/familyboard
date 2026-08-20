@@ -54,6 +54,18 @@ class TaskList
         );
     }
 
+    /** Liste "Décisions" réutilisée par toute décision actée automatiquement (ex. résultat de
+     *  sondage) — évite de créer une nouvelle liste à chaque fois. */
+    public static function findOrCreateDecisionsList(int $familyId, int $userId): int
+    {
+        $existing = Database::fetch(
+            "SELECT id FROM task_lists WHERE family_id=? AND type='tasks' AND name=? LIMIT 1",
+            [$familyId, 'Décisions']
+        );
+        if ($existing) return (int)$existing['id'];
+        return self::create($familyId, $userId, 'Décisions', 'tasks', '#8E44AD');
+    }
+
     public static function update(int $id, string $name, string $color): void
     {
         Database::execute('UPDATE task_lists SET name=?, color=? WHERE id=?', [$name, $color, $id]);
