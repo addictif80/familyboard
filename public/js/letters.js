@@ -62,11 +62,27 @@ function insertLetterVarFromRow(btn) {
 }
 
 function getLetterBuiltinValues() {
+    const civility = document.getElementById('lm-civility').value;
     return {
-        civilite: document.getElementById('lm-civility').value,
+        // "Société" ne se met pas en formule de politesse ("Bonjour Société Dupont SARL,"
+        // n'a pas de sens) : {{civilite}} reste vide dans ce cas, seul {{nom_dest}} (le nom de
+        // l'entité) est renseigné.
+        civilite: civility === 'Société' ? '' : civility,
         nom_dest: document.getElementById('lm-last-name').value,
         prenom_dest: document.getElementById('lm-first-name').value,
     };
+}
+
+// Une "Société" n'a pas de prénom : le champ Nom devient "Nom de l'entité" et le champ
+// Prénom est masqué (et vidé, pour ne pas l'envoyer par erreur avec l'ancienne valeur).
+function toggleLetterRecipientType() {
+    const isCompany = document.getElementById('lm-civility').value === 'Société';
+    document.getElementById('lm-last-name-label').innerHTML = isCompany
+        ? 'Nom de l\'entité <span style="color:var(--danger)">*</span>'
+        : 'Nom <span style="color:var(--danger)">*</span>';
+    const firstNameGroup = document.getElementById('lm-first-name-group');
+    firstNameGroup.style.display = isCompany ? 'none' : '';
+    if (isCompany) document.getElementById('lm-first-name').value = '';
 }
 
 function getLetterCustomVariables() {
@@ -102,6 +118,7 @@ function resetLetterForm() {
     document.getElementById('lm-template-name').value = '';
     document.getElementById('lm-variables-container').innerHTML = '';
     letterQuill.setContents([]);
+    toggleLetterRecipientType();
 }
 
 function openLetterModal(id) {
@@ -121,6 +138,7 @@ function openLetterModal(id) {
         document.getElementById('lm-place').value = l.place || '';
         document.getElementById('lm-subject').value = l.subject || '';
         letterQuill.root.innerHTML = l.body || '';
+        toggleLetterRecipientType();
     }
     openModal('letter-modal');
 }

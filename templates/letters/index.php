@@ -87,17 +87,18 @@ use App\Core\DateHelper;
             <div class="form-row">
                 <div class="form-group">
                     <label>Civilité <span style="color:var(--danger)">*</span></label>
-                    <select id="lm-civility">
+                    <select id="lm-civility" onchange="toggleLetterRecipientType()">
                         <option value="">--</option>
                         <option value="Madame">Madame</option>
                         <option value="Monsieur">Monsieur</option>
+                        <option value="Société">Société</option>
                     </select>
                 </div>
                 <div class="form-group flex-2">
-                    <label>Nom <span style="color:var(--danger)">*</span></label>
+                    <label id="lm-last-name-label">Nom <span style="color:var(--danger)">*</span></label>
                     <input type="text" id="lm-last-name">
                 </div>
-                <div class="form-group flex-2">
+                <div class="form-group flex-2" id="lm-first-name-group">
                     <label>Prénom</label>
                     <input type="text" id="lm-first-name">
                 </div>
