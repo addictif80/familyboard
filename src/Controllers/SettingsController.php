@@ -311,6 +311,8 @@ class SettingsController extends BaseController
             'dark_mode_type'       => trim($_POST['dark_mode_type']       ?? 'off'),
             'dark_mode_start'      => trim($_POST['dark_mode_start']      ?? ''),
             'dark_mode_end'        => trim($_POST['dark_mode_end']        ?? ''),
+            'sender_address'       => trim($_POST['sender_address']       ?? ''),
+            'sender_postal_city'   => trim($_POST['sender_postal_city']   ?? ''),
         ]);
         Session::flash('success', 'Famille mise à jour.');
         header('Location: ' . BASE_URL . '/settings');

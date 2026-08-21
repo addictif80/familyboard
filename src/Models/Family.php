@@ -30,6 +30,7 @@ class Family
         'polls'       => ['label' => 'Sondages familiaux', 'icon' => '🗳️'],
         'links'       => ['label' => 'Portail de liens',   'icon' => '🔗'],
         'additions'   => ['label' => 'Additions',          'icon' => '🧾'],
+        'letters'     => ['label' => 'Courriers',          'icon' => '✉️'],
     ];
 
     /** Modules ayant une page de destination directe (donc utilisables dans la barre de
@@ -42,7 +43,7 @@ class Family
         'family-wall' => '/family-wall', 'baby' => '/baby', 'location' => '/location',
         'emergency' => '/emergency', 'comm_log' => '/comm-log', 'meals' => '/meals',
         'wishlist' => '/wishlist', 'polls' => '/polls', 'links' => '/links',
-        'additions' => '/additions',
+        'additions' => '/additions', 'letters' => '/letters',
     ];
 
     /** Sélection par défaut de la barre de navigation rapide (mobile/PWA), tant que
@@ -95,7 +96,7 @@ class Family
 
         Database::execute(
             'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, school_zone=?, caldav_sync_interval=?,
-             dark_mode_type=?, dark_mode_start=?, dark_mode_end=? WHERE id=?',
+             dark_mode_type=?, dark_mode_start=?, dark_mode_end=?, sender_address=?, sender_postal_city=? WHERE id=?',
             [
                 $name,
                 $settings['timezone'] ?: null,
@@ -105,6 +106,8 @@ class Family
                 $darkModeType,
                 $darkStart,
                 $darkEnd,
+                isset($settings['sender_address']) ? (trim($settings['sender_address']) ?: null) : null,
+                isset($settings['sender_postal_city']) ? (trim($settings['sender_postal_city']) ?: null) : null,
                 $id,
             ]
         );
