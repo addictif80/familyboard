@@ -21,6 +21,8 @@ use App\Models\User;
 use App\Core\EmailLayout;
 use App\Core\Vaultwarden;
 use App\Models\VaultwardenSettings;
+use App\Core\Mailcow;
+use App\Models\MailcowSettings;
 
 class AdminController extends BaseController
 {
@@ -186,6 +188,7 @@ class AdminController extends BaseController
         $deletedUsers = AccountDeletion::getDeletedUsers();
         $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
         $vaultwardenSettings = VaultwardenSettings::get();
+        $mailcowSettings = MailcowSettings::get();
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
         $customNameDays = NameDay::getCustomEntries();
@@ -610,6 +613,45 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $this->json(fn() => Vaultwarden::testConnection());
+    }
+
+    // ── Mailcow (alias e-mail <slug-famille>@domaine, redirigé vers les membres) ────
+
+    public function updateMailcowSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $url = trim($_POST['url'] ?? '');
+        $domain = trim($_POST['domain'] ?? '');
+        $newKey = trim($_POST['api_key'] ?? '');
+        // Comme pour Vaultwarden / Météo-France : champ clé vide + keep_existing=1 veut dire
+        // "panneau non ouvert", pas "effacer la clé".
+        if ($newKey === '' && !empty($_POST['keep_existing'])) {
+            $existing = MailcowSettings::get();
+            $newKey = $existing['api_key'] ?? '';
+        }
+
+        $previousDomain = MailcowSettings::get()['domain'] ?? null;
+
+        if ($url && $newKey && $domain) {
+            MailcowSettings::save($url, $newKey, $domain);
+            // Domaine inchangé (ou toute première configuration) : synchronise simplement tous
+            // les alias contre le domaine courant. Domaine changé : supprime en plus les anciens
+            // alias, devenus orphelins, sur l'ex-domaine — c'est exactement ce qui permet de
+            // "basculer" plus tard vers familyboard.fr sans laisser de doublons sur board.abhd.fr.
+            $newDomain = strtolower(trim($domain));
+            Mailcow::resyncAllFamilies($previousDomain && $previousDomain !== $newDomain ? $previousDomain : null);
+        } else {
+            AppSetting::set('mailcow_url', '');
+            AppSetting::set('mailcow_api_key', '');
+            AppSetting::set('mailcow_domain', '');
+        }
+        $this->redirect('/admin?tab=notifications&msg=mailcow_saved');
+    }
+
+    public function testMailcowConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => Mailcow::testConnection());
     }
 
     // ── Mises en avant ABHD (jamais "publicité" dans le code/l'UI) ─────────────

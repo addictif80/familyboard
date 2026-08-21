@@ -304,6 +304,17 @@ ob_start();
                     <input type="text" name="family_name" value="<?= htmlspecialchars($family['name']) ?>" required>
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group flex-1">
+                    <label>🏠 Adresse postale du foyer</label>
+                    <input type="text" name="sender_address" value="<?= htmlspecialchars($family['sender_address'] ?? '') ?>" placeholder="12 rue des Lilas">
+                </div>
+                <div class="form-group flex-1">
+                    <label>Code postal et ville</label>
+                    <input type="text" name="sender_postal_city" value="<?= htmlspecialchars($family['sender_postal_city'] ?? '') ?>" placeholder="75000 Paris">
+                </div>
+            </div>
+            <small style="color:var(--text-muted);display:block;margin:-.5rem 0 1rem">Utilisée comme adresse d'expéditeur sur les courriers générés (module Courriers).</small>
             <div class="form-group">
                 <label>🌍 Fuseau horaire</label>
                 <select name="timezone">
@@ -383,6 +394,17 @@ ob_start();
                 <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirmSubmit(this.closest('form'),&quot;Régénérer le code ? L\'ancien ne fonctionnera plus.&quot;)">🔄 Régénérer</button>
             </form>
         </div>
+
+        <?php if ($mailAliasAddress): ?>
+        <div class="invite-section" style="margin-top:.75rem">
+            <strong>Adresse e-mail famille :</strong>
+            <code class="invite-code"><?= htmlspecialchars($mailAliasAddress) ?></code>
+            <button onclick="copyCode('<?= htmlspecialchars($mailAliasAddress) ?>')" class="btn btn-secondary btn-sm">📋 Copier</button>
+            <div style="color:var(--text-muted);font-size:.8rem;margin-top:.3rem">
+                Tout e-mail envoyé à cette adresse est transmis à chaque membre de la famille.
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Familles amies -->
         <div id="friends" style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border)">
@@ -485,6 +507,8 @@ ob_start();
             <input type="hidden" name="weather_city" value="<?= htmlspecialchars($family['weather_city'] ?? '') ?>">
             <input type="hidden" name="school_zone" value="<?= htmlspecialchars($family['school_zone'] ?? '') ?>">
             <input type="hidden" name="caldav_sync_interval" value="<?= (int)($family['caldav_sync_interval'] ?? 0) ?>">
+            <input type="hidden" name="sender_address" value="<?= htmlspecialchars($family['sender_address'] ?? '') ?>">
+            <input type="hidden" name="sender_postal_city" value="<?= htmlspecialchars($family['sender_postal_city'] ?? '') ?>">
             <div class="form-group">
                 <label><input type="radio" name="dark_mode_type" value="off" <?= $darkType === 'off' ? 'checked' : '' ?> onchange="toggleDarkModeFields()"> Désactivé</label><br>
                 <label><input type="radio" name="dark_mode_type" value="fixed" <?= $darkType === 'fixed' ? 'checked' : '' ?> onchange="toggleDarkModeFields()"> Horaires fixes</label><br>

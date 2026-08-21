@@ -78,6 +78,8 @@ class AccountDeletion
         }
 
         Database::execute('DELETE FROM users WHERE id=?', [$userId]);
+
+        \App\Core\Mailcow::syncFamily($familyId);
     }
 
     /** Alias explicite pour les appels côté suppression d'un accès co-parent — même logique
@@ -212,6 +214,7 @@ class AccountDeletion
     public static function deleteFamily(int $familyId): void
     {
         $filePaths = self::familyFilePaths($familyId);
+        $mailAliasSlug = Database::fetch('SELECT mail_alias_slug FROM families WHERE id=?', [$familyId])['mail_alias_slug'] ?? null;
 
         // event_shares / event_share_changes / family_friends n'ont volontairement plus de
         // contrainte de clé étrangère (cf. database/add_family_sharing_no_fk.sql) : nettoyage
@@ -226,6 +229,8 @@ class AccountDeletion
         Database::execute('DELETE FROM family_friends WHERE requester_family_id=? OR target_family_id=?', [$familyId, $familyId]);
 
         Database::execute('DELETE FROM families WHERE id=?', [$familyId]);
+
+        \App\Core\Mailcow::deleteFamilyAlias($mailAliasSlug);
 
         self::deleteFiles($filePaths);
         self::removeDirRecursive(BASE_PATH . '/storage/documents/' . $familyId);
