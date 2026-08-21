@@ -99,8 +99,16 @@ class LetterController extends BaseController
         if ($lastName === '' || $address === '' || $postalCity === '' || $subject === '' || trim(strip_tags($body)) === '') {
             return null;
         }
-        $civility = in_array($data['civility'] ?? '', ['Madame', 'Monsieur'], true) ? $data['civility'] : '';
-        $displayName = trim($civility . ' ' . $firstName . ' ' . $lastName);
+        $civility = in_array($data['civility'] ?? '', ['Madame', 'Monsieur', 'Société'], true) ? $data['civility'] : '';
+        if ($civility === 'Société') {
+            // Une entité n'a pas de prénom, et "Société" ne préfixe pas son nom sur
+            // l'enveloppe (contrairement à "Madame"/"Monsieur") : recipient_last_name porte
+            // directement la raison sociale.
+            $firstName = '';
+            $displayName = $lastName;
+        } else {
+            $displayName = trim($civility . ' ' . $firstName . ' ' . $lastName);
+        }
 
         return [
             'civility'                     => $civility,
