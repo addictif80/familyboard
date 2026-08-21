@@ -4,7 +4,7 @@
 html, body.kiosk-body {
     height: 100%;
     background: var(--bg);
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 .kiosk-error {
@@ -19,15 +19,33 @@ html, body.kiosk-body {
 }
 .kiosk-error h1 { font-family: var(--font-display); margin-bottom: .75rem; }
 
+/* Écran large (TV, tablette en mode paysage) : la grille occupe exactement la
+   hauteur de l'écran (barre d'état/adresse masquée par le plein écran, cf.
+   kiosk.js) et ne défile jamais — chaque carte défile individuellement si son
+   propre contenu dépasse la place qui lui est allouée. */
 .kiosk-board {
+    box-sizing: border-box;
     padding: 1.25rem;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto 1fr 1fr auto;
     gap: 1.25rem;
-    min-height: 100vh;
+    height: 100dvh;
+    height: 100vh;
 }
+.kiosk-board > .kiosk-section { min-height: 0; } /* laisse la grille contraindre la hauteur, pas le contenu */
+
+/* Écran étroit (tablette en mode portrait) : une colonne, on repasse en
+   défilement de page classique — impossible de tout caser sans scroll. */
 @media (max-width: 900px) {
-    .kiosk-board { grid-template-columns: 1fr; }
+    html, body.kiosk-body { overflow-y: auto; }
+    .kiosk-board {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        height: auto;
+        min-height: 100vh;
+    }
+    .kiosk-board > .kiosk-section { min-height: auto; }
 }
 
 .kiosk-header {
@@ -65,7 +83,6 @@ html, body.kiosk-body {
     display: flex;
     flex-direction: column;
     gap: .5rem;
-    max-height: 70vh;
     overflow-y: auto;
 }
 .kiosk-section h2 {

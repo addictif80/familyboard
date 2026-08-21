@@ -325,4 +325,28 @@ setInterval(fetchKioskData, KIOSK_REFRESH_SECONDS * 1000);
 setInterval(updateKioskClock, 1000);
 setInterval(_kioskTimersTick, 1000);
 
+// Plein écran (masque barre d'adresse/d'état du navigateur TV) : la plupart
+// des navigateurs n'autorisent l'appel qu'à la suite d'une interaction
+// utilisateur (clic, tap, touche de la télécommande) — un appel automatique
+// au chargement échoue silencieusement sur beaucoup de navigateurs TV
+// (Tizen, webOS…), donc on l'arme sur la première interaction et on
+// n'insiste plus ensuite, avec ou sans succès.
+(function () {
+    function requestKioskFullscreen() {
+        const el = document.documentElement;
+        const request = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+        if (request) {
+            try { request.call(el); } catch (e) { /* refusé par ce navigateur, tant pis */ }
+        }
+        document.removeEventListener('click', requestKioskFullscreen);
+        document.removeEventListener('touchend', requestKioskFullscreen);
+        document.removeEventListener('keydown', requestKioskFullscreen);
+    }
+    if (!document.fullscreenElement) {
+        document.addEventListener('click', requestKioskFullscreen);
+        document.addEventListener('touchend', requestKioskFullscreen);
+        document.addEventListener('keydown', requestKioskFullscreen);
+    }
+})();
+
 document.getElementById('kioskAlarmOverlay')?.addEventListener('click', _kioskDismissAllAlarms);
