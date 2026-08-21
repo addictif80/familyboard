@@ -39,6 +39,7 @@ class SettingsController extends BaseController
             $friendFamiliesIncoming = [];
             $friendFamiliesOutgoing = [];
             $vaultwardenEnabled = false;
+            $mailAliasAddress = null;
             $twoFactorMethod = TwoFactorAuth::getMethod($user['id']);
             require BASE_PATH . '/templates/settings/index.php';
             return;
@@ -56,6 +57,10 @@ class SettingsController extends BaseController
         $friendFamiliesIncoming = \App\Models\FamilyFriend::getPendingIncoming((int)$user['family_id']);
         $friendFamiliesOutgoing = \App\Models\FamilyFriend::getPendingOutgoing((int)$user['family_id']);
         $vaultwardenEnabled = \App\Models\VaultwardenSettings::get() !== null;
+        $mailcowSettingsForFamily = \App\Models\MailcowSettings::get();
+        $mailAliasAddress = ($mailcowSettingsForFamily && !empty($family['mail_alias_slug']))
+            ? $family['mail_alias_slug'] . '@' . $mailcowSettingsForFamily['domain']
+            : null;
         $familyTimers = ($user['role'] === 'admin') ? FamilyTimer::getByFamily($user['family_id']) : [];
         require BASE_PATH . '/templates/settings/index.php';
     }

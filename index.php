@@ -433,6 +433,8 @@ $router->post('/admin/meteofrance-key/test', [AdminController::class, 'testMeteo
 $router->post('/admin/2fa-policy', [AdminController::class, 'updateTwoFactorPolicy']);
 $router->post('/admin/vaultwarden', [AdminController::class, 'updateVaultwardenSettings']);
 $router->post('/admin/vaultwarden/test', [AdminController::class, 'testVaultwardenConnection']);
+$router->post('/admin/mailcow', [AdminController::class, 'updateMailcowSettings']);
+$router->post('/admin/mailcow/test', [AdminController::class, 'testMailcowConnection']);
 $router->post('/admin/highlights', [AdminController::class, 'createHighlight']);
 $router->post('/admin/highlights/:id', [AdminController::class, 'updateHighlight']);
 $router->post('/admin/highlights/:id/delete', [AdminController::class, 'deleteHighlight']);

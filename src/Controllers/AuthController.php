@@ -287,6 +287,8 @@ class AuthController
             error_log('AdditionGuest::linkToUser failed: ' . $e->getMessage());
         }
 
+        \App\Core\Mailcow::syncFamily($familyId);
+
         $user = User::findById($userId);
         $this->completeLogin($user);
     }

@@ -51,7 +51,7 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','mailcow_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
@@ -75,6 +75,7 @@
                     'link_unreachable'    => 'Ce lien n\'a pas pu être vérifié (adresse non autorisée ou site injoignable).',
                     'nameday_added'       => 'Fête ajoutée au calendrier des prénoms.',
                     'nameday_invalid'     => 'Prénom et date requis.',
+                    'mailcow_saved'       => 'Configuration Mailcow enregistrée — alias e-mail synchronisés.',
                     'roadmap_saved'       => 'Idée enregistrée.',
                     'roadmap_deleted'     => 'Idée supprimée.',
                     'roadmap_invalid'     => 'Titre et statut requis.',
@@ -394,6 +395,47 @@
                 <?php endif; ?>
             </div>
             <div id="vaultwarden-test-result" style="margin-top:.75rem"></div>
+        </form>
+
+        <h2 style="margin-top:2rem">Alias e-mail famille (Mailcow)</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Crée automatiquement, pour chaque famille, un alias <code>&lt;nom-de-famille&gt;@<?= htmlspecialchars($mailcowSettings['domain'] ?? 'votre-domaine.fr') ?></code>
+            redirigeant vers les adresses e-mail personnelles de ses membres (co-parents exclus),
+            via l'API d'administration de votre instance Mailcow auto-hébergée. Synchronisé
+            automatiquement à chaque arrivée/départ de membre. Changer le domaine ci-dessous
+            relance la création des alias sur le nouveau domaine et supprime les anciens sur
+            l'ancien — utile le jour où vous passerez de <code>board.abhd.fr</code> à un domaine
+            dédié comme <code>familyboard.fr</code>.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/mailcow" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>URL de l'instance Mailcow</label>
+                <input type="url" name="url" value="<?= htmlspecialchars($mailcowSettings['url'] ?? '') ?>" placeholder="https://mail.abhd.fr">
+            </div>
+            <div class="form-group">
+                <label>Domaine des alias</label>
+                <input type="text" name="domain" value="<?= htmlspecialchars($mailcowSettings['domain'] ?? '') ?>" placeholder="board.abhd.fr">
+            </div>
+            <div class="form-group">
+                <label>Clé API</label>
+                <?php if (!empty($mailcowSettings['api_key'])): ?>
+                    <input type="text" value="•••••••••••••• <?= htmlspecialchars(substr($mailcowSettings['api_key'], -4)) ?>" disabled>
+                    <input type="hidden" name="keep_existing" value="1">
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer ou désactiver la clé</summary>
+                        <input type="text" name="api_key" placeholder="Nouvelle clé (laisser vide pour désactiver)" autocomplete="off" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="text" name="api_key" placeholder="Laisser vide pour désactiver cette fonctionnalité" autocomplete="off">
+                <?php endif; ?>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+                <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                <?php if (!empty($mailcowSettings['api_key'])): ?>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testMailcow()">🔌 Tester la connexion</button>
+                <?php endif; ?>
+            </div>
+            <div id="mailcow-test-result" style="margin-top:.75rem"></div>
         </form>
 
         <h2 style="margin-top:2rem">Sécurité — Double authentification</h2>

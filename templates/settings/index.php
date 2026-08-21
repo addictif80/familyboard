@@ -384,6 +384,17 @@ ob_start();
             </form>
         </div>
 
+        <?php if ($mailAliasAddress): ?>
+        <div class="invite-section" style="margin-top:.75rem">
+            <strong>Adresse e-mail famille :</strong>
+            <code class="invite-code"><?= htmlspecialchars($mailAliasAddress) ?></code>
+            <button onclick="copyCode('<?= htmlspecialchars($mailAliasAddress) ?>')" class="btn btn-secondary btn-sm">📋 Copier</button>
+            <div style="color:var(--text-muted);font-size:.8rem;margin-top:.3rem">
+                Tout e-mail envoyé à cette adresse est transmis à chaque membre de la famille.
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- Familles amies -->
         <div id="friends" style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border)">
             <h4 style="margin-bottom:.5rem">🤝 Familles amies</h4>
