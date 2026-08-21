@@ -43,9 +43,6 @@ use App\Core\DateHelper;
                 <button class="btn-chip" title="Voir" onclick="showLetterDetail(<?= $l['id'] ?>)">👁️</button>
                 <button class="btn-chip" title="Modifier" onclick="openLetterModal(<?= $l['id'] ?>)">✏️</button>
                 <button class="btn-chip" title="Imprimer" onclick="printLetter(<?= $l['id'] ?>)">🖨️</button>
-                <?php if (!empty($l['recipient_email'])): ?>
-                <button class="btn-chip" title="Envoyer par e-mail" onclick="sendLetter(<?= $l['id'] ?>)">✉️</button>
-                <?php endif; ?>
                 <button class="btn-chip" title="Supprimer" onclick="deleteLetter(<?= $l['id'] ?>)">🗑️</button>
             </div>
         </div>
@@ -109,10 +106,6 @@ use App\Core\DateHelper;
                 <div class="form-group flex-2">
                     <label>Complément (titre, service…)</label>
                     <input type="text" id="lm-complement">
-                </div>
-                <div class="form-group flex-2">
-                    <label>E-mail du destinataire <small style="color:var(--text-muted)">(facultatif, pour l'envoi)</small></label>
-                    <input type="email" id="lm-email" placeholder="destinataire@exemple.fr">
                 </div>
             </div>
             <div class="form-row">
@@ -216,7 +209,6 @@ use App\Core\DateHelper;
 <script>
 const LETTERS_DATA = <?= json_encode($letters) ?>;
 const LETTER_TEMPLATES_DATA = <?= json_encode($templates) ?>;
-const LETTER_SEND_HISTORY = <?= json_encode($sendHistory) ?>;
 const LETTER_SENDER = <?= json_encode([
     'family_name'  => $family['name'] ?? 'FamilyBoard',
     'user_name'    => $user['name'],

@@ -31,13 +31,12 @@ class Letter
             'INSERT INTO letters
              (family_id, user_id, civility, recipient_last_name, recipient_first_name,
               recipient_display_name, recipient_complement, recipient_address,
-              recipient_address_complement, recipient_postal_city, recipient_email, place,
-              subject, body)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+              recipient_address_complement, recipient_postal_city, place, subject, body)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId, $userId, $d['civility'], $d['recipient_last_name'], $d['recipient_first_name'],
                 $d['recipient_display_name'], $d['recipient_complement'], $d['recipient_address'],
-                $d['recipient_address_complement'], $d['recipient_postal_city'], $d['recipient_email'], $d['place'],
+                $d['recipient_address_complement'], $d['recipient_postal_city'], $d['place'],
                 $d['subject'], $d['body'],
             ]
         );
@@ -48,13 +47,12 @@ class Letter
         Database::execute(
             'UPDATE letters SET civility=?, recipient_last_name=?, recipient_first_name=?,
              recipient_display_name=?, recipient_complement=?, recipient_address=?,
-             recipient_address_complement=?, recipient_postal_city=?, recipient_email=?, place=?,
-             subject=?, body=?
+             recipient_address_complement=?, recipient_postal_city=?, place=?, subject=?, body=?
              WHERE id=? AND family_id=?',
             [
                 $d['civility'], $d['recipient_last_name'], $d['recipient_first_name'],
                 $d['recipient_display_name'], $d['recipient_complement'], $d['recipient_address'],
-                $d['recipient_address_complement'], $d['recipient_postal_city'], $d['recipient_email'], $d['place'],
+                $d['recipient_address_complement'], $d['recipient_postal_city'], $d['place'],
                 $d['subject'], $d['body'],
                 $id, $familyId,
             ]
@@ -64,27 +62,5 @@ class Letter
     public static function delete(int $id, int $familyId): void
     {
         Database::execute('DELETE FROM letters WHERE id=? AND family_id=?', [$id, $familyId]);
-    }
-
-    public static function getSendHistory(int $familyId): array
-    {
-        $rows = Database::fetchAll(
-            'SELECT ls.letter_id, ls.sent_at, u.name AS sender_name
-             FROM letter_sends ls
-             JOIN letters l ON l.id = ls.letter_id
-             JOIN users u ON u.id = ls.user_id
-             WHERE l.family_id = ? ORDER BY ls.sent_at DESC',
-            [$familyId]
-        );
-        $byLetter = [];
-        foreach ($rows as $row) {
-            $byLetter[(int)$row['letter_id']][] = $row;
-        }
-        return $byLetter;
-    }
-
-    public static function logSend(int $letterId, int $userId): void
-    {
-        Database::insert('INSERT INTO letter_sends (letter_id, user_id) VALUES (?,?)', [$letterId, $userId]);
     }
 }

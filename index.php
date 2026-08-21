@@ -252,7 +252,6 @@ $router->get('/letters', [LetterController::class, 'index']);
 $router->post('/api/letters', [LetterController::class, 'create']);
 $router->post('/api/letters/:id', [LetterController::class, 'update']);
 $router->post('/api/letters/:id/delete', [LetterController::class, 'delete']);
-$router->post('/api/letters/:id/send', [LetterController::class, 'sendEmail']);
 $router->post('/api/letter-templates', [LetterController::class, 'createTemplate']);
 $router->post('/api/letter-templates/:id/delete', [LetterController::class, 'deleteTemplate']);
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);

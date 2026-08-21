@@ -97,7 +97,6 @@ function resetLetterForm() {
     document.getElementById('lm-address').value = '';
     document.getElementById('lm-address-complement').value = '';
     document.getElementById('lm-postal-city').value = '';
-    document.getElementById('lm-email').value = '';
     document.getElementById('lm-subject').value = '';
     document.getElementById('lm-template-select').value = '';
     document.getElementById('lm-template-name').value = '';
@@ -119,7 +118,6 @@ function openLetterModal(id) {
         document.getElementById('lm-address').value = l.recipient_address || '';
         document.getElementById('lm-address-complement').value = l.recipient_address_complement || '';
         document.getElementById('lm-postal-city').value = l.recipient_postal_city || '';
-        document.getElementById('lm-email').value = l.recipient_email || '';
         document.getElementById('lm-place').value = l.place || '';
         document.getElementById('lm-subject').value = l.subject || '';
         letterQuill.root.innerHTML = l.body || '';
@@ -146,7 +144,6 @@ async function saveLetter() {
         recipient_address: document.getElementById('lm-address').value,
         recipient_address_complement: document.getElementById('lm-address-complement').value,
         recipient_postal_city: document.getElementById('lm-postal-city').value,
-        recipient_email: document.getElementById('lm-email').value,
         place: document.getElementById('lm-place').value,
         subject: document.getElementById('lm-subject').value,
         body,
@@ -166,13 +163,6 @@ async function deleteLetter(id) {
     if (!ok) return;
     const r = await apiFetch(`${BASE_URL}/api/letters/${id}/delete`, { method: 'POST' });
     if (r.success) window.location.reload();
-}
-
-async function sendLetter(id) {
-    const ok = await Dialog.confirm('Envoyer ce courrier par e-mail (PDF joint) au destinataire ?');
-    if (!ok) return;
-    const r = await apiFetch(`${BASE_URL}/api/letters/${id}/send`, { method: 'POST', body: '{}' });
-    Dialog.toast(r.success ? 'Courrier envoyé.' : (r.error || 'Échec de l\'envoi.'), r.success ? 'success' : 'error');
 }
 
 // ---- Modèles ----
@@ -237,16 +227,6 @@ function buildLetterRecipientLines(l) {
     return lines;
 }
 
-function buildLetterSendHistoryHtml(id) {
-    const sends = LETTER_SEND_HISTORY[id] || [];
-    if (!sends.length) return '';
-    const rows = sends.map(s => `<div style="font-size:.75rem;color:var(--text-muted);padding:.2rem 0">✅ ${fmtLetterDate(s.sent_at)} — <strong>${escapeHtml(s.sender_name)}</strong></div>`).join('');
-    return `<div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border)">
-        <div style="font-size:.8rem;font-weight:600;margin-bottom:.3rem">Historique des envois (${sends.length})</div>
-        ${rows}
-    </div>`;
-}
-
 function showLetterDetail(id) {
     const l = LETTERS_DATA.find(x => x.id == id);
     if (!l) return;
@@ -265,11 +245,9 @@ function showLetterDetail(id) {
             <div class="lp-corps">${l.body}</div>
             <div class="lp-footer">${escapeHtml(LETTER_SENDER.user_name)}</div>
         </div>
-        <div style="text-align:center;margin-top:1rem;display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
+        <div style="text-align:center;margin-top:1rem">
             <button class="btn btn-primary" onclick="printLetter(${l.id})">🖨️ Imprimer</button>
-            ${l.recipient_email ? `<button class="btn btn-secondary" onclick="sendLetter(${l.id})">✉️ Envoyer par e-mail</button>` : ''}
         </div>
-        ${buildLetterSendHistoryHtml(l.id)}
     `;
     openModal('letter-detail-modal');
 }
