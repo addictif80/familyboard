@@ -2,10 +2,14 @@
 namespace App\Controllers;
 
 use App\Core\Session;
+use App\Models\Family;
 use App\Models\TaskList;
+use App\Models\TaskListShare;
 use App\Models\User;
 use App\Models\Notification;
 use App\Models\Event;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 class TaskController extends BaseController
 {
@@ -178,5 +182,150 @@ class TaskController extends BaseController
 
             return ['success' => true, 'task' => TaskList::getTask($taskId)];
         });
+    }
+
+    // ── Export PDF ───────────────────────────────────────────────
+
+    public function pdf(array $params): void
+    {
+        $this->requireAuth();
+        $user = Session::user();
+        $list = TaskList::getById((int)$params['id']);
+        if (!$list || $list['family_id'] !== $user['family_id']) {
+            http_response_code(404);
+            return;
+        }
+        $tasks = TaskList::getTasks((int)$list['id']);
+        $family = Family::findById((int)$user['family_id']);
+
+        $h = fn($s) => htmlspecialchars((string)$s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $rows = '';
+        foreach ($tasks as $t) {
+            $box = $t['is_completed'] ? '☑' : '☐';
+            $meta = [];
+            if ($t['assigned_name']) $meta[] = $h($t['assigned_name']);
+            if ($t['due_date']) $meta[] = 'échéance ' . date('d/m/Y', strtotime($t['due_date']));
+            $metaHtml = $meta ? ' <span class="meta">(' . implode(', ', $meta) . ')</span>' : '';
+            $titleStyle = $t['is_completed'] ? ' style="text-decoration:line-through;color:#888"' : '';
+            $rows .= "<div class=\"item\"><span class=\"box\">{$box}</span><span{$titleStyle}>" . $h($t['title']) . "</span>{$metaHtml}</div>";
+        }
+        if (!$tasks) $rows = '<p class="empty">Aucun élément.</p>';
+
+        $html = <<<HTML
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><style>
+    body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11pt; color: #000; }
+    h1 { font-size: 16pt; margin-bottom: 2px; }
+    .subtitle { color: #666; font-size: 9pt; margin-top: 0; margin-bottom: 18px; }
+    .item { padding: 5px 0; border-bottom: 1px solid #eee; }
+    .box { display: inline-block; width: 18px; font-size: 13pt; }
+    .meta { color: #888; font-size: 9pt; }
+    .empty { color: #888; }
+</style></head><body>
+<h1>{$h($list['name'])}</h1>
+<p class="subtitle">{$h($family['name'] ?? 'FamilyBoard')} — généré le {$h(date('d/m/Y à H:i'))}</p>
+{$rows}
+</body></html>
+HTML;
+
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('defaultFont', 'DejaVu Sans');
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $filename = preg_replace('/[^a-zA-Z0-9_-]/', '_', $list['name']) . '.pdf';
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo $dompdf->output();
+    }
+
+    // ── Partage public (lien, sans compte) ───────────────────────
+
+    public function shareList(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $list = TaskList::getById((int)$params['id']);
+            if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
+            $share = TaskListShare::getOrCreate((int)$list['id'], (int)$user['id']);
+            $share['url'] = rtrim($this->originUrl(), '/') . BASE_URL . '/share/list/' . $share['token'];
+            return ['success' => true, 'share' => $share];
+        });
+    }
+
+    public function regenerateShareLink(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $list = TaskList::getById((int)$params['id']);
+            if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
+            if (!TaskListShare::getByList((int)$list['id'])) return ['success' => false];
+            $share = TaskListShare::regenerate((int)$list['id']);
+            $share['url'] = rtrim($this->originUrl(), '/') . BASE_URL . '/share/list/' . $share['token'];
+            return ['success' => true, 'share' => $share];
+        });
+    }
+
+    public function revokeShareLink(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $list = TaskList::getById((int)$params['id']);
+            if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
+            TaskListShare::revoke((int)$list['id']);
+            return ['success' => true];
+        });
+    }
+
+    /** Page publique, sans compte : lecture + coche/décoche, rien d'autre (pas d'ajout ni de
+     *  suppression) — voir aussi data()/toggle() ci-dessous, appelés depuis cette page. */
+    public function publicView(array $params): void
+    {
+        $token = $params['token'] ?? '';
+        $share = TaskListShare::findValidByToken($token);
+        if (!$share) {
+            http_response_code(404);
+            $list = null;
+            require BASE_PATH . '/templates/tasks/public.php';
+            return;
+        }
+        $list = TaskList::getById((int)$share['list_id']);
+        require BASE_PATH . '/templates/tasks/public.php';
+    }
+
+    public function publicData(array $params): void
+    {
+        $this->json(function () use ($params) {
+            $share = TaskListShare::findValidByToken($params['token'] ?? '');
+            if (!$share) return ['success' => false];
+            $list = TaskList::getById((int)$share['list_id']);
+            if (!$list) return ['success' => false];
+            return ['success' => true, 'list' => $list, 'tasks' => TaskList::getTasks((int)$list['id'])];
+        });
+    }
+
+    public function publicToggle(array $params): void
+    {
+        $this->json(function () use ($params) {
+            $share = TaskListShare::findValidByToken($params['token'] ?? '');
+            if (!$share) return ['success' => false];
+            $task = TaskList::getTask((int)$params['taskId']);
+            if (!$task || (int)$task['list_id'] !== (int)$share['list_id']) return ['success' => false];
+            $completed = TaskList::toggleTask((int)$task['id']);
+            return ['success' => true, 'completed' => $completed];
+        });
+    }
+
+    private function originUrl(): string
+    {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
     }
 }
