@@ -311,6 +311,13 @@ $router->post('/api/tasks/list/:id/task', [TaskController::class, 'createTask'])
 $router->post('/api/tasks/task/:id/toggle', [TaskController::class, 'toggleTask']);
 $router->post('/api/tasks/task/:id/update', [TaskController::class, 'updateTask']);
 $router->post('/api/tasks/task/:id/delete', [TaskController::class, 'deleteTask']);
+$router->get('/tasks/list/:id/pdf', [TaskController::class, 'pdf']);
+$router->post('/api/tasks/list/:id/share', [TaskController::class, 'shareList']);
+$router->post('/api/tasks/list/:id/share/regenerate', [TaskController::class, 'regenerateShareLink']);
+$router->post('/api/tasks/list/:id/share/revoke', [TaskController::class, 'revokeShareLink']);
+$router->get('/share/list/:token', [TaskController::class, 'publicView']);
+$router->get('/share/list/:token/data', [TaskController::class, 'publicData']);
+$router->post('/share/list/:token/toggle/:taskId', [TaskController::class, 'publicToggle']);
 
 // Chat
 $router->get('/chat', [ChatController::class, 'index']);

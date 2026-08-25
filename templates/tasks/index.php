@@ -1,6 +1,6 @@
 <?php
 $pageTitle = 'Tâches & Courses';
-$extraJs = ['tasks.js'];
+$extraJs = ['vendor/qrcode.min.js', 'tasks.js'];
 ob_start();
 ?>
 <div class="tasks-container">
@@ -40,7 +40,11 @@ ob_start();
                     <h2><?= htmlspecialchars($selectedList['name']) ?></h2>
                     <span class="badge"><?= $selectedList['type'] === 'shopping' ? '🛒 Courses' : '✅ Tâches' ?></span>
                 </div>
-                <button class="btn btn-primary btn-sm" onclick="openNewTaskModal()">+ Ajouter</button>
+                <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+                    <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/tasks/list/<?= $selectedListId ?>/pdf">📄 PDF</a>
+                    <button class="btn btn-secondary btn-sm" onclick="openShareModal(<?= $selectedListId ?>)">🔗 Partager</button>
+                    <button class="btn btn-primary btn-sm" onclick="openNewTaskModal()">+ Ajouter</button>
+                </div>
             </div>
 
             <?php if ($selectedList['user_id'] === $user['id'] || $user['role'] === 'admin'): ?>
@@ -201,6 +205,32 @@ ob_start();
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('task-modal')">Annuler</button>
             <button class="btn btn-primary" onclick="saveTask()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal-overlay" id="share-list-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Partager la liste</h3>
+            <button onclick="closeModal('share-list-modal')">✕</button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+                Toute personne avec ce lien peut cocher/décocher les éléments de cette liste,
+                sans avoir besoin de compte — pratique à envoyer à un proche qui fait les courses.
+            </p>
+            <div id="share-qr-container" style="display:inline-block;margin-bottom:1rem"></div>
+            <p style="word-break:break-all;font-size:.8rem" id="share-link-text"></p>
+            <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;margin-bottom:1rem">
+                <button type="button" class="btn btn-secondary btn-sm" id="share-copy-btn">📋 Copier le lien</button>
+                <a href="#" target="_blank" class="btn btn-secondary btn-sm" id="share-open-link">Ouvrir</a>
+            </div>
+            <div style="display:flex;gap:.5rem;justify-content:center">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="regenerateShareLink()">🔄 Régénérer</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="revokeShareLink()">Révoquer</button>
+            </div>
         </div>
     </div>
 </div>

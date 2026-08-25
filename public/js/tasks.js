@@ -104,3 +104,41 @@ async function deleteTask(id) {
         if (item) item.remove();
     }
 }
+
+// ---- Partage public (lien, sans compte) ----
+
+function showShareLink(share) {
+    const container = document.getElementById('share-qr-container');
+    container.innerHTML = '';
+    const qr = qrcode(0, 'M');
+    qr.addData(share.url);
+    qr.make();
+    container.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 4 });
+    document.getElementById('share-link-text').textContent = share.url;
+    document.getElementById('share-open-link').href = share.url;
+    document.getElementById('share-copy-btn').onclick = () => copyCode(share.url);
+    openModal('share-list-modal');
+}
+
+async function openShareModal(listId) {
+    const r = await apiFetch(`${BASE_URL}/api/tasks/list/${listId}/share`, { method: 'POST', body: '{}' });
+    if (r.success) showShareLink(r.share);
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+async function regenerateShareLink() {
+    const ok = await Dialog.confirm('Régénérer le lien ? L\'ancien lien cessera immédiatement de fonctionner.');
+    if (!ok) return;
+    const r = await apiFetch(`${BASE_URL}/api/tasks/list/${LIST_ID}/share/regenerate`, { method: 'POST', body: '{}' });
+    if (r.success) showShareLink(r.share);
+}
+
+async function revokeShareLink() {
+    const ok = await Dialog.confirm('Révoquer ce lien de partage ?');
+    if (!ok) return;
+    const r = await apiFetch(`${BASE_URL}/api/tasks/list/${LIST_ID}/share/revoke`, { method: 'POST' });
+    if (r.success) {
+        closeModal('share-list-modal');
+        Dialog.toast('Lien révoqué.');
+    }
+}

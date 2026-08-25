@@ -111,7 +111,11 @@ class TaskList
         $completed = !$task['is_completed'];
         Database::execute(
             'UPDATE tasks SET is_completed=?, completed_at=? WHERE id=?',
-            [$completed, $completed ? date('Y-m-d H:i:s') : null, $id]
+            // PDOStatement::execute() sérialise un booléen PHP `false` en chaîne vide (pas '0'),
+            // rejetée par MySQL en mode strict pour une colonne entière — d'où le cast explicite,
+            // sans quoi décocher une tâche échoue silencieusement côté API (cocher fonctionne,
+            // `true` devenant '1').
+            [(int)$completed, $completed ? date('Y-m-d H:i:s') : null, $id]
         );
         return $completed;
     }
