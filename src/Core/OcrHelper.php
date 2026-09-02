@@ -122,7 +122,7 @@ class OcrHelper
         if ($declaredMime === 'application/pdf') {
             return $real === 'application/pdf';
         }
-        $audioEquivalences = [
+        $mimeEquivalences = [
             'audio/webm'  => ['audio/webm', 'video/webm'],
             'audio/ogg'   => ['audio/ogg', 'application/ogg', 'video/ogg'],
             'audio/mp4'   => ['audio/mp4', 'video/mp4'],
@@ -131,8 +131,19 @@ class OcrHelper
             'audio/wav'   => ['audio/wav', 'audio/x-wav', 'audio/vnd.wave'],
             'audio/x-wav' => ['audio/wav', 'audio/x-wav', 'audio/vnd.wave'],
             'audio/aac'   => ['audio/aac', 'audio/x-aac'],
+            // Bureautique/e-mail : tolérance similaire — un .docx/.xlsx est un ZIP, parfois
+            // reconnu comme "application/zip" par une base libmagic ancienne ; un .doc/.xls est
+            // un conteneur OLE2 générique ; un .eml est du texte brut, parfois reconnu comme
+            // "text/plain" plutôt que le type message/rfc822 exact.
+            'application/msword' => ['application/msword', 'application/x-ole-storage', 'application/CDFV2', 'application/vnd.ms-office'],
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =>
+                ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip'],
+            'application/vnd.ms-excel' => ['application/vnd.ms-excel', 'application/x-ole-storage', 'application/CDFV2', 'application/vnd.ms-office'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' =>
+                ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip'],
+            'message/rfc822' => ['message/rfc822', 'text/plain'],
         ];
-        return in_array($real, $audioEquivalences[$declaredMime] ?? [$declaredMime], true);
+        return in_array($real, $mimeEquivalences[$declaredMime] ?? [$declaredMime], true);
     }
 
     private static function extensionForMime(string $mime): string
@@ -149,6 +160,11 @@ class OcrHelper
             'image/webp' => 'webp',
             'image/gif'  => 'gif',
             'application/pdf' => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            'application/vnd.ms-excel' => 'xls',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'message/rfc822' => 'eml',
             default      => 'bin',
         };
     }
@@ -157,6 +173,17 @@ class OcrHelper
     public const VOICE_MIMES = [
         'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
         'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/aac',
+    ];
+
+    /** MIME whitelist for dossier attachments (pdf/word/excel/image/email — voir DisputeCase). */
+    public const DISPUTE_DOC_MIMES = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'message/rfc822',
+        'image/jpeg', 'image/png', 'image/webp', 'image/gif',
     ];
 
     // ── Document classifier ──────────────────────────────────────────────────
