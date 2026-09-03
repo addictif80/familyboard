@@ -388,6 +388,35 @@
         </div>
     </section>
 
+    <?php if (!empty($pricingPlans)): ?>
+    <section class="landing-section pricing-section">
+        <div class="section-heading">
+            <span class="kicker">Tarifs</span>
+            <h2>Une offre gratuite pour découvrir, un seul abonnement Premium pour tout débloquer</h2>
+            <p>Aucune carte requise pour commencer. Passez à Premium quand votre famille est prête, avec <?= $trialDays ?> jours d'essai gratuit.</p>
+        </div>
+        <div class="pricing-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.25rem;max-width:960px;margin:0 auto">
+            <div class="card" style="display:flex;flex-direction:column;gap:.6rem;padding:1.5rem">
+                <h3 style="margin:0">Gratuit</h3>
+                <p style="color:var(--text-muted);margin:0">Jusqu'à 4 membres</p>
+                <div><strong style="font-size:1.5rem">0 €</strong> <span style="color:var(--text-muted)">/ mois</span></div>
+                <p style="color:var(--text-muted);font-size:.85rem;margin:0">Calendrier, tâches, mur familial, chat, répertoire et anniversaires — sans limite de temps.</p>
+                <a href="<?= BASE_URL ?>/register" class="btn btn-secondary" style="margin-top:auto">Créer ma famille</a>
+            </div>
+            <?php foreach ($pricingPlans as $p): ?>
+            <div class="card" style="display:flex;flex-direction:column;gap:.6rem;padding:1.5rem;border:2px solid var(--primary)">
+                <h3 style="margin:0"><?= htmlspecialchars($p['name']) ?></h3>
+                <p style="color:var(--text-muted);margin:0"><?= $p['member_limit'] ? "Jusqu'à {$p['member_limit']} membres" : 'Membres illimités' ?></p>
+                <div><strong style="font-size:1.5rem"><?= number_format($p['price_monthly_cents'] / 100, 2, ',', ' ') ?> €</strong> <span style="color:var(--text-muted)">/ mois</span></div>
+                <p style="color:var(--text-muted);font-size:.85rem;margin:0"><?= number_format($p['price_yearly_cents'] / 100, 2, ',', ' ') ?> € / an<?= $annualDiscount > 0 ? " (-{$annualDiscount}%)" : '' ?></p>
+                <p style="color:var(--text-muted);font-size:.85rem;margin:0">Tous les modules débloqués : garde alternée, suivi scolaire, dossiers de litige, budget, projets…</p>
+                <a href="<?= BASE_URL ?>/register" class="btn btn-primary" style="margin-top:auto">Essayer <?= $trialDays ?> jours gratuits</a>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <section class="cta-section">
         <h2>Prêt à simplifier la vie de votre famille ?</h2>
         <p>Créez votre espace en moins d'une minute, invitez vos proches, et retrouvez enfin votre organisation au même endroit.</p>
