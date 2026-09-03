@@ -56,6 +56,34 @@ async function deleteStudent() {
     if (r.success) window.location.href = `${BASE_URL}/school`;
 }
 
+// ---- Liens ----
+
+function openLinksModal() {
+    openModal('links-modal');
+}
+
+function toggleCoparentSelect() {
+    const checked = document.getElementById('link-is-coparent').checked;
+    document.getElementById('link-coparent').style.display = checked ? '' : 'none';
+    if (!checked) document.getElementById('link-coparent').value = '';
+}
+
+async function saveLinks() {
+    const payload = {
+        linked_user_id: document.getElementById('link-user').value,
+        is_coparent: document.getElementById('link-is-coparent').checked,
+        linked_coparent_id: document.getElementById('link-coparent').value,
+        linked_task_list_id: document.getElementById('link-tasklist').value,
+    };
+    const r = await apiFetch(`${BASE_URL}/api/school/students/${STUDENT_ID}/links`, { method: 'POST', body: JSON.stringify(payload) });
+    if (!r.success) { Dialog.toast(r.error || 'Erreur.', 'error'); return; }
+
+    const documentIds = Array.from(document.querySelectorAll('.link-doc-cb:checked')).map(cb => cb.value);
+    const r2 = await apiFetch(`${BASE_URL}/api/school/students/${STUDENT_ID}/documents/link`, { method: 'POST', body: JSON.stringify({ document_ids: documentIds }) });
+    if (r2.success) window.location.reload();
+    else Dialog.toast(r2.error || 'Erreur.', 'error');
+}
+
 // ---- Matières & profs ----
 
 async function addSubject() {

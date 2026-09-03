@@ -16,6 +16,20 @@ class SchoolStudent
         return Database::fetch('SELECT * FROM school_students WHERE id=?', [$id]);
     }
 
+    /** Fiches élève dont ce compte est LE compte co-parent lié — un co-parent ne voit jamais la
+     *  liste complète des enfants de la famille, seulement celles où il est explicitement lié. */
+    public static function getByLinkedCoparent(int $userId): array
+    {
+        return Database::fetchAll('SELECT * FROM school_students WHERE linked_coparent_id=? ORDER BY name', [$userId]);
+    }
+
+    public static function isReadOnlyFor(array $student, array $user): bool
+    {
+        if ((int)$user['id'] === (int)($student['linked_user_id'] ?? 0)) return true;
+        if ((int)$user['id'] === (int)($student['linked_coparent_id'] ?? 0)) return true;
+        return false;
+    }
+
     public static function create(int $familyId, int $userId, array $d): int
     {
         return Database::insert(
@@ -30,6 +44,35 @@ class SchoolStudent
             'UPDATE school_students SET name=?, school_name=?, class_name=?, color=? WHERE id=? AND family_id=?',
             [$d['name'], $d['school_name'], $d['class_name'], $d['color'], $id, $familyId]
         );
+    }
+
+    /** Liens (compte élève, co-parent, liste de tâches) — séparé de update() : validés/résolus
+     *  par le contrôleur (appartenance à la famille) avant d'arriver ici. */
+    public static function updateLinks(int $id, int $familyId, ?int $linkedUserId, ?int $linkedCoparentId, ?int $linkedTaskListId): void
+    {
+        Database::execute(
+            'UPDATE school_students SET linked_user_id=?, linked_coparent_id=?, linked_task_list_id=? WHERE id=? AND family_id=?',
+            [$linkedUserId, $linkedCoparentId, $linkedTaskListId, $id, $familyId]
+        );
+    }
+
+    public static function getLinkedDocuments(int $studentId): array
+    {
+        return Database::fetchAll(
+            'SELECT d.id, d.title FROM school_student_documents sd JOIN documents d ON d.id=sd.document_id
+             WHERE sd.student_id=? ORDER BY d.title',
+            [$studentId]
+        );
+    }
+
+    /** Remplace l'ensemble des documents liés (les ids hors famille sont filtrés par le contrôleur
+     *  avant l'appel). */
+    public static function setLinkedDocuments(int $studentId, array $documentIds): void
+    {
+        Database::execute('DELETE FROM school_student_documents WHERE student_id=?', [$studentId]);
+        foreach (array_unique(array_map('intval', $documentIds)) as $docId) {
+            Database::execute('INSERT IGNORE INTO school_student_documents (student_id, document_id) VALUES (?,?)', [$studentId, $docId]);
+        }
     }
 
     public static function delete(int $id, int $familyId): void

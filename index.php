@@ -289,6 +289,8 @@ $router->post('/api/school/students/:id/activities/:activityId/delete', [SchoolC
 $router->post('/api/school/students/:id/documents', [SchoolController::class, 'uploadDocument']);
 $router->post('/api/school/students/:id/documents/:docId/delete', [SchoolController::class, 'deleteDocument']);
 $router->get('/school/students/:id/documents/:docId', [SchoolController::class, 'serveFile']);
+$router->post('/api/school/students/:id/links', [SchoolController::class, 'updateLinks']);
+$router->post('/api/school/students/:id/documents/link', [SchoolController::class, 'updateLinkedDocuments']);
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
 $router->get('/additions/espace/:token', [AdditionController::class, 'guestSpace']);

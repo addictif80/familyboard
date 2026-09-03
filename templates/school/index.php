@@ -15,7 +15,9 @@ foreach ($timetable as $slot) {
     <div class="tasks-sidebar">
         <div class="tasks-sidebar-header">
             <h3>Élèves</h3>
+            <?php if (!$isCoparent): ?>
             <button class="btn-icon" onclick="openNewStudentModal()" title="Nouvel élève">+</button>
+            <?php endif; ?>
         </div>
         <ul class="lists-menu">
             <?php foreach ($students as $s): ?>
@@ -40,10 +42,19 @@ foreach ($timetable as $slot) {
                     <h2><?= htmlspecialchars($selected['name']) ?></h2>
                     <?php if ($selected['class_name']): ?><span class="badge"><?= htmlspecialchars($selected['class_name']) ?></span><?php endif; ?>
                     <?php if ($selected['school_name']): ?><span class="badge"><?= htmlspecialchars($selected['school_name']) ?></span><?php endif; ?>
+                    <?php if ($linkedTaskList): ?>
+                        <a class="badge" href="<?= BASE_URL ?>/tasks?list=<?= $linkedTaskList['id'] ?>" title="Liste de tâches/courses liée">📋 <?= htmlspecialchars($linkedTaskList['name']) ?></a>
+                    <?php endif; ?>
                 </div>
                 <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+                    <?php if ($readOnly): ?>
+                    <span class="badge">👁 Lecture seule</span>
+                    <?php endif; ?>
+                    <?php if (!$isCoparent): ?>
                     <button class="btn btn-secondary btn-sm" onclick="openEditStudentModal()">✏️ Modifier</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteStudent()">🗑 Supprimer</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openLinksModal()">🔗 Liens</button>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -72,7 +83,9 @@ foreach ($timetable as $slot) {
                                     <strong style="color:<?= htmlspecialchars($slot['subject_color']) ?>"><?= htmlspecialchars($slot['subject_name']) ?></strong>
                                     <small><?= substr($slot['start_time'], 0, 5) ?>–<?= substr($slot['end_time'], 0, 5) ?><?= $slot['room'] ? ' · Salle ' . htmlspecialchars($slot['room']) : '' ?><?= $slot['teacher_name'] ? ' · ' . htmlspecialchars($slot['teacher_name']) : '' ?></small>
                                 </div>
+                                <?php if (!$isCoparent): ?>
                                 <button class="btn btn-danger btn-sm" onclick="deleteTimetableSlot(<?= $slot['id'] ?>)">✕</button>
+                                <?php endif; ?>
                             </div>
                             <?php endforeach; ?>
                         </div>
@@ -80,6 +93,7 @@ foreach ($timetable as $slot) {
                     <?php if (empty($timetable)): ?>
                         <p style="color:var(--text-muted);font-size:.85rem">Aucun créneau.</p>
                     <?php endif; ?>
+                    <?php if (!$isCoparent): ?>
                     <hr style="margin:1rem 0;border-color:var(--border)">
                     <div class="form-row">
                         <div class="form-group">
@@ -108,6 +122,7 @@ foreach ($timetable as $slot) {
                         </div>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm" onclick="addTimetableSlot()">+ Ajouter le créneau</button>
+                    <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
@@ -138,11 +153,13 @@ foreach ($timetable as $slot) {
                             <?php if ($g['title']): ?> · <?= htmlspecialchars($g['title']) ?><?php endif; ?>
                             <br><small><?= DateHelper::format($g['grade_date'], 'd/m/Y') ?> · <?= htmlspecialchars($g['author_name']) ?><?= $g['comment'] ? ' — ' . htmlspecialchars($g['comment']) : '' ?></small>
                         </div>
+                        <?php if (!$readOnly): ?>
                         <button class="btn btn-danger btn-sm" onclick="deleteGrade(<?= $g['id'] ?>)">✕</button>
+                        <?php endif; ?>
                     </div>
                     <?php endforeach; ?>
                     <?php endif; ?>
-                    <?php if (!empty($subjects)): ?>
+                    <?php if (!$readOnly && !empty($subjects)): ?>
                     <hr style="margin:1rem 0;border-color:var(--border)">
                     <div class="form-row">
                         <div class="form-group">
@@ -175,7 +192,7 @@ foreach ($timetable as $slot) {
                         </div>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm" onclick="addGrade()">+ Ajouter la note</button>
-                    <?php else: ?>
+                    <?php elseif (!$readOnly): ?>
                         <p style="color:var(--text-muted);font-size:.85rem">Ajoutez d'abord une matière pour pouvoir saisir une note.</p>
                     <?php endif; ?>
                 </div>
@@ -196,11 +213,14 @@ foreach ($timetable as $slot) {
                             <span class="badge <?= $a['justified'] ? '' : 'badge-shopping' ?>"><?= $a['justified'] ? '✅ Justifiée' : '⛔ Non justifiée' ?></span>
                             <br><small><?= htmlspecialchars($a['reason'] ?: 'Motif non renseigné') ?> · <?= htmlspecialchars($a['author_name']) ?></small>
                         </div>
+                        <?php if (!$readOnly): ?>
                         <button class="btn btn-secondary btn-sm" onclick="toggleAbsenceJustified(<?= $a['id'] ?>, <?= $a['justified'] ? 'false' : 'true' ?>)"><?= $a['justified'] ? 'Marquer non justifiée' : 'Marquer justifiée' ?></button>
                         <button class="btn btn-danger btn-sm" onclick="deleteAbsence(<?= $a['id'] ?>)">✕</button>
+                        <?php endif; ?>
                     </div>
                     <?php endforeach; ?>
                     <?php endif; ?>
+                    <?php if (!$readOnly): ?>
                     <hr style="margin:1rem 0;border-color:var(--border)">
                     <div class="form-row">
                         <div class="form-group">
@@ -229,6 +249,7 @@ foreach ($timetable as $slot) {
                         </div>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm" onclick="addAbsence()">+ Ajouter l'absence</button>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -244,10 +265,13 @@ foreach ($timetable as $slot) {
                             <strong style="color:<?= htmlspecialchars($sub['color']) ?>"><?= htmlspecialchars($sub['name']) ?></strong>
                             <small><?= $sub['teacher_name'] ? htmlspecialchars($sub['teacher_name']) : 'Professeur non renseigné' ?></small>
                         </div>
+                        <?php if (!$isCoparent): ?>
                         <button class="btn btn-danger btn-sm" onclick="deleteSubject(<?= $sub['id'] ?>)">Supprimer</button>
+                        <?php endif; ?>
                     </div>
                     <?php endforeach; ?>
                     <?php endif; ?>
+                    <?php if (!$isCoparent): ?>
                     <hr style="margin:1rem 0;border-color:var(--border)">
                     <div class="form-row">
                         <div class="form-group flex-2">
@@ -264,6 +288,7 @@ foreach ($timetable as $slot) {
                         </div>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm" onclick="addSubject()">+ Ajouter la matière</button>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -284,10 +309,13 @@ foreach ($timetable as $slot) {
                                 <?= $act['notes'] ? '<br>' . nl2br(htmlspecialchars($act['notes'])) : '' ?>
                             </small>
                         </div>
+                        <?php if (!$isCoparent): ?>
                         <button class="btn btn-danger btn-sm" onclick="deleteActivity(<?= $act['id'] ?>)">Supprimer</button>
+                        <?php endif; ?>
                     </div>
                     <?php endforeach; ?>
                     <?php endif; ?>
+                    <?php if (!$isCoparent): ?>
                     <hr style="margin:1rem 0;border-color:var(--border)">
                     <div class="form-row">
                         <div class="form-group flex-2">
@@ -314,6 +342,7 @@ foreach ($timetable as $slot) {
                         <textarea id="activity-notes" rows="2"></textarea>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm" onclick="addActivity()">+ Ajouter l'activité</button>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -330,10 +359,23 @@ foreach ($timetable as $slot) {
                             <small><?= htmlspecialchars($doc['file_original']) ?> · ajouté par <?= htmlspecialchars($doc['uploader_name']) ?> le <?= DateHelper::fromUtc($doc['uploaded_at'], 'd/m/Y à H:i') ?></small>
                         </div>
                         <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/school/students/<?= $selected['id'] ?>/documents/<?= $doc['id'] ?>" target="_blank">Télécharger</a>
+                        <?php if (!$readOnly): ?>
                         <button class="btn btn-danger btn-sm" onclick="deleteSchoolDocument(<?= $doc['id'] ?>)">Supprimer</button>
+                        <?php endif; ?>
                     </div>
                     <?php endforeach; ?>
                     <?php endif; ?>
+                    <?php if (!empty($linkedDocuments)): ?>
+                    <hr style="margin:1rem 0;border-color:var(--border)">
+                    <div style="font-weight:600;margin-bottom:.4rem">Documents liés (module Documents)</div>
+                    <?php foreach ($linkedDocuments as $ld): ?>
+                    <div class="member-item">
+                        <div class="member-info"><strong>📄 <?= htmlspecialchars($ld['title']) ?></strong></div>
+                        <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/documents/file/<?= $ld['id'] ?>" target="_blank">Voir</a>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                    <?php if (!$readOnly): ?>
                     <hr style="margin:1rem 0;border-color:var(--border)">
                     <div class="form-row">
                         <div class="form-group flex-2">
@@ -351,12 +393,15 @@ foreach ($timetable as $slot) {
                     <input type="file" id="doc-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.eml,image/*">
                     <button type="button" class="btn btn-primary btn-sm" onclick="uploadSchoolDocument()">+ Ajouter</button>
                     <small style="display:block;color:var(--text-muted);margin-top:.3rem">PDF, Word, Excel, images ou e-mail (.eml) — 20 Mo max.</small>
+                    <?php endif; ?>
                 </div>
             </div>
         <?php else: ?>
             <div class="empty-state-card">
-                <p>Ajoutez un élève pour commencer.</p>
+                <p><?= $isCoparent ? "Aucun élève ne vous est lié." : "Ajoutez un élève pour commencer." ?></p>
+                <?php if (!$isCoparent): ?>
                 <button class="btn btn-primary" onclick="openNewStudentModal()">+ Nouvel élève</button>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>
@@ -396,6 +441,68 @@ foreach ($timetable as $slot) {
         </div>
     </div>
 </div>
+
+<?php if (!$isCoparent && $selected): ?>
+<!-- Liens (compte membre, co-parent, liste de tâches, documents) -->
+<div class="modal-overlay" id="links-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Liens de l'élève</h3>
+            <button onclick="closeModal('links-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Compte membre lié</label>
+                <select id="link-user">
+                    <option value="">— Aucun —</option>
+                    <?php foreach ($familyMembers as $m): ?>
+                        <option value="<?= $m['id'] ?>" <?= (int)($selected['linked_user_id'] ?? 0) === (int)$m['id'] ? 'selected' : '' ?>><?= htmlspecialchars($m['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <small style="color:var(--text-muted)">Le compte lié garde tous ses droits normaux, avec en plus ses notes/absences/bulletins en lecture seule.</small>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" id="link-is-coparent" onchange="toggleCoparentSelect()" <?= !empty($selected['linked_coparent_id']) ? 'checked' : '' ?>> Co-parent</label>
+                <select id="link-coparent" style="<?= empty($selected['linked_coparent_id']) ? 'display:none' : '' ?>">
+                    <option value="">— Choisir un compte co-parent —</option>
+                    <?php foreach ($familyCoparents as $c): ?>
+                        <option value="<?= $c['id'] ?>" <?= (int)($selected['linked_coparent_id'] ?? 0) === (int)$c['id'] ? 'selected' : '' ?>><?= htmlspecialchars($c['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <small style="color:var(--text-muted)">Le co-parent lié ne verra que cette fiche, en lecture seule.</small>
+            </div>
+            <div class="form-group">
+                <label>Liste de tâches/courses liée</label>
+                <select id="link-tasklist">
+                    <option value="">— Aucune —</option>
+                    <?php foreach ($familyTaskLists as $tl): ?>
+                        <option value="<?= $tl['id'] ?>" <?= (int)($selected['linked_task_list_id'] ?? 0) === (int)$tl['id'] ? 'selected' : '' ?>><?= htmlspecialchars($tl['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Documents liés (module Documents)</label>
+                <div style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:.5rem">
+                    <?php $linkedIds = array_column($linkedDocuments, 'id'); ?>
+                    <?php if (empty($familyDocuments)): ?>
+                        <p style="color:var(--text-muted);font-size:.85rem;margin:0">Aucun document dans le module Documents.</p>
+                    <?php endif; ?>
+                    <?php foreach ($familyDocuments as $doc): ?>
+                        <label style="display:block;font-weight:normal;margin-bottom:.3rem">
+                            <input type="checkbox" class="link-doc-cb" value="<?= $doc['id'] ?>" <?= in_array($doc['id'], $linkedIds) ? 'checked' : '' ?>>
+                            <?= htmlspecialchars($doc['title']) ?>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('links-modal')">Annuler</button>
+            <button class="btn btn-primary" onclick="saveLinks()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <script>
 const STUDENT_ID = <?= json_encode($selected['id'] ?? null) ?>;
