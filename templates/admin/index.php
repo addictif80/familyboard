@@ -28,12 +28,34 @@
             <span>🔐 Admin</span>
         </div>
         <ul class="admin-nav">
-            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','deleted-accounts'=>'🗑️ Comptes supprimés','subscriptions'=>'💳 Abonnements','notifications'=>'📣 Notifications & intégrations','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP','email'=>'📧 Emails','namedays'=>'🎉 Fêtes des prénoms','highlights'=>'🏢 Mises en avant ABHD','links'=>'🔗 Liens certifiés','legal'=>'📜 Contenu légal','roadmap'=>'🗺️ Roadmap'] as $t=>$label): ?>
-            <li class="<?= $tab === $t ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
+            <?php
+            $adminNavGroups = [
+                'Vue d\'ensemble' => ['dashboard' => '📊 Tableau de bord'],
+                'Comptes' => ['families' => '🏠 Familles', 'users' => '👥 Utilisateurs', 'deleted-accounts' => '🗑️ Comptes supprimés'],
+                'Facturation' => ['subscriptions' => '💳 Abonnements'],
+                'Support & sécurité' => ['tickets' => '🎫 Tickets support', 'impersonation' => '🕵️ Impersonation', 'ips' => '🚫 IPs bloquées'],
+                'Communication' => ['notifications' => '📣 Notifications & intégrations', 'smtp' => '✉️ SMTP', 'email' => '📧 Emails'],
+                'Contenu' => ['namedays' => '🎉 Fêtes des prénoms', 'highlights' => '🏢 Mises en avant ABHD', 'links' => '🔗 Liens certifiés', 'legal' => '📜 Contenu légal', 'roadmap' => '🗺️ Roadmap'],
+            ];
+            ?>
+            <?php foreach ($adminNavGroups as $groupLabel => $items): ?>
+            <li class="admin-nav-group">
+                <div class="admin-nav-group-label"><?= $groupLabel ?></div>
+                <ul style="list-style:none;margin:0;padding:0">
+                    <?php foreach ($items as $t => $label): ?>
+                    <li class="<?= $tab === $t ? 'active' : '' ?>">
+                        <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
             </li>
             <?php endforeach; ?>
-            <li><a href="<?= BASE_URL ?>/admin/profile">👤 Mon profil</a></li>
+            <li class="admin-nav-group">
+                <div class="admin-nav-group-label">Compte</div>
+                <ul style="list-style:none;margin:0;padding:0">
+                    <li><a href="<?= BASE_URL ?>/admin/profile">👤 Mon profil</a></li>
+                </ul>
+            </li>
         </ul>
         <div class="admin-sidebar-footer">
             <a href="<?= BASE_URL ?>/" style="font-size:.8rem;color:var(--text-muted)">← Site</a>
@@ -134,7 +156,7 @@
                     </form>
                     <?php else: ?>
                     <form method="POST" action="<?= BASE_URL ?>/admin/families/<?= $f['id'] ?>/subscription/grant" style="display:flex;gap:.3rem;align-items:center"><?= \App\Core\Csrf::field() ?>
-                        <select name="plan_id" style="max-width:130px">
+                        <select name="plan_id" style="min-width:170px">
                             <?php foreach ($plans as $p): ?><option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['name']) ?> (<?= htmlspecialchars($p['code']) ?>)</option><?php endforeach; ?>
                         </select>
                         <input type="date" name="until" title="Valable jusqu'au (vide = sans limite)" style="max-width:140px">
@@ -254,7 +276,21 @@
         <?php endif; ?>
 
         <?php elseif ($tab === 'subscriptions'): ?>
-        <h2>Facturation</h2>
+        <div class="settings-tabs">
+            <button type="button" class="settings-tab-btn active" data-tab="sub-reglages" onclick="switchAdminSubTab('sub-reglages')">⚙️ Réglages</button>
+            <button type="button" class="settings-tab-btn" data-tab="sub-stripe" onclick="switchAdminSubTab('sub-stripe')">🔑 Clés Stripe</button>
+            <button type="button" class="settings-tab-btn" data-tab="sub-plans" onclick="switchAdminSubTab('sub-plans')">📦 Paliers</button>
+            <button type="button" class="settings-tab-btn" data-tab="sub-families" onclick="switchAdminSubTab('sub-families')">👪 Abonnements des familles</button>
+            <button type="button" class="settings-tab-btn" data-tab="sub-purges" onclick="switchAdminSubTab('sub-purges')">🗑️ Suppressions</button>
+        </div>
+        <script>
+        function switchAdminSubTab(tab) {
+            document.querySelectorAll('[data-admin-subtab-panel]').forEach(p => p.classList.toggle('active', p.dataset.adminSubtabPanel === tab));
+            document.querySelectorAll('.settings-tab-btn[data-tab^="sub-"]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+        }
+        </script>
+
+        <div class="settings-tab-panel active" data-admin-subtab-panel="sub-reglages">
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Tant que la facturation est désactivée, tous les modules restent accessibles librement à
             toutes les familles, quel que soit leur abonnement — activer ce réglage ne verrouille
@@ -288,8 +324,9 @@
             </div>
             <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
         </form>
+        </div>
 
-        <h2 style="margin-top:2rem">Clés Stripe</h2>
+        <div class="settings-tab-panel" data-admin-subtab-panel="sub-stripe">
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Créez les produits/prix côté Stripe puis reliez-les à chaque palier ci-dessous. L'URL de
             webhook à configurer sur Stripe est <code><?= BASE_URL ?>/stripe/webhook</code>.
@@ -327,10 +364,12 @@
             </div>
             <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
         </form>
+        </div>
 
-        <h2 style="margin-top:2rem">Paliers Premium</h2>
+        <div class="settings-tab-panel" data-admin-subtab-panel="sub-plans">
+        <?php $subStripeLinked = (bool)($stripePublishableKey || $stripeSecretKey); ?>
         <table class="admin-table" style="margin-bottom:1rem">
-            <thead><tr><th>Code</th><th>Nom</th><th>Membres max</th><th>Prix / mois</th><th>Prix / an</th><th>Prix Stripe (mensuel)</th><th>Prix Stripe (annuel)</th><th>Actif</th><th></th></tr></thead>
+            <thead><tr><th>Code</th><th>Nom</th><th>Membres max</th><th>Prix / mois</th><th>Prix / an</th><?php if ($subStripeLinked): ?><th>Prix Stripe (mensuel)</th><th>Prix Stripe (annuel)</th><?php endif; ?><th>Actif</th><th></th></tr></thead>
             <tbody>
             <?php foreach ($plans as $p): ?>
                 <tr>
@@ -339,8 +378,10 @@
                     <td><?= $p['member_limit'] ?: 'Illimité' ?></td>
                     <td><?= number_format($p['price_monthly_cents'] / 100, 2, ',', ' ') ?> €</td>
                     <td><?= number_format($p['price_yearly_cents'] / 100, 2, ',', ' ') ?> €</td>
+                    <?php if ($subStripeLinked): ?>
                     <td style="font-size:.75rem;color:var(--text-muted)"><?= htmlspecialchars($p['stripe_price_id_monthly'] ?? '—') ?></td>
                     <td style="font-size:.75rem;color:var(--text-muted)"><?= htmlspecialchars($p['stripe_price_id_yearly'] ?? '—') ?></td>
+                    <?php endif; ?>
                     <td><?= $p['active'] ? '✅' : '⛔' ?></td>
                     <td style="display:flex;gap:.3rem">
                         <button type="button" class="btn btn-secondary btn-sm" onclick="editPlan(<?= htmlspecialchars(json_encode($p), ENT_QUOTES) ?>)">Modifier</button>
@@ -354,7 +395,10 @@
             <?php endforeach; ?>
             </tbody>
         </table>
-        <button type="button" class="btn btn-primary btn-sm" onclick="newPlan()">+ Nouveau palier</button>
+        <?php if (!$subStripeLinked): ?>
+        <p style="color:var(--text-muted);font-size:.8rem;margin:-.5rem 0 1rem">Les colonnes de prix Stripe apparaîtront une fois une clé renseignée dans l'onglet « Clés Stripe ».</p>
+        <?php endif; ?>
+        <button type="button" class="btn btn-primary btn-sm" style="align-self:flex-start" onclick="newPlan()">+ Nouveau palier</button>
 
         <form method="POST" action="<?= BASE_URL ?>/admin/plans" id="plan-form" class="card" style="padding:1.25rem;max-width:640px;margin-top:1rem"><?= \App\Core\Csrf::field() ?>
             <input type="hidden" name="id" id="plan-id">
@@ -430,8 +474,9 @@
             document.getElementById('plan-form').scrollIntoView({ behavior: 'smooth' });
         }
         </script>
+        </div>
 
-        <h2 style="margin-top:2rem">Abonnements des familles</h2>
+        <div class="settings-tab-panel" data-admin-subtab-panel="sub-families">
         <table class="admin-table">
             <thead><tr><th>Famille</th><th>Palier</th><th>Statut</th><th>Manuel</th><th>Fin de période</th><th>Données supprimées le</th><th></th></tr></thead>
             <tbody>
@@ -463,8 +508,9 @@
             </tbody>
         </table>
         <p style="color:var(--text-muted);font-size:.8rem;margin-top:.5rem">Pour attribuer un palier manuellement à une famille (geste commercial, partenariat…), utilisez le formulaire depuis l'onglet « Familles ».</p>
+        </div>
 
-        <h2 style="margin-top:2rem">Suppressions définitives de données Premium</h2>
+        <div class="settings-tab-panel" data-admin-subtab-panel="sub-purges">
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Un instantané des données est conservé avant chaque suppression, consultable ci-dessous en cas de réclamation.
         </p>
@@ -484,6 +530,7 @@
             <?php endif; ?>
             </tbody>
         </table>
+        </div>
 
         <?php elseif ($tab === 'notifications'): ?>
         <h2>Notification système</h2>
