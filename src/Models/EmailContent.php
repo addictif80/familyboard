@@ -68,6 +68,22 @@ class EmailContent
             'subject' => 'Votre compte FamilyBoard a été supprimé',
             'message' => "Bonjour {{user_name}},\n\nVotre compte FamilyBoard a été supprimé{{deleted_by}}, pour le motif suivant :\n\n{{reason}}\n\nSi vous pensez qu'il s'agit d'une erreur, contactez le support.",
         ],
+        'subscription_downgraded' => [
+            'subject' => '{{family_name}} est repassée en offre Gratuite',
+            'message' => "Bonjour {{user_name}},\n\nL'essai gratuit de {{family_name}} s'est terminé sans abonnement (ou le dernier paiement a échoué) : les modules Premium sont maintenant bloqués pour toute la famille.\n\nVos données de ces modules sont conservées jusqu'au {{grace_end_date}} — réabonnez-vous avant cette date pour tout retrouver tel quel. Passé ce délai, elles seront supprimées définitivement.",
+        ],
+        'subscription_retention_reminder' => [
+            'subject' => '⏳ Il vous reste {{days_remaining}} jours pour retrouver vos modules Premium',
+            'message' => "Bonjour {{user_name}},\n\nLes données Premium de {{family_name}} sont toujours conservées, mais seulement jusqu'au {{grace_end_date}}. Réabonnez-vous avant cette date pour les retrouver exactement telles quelles.",
+        ],
+        'subscription_final_warning' => [
+            'subject' => '⚠️ Dernier avertissement avant suppression définitive de vos données Premium',
+            'message' => "Bonjour {{user_name}},\n\nDernier rappel : les données des modules Premium de {{family_name}} seront supprimées définitivement le {{grace_end_date}} si l'abonnement n'est pas repris avant cette date. Cette suppression est irréversible.",
+        ],
+        'subscription_data_purged' => [
+            'subject' => 'Vos données Premium ont été supprimées définitivement',
+            'message' => "Bonjour {{user_name}},\n\nComme annoncé, les données des modules Premium de {{family_name}} ({{modules_list}}) viennent d'être supprimées définitivement, faute de réabonnement dans le délai imparti.\n\nLe reste de vos données (calendrier, tâches, mur familial...) reste intact.",
+        ],
     ];
 
     public static function get(string $type): array
@@ -142,6 +158,10 @@ class EmailContent
             'password_reset'        => 'Réinitialisation de mot de passe',
             'expiry_reminder'       => 'Rappel d\'échéance (garantie/document, J-30 et J-7)',
             'account_deleted'       => 'Compte supprimé (motif et attribution renvoyés par l\'admin système ou en libre-service)',
+            'subscription_downgraded'         => 'Abonnement — bascule immédiate en offre Gratuite',
+            'subscription_retention_reminder' => 'Abonnement — rappel à mi-parcours du délai de rétention',
+            'subscription_final_warning'      => 'Abonnement — dernier avertissement avant suppression',
+            'subscription_data_purged'        => 'Abonnement — confirmation de suppression définitive des données Premium',
             default                => $type,
         };
     }
@@ -163,6 +183,10 @@ class EmailContent
             'password_reset'        => ['user_name'],
             'expiry_reminder'       => ['user_name', 'item_label', 'item_kind', 'expiry_date', 'days_remaining'],
             'account_deleted'       => ['user_name', 'deleted_by', 'reason'],
+            'subscription_downgraded'         => ['user_name', 'family_name', 'grace_end_date'],
+            'subscription_retention_reminder' => ['user_name', 'family_name', 'grace_end_date', 'days_remaining'],
+            'subscription_final_warning'      => ['user_name', 'family_name', 'grace_end_date'],
+            'subscription_data_purged'        => ['user_name', 'family_name', 'modules_list'],
             default                 => [],
         };
     }

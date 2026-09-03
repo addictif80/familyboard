@@ -433,15 +433,21 @@
 
         <h2 style="margin-top:2rem">Abonnements des familles</h2>
         <table class="admin-table">
-            <thead><tr><th>Famille</th><th>Palier</th><th>Statut</th><th>Manuel</th><th>Fin de période</th><th></th></tr></thead>
+            <thead><tr><th>Famille</th><th>Palier</th><th>Statut</th><th>Manuel</th><th>Fin de période</th><th>Données supprimées le</th><th></th></tr></thead>
             <tbody>
             <?php foreach ($familySubscriptions as $fs): ?>
                 <tr>
                     <td><?= htmlspecialchars($fs['family_name']) ?></td>
                     <td><?= htmlspecialchars($fs['plan_name'] ?? '—') ?></td>
-                    <td><?= htmlspecialchars($fs['status']) ?></td>
+                    <td>
+                        <?= htmlspecialchars($fs['status']) ?>
+                        <?php if (in_array($fs['status'], ['past_due', 'canceled'], true) && $fs['grace_ends_at'] && !$fs['data_purged_at']): ?>
+                            <br><small style="color:var(--danger)">Purge le <?= (new DateTime($fs['grace_ends_at']))->format('d/m/Y') ?></small>
+                        <?php endif; ?>
+                    </td>
                     <td><?= $fs['manual'] ? '✅' : '' ?></td>
                     <td><?= $fs['current_period_end'] ? (new DateTime($fs['current_period_end']))->format('d/m/Y') : '—' ?></td>
+                    <td><?= $fs['data_purged_at'] ? (new DateTime($fs['data_purged_at']))->format('d/m/Y') : '—' ?></td>
                     <td>
                         <?php if ($fs['manual']): ?>
                         <form method="POST" action="<?= BASE_URL ?>/admin/families/<?= $fs['family_id'] ?>/subscription/revoke"><?= \App\Core\Csrf::field() ?>
@@ -452,11 +458,32 @@
                 </tr>
             <?php endforeach; ?>
             <?php if (empty($familySubscriptions)): ?>
-                <tr><td colspan="6" style="color:var(--text-muted)">Aucun abonnement pour le moment.</td></tr>
+                <tr><td colspan="7" style="color:var(--text-muted)">Aucun abonnement pour le moment.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>
         <p style="color:var(--text-muted);font-size:.8rem;margin-top:.5rem">Pour attribuer un palier manuellement à une famille (geste commercial, partenariat…), utilisez le formulaire depuis l'onglet « Familles ».</p>
+
+        <h2 style="margin-top:2rem">Suppressions définitives de données Premium</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Un instantané des données est conservé avant chaque suppression, consultable ci-dessous en cas de réclamation.
+        </p>
+        <table class="admin-table">
+            <thead><tr><th>Famille</th><th>Modules purgés</th><th>Date</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($premiumDataPurges as $pp): ?>
+                <tr>
+                    <td><?= htmlspecialchars($pp['family_name']) ?> (#<?= $pp['family_id'] ?>)</td>
+                    <td><?= htmlspecialchars($pp['modules_purged']) ?></td>
+                    <td><?= (new DateTime($pp['purged_at']))->format('d/m/Y H:i') ?></td>
+                    <td><a href="<?= BASE_URL ?>/admin/premium-purges/<?= $pp['id'] ?>/export" target="_blank" class="btn btn-secondary btn-sm">Voir l'instantané</a></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($premiumDataPurges)): ?>
+                <tr><td colspan="4" style="color:var(--text-muted)">Aucune suppression pour le moment.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
 
         <?php elseif ($tab === 'notifications'): ?>
         <h2>Notification système</h2>

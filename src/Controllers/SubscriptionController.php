@@ -10,24 +10,17 @@ use App\Models\Plan;
 
 class SubscriptionController extends BaseController
 {
+    /** L'ancienne page dédiée /abonnement redirige désormais vers l'onglet "Abonnement" des
+     *  réglages famille (voir templates/settings/index.php) — conservée comme point d'entrée
+     *  stable puisque BaseController::requireModule() y redirige encore en cas de module
+     *  premium bloqué, en faisant suivre le paramètre upsell. */
     public function index(array $params): void
     {
         $this->requireAuth();
-        $user     = Session::user();
-        $familyId = (int)$user['family_id'];
-
-        $plans           = Plan::getAll(true);
-        $subscription    = FamilySubscription::getByFamily($familyId);
-        $billingEnabled  = FamilySubscription::billingEnabled();
-        $trialDays       = (int)(AppSetting::get('sub_trial_days') ?? '14');
-        $annualDiscount  = (int)(AppSetting::get('sub_annual_discount_pct') ?? '0');
-        $hasUsedTrial    = FamilySubscription::hasUsedTrial($familyId);
-        $stripeConfigured = StripeGateway::isConfigured();
-        $memberCount     = (int)(\App\Core\Database::fetch('SELECT COUNT(*) c FROM users WHERE family_id=?', [$familyId])['c'] ?? 0);
-        $upsellModule    = trim($_GET['upsell'] ?? '');
-        $isAdmin         = $user['role'] === 'admin';
-
-        require BASE_PATH . '/templates/subscription/index.php';
+        $upsell = trim($_GET['upsell'] ?? '');
+        $target = BASE_URL . '/settings' . ($upsell !== '' ? '?upsell=' . urlencode($upsell) : '') . '#tab-abonnement';
+        header('Location: ' . $target);
+        exit;
     }
 
     public function checkout(array $params): void

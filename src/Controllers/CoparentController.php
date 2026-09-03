@@ -50,6 +50,20 @@ class CoparentController extends BaseController
             header('Location: ' . BASE_URL . '/');
             exit;
         }
+
+        // Un co-parent ne gère jamais la facturation — il garde son accès pendant le délai de
+        // rétention (voir FamilySubscription/PremiumDataPurge), avec juste un bandeau
+        // d'avertissement si la famille du planning est en défaut de paiement. Si plusieurs
+        // plannings sont concernés (familles différentes), on affiche l'échéance la plus proche.
+        $subscriptionWarning = null;
+        foreach (array_unique(array_column($schedules, 'family_id')) as $famId) {
+            $sub = \App\Models\FamilySubscription::getByFamily((int)$famId);
+            if (!$sub || !in_array($sub['status'], ['past_due', 'canceled'], true) || !$sub['grace_ends_at'] || $sub['data_purged_at']) continue;
+            if (!$subscriptionWarning || $sub['grace_ends_at'] < $subscriptionWarning['grace_ends_at']) {
+                $subscriptionWarning = $sub;
+            }
+        }
+
         require BASE_PATH . '/templates/coparent/index.php';
     }
 

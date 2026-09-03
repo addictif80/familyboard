@@ -499,6 +499,7 @@ $router->post('/admin/plans', [AdminController::class, 'savePlan']);
 $router->post('/admin/plans/:id/deactivate', [AdminController::class, 'deactivatePlan']);
 $router->post('/admin/families/:id/subscription/grant', [AdminController::class, 'grantManualSubscription']);
 $router->post('/admin/families/:id/subscription/revoke', [AdminController::class, 'revokeManualSubscription']);
+$router->get('/admin/premium-purges/:id/export', [AdminController::class, 'viewPremiumPurgeExport']);
 $router->post('/admin/highlights', [AdminController::class, 'createHighlight']);
 $router->post('/admin/highlights/:id', [AdminController::class, 'updateHighlight']);
 $router->post('/admin/highlights/:id/delete', [AdminController::class, 'deleteHighlight']);

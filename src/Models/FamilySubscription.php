@@ -55,17 +55,37 @@ class FamilySubscription
         $row = self::getByStripeCustomerId($stripeCustomerId);
         if (!$row) return; // client Stripe inconnu (jamais rattaché à une famille) : événement ignoré
 
+        $wasLapsed = in_array($row['status'], ['past_due', 'canceled'], true);
+        $isLapsed  = in_array($status, ['past_due', 'canceled'], true);
+
+        $graceStartedAt = $row['grace_started_at'];
         $graceEndsAt = null;
-        if (in_array($status, ['past_due', 'canceled'], true)) {
+        if ($isLapsed) {
             $graceDays = (int)(AppSetting::get('sub_grace_days') ?? '30');
-            $graceEndsAt = (new \DateTime())->modify("+{$graceDays} days")->format('Y-m-d H:i:s');
+            // Ne redémarre pas le compte à rebours si on était déjà en défaut de paiement (ex.
+            // Stripe repasse plusieurs fois par 'past_due' pendant ses relances automatiques) —
+            // seul le tout premier basculement fixe grace_started_at/grace_ends_at.
+            if (!$wasLapsed) {
+                $graceStartedAt = (new \DateTime())->format('Y-m-d H:i:s');
+                $graceEndsAt = (new \DateTime())->modify("+{$graceDays} days")->format('Y-m-d H:i:s');
+            } else {
+                $graceEndsAt = $row['grace_ends_at'];
+            }
+        } else {
+            $graceStartedAt = null;
         }
 
         $trialUsed = $status === 'trialing' ? 1 : (int)$row['trial_used'];
 
+        // Retour à un statut valide (paiement régularisé) : on efface les compteurs de purge et
+        // de relances, la famille repart sur une base saine si elle repasse en défaut plus tard.
+        $resetPurgeTracking = !$isLapsed;
+
         Database::execute(
-            'UPDATE family_subscriptions SET stripe_subscription_id=?, status=?, plan_id=?, billing_interval=?, trial_ends_at=?, current_period_end=?, grace_ends_at=?, trial_used=?, manual=0 WHERE stripe_customer_id=?',
-            [$stripeSubscriptionId, $status, $planId, $billingInterval, $trialEndsAt, $currentPeriodEnd, $graceEndsAt, $trialUsed, $stripeCustomerId]
+            'UPDATE family_subscriptions SET stripe_subscription_id=?, status=?, plan_id=?, billing_interval=?, trial_ends_at=?, current_period_end=?, grace_started_at=?, grace_ends_at=?, trial_used=?, manual=0'
+            . ($resetPurgeTracking ? ', data_purged_at=NULL, reminder_downgrade_sent_at=NULL, reminder_midpoint_sent_at=NULL, reminder_final_sent_at=NULL' : '')
+            . ' WHERE stripe_customer_id=?',
+            [$stripeSubscriptionId, $status, $planId, $billingInterval, $trialEndsAt, $currentPeriodEnd, $graceStartedAt, $graceEndsAt, $trialUsed, $stripeCustomerId]
         );
     }
 
@@ -80,7 +100,8 @@ class FamilySubscription
     {
         self::ensureRow($familyId);
         Database::execute(
-            'UPDATE family_subscriptions SET plan_id=?, status="active", billing_interval=NULL, current_period_end=?, grace_ends_at=NULL, manual=1 WHERE family_id=?',
+            'UPDATE family_subscriptions SET plan_id=?, status="active", billing_interval=NULL, current_period_end=?, grace_started_at=NULL, grace_ends_at=NULL,
+             data_purged_at=NULL, reminder_downgrade_sent_at=NULL, reminder_midpoint_sent_at=NULL, reminder_final_sent_at=NULL, manual=1 WHERE family_id=?',
             [$planId, $untilDate, $familyId]
         );
     }
@@ -105,10 +126,11 @@ class FamilySubscription
         return (bool)(int)(AppSetting::get('sub_billing_enabled') ?? '0');
     }
 
-    /** Un module premium est accessible si la facturation est désactivée globalement (aucune
-     *  restriction rétroactive au lancement), si le module fait partie du socle gratuit, ou si
-     *  la famille a un abonnement en cours de validité (essai, actif, ou dans son délai de
-     *  grâce après impayé/résiliation — le temps de se réabonner sans perdre l'accès). */
+    /** Bascule IMMÉDIATE en offre Gratuite dès que l'essai se termine sans paiement ou qu'un
+     *  paiement échoue (status devient 'past_due'/'canceled', voir syncFromStripe()) — aucun
+     *  accès maintenu "le temps de payer". Les données des modules premium, elles, restent en
+     *  base jusqu'à grace_ends_at (voir PremiumDataPurge et cron.php) : une famille qui se
+     *  réabonne avant cette date retrouve tout tel quel. */
     public static function isEntitled(int $familyId, string $moduleSlug): bool
     {
         if (!self::billingEnabled()) return true;
@@ -120,9 +142,36 @@ class FamilySubscription
         $now = new \DateTime();
         if ($sub['status'] === 'trialing' && $sub['trial_ends_at'] && new \DateTime($sub['trial_ends_at']) > $now) return true;
         if ($sub['status'] === 'active') return true;
-        if (in_array($sub['status'], ['past_due', 'canceled'], true) && $sub['grace_ends_at'] && new \DateTime($sub['grace_ends_at']) > $now) return true;
 
         return false;
+    }
+
+    /** Familles actuellement en défaut de paiement (essai non converti ou paiement échoué),
+     *  données pas encore purgées — traitées par cron.php pour les relances puis la purge
+     *  définitive une fois grace_ends_at dépassé. */
+    public static function getLapsed(): array
+    {
+        return Database::fetchAll(
+            "SELECT fs.*, f.name as family_name FROM family_subscriptions fs JOIN families f ON f.id=fs.family_id
+             WHERE fs.status IN ('past_due','canceled') AND fs.grace_ends_at IS NOT NULL AND fs.data_purged_at IS NULL"
+        );
+    }
+
+    public static function markReminderSent(int $familyId, string $stage): void
+    {
+        $col = match ($stage) {
+            'downgrade' => 'reminder_downgrade_sent_at',
+            'midpoint'  => 'reminder_midpoint_sent_at',
+            'final'     => 'reminder_final_sent_at',
+            default     => null,
+        };
+        if (!$col) return;
+        Database::execute("UPDATE family_subscriptions SET `$col`=NOW() WHERE family_id=?", [$familyId]);
+    }
+
+    public static function markDataPurged(int $familyId): void
+    {
+        Database::execute('UPDATE family_subscriptions SET data_purged_at=NOW() WHERE family_id=?', [$familyId]);
     }
 
     public static function status(int $familyId): array

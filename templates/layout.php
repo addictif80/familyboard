@@ -433,8 +433,8 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                     <a href="<?= BASE_URL ?>/settings" class="user-menu-item">
                         <span class="user-menu-item-icon">⚙️</span> Paramètres
                     </a>
-                    <?php if ($currentUser['role'] !== 'coparent'): ?>
-                    <a href="<?= BASE_URL ?>/abonnement" class="user-menu-item">
+                    <?php if ($currentUser['role'] === 'admin'): ?>
+                    <a href="<?= BASE_URL ?>/settings#tab-abonnement" class="user-menu-item">
                         <span class="user-menu-item-icon">💳</span> Abonnement
                     </a>
                     <?php endif; ?>

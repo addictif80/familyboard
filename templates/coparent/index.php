@@ -22,6 +22,17 @@ ob_start();
 </div>
 <?php endif; ?>
 
+<?php if ($subscriptionWarning): ?>
+<div class="card" style="padding:1.25rem;margin-bottom:1rem;border-left:4px solid var(--danger)">
+    <strong>⚠️ Abonnement non renouvelé</strong>
+    <p style="color:var(--text-muted);font-size:.85rem;margin:.3rem 0 0">
+        L'abonnement de la famille n'est plus à jour. Vous gardez cet accès pour le moment, mais si rien n'est fait,
+        les données de ce planning seront supprimées définitivement le <?= (new DateTime($subscriptionWarning['grace_ends_at']))->format('d/m/Y') ?>.
+        Contactez l'administrateur de cette famille pour régulariser la situation.
+    </p>
+</div>
+<?php endif; ?>
+
 <?php if (count($schedules) > 1): ?>
 <div class="form-group coparent-child-picker">
     <label>Enfant</label>

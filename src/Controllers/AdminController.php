@@ -209,6 +209,7 @@ class AdminController extends BaseController
              FROM family_subscriptions fs JOIN families f ON f.id=fs.family_id LEFT JOIN plans p ON p.id=fs.plan_id
              WHERE fs.status != "none" OR fs.manual = 1 ORDER BY fs.updated_at DESC'
         );
+        $premiumDataPurges = Database::fetchAll('SELECT id, family_id, family_name, modules_purged, purged_at FROM premium_data_purges ORDER BY purged_at DESC LIMIT 200');
 
         require BASE_PATH . '/templates/admin/index.php';
     }
@@ -758,6 +759,18 @@ class AdminController extends BaseController
         $familyId = (int)$params['id'];
         FamilySubscription::revokeManual($familyId);
         $this->redirect('/admin?tab=families&family=' . $familyId);
+    }
+
+    /** Instantané HTML des données premium collecté juste avant leur suppression définitive
+     *  (voir PremiumDataPurge::exportHtml(), appelé depuis cron.php) — consultable en cas de
+     *  réclamation, jamais accessible à la famille elle-même. */
+    public function viewPremiumPurgeExport(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $row = Database::fetch('SELECT export_html FROM premium_data_purges WHERE id=?', [(int)$params['id']]);
+        if (!$row || !$row['export_html']) { http_response_code(404); echo 'Introuvable.'; return; }
+        header('Content-Type: text/html; charset=UTF-8');
+        echo $row['export_html'];
     }
 
     // ── Mises en avant ABHD (jamais "publicité" dans le code/l'UI) ─────────────
