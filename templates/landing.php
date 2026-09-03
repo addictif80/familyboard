@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= APP_NAME ?> — L'espace privé de votre famille</title>
-    <meta name="description" content="Calendrier partagé, mur familial, tâches, budget, garde alternée, suivi bébé... Toute la vie de votre famille réunie dans une application pensée dans le moindre détail.">
+    <meta name="description" content="Calendrier partagé, mur familial, tâches, budget, garde alternée avec journal légal, suivi scolaire, dossiers de litige, suivi bébé... Toute la vie de votre famille réunie dans une application pensée dans le moindre détail.">
     <script>
     (function () {
         try {
@@ -151,7 +151,13 @@
         ['id' => 'wall', 'icon' => '📸', 'title' => 'Mur familial', 'badge' => 'Nouveau', 'tagline' => 'Votre propre réseau social, rien que pour la famille.', 'points' => [
             'Publications personnelles visibles par vos abonnés, ou au nom de la famille (validées par un admin)',
             'Abonnements mutuels validés par la personne suivie, messages privés une fois l\'abonnement accepté',
+            'Partage possible avec une famille amie, uniquement si la relation est acceptée des deux côtés',
             'Partagez vos photos d\'album directement sur le mur',
+        ]],
+        ['id' => 'albums', 'icon' => '🖼️', 'title' => 'Albums photo', 'tagline' => 'Vos souvenirs de famille, organisés et jamais perdus.', 'points' => [
+            'Albums thématiques partagés par toute la famille',
+            'Lien public en lecture seule ou en dépôt (pour recevoir les photos d\'un événement)',
+            'Publication directe d\'une photo d\'album sur le mur familial',
         ]],
         ['id' => 'wishlist', 'icon' => '🎁', 'title' => 'Liste de cadeaux', 'badge' => 'Nouveau', 'tagline' => 'Fini les cadeaux en double — la surprise reste intacte.', 'points' => [
             'Chacun note ce qui lui ferait plaisir',
@@ -228,6 +234,26 @@
             'Toute une semaine de recettes ajoutée à la liste de courses en un clic, sans doublon',
             'Idées de repas partagées par toute la famille',
         ]],
+        ['id' => 'additions', 'icon' => '🧾', 'title' => 'Additions', 'badge' => 'Nouveau', 'tagline' => 'Partagez une dépense sans sortir la calculette.', 'points' => [
+            'Répartition entre membres de la famille, invités inclus via un espace dédié',
+            'Chaque participant accepte, refuse ou règle sa part',
+            'Suivi en temps réel de qui a payé quoi',
+        ]],
+        ['id' => 'letters', 'icon' => '✉️', 'title' => 'Courriers', 'badge' => 'Nouveau', 'tagline' => 'Rédigez un courrier officiel en quelques minutes.', 'points' => [
+            'Modèles réutilisables et variables (destinataire, civilité, société…)',
+            'Aperçu impression / export PDF prêt à envoyer',
+            'Bibliothèque de modèles propre à votre famille',
+        ]],
+        ['id' => 'disputes', 'icon' => '⚖️', 'title' => 'Dossiers de litige', 'badge' => 'Nouveau', 'tagline' => 'Gardez une trace solide de chaque litige, du premier au dernier échange.', 'points' => [
+            'Historique chronologique des échanges avec l\'autre partie',
+            'Documents justificatifs centralisés (preuves, courriers, factures…)',
+            'Lien de partage sécurisé pour transmettre le dossier à un tiers (avocat, médiateur…), sans jamais exposer le journal interne',
+        ]],
+        ['id' => 'school', 'icon' => '🎓', 'title' => 'Suivi scolaire', 'badge' => 'Nouveau', 'tagline' => 'Emploi du temps, notes, absences et bulletins, pour chaque enfant.', 'points' => [
+            'Emploi du temps, matières, professeurs et notes avec moyennes calculées automatiquement',
+            'Absences justifiées ou non, activités extra-scolaires et bulletins numérisés',
+            'Nouveau : liez la fiche d\'un enfant au compte d\'un membre ou d\'un co-parent pour lui donner un accès en lecture seule à ses notes, absences et bulletins',
+        ]],
     ];
     ?>
     <section class="landing-section">
@@ -278,29 +304,64 @@
     <section class="landing-section diff-section">
         <div class="section-heading">
             <span class="kicker">Notre différence</span>
-            <h2>Une application familiale, pas un logiciel d'entreprise</h2>
-            <p>Nous avons conçu FamilyBoard comme un produit premium : épuré, rapide, et respectueux de votre vie privée.</p>
+            <h2>Ce que les autres applications familiales ne font pas</h2>
+            <p>Cozi, FamilyWall, OurHome… la plupart couvrent le calendrier et les tâches. FamilyBoard va bien au-delà, avec des modules pensés pour les situations réelles des familles d'aujourd'hui — recomposées, en litige, avec des enfants scolarisés.</p>
         </div>
         <div class="diff-grid">
             <div class="diff-item">
                 <div class="diff-mark">✓</div>
                 <div>
-                    <h4>Un design soigné, pas surchargé</h4>
-                    <p>Une interface épurée pensée dans le détail, sans pop-ups qui parasitent votre quotidien.</p>
+                    <h4>La garde alternée la plus flexible du marché</h4>
+                    <p>Semaine sur deux, un weekend sur deux + un jour fixe, périodes de vacances avec répartition dédiée, ou peinture jour par jour pour les cas atypiques — avec un journal d'activité horodaté et infalsifiable entre les deux parents, ce qu'aucun concurrent grand public ne propose.</p>
+                </div>
+            </div>
+            <div class="diff-item">
+                <div class="diff-mark">✓</div>
+                <div>
+                    <h4>Un accès co-parent réellement cloisonné</h4>
+                    <p>L'autre parent ne voit que ce qui concerne l'enfant partagé — planning, journal, documents liés — jamais le reste de votre vie de famille. Une nuance que les applications de garde partagée classiques ne font pas.</p>
+                </div>
+            </div>
+            <div class="diff-item">
+                <div class="diff-mark">✓</div>
+                <div>
+                    <h4>Des dossiers de litige, une première</h4>
+                    <p>Historique d'échanges horodaté, preuves centralisées et lien de partage sécurisé vers un tiers (avocat, médiateur, assurance) — une fonction qu'aucune application familiale grand public n'offre aujourd'hui.</p>
+                </div>
+            </div>
+            <div class="diff-item">
+                <div class="diff-mark">✓</div>
+                <div>
+                    <h4>Un suivi scolaire connecté aux comptes de la famille</h4>
+                    <p>Notes, absences et bulletins par enfant, avec la possibilité de lier la fiche d'un enfant au compte d'un membre ou d'un co-parent pour un accès en lecture seule — sans jamais lui donner la main sur les données des autres enfants.</p>
+                </div>
+            </div>
+            <div class="diff-item">
+                <div class="diff-mark">✓</div>
+                <div>
+                    <h4>Un vrai réseau social privé, pas juste un fil d'actualité</h4>
+                    <p>Abonnements mutuels, messages privés, et partage possible avec une famille amie si la relation est acceptée des deux côtés — la convivialité d'un réseau social, sans qu'un inconnu ou un annonceur n'y ait jamais accès.</p>
                 </div>
             </div>
             <div class="diff-item">
                 <div class="diff-mark">✓</div>
                 <div>
                     <h4>Zéro publicité tierce, zéro revente de données</h4>
-                    <p>FamilyBoard vit de ses abonnements, pas de vos données. Votre vie de famille reste privée — aucune régie publicitaire externe, aucun tracking. Vous pouvez occasionnellement voir un encart présentant un autre service d'ABHD, l'éditeur de FamilyBoard.</p>
+                    <p>FamilyBoard vit de ses abonnements, pas de vos données. Aucune régie publicitaire externe, aucun tracking. Vous pouvez occasionnellement voir un encart présentant un autre service d'ABHD, l'éditeur de FamilyBoard.</p>
                 </div>
             </div>
             <div class="diff-item">
                 <div class="diff-mark">✓</div>
                 <div>
                     <h4>Tout au même endroit</h4>
-                    <p>Plus besoin de jongler entre cinq applications différentes pour organiser votre foyer.</p>
+                    <p>Calendrier, budget, projets, garanties, courriers, additions entre proches… plus besoin de jongler entre une dizaine d'applications différentes pour organiser votre foyer.</p>
+                </div>
+            </div>
+            <div class="diff-item">
+                <div class="diff-mark">✓</div>
+                <div>
+                    <h4>Un design soigné, pas surchargé</h4>
+                    <p>Une interface épurée pensée dans le détail, sans pop-ups qui parasitent votre quotidien.</p>
                 </div>
             </div>
             <div class="diff-item">
@@ -321,7 +382,7 @@
                 <div class="diff-mark">✓</div>
                 <div>
                     <h4>Un compte, toute la famille</h4>
-                    <p>Invitez vos proches par simple code et gérez les accès de chacun depuis les réglages.</p>
+                    <p>Invitez vos proches par simple code et gérez les accès de chacun — y compris un accès co-parent restreint — depuis les réglages.</p>
                 </div>
             </div>
         </div>
