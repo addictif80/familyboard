@@ -41,6 +41,14 @@ class SettingsController extends BaseController
             $vaultwardenEnabled = false;
             $mailAliasAddress = null;
             $twoFactorMethod = TwoFactorAuth::getMethod($user['id']);
+            $subPlans = [];
+            $subSubscription = null;
+            $subBillingEnabled = false;
+            $subTrialDays = 0;
+            $subAnnualDiscount = 0;
+            $subHasUsedTrial = false;
+            $subStripeConfigured = false;
+            $subMemberCount = 0;
             require BASE_PATH . '/templates/settings/index.php';
             return;
         }
@@ -62,6 +70,16 @@ class SettingsController extends BaseController
             ? $family['mail_alias_slug'] . '@' . $mailcowSettingsForFamily['domain']
             : null;
         $familyTimers = ($user['role'] === 'admin') ? FamilyTimer::getByFamily($user['family_id']) : [];
+
+        $subPlans           = \App\Models\Plan::getAll(true);
+        $subSubscription    = \App\Models\FamilySubscription::getByFamily((int)$user['family_id']);
+        $subBillingEnabled  = \App\Models\FamilySubscription::billingEnabled();
+        $subTrialDays       = (int)(\App\Models\AppSetting::get('sub_trial_days') ?? '14');
+        $subAnnualDiscount  = (int)(\App\Models\AppSetting::get('sub_annual_discount_pct') ?? '20');
+        $subHasUsedTrial    = \App\Models\FamilySubscription::hasUsedTrial((int)$user['family_id']);
+        $subStripeConfigured = \App\Core\StripeGateway::isConfigured();
+        $subMemberCount     = count($members);
+
         require BASE_PATH . '/templates/settings/index.php';
     }
 

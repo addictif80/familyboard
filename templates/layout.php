@@ -433,6 +433,11 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                     <a href="<?= BASE_URL ?>/settings" class="user-menu-item">
                         <span class="user-menu-item-icon">⚙️</span> Paramètres
                     </a>
+                    <?php if ($currentUser['role'] === 'admin'): ?>
+                    <a href="<?= BASE_URL ?>/settings#tab-abonnement" class="user-menu-item">
+                        <span class="user-menu-item-icon">💳</span> Abonnement
+                    </a>
+                    <?php endif; ?>
                     <button type="button" id="pwa-install-btn" onclick="installPWA()" class="user-menu-item" style="display:none">
                         <span class="user-menu-item-icon">📲</span> Installer l'app
                     </button>

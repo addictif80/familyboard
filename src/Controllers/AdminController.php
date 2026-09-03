@@ -23,6 +23,8 @@ use App\Core\Vaultwarden;
 use App\Models\VaultwardenSettings;
 use App\Core\Mailcow;
 use App\Models\MailcowSettings;
+use App\Models\Plan;
+use App\Models\FamilySubscription;
 
 class AdminController extends BaseController
 {
@@ -193,6 +195,21 @@ class AdminController extends BaseController
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
         $customNameDays = NameDay::getCustomEntries();
         $roadmapItems = RoadmapItem::getAll();
+        $subBillingEnabled = FamilySubscription::billingEnabled();
+        $subTrialDays = (int)(AppSetting::get('sub_trial_days') ?? '14');
+        $subGraceDays = (int)(AppSetting::get('sub_grace_days') ?? '30');
+        $subAnnualDiscount = (int)(AppSetting::get('sub_annual_discount_pct') ?? '20');
+        $subFreeModules = FamilySubscription::freeModules();
+        $stripePublishableKey = AppSetting::get('stripe_publishable_key') ?? '';
+        $stripeSecretKey = AppSetting::get('stripe_secret_key') ?? '';
+        $stripeWebhookSecret = AppSetting::get('stripe_webhook_secret') ?? '';
+        $plans = Plan::getAll();
+        $familySubscriptions = Database::fetchAll(
+            'SELECT fs.*, f.name as family_name, p.name as plan_name
+             FROM family_subscriptions fs JOIN families f ON f.id=fs.family_id LEFT JOIN plans p ON p.id=fs.plan_id
+             WHERE fs.status != "none" OR fs.manual = 1 ORDER BY fs.updated_at DESC'
+        );
+        $premiumDataPurges = Database::fetchAll('SELECT id, family_id, family_name, modules_purged, purged_at FROM premium_data_purges ORDER BY purged_at DESC LIMIT 200');
 
         require BASE_PATH . '/templates/admin/index.php';
     }
@@ -652,6 +669,108 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $this->json(fn() => Mailcow::testConnection());
+    }
+
+    // ── Abonnements (Stripe Billing) ─────────────────────────────
+
+    public function updateSubscriptionSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('sub_billing_enabled', !empty($_POST['sub_billing_enabled']) ? '1' : '0');
+        AppSetting::set('sub_trial_days', (string)max(0, (int)($_POST['sub_trial_days'] ?? 14)));
+        AppSetting::set('sub_grace_days', (string)max(0, (int)($_POST['sub_grace_days'] ?? 30)));
+        AppSetting::set('sub_annual_discount_pct', (string)max(0, min(90, (int)($_POST['sub_annual_discount_pct'] ?? 20))));
+        $freeModules = array_values(array_intersect(
+            array_map('trim', (array)($_POST['sub_free_modules'] ?? [])),
+            array_keys(\App\Models\Family::MODULES)
+        ));
+        AppSetting::set('sub_free_modules', implode(',', $freeModules));
+        $this->redirect('/admin?tab=subscriptions&msg=sub_settings_saved');
+    }
+
+    public function updateStripeSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $publishable = trim($_POST['stripe_publishable_key'] ?? '');
+        $newSecret = trim($_POST['stripe_secret_key'] ?? '');
+        $newWebhookSecret = trim($_POST['stripe_webhook_secret'] ?? '');
+        // Comme pour Vaultwarden/Mailcow : champ vide + keep_existing=1 veut dire "panneau non
+        // ouvert", pas "effacer la clé".
+        if ($newSecret === '' && !empty($_POST['keep_existing_secret'])) {
+            $newSecret = AppSetting::get('stripe_secret_key') ?? '';
+        }
+        if ($newWebhookSecret === '' && !empty($_POST['keep_existing_webhook'])) {
+            $newWebhookSecret = AppSetting::get('stripe_webhook_secret') ?? '';
+        }
+        AppSetting::set('stripe_publishable_key', $publishable);
+        AppSetting::set('stripe_secret_key', $newSecret);
+        AppSetting::set('stripe_webhook_secret', $newWebhookSecret);
+        $this->redirect('/admin?tab=subscriptions&msg=stripe_saved');
+    }
+
+    public function savePlan(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)($_POST['id'] ?? 0);
+        $d = [
+            'code' => preg_replace('/[^a-z0-9_]/', '', strtolower(trim($_POST['code'] ?? ''))) ?: ('plan_' . time()),
+            'name' => trim($_POST['name'] ?? '') ?: 'Premium',
+            'member_limit' => ($_POST['member_limit'] ?? '') === '' ? null : max(1, (int)$_POST['member_limit']),
+            'price_monthly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_monthly'] ?? '0')) * 100)),
+            'price_yearly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_yearly'] ?? '0')) * 100)),
+            'stripe_price_id_monthly' => trim($_POST['stripe_price_id_monthly'] ?? '') ?: null,
+            'stripe_price_id_yearly' => trim($_POST['stripe_price_id_yearly'] ?? '') ?: null,
+            'sort_order' => (int)($_POST['sort_order'] ?? 0),
+            'active' => !empty($_POST['active']),
+        ];
+        if ($id) {
+            Plan::update($id, $d);
+        } else {
+            Plan::create($d);
+        }
+        $this->redirect('/admin?tab=subscriptions&msg=plan_saved');
+    }
+
+    public function deactivatePlan(array $params): void
+    {
+        $this->requireSuperAdmin();
+        Plan::deactivate((int)$params['id']);
+        $this->redirect('/admin?tab=subscriptions&msg=plan_deactivated');
+    }
+
+    /** Geste commercial/support : attribue ou retire un palier à une famille sans passer par
+     *  Stripe (aucune carte, aucun prélèvement — utile pour un partenariat, un dédommagement...). */
+    public function grantManualSubscription(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $familyId = (int)$params['id'];
+        $planId = (int)($_POST['plan_id'] ?? 0);
+        $until = trim($_POST['until'] ?? '');
+        $plan = Plan::getById($planId);
+        if ($plan) {
+            FamilySubscription::grantManual($familyId, $planId, $until !== '' ? $until . ' 23:59:59' : null);
+        }
+        $this->redirect('/admin?tab=families&family=' . $familyId);
+    }
+
+    public function revokeManualSubscription(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $familyId = (int)$params['id'];
+        FamilySubscription::revokeManual($familyId);
+        $this->redirect('/admin?tab=families&family=' . $familyId);
+    }
+
+    /** Instantané HTML des données premium collecté juste avant leur suppression définitive
+     *  (voir PremiumDataPurge::exportHtml(), appelé depuis cron.php) — consultable en cas de
+     *  réclamation, jamais accessible à la famille elle-même. */
+    public function viewPremiumPurgeExport(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $row = Database::fetch('SELECT export_html FROM premium_data_purges WHERE id=?', [(int)$params['id']]);
+        if (!$row || !$row['export_html']) { http_response_code(404); echo 'Introuvable.'; return; }
+        header('Content-Type: text/html; charset=UTF-8');
+        echo $row['export_html'];
     }
 
     // ── Mises en avant ABHD (jamais "publicité" dans le code/l'UI) ─────────────

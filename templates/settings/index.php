@@ -12,6 +12,9 @@ ob_start();
         <button type="button" class="settings-tab-btn" data-tab="app" onclick="switchSettingsTab('app')">📲 Application</button>
         <button type="button" class="settings-tab-btn" data-tab="famille" onclick="switchSettingsTab('famille')">👨‍👩‍👧 Famille</button>
         <button type="button" class="settings-tab-btn" data-tab="acces" onclick="switchSettingsTab('acces')">🔗 Accès partagés</button>
+        <?php if ($user['role'] === 'admin'): ?>
+        <button type="button" class="settings-tab-btn" data-tab="abonnement" onclick="switchSettingsTab('abonnement')">💳 Abonnement</button>
+        <?php endif; ?>
         <?php if (!empty($emailLogs)): ?>
         <button type="button" class="settings-tab-btn" data-tab="historique" onclick="switchSettingsTab('historique')">📨 Historique</button>
         <?php endif; ?>
@@ -647,6 +650,105 @@ ob_start();
 
     </div>
     <!-- ═══ /Onglet : Famille ═══ -->
+    <?php endif; ?>
+
+    <?php if (!$isCoparentSettings && $user['role'] === 'admin'): ?>
+    <!-- ═══ Onglet : Abonnement ═══ -->
+    <div class="settings-tab-panel" data-tab="abonnement">
+        <?php
+        $subStatus = $subSubscription['status'] ?? 'none';
+        $subStatusLabels = [
+            'none'      => ['label' => 'Offre Gratuite', 'class' => ''],
+            'trialing'  => ['label' => 'Essai gratuit en cours', 'class' => 'badge-success'],
+            'active'    => ['label' => 'Abonné·e', 'class' => 'badge-success'],
+            'past_due'  => ['label' => 'Paiement en échec', 'class' => 'badge-danger'],
+            'canceled'  => ['label' => 'Abonnement résilié', 'class' => 'badge-danger'],
+        ];
+        $subStatusInfo = $subStatusLabels[$subStatus] ?? $subStatusLabels['none'];
+        $subUpsell = trim($_GET['upsell'] ?? '');
+        ?>
+        <?php if ($subUpsell): ?>
+        <div class="card settings-section" style="border-left:4px solid var(--primary)">
+            <p style="margin:0">🔒 Le module que vous venez d'ouvrir fait partie de l'offre <strong>Premium</strong>. Abonnez-vous pour en profiter, ainsi que de tous les autres modules avancés.</p>
+        </div>
+        <?php endif; ?>
+        <?php if (!$subBillingEnabled): ?>
+        <div class="card settings-section">
+            <p>La facturation n'est pas encore activée sur cette instance — tous les modules sont accessibles librement pour le moment.</p>
+        </div>
+        <?php else: ?>
+
+        <div class="card settings-section">
+            <h3>💳 Abonnement</h3>
+            <p>
+                <strong>Statut actuel : </strong>
+                <span class="badge <?= $subStatusInfo['class'] ?>"><?= $subStatusInfo['label'] ?></span>
+                <?php if ($subSubscription && $subSubscription['plan_name']): ?>
+                    <span class="badge"><?= htmlspecialchars($subSubscription['plan_name']) ?> — <?= $subSubscription['member_limit'] ? $subSubscription['member_limit'] . ' membres max' : 'membres illimités' ?></span>
+                <?php endif; ?>
+            </p>
+            <?php if ($subStatus === 'trialing' && !empty($subSubscription['trial_ends_at'])): ?>
+                <p style="color:var(--text-muted);font-size:.85rem">Votre essai se termine le <?= (new DateTime($subSubscription['trial_ends_at']))->format('d/m/Y') ?>. Une carte enregistrée sera débitée à cette date, sauf résiliation avant.</p>
+            <?php elseif ($subStatus === 'active' && !empty($subSubscription['current_period_end'])): ?>
+                <p style="color:var(--text-muted);font-size:.85rem">Prochain renouvellement le <?= (new DateTime($subSubscription['current_period_end']))->format('d/m/Y') ?>.</p>
+            <?php elseif (in_array($subStatus, ['past_due', 'canceled'], true)): ?>
+                <p style="color:var(--danger);font-size:.85rem">
+                    Les modules Premium sont actuellement bloqués pour toute la famille (paiement en échec ou abonnement résilié).
+                    <?php if (!empty($subSubscription['data_purged_at'])): ?>
+                        Les données de ces modules ont été définitivement supprimées le <?= (new DateTime($subSubscription['data_purged_at']))->format('d/m/Y') ?>, faute de réabonnement dans le délai imparti.
+                    <?php elseif (!empty($subSubscription['grace_ends_at'])): ?>
+                        Vos données de ces modules sont conservées jusqu'au <?= (new DateTime($subSubscription['grace_ends_at']))->format('d/m/Y') ?> — réabonnez-vous avant cette date pour les retrouver telles quelles. Passé ce délai, elles seront supprimées définitivement.
+                    <?php endif; ?>
+                </p>
+            <?php endif; ?>
+            <?php if ($subSubscription && !empty($subSubscription['stripe_customer_id'])): ?>
+            <form method="POST" action="<?= BASE_URL ?>/api/subscription/portal">
+                <button type="submit" class="btn btn-secondary btn-sm">Gérer mon abonnement (Stripe)</button>
+            </form>
+            <?php endif; ?>
+        </div>
+
+        <?php if (!$subStripeConfigured): ?>
+        <div class="card settings-section"><p>La facturation est activée mais pas encore configurée par l'administrateur système. Revenez bientôt.</p></div>
+        <?php else: ?>
+        <div class="card settings-section">
+            <h3>Paliers disponibles</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:.75rem">
+                <?php foreach ($subPlans as $p): ?>
+                    <?php
+                    $subMonthly = $p['price_monthly_cents'] / 100;
+                    $subYearly  = $p['price_yearly_cents'] / 100;
+                    $subIsCurrent = $subSubscription && (int)($subSubscription['plan_id'] ?? 0) === (int)$p['id'] && in_array($subStatus, ['trialing', 'active'], true);
+                    ?>
+                    <div class="card" style="display:flex;flex-direction:column;gap:.6rem;<?= $subIsCurrent ? 'border:2px solid var(--primary)' : '' ?>">
+                        <strong><?= htmlspecialchars($p['name']) ?></strong>
+                        <span style="color:var(--text-muted);font-size:.85rem"><?= $p['member_limit'] ? "Jusqu'à {$p['member_limit']} membres" : 'Membres illimités' ?></span>
+                        <div><strong style="font-size:1.3rem"><?= number_format($subMonthly, 2, ',', ' ') ?> €</strong> <span style="color:var(--text-muted);font-size:.8rem">/ mois</span></div>
+                        <span style="color:var(--text-muted);font-size:.8rem"><?= number_format($subYearly, 2, ',', ' ') ?> € / an<?= $subAnnualDiscount > 0 ? " (-{$subAnnualDiscount}%)" : '' ?></span>
+                        <?php if ($subMemberCount > 0 && $p['member_limit'] && $subMemberCount > $p['member_limit']): ?>
+                            <span style="color:var(--danger);font-size:.75rem">Votre famille compte déjà <?= $subMemberCount ?> membres.</span>
+                        <?php endif; ?>
+                        <form method="POST" action="<?= BASE_URL ?>/api/subscription/checkout" style="margin-top:auto">
+                            <input type="hidden" name="plan_id" value="<?= $p['id'] ?>">
+                            <input type="hidden" name="interval" value="monthly">
+                            <button type="submit" class="btn <?= $subIsCurrent ? 'btn-secondary' : 'btn-primary' ?> btn-sm" style="width:100%"><?= $subIsCurrent ? 'Palier actuel' : 'S\'abonner (mensuel)' ?></button>
+                        </form>
+                        <form method="POST" action="<?= BASE_URL ?>/api/subscription/checkout">
+                            <input type="hidden" name="plan_id" value="<?= $p['id'] ?>">
+                            <input type="hidden" name="interval" value="yearly">
+                            <button type="submit" class="btn btn-secondary btn-sm" style="width:100%">S'abonner (annuel)</button>
+                        </form>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php if (!$subHasUsedTrial): ?>
+            <p style="color:var(--text-muted);font-size:.85rem;margin-top:1rem">✨ Essai gratuit de <?= $subTrialDays ?> jours sur le premier abonnement, résiliable à tout moment.</p>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+        <?php endif; ?>
+    </div>
+    <!-- ═══ /Onglet : Abonnement ═══ -->
     <?php endif; ?>
 
     <?php if (!$isCoparentSettings): ?>

@@ -55,6 +55,7 @@ use App\Controllers\MealController;
 use App\Controllers\LetterController;
 use App\Controllers\DisputeController;
 use App\Controllers\SchoolController;
+use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
 use App\Controllers\NotificationController;
@@ -291,6 +292,12 @@ $router->post('/api/school/students/:id/documents/:docId/delete', [SchoolControl
 $router->get('/school/students/:id/documents/:docId', [SchoolController::class, 'serveFile']);
 $router->post('/api/school/students/:id/links', [SchoolController::class, 'updateLinks']);
 $router->post('/api/school/students/:id/documents/link', [SchoolController::class, 'updateLinkedDocuments']);
+
+// ── Abonnement (Stripe Billing) ──────────────────────────────
+$router->get('/abonnement', [SubscriptionController::class, 'index']);
+$router->post('/api/subscription/checkout', [SubscriptionController::class, 'checkout']);
+$router->post('/api/subscription/portal', [SubscriptionController::class, 'portal']);
+$router->post('/stripe/webhook', [SubscriptionController::class, 'webhook']);
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
 $router->get('/additions/espace/:token', [AdditionController::class, 'guestSpace']);
@@ -486,6 +493,13 @@ $router->post('/admin/vaultwarden', [AdminController::class, 'updateVaultwardenS
 $router->post('/admin/vaultwarden/test', [AdminController::class, 'testVaultwardenConnection']);
 $router->post('/admin/mailcow', [AdminController::class, 'updateMailcowSettings']);
 $router->post('/admin/mailcow/test', [AdminController::class, 'testMailcowConnection']);
+$router->post('/admin/subscriptions/settings', [AdminController::class, 'updateSubscriptionSettings']);
+$router->post('/admin/subscriptions/stripe', [AdminController::class, 'updateStripeSettings']);
+$router->post('/admin/plans', [AdminController::class, 'savePlan']);
+$router->post('/admin/plans/:id/deactivate', [AdminController::class, 'deactivatePlan']);
+$router->post('/admin/families/:id/subscription/grant', [AdminController::class, 'grantManualSubscription']);
+$router->post('/admin/families/:id/subscription/revoke', [AdminController::class, 'revokeManualSubscription']);
+$router->get('/admin/premium-purges/:id/export', [AdminController::class, 'viewPremiumPurgeExport']);
 $router->post('/admin/highlights', [AdminController::class, 'createHighlight']);
 $router->post('/admin/highlights/:id', [AdminController::class, 'updateHighlight']);
 $router->post('/admin/highlights/:id/delete', [AdminController::class, 'deleteHighlight']);

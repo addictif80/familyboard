@@ -107,15 +107,30 @@ class BaseController
         } catch (\Throwable) {
             return; // column may not exist yet during migration
         }
-        if (!in_array($slug, $disabled, true)) return;
-
-        if ($this->isAjax()) {
-            http_response_code(403);
-            echo json_encode(['error' => 'Module désactivé.']);
+        if (in_array($slug, $disabled, true)) {
+            if ($this->isAjax()) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Module désactivé.']);
+                exit;
+            }
+            Session::flash('error', 'Ce module est désactivé par votre administrateur familial.');
+            header('Location: ' . BASE_URL . '/');
             exit;
         }
-        Session::flash('error', 'Ce module est désactivé par votre administrateur familial.');
-        header('Location: ' . BASE_URL . '/');
+
+        try {
+            $entitled = \App\Models\FamilySubscription::isEntitled((int)$user['family_id'], $slug);
+        } catch (\Throwable) {
+            return; // table pas encore migrée
+        }
+        if ($entitled) return;
+
+        if ($this->isAjax()) {
+            http_response_code(402);
+            echo json_encode(['error' => 'Ce module fait partie de l\'offre Premium.', 'upsell' => true]);
+            exit;
+        }
+        header('Location: ' . BASE_URL . '/abonnement?upsell=' . urlencode($slug));
         exit;
     }
 

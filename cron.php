@@ -39,6 +39,8 @@ use App\Core\EmailLayout;
 use App\Models\AppSetting;
 use App\Core\Push;
 use App\Models\HomePresence;
+use App\Models\FamilySubscription;
+use App\Core\PremiumDataPurge;
 
 // Le cron tourne chaque minute (pour la synchro CalDAV) mais un run peut dépasser 60s (envois
 // SMTP séquentiels, appels HTTP externes) — un verrou évite que deux exécutions se chevauchent
@@ -123,6 +125,14 @@ try {
     echo "  → Purge RGPD : $purgedLocations check-in(s) position, $purgedTickets ticket(s) support clos anciens" . PHP_EOL;
 } catch (\Throwable $e) {
     error_log('Purge RGPD error: ' . $e->getMessage());
+}
+
+// Relances + suppression définitive des données Premium après un impayé/essai non converti —
+// transverse (une famille en défaut n'a pas de raison de coïncider avec l'itération ci-dessus).
+try {
+    processSubscriptionLapses($appUrl);
+} catch (\Throwable $e) {
+    error_log('Subscription lapse processing error: ' . $e->getMessage());
 }
 
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;
@@ -690,6 +700,111 @@ function sendWeeklyDigest(int $familyId, array $family, array $members, string $
         Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'weekly_digest');
 
         echo "  → Weekly digest sent to {$member['email']}" . PHP_EOL;
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Abonnements en défaut de paiement (essai non converti ou paiement échoué) : bascule déjà
+// immédiate côté accès (FamilySubscription::isEntitled(), voir BaseController::requireModule())
+// — ici on gère uniquement les relances email et, une fois grace_ends_at dépassé, la suppression
+// définitive des données des modules premium (voir PremiumDataPurge). Chaque relance n'est
+// envoyée qu'une fois (colonnes reminder_*_sent_at), remises à zéro dès que la famille redevient
+// à jour (voir FamilySubscription::syncFromStripe()).
+// ──────────────────────────────────────────────────────────────────────────
+function processSubscriptionLapses(string $appUrl): void
+{
+    $now = new \DateTime();
+
+    foreach (FamilySubscription::getLapsed() as $sub) {
+        $familyId = (int)$sub['family_id'];
+        $familyName = $sub['family_name'];
+        $graceEnd = new \DateTime($sub['grace_ends_at']);
+        $members = array_values(array_filter(User::getByFamily($familyId), fn($m) => $m['role'] !== 'coparent'));
+        if (!$members) continue;
+
+        // 1) Bascule immédiate — un seul envoi, dès la détection.
+        if (!$sub['reminder_downgrade_sent_at']) {
+            foreach ($members as $member) {
+                if (empty($member['email'])) continue;
+                $rendered = EmailContent::render('subscription_downgraded', [
+                    'user_name' => $member['name'], 'family_name' => $familyName,
+                    'grace_end_date' => $graceEnd->format('d/m/Y'),
+                ]);
+                $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], ['label' => 'Gérer mon abonnement', 'url' => $appUrl . '/settings#tab-abonnement']);
+                Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'subscription_downgraded');
+            }
+            FamilySubscription::markReminderSent($familyId, 'downgrade');
+            echo "  → Subscription downgraded: family #$familyId notified" . PHP_EOL;
+        }
+
+        // 2) Rappel à mi-parcours du délai de rétention.
+        if (!$sub['reminder_midpoint_sent_at'] && $sub['grace_started_at']) {
+            $graceStart = new \DateTime($sub['grace_started_at']);
+            $midpoint = (clone $graceStart)->modify('+' . (int)(($graceEnd->getTimestamp() - $graceStart->getTimestamp()) / 2) . ' seconds');
+            if ($now >= $midpoint) {
+                $daysRemaining = max(0, (int)$now->diff($graceEnd)->days);
+                foreach ($members as $member) {
+                    if (empty($member['email'])) continue;
+                    $rendered = EmailContent::render('subscription_retention_reminder', [
+                        'user_name' => $member['name'], 'family_name' => $familyName,
+                        'grace_end_date' => $graceEnd->format('d/m/Y'), 'days_remaining' => (string)$daysRemaining,
+                    ]);
+                    $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], ['label' => 'Gérer mon abonnement', 'url' => $appUrl . '/settings#tab-abonnement']);
+                    Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'subscription_retention_reminder');
+                }
+                FamilySubscription::markReminderSent($familyId, 'midpoint');
+                echo "  → Subscription retention reminder: family #$familyId notified" . PHP_EOL;
+            }
+        }
+
+        // 3) Dernier avertissement (J-2 avant suppression définitive).
+        if (!$sub['reminder_final_sent_at']) {
+            $finalWarningAt = (clone $graceEnd)->modify('-2 days');
+            if ($now >= $finalWarningAt) {
+                foreach ($members as $member) {
+                    if (empty($member['email'])) continue;
+                    $rendered = EmailContent::render('subscription_final_warning', [
+                        'user_name' => $member['name'], 'family_name' => $familyName,
+                        'grace_end_date' => $graceEnd->format('d/m/Y'),
+                    ]);
+                    $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], ['label' => 'Gérer mon abonnement', 'url' => $appUrl . '/settings#tab-abonnement']);
+                    Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'subscription_final_warning');
+                }
+                FamilySubscription::markReminderSent($familyId, 'final');
+                echo "  → Subscription final warning: family #$familyId notified" . PHP_EOL;
+            }
+        }
+
+        // 4) Délai de rétention dépassé : suppression définitive, avec instantané préalable.
+        if ($now >= $graceEnd) {
+            try {
+                $modules = PremiumDataPurge::premiumModulesWithData();
+                $exportHtml = $modules ? PremiumDataPurge::exportHtml($familyId, $modules, $familyName) : null;
+                $purgedModules = PremiumDataPurge::purge($familyId);
+                Database::execute(
+                    'INSERT INTO premium_data_purges (family_id, family_name, modules_purged, export_html) VALUES (?,?,?,?)',
+                    [$familyId, $familyName, implode(',', $purgedModules), $exportHtml]
+                );
+                FamilySubscription::markDataPurged($familyId);
+
+                $modulesLabels = array_map(
+                    fn($slug) => \App\Models\Family::MODULES[$slug]['label'] ?? $slug,
+                    $purgedModules
+                );
+                foreach ($members as $member) {
+                    if (empty($member['email'])) continue;
+                    $rendered = EmailContent::render('subscription_data_purged', [
+                        'user_name' => $member['name'], 'family_name' => $familyName,
+                        'modules_list' => implode(', ', $modulesLabels),
+                    ]);
+                    $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], ['label' => 'Voir les offres', 'url' => $appUrl . '/settings#tab-abonnement']);
+                    Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'subscription_data_purged');
+                }
+                echo "  → Subscription data purged: family #$familyId (" . implode(',', $purgedModules) . ")" . PHP_EOL;
+            } catch (\Throwable $e) {
+                error_log("Premium data purge error for family #$familyId: " . $e->getMessage());
+            }
+        }
     }
 }
 

@@ -29,6 +29,10 @@ class DashboardController extends \App\Controllers\BaseController
     public function index(array $params): void
     {
         if (!Session::isLoggedIn()) {
+            $billingEnabled = \App\Models\FamilySubscription::billingEnabled();
+            $pricingPlans = $billingEnabled ? \App\Models\Plan::getAll(true) : [];
+            $annualDiscount = (int)(\App\Models\AppSetting::get('sub_annual_discount_pct') ?? '20');
+            $trialDays = (int)(\App\Models\AppSetting::get('sub_trial_days') ?? '14');
             require BASE_PATH . '/templates/landing.php';
             return;
         }

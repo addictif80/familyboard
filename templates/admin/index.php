@@ -28,7 +28,7 @@
             <span>🔐 Admin</span>
         </div>
         <ul class="admin-nav">
-            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','deleted-accounts'=>'🗑️ Comptes supprimés','notifications'=>'📣 Notifications & intégrations','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP','email'=>'📧 Emails','namedays'=>'🎉 Fêtes des prénoms','highlights'=>'🏢 Mises en avant ABHD','links'=>'🔗 Liens certifiés','legal'=>'📜 Contenu légal','roadmap'=>'🗺️ Roadmap'] as $t=>$label): ?>
+            <?php foreach (['dashboard'=>'📊 Tableau de bord','families'=>'🏠 Familles','users'=>'👥 Utilisateurs','deleted-accounts'=>'🗑️ Comptes supprimés','subscriptions'=>'💳 Abonnements','notifications'=>'📣 Notifications & intégrations','impersonation'=>'🕵️ Impersonation','ips'=>'🚫 IPs bloquées','tickets'=>'🎫 Tickets support','smtp'=>'✉️ SMTP','email'=>'📧 Emails','namedays'=>'🎉 Fêtes des prénoms','highlights'=>'🏢 Mises en avant ABHD','links'=>'🔗 Liens certifiés','legal'=>'📜 Contenu légal','roadmap'=>'🗺️ Roadmap'] as $t=>$label): ?>
             <li class="<?= $tab === $t ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
             </li>
@@ -51,7 +51,7 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','mailcow_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','mailcow_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted','sub_settings_saved','stripe_saved','plan_saved','plan_deactivated']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
@@ -79,6 +79,10 @@
                     'roadmap_saved'       => 'Idée enregistrée.',
                     'roadmap_deleted'     => 'Idée supprimée.',
                     'roadmap_invalid'     => 'Titre et statut requis.',
+                    'sub_settings_saved'  => 'Réglages de facturation enregistrés.',
+                    'stripe_saved'        => 'Clés Stripe enregistrées.',
+                    'plan_saved'          => 'Palier enregistré.',
+                    'plan_deactivated'    => 'Palier désactivé.',
                     default       => ''
                 } ?>
             </div>
@@ -103,17 +107,41 @@
         </div>
 
         <?php elseif ($tab === 'families'): ?>
+        <?php $subsByFamily = []; foreach ($familySubscriptions ?? [] as $fs) { $subsByFamily[$fs['family_id']] = $fs; } ?>
         <h2>Familles (<?= count($families) ?>)</h2>
         <table class="admin-table">
-            <thead><tr><th>#</th><th>Nom</th><th>Membres</th><th>Créé le</th><th>Actions</th></tr></thead>
+            <thead><tr><th>#</th><th>Nom</th><th>Membres</th><th>Créé le</th><th>Abonnement</th><th>Actions</th></tr></thead>
             <tbody>
             <?php foreach ($families as $f): ?>
+            <?php $fs = $subsByFamily[$f['id']] ?? null; ?>
             <tr>
                 <td><?= $f['id'] ?></td>
                 <td><strong><?= htmlspecialchars($f['name']) ?></strong></td>
                 <td><?= $f['member_count'] ?></td>
                 <td><?= \App\Core\DateHelper::fromUtc($f['created_at'], 'd/m/Y') ?></td>
-                <td><a href="<?= BASE_URL ?>/admin?tab=users&family=<?= $f['id'] ?>" class="btn btn-secondary btn-sm">Voir membres</a></td>
+                <td>
+                    <?php if ($fs): ?>
+                        <span class="badge"><?= htmlspecialchars($fs['plan_name'] ?? '—') ?> · <?= htmlspecialchars($fs['status']) ?><?= $fs['manual'] ? ' (manuel)' : '' ?></span>
+                    <?php else: ?>
+                        <span style="color:var(--text-muted);font-size:.8rem">Gratuit</span>
+                    <?php endif; ?>
+                </td>
+                <td style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center">
+                    <a href="<?= BASE_URL ?>/admin?tab=users&family=<?= $f['id'] ?>" class="btn btn-secondary btn-sm">Voir membres</a>
+                    <?php if ($fs && $fs['manual']): ?>
+                    <form method="POST" action="<?= BASE_URL ?>/admin/families/<?= $f['id'] ?>/subscription/revoke"><?= \App\Core\Csrf::field() ?>
+                        <button type="submit" class="btn btn-danger btn-sm">Retirer le palier manuel</button>
+                    </form>
+                    <?php else: ?>
+                    <form method="POST" action="<?= BASE_URL ?>/admin/families/<?= $f['id'] ?>/subscription/grant" style="display:flex;gap:.3rem;align-items:center"><?= \App\Core\Csrf::field() ?>
+                        <select name="plan_id" style="max-width:130px">
+                            <?php foreach ($plans as $p): ?><option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['name']) ?> (<?= htmlspecialchars($p['code']) ?>)</option><?php endforeach; ?>
+                        </select>
+                        <input type="date" name="until" title="Valable jusqu'au (vide = sans limite)" style="max-width:140px">
+                        <button type="submit" class="btn btn-secondary btn-sm">Offrir ce palier</button>
+                    </form>
+                    <?php endif; ?>
+                </td>
             </tr>
             <?php endforeach; ?>
             </tbody>
@@ -224,6 +252,238 @@
             </tbody>
         </table>
         <?php endif; ?>
+
+        <?php elseif ($tab === 'subscriptions'): ?>
+        <h2>Facturation</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Tant que la facturation est désactivée, tous les modules restent accessibles librement à
+            toutes les familles, quel que soit leur abonnement — activer ce réglage ne verrouille
+            jamais rétroactivement une famille sans que vous ne l'ayez décidé explicitement ici.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/subscriptions/settings" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label><input type="checkbox" name="sub_billing_enabled" value="1" <?= $subBillingEnabled ? 'checked' : '' ?>> Activer la facturation (restreint les modules Premium aux abonnés)</label>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Durée de l'essai gratuit (jours)</label>
+                    <input type="number" name="sub_trial_days" min="0" max="90" value="<?= $subTrialDays ?>">
+                </div>
+                <div class="form-group">
+                    <label>Délai de grâce après impayé/résiliation (jours)</label>
+                    <input type="number" name="sub_grace_days" min="0" max="180" value="<?= $subGraceDays ?>">
+                </div>
+                <div class="form-group">
+                    <label>Réduction annuelle (%)</label>
+                    <input type="number" name="sub_annual_discount_pct" min="0" max="90" value="<?= $subAnnualDiscount ?>">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Modules toujours gratuits (socle de l'offre gratuite)</label>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.3rem;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:.6rem">
+                    <?php foreach (\App\Models\Family::MODULES as $slug => $mod): ?>
+                        <label style="font-weight:normal"><input type="checkbox" name="sub_free_modules[]" value="<?= $slug ?>" <?= in_array($slug, $subFreeModules, true) ? 'checked' : '' ?>> <?= $mod['icon'] ?> <?= htmlspecialchars($mod['label']) ?></label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+        </form>
+
+        <h2 style="margin-top:2rem">Clés Stripe</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Créez les produits/prix côté Stripe puis reliez-les à chaque palier ci-dessous. L'URL de
+            webhook à configurer sur Stripe est <code><?= BASE_URL ?>/stripe/webhook</code>.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/subscriptions/stripe" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>Clé publique (pk_...)</label>
+                <input type="text" name="stripe_publishable_key" value="<?= htmlspecialchars($stripePublishableKey) ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Clé secrète (sk_...)</label>
+                <?php if ($stripeSecretKey): ?>
+                    <input type="text" value="•••••••••••••• <?= htmlspecialchars(substr($stripeSecretKey, -4)) ?>" disabled>
+                    <input type="hidden" name="keep_existing_secret" value="1">
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer ou désactiver la clé</summary>
+                        <input type="text" name="stripe_secret_key" placeholder="Nouvelle clé secrète" autocomplete="off" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="text" name="stripe_secret_key" placeholder="sk_live_… ou sk_test_…" autocomplete="off">
+                <?php endif; ?>
+            </div>
+            <div class="form-group">
+                <label>Secret de signature du webhook (whsec_...)</label>
+                <?php if ($stripeWebhookSecret): ?>
+                    <input type="text" value="•••••••••••••• <?= htmlspecialchars(substr($stripeWebhookSecret, -4)) ?>" disabled>
+                    <input type="hidden" name="keep_existing_webhook" value="1">
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer ou désactiver le secret</summary>
+                        <input type="text" name="stripe_webhook_secret" placeholder="Nouveau secret" autocomplete="off" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="text" name="stripe_webhook_secret" placeholder="whsec_…" autocomplete="off">
+                <?php endif; ?>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+        </form>
+
+        <h2 style="margin-top:2rem">Paliers Premium</h2>
+        <table class="admin-table" style="margin-bottom:1rem">
+            <thead><tr><th>Code</th><th>Nom</th><th>Membres max</th><th>Prix / mois</th><th>Prix / an</th><th>Prix Stripe (mensuel)</th><th>Prix Stripe (annuel)</th><th>Actif</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($plans as $p): ?>
+                <tr>
+                    <td><?= htmlspecialchars($p['code']) ?></td>
+                    <td><?= htmlspecialchars($p['name']) ?></td>
+                    <td><?= $p['member_limit'] ?: 'Illimité' ?></td>
+                    <td><?= number_format($p['price_monthly_cents'] / 100, 2, ',', ' ') ?> €</td>
+                    <td><?= number_format($p['price_yearly_cents'] / 100, 2, ',', ' ') ?> €</td>
+                    <td style="font-size:.75rem;color:var(--text-muted)"><?= htmlspecialchars($p['stripe_price_id_monthly'] ?? '—') ?></td>
+                    <td style="font-size:.75rem;color:var(--text-muted)"><?= htmlspecialchars($p['stripe_price_id_yearly'] ?? '—') ?></td>
+                    <td><?= $p['active'] ? '✅' : '⛔' ?></td>
+                    <td style="display:flex;gap:.3rem">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="editPlan(<?= htmlspecialchars(json_encode($p), ENT_QUOTES) ?>)">Modifier</button>
+                        <?php if ($p['active']): ?>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/plans/<?= $p['id'] ?>/deactivate" onsubmit="return confirm('Désactiver ce palier ? Il ne sera plus proposé aux nouvelles souscriptions.');"><?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-danger btn-sm">Désactiver</button>
+                        </form>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <button type="button" class="btn btn-primary btn-sm" onclick="newPlan()">+ Nouveau palier</button>
+
+        <form method="POST" action="<?= BASE_URL ?>/admin/plans" id="plan-form" class="card" style="padding:1.25rem;max-width:640px;margin-top:1rem"><?= \App\Core\Csrf::field() ?>
+            <input type="hidden" name="id" id="plan-id">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Code (identifiant technique)</label>
+                    <input type="text" name="code" id="plan-code" placeholder="premium_4">
+                </div>
+                <div class="form-group">
+                    <label>Nom affiché</label>
+                    <input type="text" name="name" id="plan-name" value="Premium">
+                </div>
+                <div class="form-group">
+                    <label>Membres max (vide = illimité)</label>
+                    <input type="number" name="member_limit" id="plan-member-limit" min="1">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Prix mensuel (€)</label>
+                    <input type="text" name="price_monthly" id="plan-price-monthly" placeholder="4.99">
+                </div>
+                <div class="form-group">
+                    <label>Prix annuel (€)</label>
+                    <input type="text" name="price_yearly" id="plan-price-yearly" placeholder="47.90">
+                </div>
+                <div class="form-group">
+                    <label>Ordre d'affichage</label>
+                    <input type="number" name="sort_order" id="plan-sort-order" value="0">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group flex-2">
+                    <label>ID Prix Stripe (mensuel)</label>
+                    <input type="text" name="stripe_price_id_monthly" id="plan-stripe-monthly" placeholder="price_...">
+                </div>
+                <div class="form-group flex-2">
+                    <label>ID Prix Stripe (annuel)</label>
+                    <input type="text" name="stripe_price_id_yearly" id="plan-stripe-yearly" placeholder="price_...">
+                </div>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="active" id="plan-active" value="1" checked> Actif (proposé aux familles)</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer le palier</button>
+        </form>
+        <script>
+        function newPlan() {
+            document.getElementById('plan-id').value = '';
+            document.getElementById('plan-code').value = '';
+            document.getElementById('plan-code').disabled = false;
+            document.getElementById('plan-name').value = 'Premium';
+            document.getElementById('plan-member-limit').value = '';
+            document.getElementById('plan-price-monthly').value = '';
+            document.getElementById('plan-price-yearly').value = '';
+            document.getElementById('plan-sort-order').value = '0';
+            document.getElementById('plan-stripe-monthly').value = '';
+            document.getElementById('plan-stripe-yearly').value = '';
+            document.getElementById('plan-active').checked = true;
+        }
+        function editPlan(p) {
+            document.getElementById('plan-id').value = p.id;
+            document.getElementById('plan-code').value = p.code;
+            document.getElementById('plan-code').disabled = true;
+            document.getElementById('plan-name').value = p.name;
+            document.getElementById('plan-member-limit').value = p.member_limit || '';
+            document.getElementById('plan-price-monthly').value = (p.price_monthly_cents / 100).toFixed(2);
+            document.getElementById('plan-price-yearly').value = (p.price_yearly_cents / 100).toFixed(2);
+            document.getElementById('plan-sort-order').value = p.sort_order;
+            document.getElementById('plan-stripe-monthly').value = p.stripe_price_id_monthly || '';
+            document.getElementById('plan-stripe-yearly').value = p.stripe_price_id_yearly || '';
+            document.getElementById('plan-active').checked = !!(p.active * 1);
+            document.getElementById('plan-form').scrollIntoView({ behavior: 'smooth' });
+        }
+        </script>
+
+        <h2 style="margin-top:2rem">Abonnements des familles</h2>
+        <table class="admin-table">
+            <thead><tr><th>Famille</th><th>Palier</th><th>Statut</th><th>Manuel</th><th>Fin de période</th><th>Données supprimées le</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($familySubscriptions as $fs): ?>
+                <tr>
+                    <td><?= htmlspecialchars($fs['family_name']) ?></td>
+                    <td><?= htmlspecialchars($fs['plan_name'] ?? '—') ?></td>
+                    <td>
+                        <?= htmlspecialchars($fs['status']) ?>
+                        <?php if (in_array($fs['status'], ['past_due', 'canceled'], true) && $fs['grace_ends_at'] && !$fs['data_purged_at']): ?>
+                            <br><small style="color:var(--danger)">Purge le <?= (new DateTime($fs['grace_ends_at']))->format('d/m/Y') ?></small>
+                        <?php endif; ?>
+                    </td>
+                    <td><?= $fs['manual'] ? '✅' : '' ?></td>
+                    <td><?= $fs['current_period_end'] ? (new DateTime($fs['current_period_end']))->format('d/m/Y') : '—' ?></td>
+                    <td><?= $fs['data_purged_at'] ? (new DateTime($fs['data_purged_at']))->format('d/m/Y') : '—' ?></td>
+                    <td>
+                        <?php if ($fs['manual']): ?>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/families/<?= $fs['family_id'] ?>/subscription/revoke"><?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
+                        </form>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($familySubscriptions)): ?>
+                <tr><td colspan="7" style="color:var(--text-muted)">Aucun abonnement pour le moment.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+        <p style="color:var(--text-muted);font-size:.8rem;margin-top:.5rem">Pour attribuer un palier manuellement à une famille (geste commercial, partenariat…), utilisez le formulaire depuis l'onglet « Familles ».</p>
+
+        <h2 style="margin-top:2rem">Suppressions définitives de données Premium</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Un instantané des données est conservé avant chaque suppression, consultable ci-dessous en cas de réclamation.
+        </p>
+        <table class="admin-table">
+            <thead><tr><th>Famille</th><th>Modules purgés</th><th>Date</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($premiumDataPurges as $pp): ?>
+                <tr>
+                    <td><?= htmlspecialchars($pp['family_name']) ?> (#<?= $pp['family_id'] ?>)</td>
+                    <td><?= htmlspecialchars($pp['modules_purged']) ?></td>
+                    <td><?= (new DateTime($pp['purged_at']))->format('d/m/Y H:i') ?></td>
+                    <td><a href="<?= BASE_URL ?>/admin/premium-purges/<?= $pp['id'] ?>/export" target="_blank" class="btn btn-secondary btn-sm">Voir l'instantané</a></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($premiumDataPurges)): ?>
+                <tr><td colspan="4" style="color:var(--text-muted)">Aucune suppression pour le moment.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
 
         <?php elseif ($tab === 'notifications'): ?>
         <h2>Notification système</h2>
