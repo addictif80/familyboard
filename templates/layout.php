@@ -196,7 +196,7 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                     <span class="nav-icon">✉️</span>
                     <span class="nav-label">Messages privés</span>
                     <?php $_dmUnread = \App\Models\DirectMessage::getUnreadTotal($currentUser['id']); ?>
-                    <?php if ($_dmUnread > 0): ?><span class="badge"><?= $_dmUnread ?></span><?php endif; ?>
+                    <?php if ($_dmUnread > 0): ?><span class="badge-dot"><?= $_dmUnread ?></span><?php endif; ?>
                 </a>
             </li>
             <?php endif; ?>
@@ -520,7 +520,7 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                 <button class="btn-icon" onclick="toggleNotifications()" title="Notifications">
                     🔔
                     <?php if ($unreadCount > 0): ?>
-                        <span class="badge" id="notif-badge"><?= $unreadCount ?></span>
+                        <span class="badge-dot" id="notif-badge"><?= $unreadCount ?></span>
                     <?php endif; ?>
                 </button>
             </div>
