@@ -46,6 +46,24 @@ async function requestVaultInvite() {
     btn.textContent = 'Créer mon coffre-fort';
 }
 
+// ---- Import Digiposte ----
+async function digiposteSyncNow() {
+    const btn = document.getElementById('digiposte-sync-btn');
+    const msg = document.getElementById('digiposte-sync-message');
+    btn.disabled = true;
+    btn.textContent = 'Import en cours…';
+    const r = await apiFetch(BASE_URL + '/api/digiposte/sync', { method: 'POST' });
+    btn.disabled = false;
+    btn.textContent = '📥 Importer maintenant';
+    if (r.success) {
+        msg.style.color = 'var(--success)';
+        msg.textContent = r.imported > 0 ? `${r.imported} document(s) importé(s).` : 'Aucun nouveau document.';
+    } else {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = r.error || 'Erreur lors de l\'import.';
+    }
+}
+
 // ---- Double authentification (2FA) ----
 function tfaShowStatus(mode) {
     ['none', 'totp', 'email'].forEach(m => {

@@ -173,6 +173,33 @@ ob_start();
     </div>
     <?php endif; ?>
 
+    <?php if (!empty($digiposteConfigured)): ?>
+    <!-- Import de documents (Digiposte) -->
+    <div class="card settings-section">
+        <h3>📥 Coffre Digiposte</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Connectez votre coffre-fort Digiposte personnel pour importer vos documents dans le module
+            Documents. Compte strictement personnel — jamais partagé avec le reste de la famille.
+        </p>
+        <?php if ($digiposteConnection): ?>
+            <p class="alert alert-success" style="margin-bottom:.75rem">
+                Coffre connecté<?= $digiposteConnection['last_synced_at'] ? ' — dernier import le ' . htmlspecialchars(substr($digiposteConnection['last_synced_at'], 0, 16)) : '' ?>.
+                <?php if ($digiposteConnection['last_sync_error']): ?><br><small style="color:var(--danger)"><?= htmlspecialchars($digiposteConnection['last_sync_error']) ?></small><?php endif; ?>
+            </p>
+            <button type="button" class="btn btn-primary btn-sm" id="digiposte-sync-btn" onclick="digiposteSyncNow()">📥 Importer maintenant</button>
+            <form method="POST" action="<?= BASE_URL ?>/digiposte/disconnect" style="display:inline"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Déconnecter votre coffre Digiposte ?')">Déconnecter</button>
+            </form>
+            <p style="font-size:.8rem;margin-top:.5rem" id="digiposte-sync-message"></p>
+        <?php else: ?>
+            <a href="<?= BASE_URL ?>/digiposte/connect" class="btn btn-primary">🔗 Connecter mon coffre Digiposte</a>
+        <?php endif; ?>
+        <p style="color:var(--text-muted);font-size:.78rem;margin-top:.75rem">
+            L'import se fait automatiquement toutes les quelques heures, ou à la demande avec le bouton ci-dessus.
+        </p>
+    </div>
+    <?php endif; ?>
+
     <!-- Mes données -->
     <div class="card settings-section">
         <h3>📁 Mes données</h3>

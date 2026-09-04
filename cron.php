@@ -135,6 +135,24 @@ try {
     error_log('Subscription lapse processing error: ' . $e->getMessage());
 }
 
+// Import périodique des documents Digiposte des utilisateurs connectés — voir
+// App\Models\DigiposteConnection::syncUser() (jamais bloquant : chaque connexion en échec est
+// simplement ignorée jusqu'au prochain passage).
+try {
+    if (\App\Core\DigiposteClient::isConfigured()) {
+        $interval = (int)(AppSetting::get('digiposte_sync_interval_minutes') ?? '360');
+        $due = \App\Models\DigiposteConnection::getDueForSync($interval);
+        foreach ($due as $digiposteUser) {
+            $result = \App\Models\DigiposteConnection::syncUser($digiposteUser);
+            if ($result['imported'] > 0) {
+                echo "  → Digiposte: {$result['imported']} document(s) importé(s) pour l'utilisateur #{$digiposteUser['id']}" . PHP_EOL;
+            }
+        }
+    }
+} catch (\Throwable $e) {
+    error_log('Digiposte sync error: ' . $e->getMessage());
+}
+
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;
 
 // ──────────────────────────────────────────────────────────────────────────

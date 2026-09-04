@@ -56,6 +56,7 @@ use App\Controllers\LetterController;
 use App\Controllers\DisputeController;
 use App\Controllers\SchoolController;
 use App\Controllers\EmploymentController;
+use App\Controllers\DigiposteController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -319,6 +320,12 @@ $router->post('/api/employment/profiles/:id/sick-leaves', [EmploymentController:
 $router->post('/api/employment/profiles/:id/sick-leaves/:sickLeaveId', [EmploymentController::class, 'updateSickLeave']);
 $router->post('/api/employment/profiles/:id/sick-leaves/:sickLeaveId/delete', [EmploymentController::class, 'deleteSickLeave']);
 $router->post('/api/employment/profiles/:id/documents/link', [EmploymentController::class, 'updateLinkedDocuments']);
+
+// ── Import Digiposte ──────────────────────────────────────────
+$router->get('/digiposte/connect', [DigiposteController::class, 'connect']);
+$router->get('/digiposte/callback', [DigiposteController::class, 'callback']);
+$router->post('/digiposte/disconnect', [DigiposteController::class, 'disconnect']);
+$router->post('/api/digiposte/sync', [DigiposteController::class, 'syncNow']);
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
 $router->get('/additions/espace/:token', [AdditionController::class, 'guestSpace']);
@@ -514,6 +521,7 @@ $router->post('/admin/vaultwarden', [AdminController::class, 'updateVaultwardenS
 $router->post('/admin/vaultwarden/test', [AdminController::class, 'testVaultwardenConnection']);
 $router->post('/admin/mailcow', [AdminController::class, 'updateMailcowSettings']);
 $router->post('/admin/mailcow/test', [AdminController::class, 'testMailcowConnection']);
+$router->post('/admin/digiposte', [AdminController::class, 'updateDigiposteSettings']);
 $router->post('/admin/subscriptions/settings', [AdminController::class, 'updateSubscriptionSettings']);
 $router->post('/admin/subscriptions/stripe', [AdminController::class, 'updateStripeSettings']);
 $router->post('/admin/plans', [AdminController::class, 'savePlan']);
