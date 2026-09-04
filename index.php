@@ -56,6 +56,7 @@ use App\Controllers\LetterController;
 use App\Controllers\DisputeController;
 use App\Controllers\SchoolController;
 use App\Controllers\EmploymentController;
+use App\Controllers\NannyController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -319,6 +320,18 @@ $router->post('/api/employment/profiles/:id/sick-leaves', [EmploymentController:
 $router->post('/api/employment/profiles/:id/sick-leaves/:sickLeaveId', [EmploymentController::class, 'updateSickLeave']);
 $router->post('/api/employment/profiles/:id/sick-leaves/:sickLeaveId/delete', [EmploymentController::class, 'deleteSickLeave']);
 $router->post('/api/employment/profiles/:id/documents/link', [EmploymentController::class, 'updateLinkedDocuments']);
+
+// ── Suivi nounou ──────────────────────────────────────────────
+$router->get('/nanny', [NannyController::class, 'index']);
+$router->post('/api/nanny/children', [NannyController::class, 'createChild']);
+$router->post('/api/nanny/children/:id', [NannyController::class, 'updateChild']);
+$router->post('/api/nanny/children/:id/delete', [NannyController::class, 'deleteChild']);
+$router->post('/api/nanny/entries', [NannyController::class, 'addEntry']);
+$router->post('/api/nanny/entries/:id', [NannyController::class, 'updateEntry']);
+$router->post('/api/nanny/entries/:id/delete', [NannyController::class, 'deleteEntry']);
+$router->get('/nanny/report/:year/:month/pdf', [NannyController::class, 'monthlyPdf']);
+$router->get('/nanny/report/:year/pdf', [NannyController::class, 'annualPdf']);
+
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
 $router->get('/additions/espace/:token', [AdditionController::class, 'guestSpace']);

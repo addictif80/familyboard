@@ -259,6 +259,11 @@
             'Planning de travail, heures supplémentaires majorées et estimation du salaire brut → net social → net à verser',
             'Arrêts de travail avec indemnités journalières, et documents (bulletins, contrat) liés au module Documents',
         ]],
+        ['id' => 'nanny', 'icon' => '🕒', 'title' => 'Suivi nounou', 'badge' => 'Nouveau', 'tagline' => 'Heures de garde saisies au jour le jour, avec totaux et rapports PDF.', 'points' => [
+            'Saisie manuelle par jour, liée en option à un enfant de la famille',
+            'Totaux mensuel et annuel calculés automatiquement',
+            'Rapport PDF téléchargeable, mois par mois ou sur l\'année entière',
+        ]],
     ];
     ?>
     <section class="landing-section">
