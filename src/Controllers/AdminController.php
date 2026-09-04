@@ -22,6 +22,7 @@ use App\Core\EmailLayout;
 use App\Core\Vaultwarden;
 use App\Models\VaultwardenSettings;
 use App\Core\Mailcow;
+use App\Core\StripeGateway;
 use App\Models\MailcowSettings;
 use App\Models\Plan;
 use App\Models\FamilySubscription;
@@ -712,23 +713,49 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $id = (int)($_POST['id'] ?? 0);
+        $existing = $id ? Plan::getById($id) : null;
+        $name = trim($_POST['name'] ?? '') ?: 'Premium';
         $d = [
             'code' => preg_replace('/[^a-z0-9_]/', '', strtolower(trim($_POST['code'] ?? ''))) ?: ('plan_' . time()),
-            'name' => trim($_POST['name'] ?? '') ?: 'Premium',
+            'name' => $name,
             'member_limit' => ($_POST['member_limit'] ?? '') === '' ? null : max(1, (int)$_POST['member_limit']),
             'price_monthly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_monthly'] ?? '0')) * 100)),
             'price_yearly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_yearly'] ?? '0')) * 100)),
-            'stripe_price_id_monthly' => trim($_POST['stripe_price_id_monthly'] ?? '') ?: null,
-            'stripe_price_id_yearly' => trim($_POST['stripe_price_id_yearly'] ?? '') ?: null,
+            'stripe_product_id' => $existing['stripe_product_id'] ?? null,
+            'stripe_price_id_monthly' => $existing['stripe_price_id_monthly'] ?? null,
+            'stripe_price_id_yearly' => $existing['stripe_price_id_yearly'] ?? null,
             'sort_order' => (int)($_POST['sort_order'] ?? 0),
             'active' => !empty($_POST['active']),
         ];
+        // Crée/rafraîchit automatiquement le Produit et les Prix Stripe correspondants — l'admin
+        // n'a plus besoin de gérer quoi que ce soit dans le dashboard Stripe. Si Stripe n'est pas
+        // configuré ou en cas d'erreur API, le palier est quand même enregistré (sans blocage).
+        $msg = 'plan_saved';
+        if (StripeGateway::isConfigured()) {
+            try {
+                $stripe = StripeGateway::syncPlanPrices(
+                    $name,
+                    $d['price_monthly_cents'],
+                    $d['price_yearly_cents'],
+                    $d['stripe_product_id'],
+                    $d['stripe_price_id_monthly'],
+                    $d['stripe_price_id_yearly'],
+                    $existing['price_monthly_cents'] ?? null,
+                    $existing['price_yearly_cents'] ?? null
+                );
+                $d['stripe_product_id'] = $stripe['stripe_product_id'];
+                $d['stripe_price_id_monthly'] = $stripe['stripe_price_id_monthly'];
+                $d['stripe_price_id_yearly'] = $stripe['stripe_price_id_yearly'];
+            } catch (\RuntimeException $e) {
+                $msg = 'plan_saved_stripe_error';
+            }
+        }
         if ($id) {
             Plan::update($id, $d);
         } else {
-            Plan::create($d);
+            $id = Plan::create($d);
         }
-        $this->redirect('/admin?tab=subscriptions&msg=plan_saved');
+        $this->redirect('/admin?tab=subscriptions&msg=' . $msg);
     }
 
     public function deactivatePlan(array $params): void

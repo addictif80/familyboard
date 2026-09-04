@@ -24,19 +24,19 @@ class Plan
     public static function create(array $d): int
     {
         return Database::insert(
-            'INSERT INTO plans (code, name, member_limit, price_monthly_cents, price_yearly_cents, stripe_price_id_monthly, stripe_price_id_yearly, sort_order, active)
-             VALUES (?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO plans (code, name, member_limit, price_monthly_cents, price_yearly_cents, stripe_product_id, stripe_price_id_monthly, stripe_price_id_yearly, sort_order, active)
+             VALUES (?,?,?,?,?,?,?,?,?,?)',
             [$d['code'], $d['name'], $d['member_limit'], $d['price_monthly_cents'], $d['price_yearly_cents'],
-             $d['stripe_price_id_monthly'], $d['stripe_price_id_yearly'], $d['sort_order'], $d['active'] ? 1 : 0]
+             $d['stripe_product_id'], $d['stripe_price_id_monthly'], $d['stripe_price_id_yearly'], $d['sort_order'], $d['active'] ? 1 : 0]
         );
     }
 
     public static function update(int $id, array $d): void
     {
         Database::execute(
-            'UPDATE plans SET name=?, member_limit=?, price_monthly_cents=?, price_yearly_cents=?, stripe_price_id_monthly=?, stripe_price_id_yearly=?, sort_order=?, active=? WHERE id=?',
+            'UPDATE plans SET name=?, member_limit=?, price_monthly_cents=?, price_yearly_cents=?, stripe_product_id=?, stripe_price_id_monthly=?, stripe_price_id_yearly=?, sort_order=?, active=? WHERE id=?',
             [$d['name'], $d['member_limit'], $d['price_monthly_cents'], $d['price_yearly_cents'],
-             $d['stripe_price_id_monthly'], $d['stripe_price_id_yearly'], $d['sort_order'], $d['active'] ? 1 : 0, $id]
+             $d['stripe_product_id'], $d['stripe_price_id_monthly'], $d['stripe_price_id_yearly'], $d['sort_order'], $d['active'] ? 1 : 0, $id]
         );
     }
 
