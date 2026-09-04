@@ -254,6 +254,11 @@
             'Absences justifiées ou non, activités extra-scolaires et bulletins numérisés',
             'Nouveau : liez la fiche d\'un enfant au compte d\'un membre ou d\'un co-parent pour lui donner un accès en lecture seule à ses notes, absences et bulletins',
         ]],
+        ['id' => 'employment', 'icon' => '💼', 'title' => 'Suivi salarié', 'badge' => 'Nouveau', 'tagline' => 'Emploi, congés, heures et paie d\'un membre de la famille, en un coup d\'œil.', 'points' => [
+            'Employeur recherché automatiquement par SIREN, congés payés et RTT calculés depuis le calendrier familial',
+            'Planning de travail, heures supplémentaires majorées et estimation du salaire brut → net social → net à verser',
+            'Arrêts de travail avec indemnités journalières, et documents (bulletins, contrat) liés au module Documents',
+        ]],
     ];
     ?>
     <section class="landing-section">

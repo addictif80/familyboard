@@ -35,6 +35,7 @@ class CalendarController extends BaseController
         }
 
         $custodySchedules = \App\Models\Custody::getSchedules($familyId);
+        $employmentProfiles = \App\Models\EmploymentProfile::getByFamily($familyId);
         $hasProjects = !empty(\App\Models\Project::getByFamily($familyId));
         try {
             $friendFamilies = FamilyFriend::getAcceptedFor($familyId);
@@ -90,6 +91,8 @@ class CalendarController extends BaseController
                     'caldav' => (bool)$e['caldav_uid'],
                     'type' => 'event',
                     'custody_schedule_ids' => $e['custody_schedule_ids'] ?? null,
+                    'employment_profile_id' => $e['employment_profile_id'] ?? null,
+                    'employment_leave_type' => $e['employment_leave_type'] ?? null,
                     'professional_name' => $e['professional_name'] ?? null,
                     'location' => $e['location'] ?? null,
                     'location_lat' => $e['location_lat'] ?? null,
@@ -229,6 +232,8 @@ class CalendarController extends BaseController
             $data['user_id'] = $user['id'];
             $data['color'] = $this->safeColor($data['color'] ?? null);
             $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds($data['custody_schedule_ids'] ?? [], $user['family_id']);
+            $data['employment_profile_id'] = $this->validateFamilyEmploymentProfileId($data['employment_profile_id'] ?? null, (int)$user['family_id']);
+            if (!$data['employment_profile_id']) $data['employment_leave_type'] = null;
             $id = Event::create($data);
             $event = Event::getById($id);
             foreach ($data['custody_schedule_ids'] as $scheduleId) {
@@ -267,6 +272,8 @@ class CalendarController extends BaseController
             $data = $this->jsonInput();
             $data['color'] = $this->safeColor($data['color'] ?? null);
             $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds($data['custody_schedule_ids'] ?? [], $user['family_id']);
+            $data['employment_profile_id'] = $this->validateFamilyEmploymentProfileId($data['employment_profile_id'] ?? null, (int)$user['family_id']);
+            if (!$data['employment_profile_id']) $data['employment_leave_type'] = null;
             Event::update($id, $data);
             foreach ($data['custody_schedule_ids'] as $scheduleId) {
                 CustodyActivityLog::record($scheduleId, $user['id'], 'event_updated', $data['title'] ?? $event['title']);

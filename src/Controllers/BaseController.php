@@ -289,6 +289,16 @@ class BaseController
         }));
     }
 
+    /** Un événement du calendrier ne peut être tagué "congé/RTT/absence" que sur un profil du
+     *  module Suivi salarié appartenant réellement à la famille — jamais un id client arbitraire. */
+    protected function validateFamilyEmploymentProfileId(mixed $profileId, int $familyId): ?int
+    {
+        $profileId = (int)$profileId;
+        if (!$profileId) return null;
+        $profile = \App\Models\EmploymentProfile::getById($profileId);
+        return ($profile && (int)$profile['family_id'] === $familyId) ? $profileId : null;
+    }
+
     /** Raison du dernier rejet de uploadImage() (null si succès, ou si rien n'a été soumis) —
      *  les appelants qui veulent renvoyer un message précis à l'utilisateur (plutôt que de
      *  laisser un envoi refusé passer inaperçu, ex. un format non supporté) lisent cette

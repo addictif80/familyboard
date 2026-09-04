@@ -34,25 +34,27 @@ class Event
     public static function create(array $data): int
     {
         return Database::insert(
-            'INSERT INTO events (family_id, user_id, title, description, start_datetime, end_datetime, is_all_day, color, recurrence, recurrence_end, custody_schedule_ids, professional_name, location, location_lat, location_lng) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO events (family_id, user_id, title, description, start_datetime, end_datetime, is_all_day, color, recurrence, recurrence_end, custody_schedule_ids, professional_name, location, location_lat, location_lng, employment_profile_id, employment_leave_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [$data['family_id'], $data['user_id'], $data['title'], $data['description'] ?? null,
              $data['start_datetime'], $data['end_datetime'], $data['is_all_day'] ?? 0,
              $data['color'] ?? '#4A90D9', $data['recurrence'] ?? null, $data['recurrence_end'] ?? null,
              self::encodeScheduleIds($data),
              $data['professional_name'] ?? null, $data['location'] ?? null,
-             $data['location_lat'] ?? null, $data['location_lng'] ?? null]
+             $data['location_lat'] ?? null, $data['location_lng'] ?? null,
+             $data['employment_profile_id'] ?? null, $data['employment_leave_type'] ?? null]
         );
     }
 
     public static function update(int $id, array $data): void
     {
         Database::execute(
-            'UPDATE events SET title=?, description=?, start_datetime=?, end_datetime=?, is_all_day=?, color=?, recurrence=?, recurrence_end=?, custody_schedule_ids=?, professional_name=?, location=?, location_lat=?, location_lng=? WHERE id=?',
+            'UPDATE events SET title=?, description=?, start_datetime=?, end_datetime=?, is_all_day=?, color=?, recurrence=?, recurrence_end=?, custody_schedule_ids=?, professional_name=?, location=?, location_lat=?, location_lng=?, employment_profile_id=?, employment_leave_type=? WHERE id=?',
             [$data['title'], $data['description'] ?? null, $data['start_datetime'], $data['end_datetime'],
              $data['is_all_day'] ?? 0, $data['color'] ?? '#4A90D9', $data['recurrence'] ?? null, $data['recurrence_end'] ?? null,
              self::encodeScheduleIds($data),
              $data['professional_name'] ?? null, $data['location'] ?? null,
-             $data['location_lat'] ?? null, $data['location_lng'] ?? null, $id]
+             $data['location_lat'] ?? null, $data['location_lng'] ?? null,
+             $data['employment_profile_id'] ?? null, $data['employment_leave_type'] ?? null, $id]
         );
     }
 

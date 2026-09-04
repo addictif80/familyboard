@@ -270,6 +270,12 @@ function openEventModal(date = null, eventData = null) {
         document.getElementById('event-custody-select-wrap').style.display = 'none';
         document.querySelectorAll('.event-custody-child-cb').forEach(cb => { cb.checked = false; });
     }
+    const employmentToggle = document.getElementById('event-employment-toggle');
+    if (employmentToggle) {
+        employmentToggle.checked = false;
+        document.getElementById('event-employment-select-wrap').style.display = 'none';
+        document.getElementById('event-employment-leave-type').value = 'paid_leave';
+    }
     const shareWrap = document.getElementById('event-share-wrap');
     if (shareWrap) {
         // Uniquement à la création — un événement déjà partagé ne peut plus être ré-invité
@@ -318,6 +324,15 @@ function openEventModal(date = null, eventData = null) {
                 cb.checked = csIds.includes(parseInt(cb.value, 10));
             });
         }
+        if (employmentToggle) {
+            const profId = eventData.extendedProps?.employment_profile_id;
+            employmentToggle.checked = !!profId;
+            document.getElementById('event-employment-select-wrap').style.display = profId ? '' : 'none';
+            if (profId) {
+                document.getElementById('event-employment-profile').value = profId;
+                document.getElementById('event-employment-leave-type').value = eventData.extendedProps?.employment_leave_type || 'paid_leave';
+            }
+        }
     }
     const statusEl = document.getElementById('event-share-status');
     if (statusEl) {
@@ -360,6 +375,11 @@ async function saveEvent() {
     const custodyToggle = document.getElementById('event-custody-toggle');
     if (custodyToggle && custodyToggle.checked) {
         data.custody_schedule_ids = Array.from(document.querySelectorAll('.event-custody-child-cb:checked')).map(cb => parseInt(cb.value, 10));
+    }
+    const employmentToggle = document.getElementById('event-employment-toggle');
+    if (employmentToggle) {
+        data.employment_profile_id = employmentToggle.checked ? parseInt(document.getElementById('event-employment-profile').value, 10) : null;
+        data.employment_leave_type = employmentToggle.checked ? document.getElementById('event-employment-leave-type').value : null;
     }
     const shareToggle = document.getElementById('event-share-toggle');
     if (shareToggle && shareToggle.checked) {
