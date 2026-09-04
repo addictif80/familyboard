@@ -33,15 +33,15 @@ class Custody
         );
     }
 
-    public static function createSchedule(int $familyId, string $childName, string $color = '#E67E22', string $notes = '', array $recurrence = []): int
+    public static function createSchedule(int $familyId, string $childName, string $color = '#E67E22', string $notes = '', array $recurrence = [], ?int $familyChildId = null): int
     {
         return Database::insert(
             'INSERT INTO custody_schedules
              (family_id, child_name, color, notes, recurrence_type, recurrence_start, handover_weekday, extra_weekday, handover_time,
               recurrence_parent1_id, recurrence_parent2_id,
               recurrence_parent1_label, recurrence_parent1_color,
-              recurrence_parent2_label, recurrence_parent2_color)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+              recurrence_parent2_label, recurrence_parent2_color, family_child_id)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId, $childName, $color, $notes,
                 $recurrence['type'] ?? 'none',
@@ -55,6 +55,7 @@ class Custody
                 $recurrence['parent1_color'] ?? '#4A90D9',
                 $recurrence['parent2_label'] ?? null,
                 $recurrence['parent2_color'] ?? '#E74C3C',
+                $familyChildId,
             ]
         );
     }

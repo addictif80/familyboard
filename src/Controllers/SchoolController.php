@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\Document;
+use App\Models\FamilyChild;
 use App\Models\SchoolStudent;
 use App\Models\TaskList;
 use App\Models\User;
@@ -20,6 +21,7 @@ class SchoolController extends BaseController
         // Un co-parent ne voit jamais la liste complète des enfants de la famille — seulement
         // les fiches où il a explicitement été lié (voir updateLinks()).
         $students = $isCoparent ? SchoolStudent::getByLinkedCoparent((int)$user['id']) : SchoolStudent::getByFamily($familyId);
+        $familyChildren = $isCoparent ? [] : FamilyChild::getByFamily($familyId);
 
         $selectedId = (int)($_GET['id'] ?? 0);
         $selected = null;
@@ -69,9 +71,32 @@ class SchoolController extends BaseController
         $this->json(function () {
             $user = Session::user();
             if ($user['role'] === 'coparent') return ['success' => false, 'error' => 'Accès refusé.'];
-            $d = $this->validatedStudent($this->jsonInput());
-            if (!$d) return ['success' => false, 'error' => 'Le nom est requis.'];
-            $id = SchoolStudent::create((int)$user['family_id'], (int)$user['id'], $d);
+            $familyId = (int)$user['family_id'];
+            $data = $this->jsonInput();
+
+            // L'élève est toujours identifié via le registre familial central (voir
+            // App\Models\FamilyChild) : soit une fiche déjà existante, soit un nouveau nom
+            // (enregistré dans le registre en même temps) — jamais un simple champ libre
+            // propre au module, pour rester réutilisable dans Nounou/Garde alternée/Bébé.
+            $newChildName = trim($data['new_child_name'] ?? '');
+            $familyChildId = (int)($data['family_child_id'] ?? 0) ?: null;
+            if ($newChildName !== '') {
+                $familyChildId = FamilyChild::findOrCreateByName($familyId, (int)$user['id'], $newChildName);
+            } elseif ($familyChildId) {
+                $fc = FamilyChild::getById($familyChildId);
+                if (!$fc || (int)$fc['family_id'] !== $familyId) $familyChildId = null;
+            }
+            if (!$familyChildId) return ['success' => false, 'error' => 'Choisissez un enfant ou saisissez le nom d\'un nouvel enfant.'];
+            $familyChild = FamilyChild::getById($familyChildId);
+
+            $d = [
+                'name' => $familyChild['name'],
+                'school_name' => trim($data['school_name'] ?? ''),
+                'class_name' => trim($data['class_name'] ?? ''),
+                'color' => $familyChild['color'],
+                'family_child_id' => $familyChildId,
+            ];
+            $id = SchoolStudent::create($familyId, (int)$user['id'], $d);
             return ['success' => true, 'id' => $id];
         });
     }

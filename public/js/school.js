@@ -9,13 +9,26 @@ function switchSchoolTab(tab) {
 
 // ---- Élève ----
 
+function onStudentChildSelect() {
+    const select = document.getElementById('student-child-select');
+    const isNew = select.value === '__new__';
+    document.getElementById('student-name-group').style.display = isNew ? '' : 'none';
+    if (!isNew) {
+        const color = select.options[select.selectedIndex]?.dataset.color;
+        if (color) document.getElementById('student-color').value = color;
+    }
+}
+
 function openNewStudentModal() {
     document.getElementById('student-modal-title').textContent = 'Nouvel élève';
     document.getElementById('student-id').value = '';
+    document.getElementById('student-child-select-group').style.display = '';
+    document.getElementById('student-child-select').value = '__new__';
     document.getElementById('student-name').value = '';
     document.getElementById('student-school').value = '';
     document.getElementById('student-class').value = '';
     document.getElementById('student-color').value = '#4A90D9';
+    onStudentChildSelect();
     openModal('student-modal');
 }
 
@@ -23,6 +36,8 @@ function openEditStudentModal() {
     if (!SELECTED_STUDENT) return;
     document.getElementById('student-modal-title').textContent = "Modifier l'élève";
     document.getElementById('student-id').value = SELECTED_STUDENT.id;
+    document.getElementById('student-child-select-group').style.display = 'none';
+    document.getElementById('student-name-group').style.display = '';
     document.getElementById('student-name').value = SELECTED_STUDENT.name;
     document.getElementById('student-school').value = SELECTED_STUDENT.school_name || '';
     document.getElementById('student-class').value = SELECTED_STUDENT.class_name || '';
@@ -31,15 +46,28 @@ function openEditStudentModal() {
 }
 
 async function saveStudent() {
-    const name = document.getElementById('student-name').value.trim();
-    if (!name) { Dialog.toast('Le nom est requis.', 'error'); return; }
+    const id = document.getElementById('student-id').value;
     const payload = {
-        name,
         school_name: document.getElementById('student-school').value,
         class_name: document.getElementById('student-class').value,
         color: document.getElementById('student-color').value,
     };
-    const id = document.getElementById('student-id').value;
+    if (id) {
+        // Modification : le nom reste un champ libre propre à la fiche élève.
+        const name = document.getElementById('student-name').value.trim();
+        if (!name) { Dialog.toast('Le nom est requis.', 'error'); return; }
+        payload.name = name;
+    } else {
+        // Création : identifié via le registre familial (enfant existant, ou nouveau nom).
+        const childSelect = document.getElementById('student-child-select').value;
+        if (childSelect === '__new__') {
+            const name = document.getElementById('student-name').value.trim();
+            if (!name) { Dialog.toast('Le nom est requis.', 'error'); return; }
+            payload.new_child_name = name;
+        } else {
+            payload.family_child_id = childSelect;
+        }
+    }
     const url = id ? `${BASE_URL}/api/school/students/${id}` : `${BASE_URL}/api/school/students`;
     const r = await apiFetch(url, { method: 'POST', body: JSON.stringify(payload) });
     if (r.success) {

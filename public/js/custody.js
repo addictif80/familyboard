@@ -171,11 +171,24 @@ function custodyNextMonth() { custodyCurrentDate.setMonth(custodyCurrentDate.get
 
 // ---- Schedule modal ----
 
+function onScheduleChildSelect() {
+    const select = document.getElementById('schedule-child-select');
+    const isNew = select.value === '__new__';
+    document.getElementById('schedule-child-name-group').style.display = isNew ? '' : 'none';
+    if (!isNew) {
+        const color = select.options[select.selectedIndex]?.dataset.color;
+        if (color) document.getElementById('schedule-color').value = color;
+    }
+}
+
 function openScheduleModal() {
     document.getElementById('schedule-modal-title').textContent = 'Ajouter un enfant';
     document.getElementById('schedule-id').value = '';
+    document.getElementById('schedule-child-select-group').style.display = '';
+    document.getElementById('schedule-child-select').value = '__new__';
     document.getElementById('schedule-child-name').value = '';
     document.getElementById('schedule-color').value = '#E67E22';
+    onScheduleChildSelect();
     document.getElementById('schedule-notes').value = '';
     document.getElementById('schedule-recurrence-type').value = 'none';
     document.getElementById('schedule-recurrence-start').value = '';
@@ -195,6 +208,8 @@ function openScheduleModal() {
 function openEditScheduleModal(schedule) {
     document.getElementById('schedule-modal-title').textContent = 'Modifier le planning';
     document.getElementById('schedule-id').value = schedule.id;
+    document.getElementById('schedule-child-select-group').style.display = 'none';
+    document.getElementById('schedule-child-name-group').style.display = '';
     document.getElementById('schedule-child-name').value = schedule.child_name;
     document.getElementById('schedule-color').value = schedule.color;
     document.getElementById('schedule-notes').value = schedule.notes || '';
@@ -230,8 +245,20 @@ function fillParentFromMember(num, select) {
 }
 
 async function saveSchedule() {
-    const childName = document.getElementById('schedule-child-name').value.trim();
-    if (!childName) { Dialog.toast('Prénom requis.', 'error'); return; }
+    const id = document.getElementById('schedule-id').value;
+    let childName = null, familyChildId = null, newChildName = null;
+    if (id) {
+        childName = document.getElementById('schedule-child-name').value.trim();
+        if (!childName) { Dialog.toast('Prénom requis.', 'error'); return; }
+    } else {
+        const childSelect = document.getElementById('schedule-child-select').value;
+        if (childSelect === '__new__') {
+            newChildName = document.getElementById('schedule-child-name').value.trim();
+            if (!newChildName) { Dialog.toast('Prénom requis.', 'error'); return; }
+        } else {
+            familyChildId = childSelect;
+        }
+    }
 
     const recType = document.getElementById('schedule-recurrence-type').value;
     const recStart = document.getElementById('schedule-recurrence-start').value;
@@ -246,6 +273,8 @@ async function saveSchedule() {
 
     const data = {
         child_name: childName,
+        family_child_id: familyChildId,
+        new_child_name: newChildName,
         color: document.getElementById('schedule-color').value,
         notes: document.getElementById('schedule-notes').value,
         recurrence_type: recType,
@@ -261,7 +290,6 @@ async function saveSchedule() {
         recurrence_parent2_color: document.getElementById('schedule-parent2-color').value,
     };
 
-    const id = document.getElementById('schedule-id').value;
     const url = id ? `${BASE_URL}/api/custody/schedule/${id}` : `${BASE_URL}/api/custody/schedule`;
     const result = await apiFetch(url, { method: 'POST', body: JSON.stringify(data) });
     if (result.success) { closeModal('schedule-modal'); location.reload(); }

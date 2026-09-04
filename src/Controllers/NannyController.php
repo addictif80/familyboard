@@ -2,6 +2,7 @@
 namespace App\Controllers;
 
 use App\Core\Session;
+use App\Models\FamilyChild;
 use App\Models\NannyHours;
 
 class NannyController extends BaseController
@@ -19,7 +20,7 @@ class NannyController extends BaseController
         if ($month < 1 || $month > 12) $month = (int)date('n');
         $childId = (int)($_GET['child_id'] ?? 0) ?: null;
 
-        $children = NannyHours::getChildrenByFamily($familyId);
+        $children = FamilyChild::getByFamily($familyId);
         if ($childId && !in_array($childId, array_column($children, 'id'), true)) $childId = null;
 
         $entries = NannyHours::getEntries($familyId, ['year' => $year, 'month' => $month, 'child_id' => $childId]);
@@ -31,47 +32,6 @@ class NannyController extends BaseController
         require BASE_PATH . '/templates/nanny/index.php';
     }
 
-    // ── Enfants ──────────────────────────────────────────────────
-
-    public function createChild(array $params): void
-    {
-        $this->requireAuth();
-        $this->json(function () {
-            $user = Session::user();
-            if ($user['role'] === 'coparent') return ['success' => false, 'error' => 'Accès refusé.'];
-            $d = $this->validatedChild($this->jsonInput());
-            if (!$d) return ['success' => false, 'error' => 'Le nom est requis.'];
-            $id = NannyHours::createChild((int)$user['family_id'], (int)$user['id'], $d);
-            return ['success' => true, 'id' => $id];
-        });
-    }
-
-    public function updateChild(array $params): void
-    {
-        $this->requireAuth();
-        $this->json(function () use ($params) {
-            $user = Session::user();
-            $child = $this->ownedChild((int)$params['id']);
-            if (!$child || $user['role'] === 'coparent') return ['success' => false, 'error' => 'Enfant introuvable.'];
-            $d = $this->validatedChild($this->jsonInput());
-            if (!$d) return ['success' => false, 'error' => 'Le nom est requis.'];
-            NannyHours::updateChild((int)$params['id'], (int)$user['family_id'], $d);
-            return ['success' => true];
-        });
-    }
-
-    public function deleteChild(array $params): void
-    {
-        $this->requireAuth();
-        $this->json(function () use ($params) {
-            $user = Session::user();
-            $child = $this->ownedChild((int)$params['id']);
-            if (!$child || $user['role'] === 'coparent') return ['success' => false];
-            NannyHours::deleteChild((int)$params['id'], (int)$user['family_id']);
-            return ['success' => true];
-        });
-    }
-
     // ── Entrées d'heures ─────────────────────────────────────────
 
     public function addEntry(array $params): void
@@ -80,7 +40,7 @@ class NannyController extends BaseController
         $this->json(function () {
             $user = Session::user();
             if ($user['role'] === 'coparent') return ['success' => false, 'error' => 'Accès refusé.'];
-            $d = $this->validatedEntry($this->jsonInput(), (int)$user['family_id']);
+            $d = $this->validatedEntry($this->jsonInput(), (int)$user['family_id'], (int)$user['id']);
             if (!$d) return ['success' => false, 'error' => 'Date et nombre d\'heures (entre 0 et 24) requis.'];
             $id = NannyHours::addEntry((int)$user['family_id'], (int)$user['id'], $d);
             return ['success' => true, 'id' => $id];
@@ -94,7 +54,7 @@ class NannyController extends BaseController
             $user = Session::user();
             $entry = $this->ownedEntry((int)$params['id']);
             if (!$entry || $user['role'] === 'coparent') return ['success' => false, 'error' => 'Entrée introuvable.'];
-            $d = $this->validatedEntry($this->jsonInput(), (int)$user['family_id']);
+            $d = $this->validatedEntry($this->jsonInput(), (int)$user['family_id'], (int)$user['id']);
             if (!$d) return ['success' => false, 'error' => 'Date et nombre d\'heures (entre 0 et 24) requis.'];
             NannyHours::updateEntry((int)$params['id'], (int)$user['family_id'], $d);
             return ['success' => true];
@@ -128,7 +88,7 @@ class NannyController extends BaseController
 
         $entries = NannyHours::getEntries($familyId, ['year' => $year, 'month' => $month, 'child_id' => $childId]);
         $total = NannyHours::monthlyTotal($familyId, $year, $month, $childId);
-        $childLabel = $childId ? (NannyHours::getChildById($childId)['name'] ?? '') : 'Tous les enfants';
+        $childLabel = $childId ? (FamilyChild::getById($childId)['name'] ?? '') : 'Tous les enfants';
         $periodLabel = ucfirst((new \DateTime("$year-$month-01"))->format('F Y'));
 
         $this->renderReportPdf($entries, $total, $periodLabel, $childLabel, "rapport-nounou-$year-$month.pdf");
@@ -146,20 +106,12 @@ class NannyController extends BaseController
         $entries = NannyHours::getEntries($familyId, ['year' => $year, 'child_id' => $childId]);
         $total = NannyHours::annualTotal($familyId, $year, $childId);
         $breakdown = NannyHours::monthlyBreakdown($familyId, $year, $childId);
-        $childLabel = $childId ? (NannyHours::getChildById($childId)['name'] ?? '') : 'Tous les enfants';
+        $childLabel = $childId ? (FamilyChild::getById($childId)['name'] ?? '') : 'Tous les enfants';
 
         $this->renderReportPdf($entries, $total, "Année $year", $childLabel, "rapport-nounou-$year.pdf", $breakdown, $year);
     }
 
     // ── Helpers ──────────────────────────────────────────────────
-
-    private function ownedChild(int $id): ?array
-    {
-        $user = Session::user();
-        $child = NannyHours::getChildById($id);
-        if (!$child || (int)$child['family_id'] !== (int)$user['family_id']) return null;
-        return $child;
-    }
 
     private function ownedEntry(int $id): ?array
     {
@@ -169,24 +121,22 @@ class NannyController extends BaseController
         return $entry;
     }
 
-    private function validatedChild(array $data): ?array
-    {
-        $name = trim($data['name'] ?? '');
-        if ($name === '') return null;
-        return ['name' => $name, 'color' => $this->safeColor($data['color'] ?? null)];
-    }
-
-    private function validatedEntry(array $data, int $familyId): ?array
+    private function validatedEntry(array $data, int $familyId, int $userId): ?array
     {
         $date = trim($data['entry_date'] ?? '');
         $hours = is_numeric($data['hours'] ?? null) ? (float)$data['hours'] : null;
         if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $hours === null || $hours <= 0 || $hours > 24) {
             return null;
         }
-        $childId = (int)($data['child_id'] ?? 0) ?: null;
-        if ($childId) {
-            $child = NannyHours::getChildById($childId);
-            if (!$child || (int)$child['family_id'] !== $familyId) $childId = null;
+        $newChildName = trim($data['new_child_name'] ?? '');
+        if ($newChildName !== '') {
+            $childId = FamilyChild::findOrCreateByName($familyId, $userId, $newChildName);
+        } else {
+            $childId = (int)($data['child_id'] ?? 0) ?: null;
+            if ($childId) {
+                $child = FamilyChild::getById($childId);
+                if (!$child || (int)$child['family_id'] !== $familyId) $childId = null;
+            }
         }
         return [
             'child_id' => $childId,

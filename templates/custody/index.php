@@ -94,8 +94,17 @@ ob_start();
         <div class="modal-body">
             <input type="hidden" id="schedule-id">
 
+            <div class="form-group" id="schedule-child-select-group">
+                <label>Enfant</label>
+                <select id="schedule-child-select" onchange="onScheduleChildSelect()">
+                    <?php foreach ($familyChildren as $fc): ?>
+                        <option value="<?= $fc['id'] ?>" data-color="<?= htmlspecialchars($fc['color']) ?>"><?= htmlspecialchars($fc['name']) ?></option>
+                    <?php endforeach; ?>
+                    <option value="__new__" selected>+ Nouvel enfant…</option>
+                </select>
+            </div>
             <div class="form-row">
-                <div class="form-group flex-2">
+                <div class="form-group flex-2" id="schedule-child-name-group">
                     <label>Prénom de l'enfant</label>
                     <input type="text" id="schedule-child-name" placeholder="Emma, Lucas…">
                 </div>

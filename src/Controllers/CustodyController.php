@@ -5,6 +5,7 @@ use App\Core\Session;
 use App\Models\Custody;
 use App\Models\CustodyActivityLog;
 use App\Models\CustodyChecklist;
+use App\Models\FamilyChild;
 use App\Models\User;
 use App\Models\Notification;
 use App\Models\EmailContent;
@@ -18,6 +19,7 @@ class CustodyController extends BaseController
         $this->requireModule('custody');
         $user = Session::user();
         $schedules = Custody::getSchedules($user['family_id']);
+        $familyChildren = FamilyChild::getByFamily($user['family_id']);
         $members = User::getByFamily($user['family_id']);
         $checklistItems = CustodyChecklist::getItemsForFamily($user['family_id']);
 
@@ -123,6 +125,23 @@ class CustodyController extends BaseController
         $this->json(function () {
             $user = Session::user();
             $data = $this->jsonInput();
+            $familyId = (int)$user['family_id'];
+
+            // L'enfant est identifié via le registre familial central (voir App\Models\
+            // FamilyChild) : soit une fiche déjà existante, soit un nouveau nom (enregistré
+            // dans le registre en même temps) — le planning garde ensuite son propre nom/
+            // couleur, modifiables indépendamment par la suite.
+            $newChildName = trim($data['new_child_name'] ?? '');
+            $familyChildId = (int)($data['family_child_id'] ?? 0) ?: null;
+            if ($newChildName !== '') {
+                $familyChildId = FamilyChild::findOrCreateByName($familyId, (int)$user['id'], $newChildName, $data['color'] ?? '#E67E22');
+            } elseif ($familyChildId) {
+                $fc = FamilyChild::getById($familyChildId);
+                if (!$fc || (int)$fc['family_id'] !== $familyId) $familyChildId = null;
+            }
+            if (!$familyChildId) return ['success' => false, 'error' => 'Choisissez un enfant ou saisissez le nom d\'un nouvel enfant.'];
+            $childName = FamilyChild::getById($familyChildId)['name'];
+
             $recurrence = [
                 'type'             => $data['recurrence_type'] ?? 'none',
                 'start'            => $data['recurrence_start'] ?? null,
@@ -136,7 +155,7 @@ class CustodyController extends BaseController
                 'parent2_label'    => $data['recurrence_parent2_label'] ?? null,
                 'parent2_color'    => $data['recurrence_parent2_color'] ?? '#E74C3C',
             ];
-            $id = Custody::createSchedule($user['family_id'], $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence);
+            $id = Custody::createSchedule($familyId, $childName, $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence, $familyChildId);
             return ['success' => true, 'id' => $id];
         });
     }

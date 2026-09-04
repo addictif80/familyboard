@@ -541,6 +541,53 @@ ob_start();
     }
     </script>
 
+    <!-- Enfants de la famille (admin only) : registre central réutilisé par les modules Suivi
+         scolaire, Suivi nounou, Garde alternée et Bébé — un enfant n'est créé qu'une fois. -->
+    <div class="card settings-section">
+        <h3>🧒 Enfants de la famille</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Créez chaque enfant ici une seule fois : il devient ensuite disponible dans les modules Suivi scolaire, Suivi nounou, Garde alternée et Bébé, sans avoir à ressaisir son nom.
+        </p>
+        <div id="family-children-list">
+            <?php foreach ($familyChildren as $c): ?>
+            <div class="member-item" data-child-id="<?= $c['id'] ?>">
+                <div class="member-info">
+                    <span class="list-dot" style="background:<?= htmlspecialchars($c['color']) ?>"></span>
+                    <strong><?= htmlspecialchars($c['name']) ?></strong>
+                    <?php if ($c['birth_date']): ?><small>né(e) le <?= (new DateTime($c['birth_date']))->format('d/m/Y') ?></small><?php endif; ?>
+                </div>
+                <div>
+                    <button class="btn-icon" title="Modifier" onclick='openEditFamilyChildForm(<?= json_encode($c) ?>)'>✏️</button>
+                    <button class="btn-icon" title="Supprimer" onclick="deleteFamilyChild(<?= $c['id'] ?>)">🗑</button>
+                </div>
+            </div>
+            <?php endforeach; ?>
+            <?php if (empty($familyChildren)): ?>
+                <p class="empty-state">Aucun enfant enregistré.</p>
+            <?php endif; ?>
+        </div>
+        <hr>
+        <input type="hidden" id="family-child-id">
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label>Nom</label>
+                <input type="text" id="family-child-name">
+            </div>
+            <div class="form-group">
+                <label>Date de naissance</label>
+                <input type="date" id="family-child-birthdate">
+            </div>
+            <div class="form-group">
+                <label>Couleur</label>
+                <input type="color" id="family-child-color" value="#4A90D9">
+            </div>
+        </div>
+        <div style="display:flex;gap:.5rem">
+            <button class="btn btn-secondary btn-sm" id="family-child-form-cancel" style="display:none" onclick="resetFamilyChildForm()">Annuler</button>
+            <button class="btn btn-primary btn-sm" onclick="saveFamilyChild()">Ajouter</button>
+        </div>
+    </div>
+
     <!-- Modules (admin only) -->
     <?php $_disabledMods = \App\Models\Family::getDisabledModules($family ?? []); ?>
     <div class="card settings-section">

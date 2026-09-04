@@ -34,6 +34,7 @@ use App\Controllers\BudgetController;
 use App\Controllers\CustodyController;
 use App\Controllers\ProjectController;
 use App\Controllers\SettingsController;
+use App\Controllers\FamilyChildController;
 use App\Controllers\InvitationController;
 use App\Controllers\CoparentController;
 use App\Controllers\ContactController;
@@ -323,9 +324,6 @@ $router->post('/api/employment/profiles/:id/documents/link', [EmploymentControll
 
 // ── Suivi nounou ──────────────────────────────────────────────
 $router->get('/nanny', [NannyController::class, 'index']);
-$router->post('/api/nanny/children', [NannyController::class, 'createChild']);
-$router->post('/api/nanny/children/:id', [NannyController::class, 'updateChild']);
-$router->post('/api/nanny/children/:id/delete', [NannyController::class, 'deleteChild']);
 $router->post('/api/nanny/entries', [NannyController::class, 'addEntry']);
 $router->post('/api/nanny/entries/:id', [NannyController::class, 'updateEntry']);
 $router->post('/api/nanny/entries/:id/delete', [NannyController::class, 'deleteEntry']);
@@ -586,6 +584,9 @@ $router->post('/settings/family',   [SettingsController::class, 'updateFamily'])
 $router->post('/settings/modules',  [SettingsController::class, 'updateModules']);
 $router->post('/settings/quick-nav', [SettingsController::class, 'updateQuickNav']);
 $router->post('/settings/family/code', [SettingsController::class, 'regenerateCode']);
+$router->post('/api/children', [FamilyChildController::class, 'create']);
+$router->post('/api/children/:id', [FamilyChildController::class, 'update']);
+$router->post('/api/children/:id/delete', [FamilyChildController::class, 'delete']);
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
 $router->post('/settings/member/:id/promote', [SettingsController::class, 'promoteMember']);
 $router->post('/settings/member/:id/demote', [SettingsController::class, 'demoteMember']);
