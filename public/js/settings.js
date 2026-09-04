@@ -345,3 +345,48 @@ function setHomeLocation() {
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
 }
+
+// ---- Enfants de la famille (registre central) ----
+
+function openEditFamilyChildForm(child) {
+    document.getElementById('family-child-id').value = child.id;
+    document.getElementById('family-child-name').value = child.name;
+    document.getElementById('family-child-birthdate').value = child.birth_date || '';
+    document.getElementById('family-child-color').value = child.color || '#4A90D9';
+    document.getElementById('family-child-form-cancel').style.display = '';
+    document.getElementById('family-child-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetFamilyChildForm() {
+    document.getElementById('family-child-id').value = '';
+    document.getElementById('family-child-name').value = '';
+    document.getElementById('family-child-birthdate').value = '';
+    document.getElementById('family-child-color').value = '#4A90D9';
+    document.getElementById('family-child-form-cancel').style.display = 'none';
+}
+
+async function saveFamilyChild() {
+    const name = document.getElementById('family-child-name').value.trim();
+    if (!name) { Dialog.toast('Le nom est requis.', 'error'); return; }
+    const payload = {
+        name,
+        birth_date: document.getElementById('family-child-birthdate').value,
+        color: document.getElementById('family-child-color').value,
+    };
+    const id = document.getElementById('family-child-id').value;
+    const url = id ? `${BASE_URL}/api/children/${id}` : `${BASE_URL}/api/children`;
+    const r = await apiFetch(url, { method: 'POST', body: JSON.stringify(payload) });
+    if (r.success) {
+        window.location.reload();
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}
+
+async function deleteFamilyChild(id) {
+    const ok = await Dialog.confirm('Supprimer cet enfant du registre familial ? Les données déjà saisies dans les modules (scolaire, nounou, garde alternée, bébé) sont conservées, seulement dépliées de cette fiche.');
+    if (!ok) return;
+    const r = await apiFetch(`${BASE_URL}/api/children/${id}/delete`, { method: 'POST' });
+    if (r.success) window.location.reload();
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}

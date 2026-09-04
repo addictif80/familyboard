@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\Baby;
+use App\Models\FamilyChild;
 
 class BabyController extends BaseController
 {
@@ -26,8 +27,13 @@ class BabyController extends BaseController
         $this->json(function () {
             $user = Session::user();
             $data = $this->jsonInput();
-            if (empty($data['name'])) return ['success' => false, 'error' => 'Nom requis'];
-            $id = Baby::create($user['family_id'], trim($data['name']));
+            $name = trim($data['name'] ?? '');
+            if ($name === '') return ['success' => false, 'error' => 'Nom requis'];
+            // Rattaché au registre familial central (voir App\Models\FamilyChild) : réutilise
+            // une fiche existante du même nom (ex. déjà créée dans un autre module) ou en crée
+            // une nouvelle, réutilisable ensuite dans Suivi scolaire/Suivi nounou/Garde alternée.
+            $familyChildId = FamilyChild::findOrCreateByName((int)$user['family_id'], (int)$user['id'], $name);
+            $id = Baby::create($user['family_id'], $name, $familyChildId);
             $baby = Baby::findById($id);
             return ['success' => true, 'baby' => $baby];
         });

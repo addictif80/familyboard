@@ -49,6 +49,7 @@ class SettingsController extends BaseController
             $subHasUsedTrial = false;
             $subStripeConfigured = false;
             $subMemberCount = 0;
+            $familyChildren = [];
             require BASE_PATH . '/templates/settings/index.php';
             return;
         }
@@ -79,6 +80,7 @@ class SettingsController extends BaseController
         $subHasUsedTrial    = \App\Models\FamilySubscription::hasUsedTrial((int)$user['family_id']);
         $subStripeConfigured = \App\Core\StripeGateway::isConfigured();
         $subMemberCount     = count($members);
+        $familyChildren     = \App\Models\FamilyChild::getByFamily((int)$user['family_id']);
 
         require BASE_PATH . '/templates/settings/index.php';
     }

@@ -416,7 +416,16 @@ foreach ($timetable as $slot) {
         </div>
         <div class="modal-body">
             <input type="hidden" id="student-id">
-            <div class="form-group">
+            <div class="form-group" id="student-child-select-group">
+                <label>Enfant <span style="color:var(--danger)">*</span></label>
+                <select id="student-child-select" onchange="onStudentChildSelect()">
+                    <?php foreach ($familyChildren as $fc): ?>
+                        <option value="<?= $fc['id'] ?>" data-color="<?= htmlspecialchars($fc['color']) ?>"><?= htmlspecialchars($fc['name']) ?></option>
+                    <?php endforeach; ?>
+                    <option value="__new__" selected>+ Nouvel enfant…</option>
+                </select>
+            </div>
+            <div class="form-group" id="student-name-group">
                 <label>Nom <span style="color:var(--danger)">*</span></label>
                 <input type="text" id="student-name">
             </div>

@@ -33,8 +33,8 @@ class SchoolStudent
     public static function create(int $familyId, int $userId, array $d): int
     {
         return Database::insert(
-            'INSERT INTO school_students (family_id, name, school_name, class_name, color, created_by) VALUES (?,?,?,?,?,?)',
-            [$familyId, $d['name'], $d['school_name'], $d['class_name'], $d['color'], $userId]
+            'INSERT INTO school_students (family_id, name, school_name, class_name, color, created_by, family_child_id) VALUES (?,?,?,?,?,?,?)',
+            [$familyId, $d['name'], $d['school_name'], $d['class_name'], $d['color'], $userId, $d['family_child_id'] ?? null]
         );
     }
 

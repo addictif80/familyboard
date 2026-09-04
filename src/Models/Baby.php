@@ -20,11 +20,11 @@ class Baby
         return Database::fetch('SELECT * FROM babies WHERE id = ?', [$id]);
     }
 
-    public static function create(int $familyId, string $name): int
+    public static function create(int $familyId, string $name, ?int $familyChildId = null): int
     {
         return Database::insert(
-            'INSERT INTO babies (family_id, name) VALUES (?, ?)',
-            [$familyId, $name]
+            'INSERT INTO babies (family_id, name, family_child_id) VALUES (?, ?, ?)',
+            [$familyId, $name, $familyChildId]
         );
     }
 

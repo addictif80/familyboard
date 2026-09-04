@@ -119,6 +119,18 @@ function closeModal(id) {
     document.body.style.overflow = '';
 }
 
+// ---- Sélecteur "enfant du registre familial" (Suivi scolaire, Suivi nounou, Garde alternée,
+// Bébé) : bascule l'affichage du champ de saisie du nom quand "+ Nouvel enfant…" est choisi.
+// Voir App\Models\FamilyChild — le nom saisi est enregistré (ou réutilisé s'il existe déjà)
+// dans le registre commun côté serveur.
+function toggleNewChildInput(prefix) {
+    const select = document.getElementById(`${prefix}-child-select`) || document.getElementById(`${prefix}-child`);
+    const input = document.getElementById(`${prefix}-child-new-name`);
+    if (!select || !input) return;
+    input.style.display = select.value === '__new__' ? '' : 'none';
+    if (select.value === '__new__') input.focus();
+}
+
 function copyCode(text) {
     navigator.clipboard?.writeText(text).then(
         () => Dialog.toast('Copié !'),

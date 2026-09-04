@@ -48,7 +48,7 @@ class PremiumDataPurge
         'letters'    => ['letters', 'letter_templates'],
         'disputes'   => ['dispute_cases'],
         'school'     => ['school_students'],
-        'nanny'      => ['nanny_children', 'nanny_hours_entries'],
+        'nanny'      => ['nanny_hours_entries'],
     ];
 
     /** Requêtes de collecte des chemins de fichiers À EXÉCUTER AVANT la suppression des lignes

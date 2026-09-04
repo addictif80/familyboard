@@ -4,41 +4,9 @@ namespace App\Models;
 use App\Core\Database;
 
 /** Suivi des heures de nounou/baby-sitter, saisi manuellement (jour + heures), lié en option
- *  à un enfant de la famille (répertoire propre au module, comme SchoolStudent). */
+ *  à un enfant du registre familial central (voir App\Models\FamilyChild). */
 class NannyHours
 {
-    // ── Enfants ──────────────────────────────────────────────────
-
-    public static function getChildrenByFamily(int $familyId): array
-    {
-        return Database::fetchAll('SELECT * FROM nanny_children WHERE family_id=? ORDER BY name', [$familyId]);
-    }
-
-    public static function getChildById(int $id): ?array
-    {
-        return Database::fetch('SELECT * FROM nanny_children WHERE id=?', [$id]);
-    }
-
-    public static function createChild(int $familyId, int $createdBy, array $d): int
-    {
-        return Database::insert(
-            'INSERT INTO nanny_children (family_id, name, color, created_by) VALUES (?,?,?,?)',
-            [$familyId, $d['name'], $d['color'], $createdBy]
-        );
-    }
-
-    public static function updateChild(int $id, int $familyId, array $d): void
-    {
-        Database::execute('UPDATE nanny_children SET name=?, color=? WHERE id=? AND family_id=?', [$d['name'], $d['color'], $id, $familyId]);
-    }
-
-    public static function deleteChild(int $id, int $familyId): void
-    {
-        Database::execute('DELETE FROM nanny_children WHERE id=? AND family_id=?', [$id, $familyId]);
-    }
-
-    // ── Entrées d'heures ─────────────────────────────────────────
-
     public static function getEntryById(int $id): ?array
     {
         return Database::fetch('SELECT * FROM nanny_hours_entries WHERE id=?', [$id]);
@@ -49,11 +17,11 @@ class NannyHours
     {
         $sql = 'SELECT e.*, c.name AS child_name, c.color AS child_color
                 FROM nanny_hours_entries e
-                LEFT JOIN nanny_children c ON c.id = e.child_id
+                LEFT JOIN family_children c ON c.id = e.family_child_id
                 WHERE e.family_id=?';
         $params = [$familyId];
         if (!empty($filters['child_id'])) {
-            $sql .= ' AND e.child_id=?';
+            $sql .= ' AND e.family_child_id=?';
             $params[] = (int)$filters['child_id'];
         }
         if (!empty($filters['year'])) {
@@ -71,7 +39,7 @@ class NannyHours
     public static function addEntry(int $familyId, int $createdBy, array $d): int
     {
         return Database::insert(
-            'INSERT INTO nanny_hours_entries (family_id, child_id, entry_date, hours, nanny_name, notes, created_by) VALUES (?,?,?,?,?,?,?)',
+            'INSERT INTO nanny_hours_entries (family_id, family_child_id, entry_date, hours, nanny_name, notes, created_by) VALUES (?,?,?,?,?,?,?)',
             [$familyId, $d['child_id'], $d['entry_date'], $d['hours'], $d['nanny_name'], $d['notes'], $createdBy]
         );
     }
@@ -79,7 +47,7 @@ class NannyHours
     public static function updateEntry(int $id, int $familyId, array $d): void
     {
         Database::execute(
-            'UPDATE nanny_hours_entries SET child_id=?, entry_date=?, hours=?, nanny_name=?, notes=? WHERE id=? AND family_id=?',
+            'UPDATE nanny_hours_entries SET family_child_id=?, entry_date=?, hours=?, nanny_name=?, notes=? WHERE id=? AND family_id=?',
             [$d['child_id'], $d['entry_date'], $d['hours'], $d['nanny_name'], $d['notes'], $id, $familyId]
         );
     }
@@ -95,7 +63,7 @@ class NannyHours
     {
         $sql = 'SELECT COALESCE(SUM(hours),0) t FROM nanny_hours_entries WHERE family_id=? AND YEAR(entry_date)=? AND MONTH(entry_date)=?';
         $params = [$familyId, $year, $month];
-        if ($childId) { $sql .= ' AND child_id=?'; $params[] = $childId; }
+        if ($childId) { $sql .= ' AND family_child_id=?'; $params[] = $childId; }
         return (float)(Database::fetch($sql, $params)['t'] ?? 0);
     }
 
@@ -103,7 +71,7 @@ class NannyHours
     {
         $sql = 'SELECT COALESCE(SUM(hours),0) t FROM nanny_hours_entries WHERE family_id=? AND YEAR(entry_date)=?';
         $params = [$familyId, $year];
-        if ($childId) { $sql .= ' AND child_id=?'; $params[] = $childId; }
+        if ($childId) { $sql .= ' AND family_child_id=?'; $params[] = $childId; }
         return (float)(Database::fetch($sql, $params)['t'] ?? 0);
     }
 
@@ -113,7 +81,7 @@ class NannyHours
     {
         $sql = 'SELECT MONTH(entry_date) m, COALESCE(SUM(hours),0) t FROM nanny_hours_entries WHERE family_id=? AND YEAR(entry_date)=?';
         $params = [$familyId, $year];
-        if ($childId) { $sql .= ' AND child_id=?'; $params[] = $childId; }
+        if ($childId) { $sql .= ' AND family_child_id=?'; $params[] = $childId; }
         $sql .= ' GROUP BY MONTH(entry_date)';
         $rows = Database::fetchAll($sql, $params);
         $breakdown = array_fill(1, 12, 0.0);

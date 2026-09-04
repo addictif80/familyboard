@@ -14,7 +14,7 @@ $pdfQuery = $childId ? ('?child_id=' . $childId) : '';
         <h2>🕒 Suivi nounou</h2>
         <?php if (!$isCoparent): ?>
         <div style="display:flex;gap:.4rem;flex-wrap:wrap">
-            <button class="btn btn-secondary btn-sm" onclick="openChildrenModal()">👶 Enfants</button>
+            <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/settings#family-children-list">👶 Enfants</a>
             <button class="btn btn-primary btn-sm" onclick="openNewEntryModal()">+ Nouvelle entrée</button>
         </div>
         <?php endif; ?>
@@ -120,12 +120,14 @@ $pdfQuery = $childId ? ('?child_id=' . $childId) : '';
             </div>
             <div class="form-group">
                 <label>Enfant</label>
-                <select id="entry-child">
+                <select id="entry-child" onchange="toggleNewChildInput('entry')">
                     <option value="">— Non précisé —</option>
                     <?php foreach ($children as $c): ?>
                         <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
                     <?php endforeach; ?>
+                    <option value="__new__">+ Nouvel enfant…</option>
                 </select>
+                <input type="text" id="entry-child-new-name" placeholder="Nom du nouvel enfant" style="display:none;margin-top:.4rem">
             </div>
             <div class="form-group">
                 <label>Nom de la nounou</label>
@@ -143,50 +145,6 @@ $pdfQuery = $childId ? ('?child_id=' . $childId) : '';
     </div>
 </div>
 
-<!-- Gestion des enfants -->
-<div class="modal-overlay" id="children-modal" style="display:none">
-    <div class="modal">
-        <div class="modal-header">
-            <h3>Enfants</h3>
-            <button onclick="closeModal('children-modal')">✕</button>
-        </div>
-        <div class="modal-body">
-            <div id="children-list">
-                <?php foreach ($children as $c): ?>
-                <div class="member-item" data-child-id="<?= $c['id'] ?>">
-                    <div class="member-info">
-                        <span class="list-dot" style="background:<?= htmlspecialchars($c['color']) ?>"></span>
-                        <strong><?= htmlspecialchars($c['name']) ?></strong>
-                    </div>
-                    <div>
-                        <button class="btn-icon" title="Modifier" onclick='openEditChildForm(<?= json_encode($c) ?>)'>✏️</button>
-                        <button class="btn-icon" title="Supprimer" onclick="deleteChild(<?= $c['id'] ?>)">🗑</button>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-                <?php if (empty($children)): ?>
-                    <p class="empty-state">Aucun enfant enregistré.</p>
-                <?php endif; ?>
-            </div>
-            <hr>
-            <input type="hidden" id="child-id">
-            <div class="form-row">
-                <div class="form-group flex-2">
-                    <label>Nom</label>
-                    <input type="text" id="child-name">
-                </div>
-                <div class="form-group">
-                    <label>Couleur</label>
-                    <input type="color" id="child-color" value="#4A90D9">
-                </div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" id="child-form-cancel" style="display:none" onclick="resetChildForm()">Annuler</button>
-            <button class="btn btn-primary" onclick="saveChild()">Ajouter</button>
-        </div>
-    </div>
-</div>
 <?php endif; ?>
 
 <script>
