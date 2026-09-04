@@ -137,6 +137,27 @@ ob_start();
                 </div>
             </div>
             <?php endif; ?>
+            <?php if (!empty($employmentProfiles)): ?>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="event-employment-toggle" onchange="document.getElementById('event-employment-select-wrap').style.display = this.checked ? '' : 'none'">
+                    Congé / absence salarié
+                </label>
+                <div id="event-employment-select-wrap" style="display:none;margin-top:.4rem">
+                    <select id="event-employment-profile">
+                        <?php foreach ($employmentProfiles as $ep): ?>
+                            <option value="<?= (int)$ep['id'] ?>"><?= htmlspecialchars($ep['user_name']) ?><?= $ep['employer_name'] ? ' — ' . htmlspecialchars($ep['employer_name']) : '' ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <select id="event-employment-leave-type" style="margin-top:.4rem">
+                        <option value="paid_leave">Congé payé</option>
+                        <option value="rtt">RTT</option>
+                        <option value="unpaid">Absence non payée</option>
+                    </select>
+                    <small class="form-hint">Cet événement sera compté dans le suivi salarié du profil choisi (module « Suivi salarié »).</small>
+                </div>
+            </div>
+            <?php endif; ?>
             <?php if (!empty($friendFamilies)): ?>
             <div class="form-group" id="event-share-wrap">
                 <label>

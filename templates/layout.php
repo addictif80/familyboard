@@ -364,6 +364,14 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('employment')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/employment') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/employment" class="nav-link">
+                    <span class="nav-icon">💼</span>
+                    <span class="nav-label">Suivi salarié</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('additions')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/additions') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/additions" class="nav-link">
