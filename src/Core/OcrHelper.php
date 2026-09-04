@@ -108,48 +108,6 @@ class OcrHelper
     }
 
     /**
-     * Même principe que saveUploadedFile(), mais pour des octets déjà en mémoire (un
-     * téléchargement depuis une API tierce comme Digiposte, pas un $_FILES d'upload HTTP
-     * classique — move_uploaded_file() refuserait un fichier qui n'a pas transité par un POST
-     * multipart). Le "type déclaré" ici vient de l'API distante, pas d'un client final, mais
-     * reste vérifié contre le contenu réel par la même prudence : une API tierce peut aussi
-     * mentir ou se tromper sur le Content-Type.
-     */
-    public static function saveRemoteFile(string $bytes, string $declaredMime, string $subDir, int $familyId, ?array $allowedMimes = null, int $maxSize = 20 * 1024 * 1024): array
-    {
-        $allowedMimes ??= ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
-        $mimeBase = strtolower(trim(explode(';', $declaredMime)[0]));
-        if (!in_array($mimeBase, $allowedMimes, true)) {
-            throw new \RuntimeException('Type de fichier non autorisé.');
-        }
-        if (strlen($bytes) > $maxSize) {
-            throw new \RuntimeException('Fichier trop volumineux (max ' . round($maxSize / 1024 / 1024) . ' Mo).');
-        }
-
-        $tmpPath = tempnam(sys_get_temp_dir(), 'digiposte_');
-        if ($tmpPath === false || file_put_contents($tmpPath, $bytes) === false) {
-            throw new \RuntimeException('Erreur lors de l\'enregistrement temporaire du fichier.');
-        }
-        if (!self::realMimeMatches($tmpPath, $mimeBase)) {
-            @unlink($tmpPath);
-            throw new \RuntimeException('Le contenu du fichier ne correspond pas au type annoncé.');
-        }
-
-        $ext = self::extensionForMime($mimeBase);
-        $filename = bin2hex(random_bytes(16)) . '.' . $ext;
-        $dir = BASE_PATH . '/storage/' . $subDir . '/' . $familyId;
-        if (!is_dir($dir)) mkdir($dir, 0755, true);
-
-        $dest = $dir . '/' . $filename;
-        if (!rename($tmpPath, $dest)) {
-            @unlink($tmpPath);
-            throw new \RuntimeException('Erreur lors de l\'enregistrement du fichier.');
-        }
-
-        return ['/storage/' . $subDir . '/' . $familyId . '/' . $filename, $mimeBase];
-    }
-
-    /**
      * Vérifie le contenu réel du fichier via mime_content_type() (libmagic) plutôt que de faire
      * confiance au Content-Type déclaré par le client. Tolérance pour les conteneurs ambigus
      * (webm/ogg/mp4 audio-only sont parfois rapportés sans le préfixe audio/ selon la version de

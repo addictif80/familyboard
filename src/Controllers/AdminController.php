@@ -191,16 +191,6 @@ class AdminController extends BaseController
         $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
         $vaultwardenSettings = VaultwardenSettings::get();
         $mailcowSettings = MailcowSettings::get();
-        $digiposteEnabled = (bool)(int)(AppSetting::get('digiposte_enabled') ?? '0');
-        $digiposteClientId = AppSetting::get('digiposte_client_id') ?? '';
-        $digiposteClientSecret = AppSetting::get('digiposte_client_secret') ?? '';
-        $digiposteBaseUrl = AppSetting::get('digiposte_base_url') ?? '';
-        $digiposteAuthorizeUrl = AppSetting::get('digiposte_authorize_url') ?? '';
-        $digiposteTokenPath = AppSetting::get('digiposte_token_path') ?? '';
-        $digiposteDocumentsListPath = AppSetting::get('digiposte_documents_list_path') ?? '';
-        $digiposteDocumentDownloadPath = AppSetting::get('digiposte_document_download_path') ?? '';
-        $digiposteScope = AppSetting::get('digiposte_scope') ?? '';
-        $digiposteSyncInterval = (int)(AppSetting::get('digiposte_sync_interval_minutes') ?? '360');
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
         $customNameDays = NameDay::getCustomEntries();
@@ -679,30 +669,6 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $this->json(fn() => Mailcow::testConnection());
-    }
-
-    // ── Digiposte (import de documents, voir App\Core\DigiposteClient) ───
-
-    public function updateDigiposteSettings(array $params): void
-    {
-        $this->requireSuperAdmin();
-        AppSetting::set('digiposte_enabled', !empty($_POST['digiposte_enabled']) ? '1' : '0');
-
-        $newSecret = trim($_POST['digiposte_client_secret'] ?? '');
-        if ($newSecret === '' && !empty($_POST['keep_existing_secret'])) {
-            $newSecret = AppSetting::get('digiposte_client_secret') ?? '';
-        }
-        AppSetting::set('digiposte_client_id', trim($_POST['digiposte_client_id'] ?? ''));
-        AppSetting::set('digiposte_client_secret', $newSecret);
-        AppSetting::set('digiposte_base_url', rtrim(trim($_POST['digiposte_base_url'] ?? ''), '/'));
-        AppSetting::set('digiposte_authorize_url', trim($_POST['digiposte_authorize_url'] ?? ''));
-        AppSetting::set('digiposte_token_path', trim($_POST['digiposte_token_path'] ?? ''));
-        AppSetting::set('digiposte_documents_list_path', trim($_POST['digiposte_documents_list_path'] ?? ''));
-        AppSetting::set('digiposte_document_download_path', trim($_POST['digiposte_document_download_path'] ?? ''));
-        AppSetting::set('digiposte_scope', trim($_POST['digiposte_scope'] ?? '') ?: 'read');
-        AppSetting::set('digiposte_sync_interval_minutes', (string)max(15, (int)($_POST['digiposte_sync_interval_minutes'] ?? 360)));
-
-        $this->redirect('/admin?tab=notifications&msg=digiposte_saved');
     }
 
     // ── Abonnements (Stripe Billing) ─────────────────────────────
