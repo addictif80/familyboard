@@ -27,6 +27,9 @@ class SettingsController extends BaseController
         $this->requireAuth(true);
         $user = Session::user();
 
+        $digiposteConfigured = \App\Core\DigiposteClient::isConfigured();
+        $digiposteConnection = \App\Models\DigiposteConnection::getByUser((int)$user['id']);
+
         if ($user['role'] === 'coparent') {
             $family = null;
             $members = [];
