@@ -73,7 +73,7 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','mailcow_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted','sub_settings_saved','stripe_saved','plan_saved','plan_deactivated','digiposte_saved']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid','plan_saved_stripe_error']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','mailcow_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted','sub_settings_saved','stripe_saved','plan_saved','plan_deactivated']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
@@ -98,13 +98,13 @@
                     'nameday_added'       => 'Fête ajoutée au calendrier des prénoms.',
                     'nameday_invalid'     => 'Prénom et date requis.',
                     'mailcow_saved'       => 'Configuration Mailcow enregistrée — alias e-mail synchronisés.',
-                    'digiposte_saved'     => 'Configuration Digiposte enregistrée.',
                     'roadmap_saved'       => 'Idée enregistrée.',
                     'roadmap_deleted'     => 'Idée supprimée.',
                     'roadmap_invalid'     => 'Titre et statut requis.',
                     'sub_settings_saved'  => 'Réglages de facturation enregistrés.',
                     'stripe_saved'        => 'Clés Stripe enregistrées.',
-                    'plan_saved'          => 'Palier enregistré.',
+                    'plan_saved'          => 'Palier enregistré. Produit/prix Stripe synchronisés automatiquement.',
+                    'plan_saved_stripe_error' => 'Palier enregistré, mais la synchronisation avec Stripe a échoué (vérifiez la clé secrète dans l\'onglet « Clés Stripe »).',
                     'plan_deactivated'    => 'Palier désactivé.',
                     default       => ''
                 } ?>
@@ -431,16 +431,9 @@
                     <input type="number" name="sort_order" id="plan-sort-order" value="0">
                 </div>
             </div>
-            <div class="form-row">
-                <div class="form-group flex-2">
-                    <label>ID Prix Stripe (mensuel)</label>
-                    <input type="text" name="stripe_price_id_monthly" id="plan-stripe-monthly" placeholder="price_...">
-                </div>
-                <div class="form-group flex-2">
-                    <label>ID Prix Stripe (annuel)</label>
-                    <input type="text" name="stripe_price_id_yearly" id="plan-stripe-yearly" placeholder="price_...">
-                </div>
-            </div>
+            <?php if ($subStripeLinked): ?>
+            <p style="color:var(--text-muted);font-size:.8rem">Le Produit et les Prix Stripe sont créés/mis à jour automatiquement à l'enregistrement — rien à faire côté Stripe.</p>
+            <?php endif; ?>
             <div class="form-group">
                 <label><input type="checkbox" name="active" id="plan-active" value="1" checked> Actif (proposé aux familles)</label>
             </div>
@@ -456,8 +449,6 @@
             document.getElementById('plan-price-monthly').value = '';
             document.getElementById('plan-price-yearly').value = '';
             document.getElementById('plan-sort-order').value = '0';
-            document.getElementById('plan-stripe-monthly').value = '';
-            document.getElementById('plan-stripe-yearly').value = '';
             document.getElementById('plan-active').checked = true;
         }
         function editPlan(p) {
@@ -469,8 +460,6 @@
             document.getElementById('plan-price-monthly').value = (p.price_monthly_cents / 100).toFixed(2);
             document.getElementById('plan-price-yearly').value = (p.price_yearly_cents / 100).toFixed(2);
             document.getElementById('plan-sort-order').value = p.sort_order;
-            document.getElementById('plan-stripe-monthly').value = p.stripe_price_id_monthly || '';
-            document.getElementById('plan-stripe-yearly').value = p.stripe_price_id_yearly || '';
             document.getElementById('plan-active').checked = !!(p.active * 1);
             document.getElementById('plan-form').scrollIntoView({ behavior: 'smooth' });
         }
@@ -744,63 +733,6 @@
                 <?php endif; ?>
             </div>
             <div id="mailcow-test-result" style="margin-top:.75rem"></div>
-        </form>
-
-        <h2 style="margin-top:2rem">Import de documents (Digiposte)</h2>
-        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Permet à chaque membre de connecter son propre coffre-fort Digiposte (compte personnel,
-            jamais partagé) pour importer ses documents dans le module Documents. Nécessite un compte
-            partenaire sur <code>developer.laposte.fr</code> (produit « Digiposte »).
-            ⚠️ Les chemins ci-dessous sont des valeurs par défaut à vérifier/ajuster une fois la fiche
-            technique réelle obtenue — voir le commentaire en tête de <code>App\Core\DigiposteClient</code>.
-            L'URL de redirection à déclarer côté Digiposte est <code><?= htmlspecialchars((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http') ?>://<?= htmlspecialchars($_SERVER['HTTP_HOST'] ?? '') . BASE_URL ?>/digiposte/callback</code>.
-        </p>
-        <form method="POST" action="<?= BASE_URL ?>/admin/digiposte" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
-            <div class="form-group">
-                <label><input type="checkbox" name="digiposte_enabled" value="1" <?= $digiposteEnabled ? 'checked' : '' ?>> Activer l'import Digiposte</label>
-            </div>
-            <div class="form-group">
-                <label>Client ID</label>
-                <input type="text" name="digiposte_client_id" value="<?= htmlspecialchars($digiposteClientId) ?>" autocomplete="off">
-            </div>
-            <div class="form-group">
-                <label>Client Secret</label>
-                <?php if ($digiposteClientSecret): ?>
-                    <input type="text" value="•••••••••••••• <?= htmlspecialchars(substr($digiposteClientSecret, -4)) ?>" disabled>
-                    <input type="hidden" name="keep_existing_secret" value="1">
-                    <details style="margin-top:.4rem">
-                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer ou désactiver le secret</summary>
-                        <input type="text" name="digiposte_client_secret" placeholder="Nouveau secret" autocomplete="off" style="margin-top:.5rem">
-                    </details>
-                <?php else: ?>
-                    <input type="text" name="digiposte_client_secret" placeholder="Laisser vide pour désactiver" autocomplete="off">
-                <?php endif; ?>
-            </div>
-            <div class="form-group">
-                <label>Scope OAuth2</label>
-                <input type="text" name="digiposte_scope" value="<?= htmlspecialchars($digiposteScope) ?>">
-            </div>
-            <div class="form-group">
-                <label>URL de base de l'API</label>
-                <input type="text" name="digiposte_base_url" value="<?= htmlspecialchars($digiposteBaseUrl) ?>">
-            </div>
-            <div class="form-group">
-                <label>URL d'autorisation (écran de connexion Digiposte)</label>
-                <input type="text" name="digiposte_authorize_url" value="<?= htmlspecialchars($digiposteAuthorizeUrl) ?>">
-            </div>
-            <div class="form-row">
-                <div class="form-group flex-2"><label>Chemin d'échange du jeton</label><input type="text" name="digiposte_token_path" value="<?= htmlspecialchars($digiposteTokenPath) ?>"></div>
-                <div class="form-group flex-2"><label>Chemin de liste des documents</label><input type="text" name="digiposte_documents_list_path" value="<?= htmlspecialchars($digiposteDocumentsListPath) ?>"></div>
-            </div>
-            <div class="form-group">
-                <label>Chemin de téléchargement d'un document (<code>{id}</code> = identifiant du document)</label>
-                <input type="text" name="digiposte_document_download_path" value="<?= htmlspecialchars($digiposteDocumentDownloadPath) ?>">
-            </div>
-            <div class="form-group">
-                <label>Intervalle de synchronisation automatique (minutes)</label>
-                <input type="number" name="digiposte_sync_interval_minutes" min="15" value="<?= $digiposteSyncInterval ?>" style="max-width:120px">
-            </div>
-            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
         </form>
 
         <h2 style="margin-top:2rem">Sécurité — Double authentification</h2>

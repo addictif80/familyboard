@@ -22,6 +22,7 @@ use App\Core\EmailLayout;
 use App\Core\Vaultwarden;
 use App\Models\VaultwardenSettings;
 use App\Core\Mailcow;
+use App\Core\StripeGateway;
 use App\Models\MailcowSettings;
 use App\Models\Plan;
 use App\Models\FamilySubscription;
@@ -191,16 +192,6 @@ class AdminController extends BaseController
         $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
         $vaultwardenSettings = VaultwardenSettings::get();
         $mailcowSettings = MailcowSettings::get();
-        $digiposteEnabled = (bool)(int)(AppSetting::get('digiposte_enabled') ?? '0');
-        $digiposteClientId = AppSetting::get('digiposte_client_id') ?? '';
-        $digiposteClientSecret = AppSetting::get('digiposte_client_secret') ?? '';
-        $digiposteBaseUrl = AppSetting::get('digiposte_base_url') ?? '';
-        $digiposteAuthorizeUrl = AppSetting::get('digiposte_authorize_url') ?? '';
-        $digiposteTokenPath = AppSetting::get('digiposte_token_path') ?? '';
-        $digiposteDocumentsListPath = AppSetting::get('digiposte_documents_list_path') ?? '';
-        $digiposteDocumentDownloadPath = AppSetting::get('digiposte_document_download_path') ?? '';
-        $digiposteScope = AppSetting::get('digiposte_scope') ?? '';
-        $digiposteSyncInterval = (int)(AppSetting::get('digiposte_sync_interval_minutes') ?? '360');
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
         $customNameDays = NameDay::getCustomEntries();
@@ -681,30 +672,6 @@ class AdminController extends BaseController
         $this->json(fn() => Mailcow::testConnection());
     }
 
-    // ── Digiposte (import de documents, voir App\Core\DigiposteClient) ───
-
-    public function updateDigiposteSettings(array $params): void
-    {
-        $this->requireSuperAdmin();
-        AppSetting::set('digiposte_enabled', !empty($_POST['digiposte_enabled']) ? '1' : '0');
-
-        $newSecret = trim($_POST['digiposte_client_secret'] ?? '');
-        if ($newSecret === '' && !empty($_POST['keep_existing_secret'])) {
-            $newSecret = AppSetting::get('digiposte_client_secret') ?? '';
-        }
-        AppSetting::set('digiposte_client_id', trim($_POST['digiposte_client_id'] ?? ''));
-        AppSetting::set('digiposte_client_secret', $newSecret);
-        AppSetting::set('digiposte_base_url', rtrim(trim($_POST['digiposte_base_url'] ?? ''), '/'));
-        AppSetting::set('digiposte_authorize_url', trim($_POST['digiposte_authorize_url'] ?? ''));
-        AppSetting::set('digiposte_token_path', trim($_POST['digiposte_token_path'] ?? ''));
-        AppSetting::set('digiposte_documents_list_path', trim($_POST['digiposte_documents_list_path'] ?? ''));
-        AppSetting::set('digiposte_document_download_path', trim($_POST['digiposte_document_download_path'] ?? ''));
-        AppSetting::set('digiposte_scope', trim($_POST['digiposte_scope'] ?? '') ?: 'read');
-        AppSetting::set('digiposte_sync_interval_minutes', (string)max(15, (int)($_POST['digiposte_sync_interval_minutes'] ?? 360)));
-
-        $this->redirect('/admin?tab=notifications&msg=digiposte_saved');
-    }
-
     // ── Abonnements (Stripe Billing) ─────────────────────────────
 
     public function updateSubscriptionSettings(array $params): void
@@ -746,23 +713,49 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $id = (int)($_POST['id'] ?? 0);
+        $existing = $id ? Plan::getById($id) : null;
+        $name = trim($_POST['name'] ?? '') ?: 'Premium';
         $d = [
             'code' => preg_replace('/[^a-z0-9_]/', '', strtolower(trim($_POST['code'] ?? ''))) ?: ('plan_' . time()),
-            'name' => trim($_POST['name'] ?? '') ?: 'Premium',
+            'name' => $name,
             'member_limit' => ($_POST['member_limit'] ?? '') === '' ? null : max(1, (int)$_POST['member_limit']),
             'price_monthly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_monthly'] ?? '0')) * 100)),
             'price_yearly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_yearly'] ?? '0')) * 100)),
-            'stripe_price_id_monthly' => trim($_POST['stripe_price_id_monthly'] ?? '') ?: null,
-            'stripe_price_id_yearly' => trim($_POST['stripe_price_id_yearly'] ?? '') ?: null,
+            'stripe_product_id' => $existing['stripe_product_id'] ?? null,
+            'stripe_price_id_monthly' => $existing['stripe_price_id_monthly'] ?? null,
+            'stripe_price_id_yearly' => $existing['stripe_price_id_yearly'] ?? null,
             'sort_order' => (int)($_POST['sort_order'] ?? 0),
             'active' => !empty($_POST['active']),
         ];
+        // Crée/rafraîchit automatiquement le Produit et les Prix Stripe correspondants — l'admin
+        // n'a plus besoin de gérer quoi que ce soit dans le dashboard Stripe. Si Stripe n'est pas
+        // configuré ou en cas d'erreur API, le palier est quand même enregistré (sans blocage).
+        $msg = 'plan_saved';
+        if (StripeGateway::isConfigured()) {
+            try {
+                $stripe = StripeGateway::syncPlanPrices(
+                    $name,
+                    $d['price_monthly_cents'],
+                    $d['price_yearly_cents'],
+                    $d['stripe_product_id'],
+                    $d['stripe_price_id_monthly'],
+                    $d['stripe_price_id_yearly'],
+                    $existing['price_monthly_cents'] ?? null,
+                    $existing['price_yearly_cents'] ?? null
+                );
+                $d['stripe_product_id'] = $stripe['stripe_product_id'];
+                $d['stripe_price_id_monthly'] = $stripe['stripe_price_id_monthly'];
+                $d['stripe_price_id_yearly'] = $stripe['stripe_price_id_yearly'];
+            } catch (\RuntimeException $e) {
+                $msg = 'plan_saved_stripe_error';
+            }
+        }
         if ($id) {
             Plan::update($id, $d);
         } else {
-            Plan::create($d);
+            $id = Plan::create($d);
         }
-        $this->redirect('/admin?tab=subscriptions&msg=plan_saved');
+        $this->redirect('/admin?tab=subscriptions&msg=' . $msg);
     }
 
     public function deactivatePlan(array $params): void
