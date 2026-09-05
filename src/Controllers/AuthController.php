@@ -71,14 +71,17 @@ class AuthController
         $this->completeLogin($user);
     }
 
-    /** Termine la connexion — ou, si la 2FA est activée, met la connexion en attente d'un code. */
-    private function completeLogin(array $user): void
+    /** Termine la connexion — ou, si la 2FA est activée, met la connexion en attente d'un code.
+     *  $redirectTo : page vers laquelle rediriger une fois connecté (utilisé par register() pour
+     *  envoyer le fondateur d'une nouvelle famille vers le configurateur plutôt que le tableau
+     *  de bord — un compte fraîchement créé n'a de toute façon jamais la 2FA déjà activée). */
+    private function completeLogin(array $user, string $redirectTo = '/'): void
     {
         $method = TwoFactorAuth::getMethod((int)$user['id']);
         if ($method === null) {
             Session::login($user);
             RememberMe::issue($user['id']);
-            header('Location: ' . BASE_URL . '/');
+            header('Location: ' . BASE_URL . $redirectTo);
             exit;
         }
 
@@ -290,7 +293,7 @@ class AuthController
         \App\Core\Mailcow::syncFamily($familyId);
 
         $user = User::findById($userId);
-        $this->completeLogin($user);
+        $this->completeLogin($user, $isFounder ? '/onboarding' : '/');
     }
 
     /** Prévient le titulaire d'un compte existant qu'une inscription a été tentée avec son

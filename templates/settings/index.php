@@ -300,6 +300,9 @@ ob_start();
     <?php if ($user['role'] === 'admin'): ?>
     <div class="card settings-section">
         <h3>👨‍👩‍👧 Famille : <?= htmlspecialchars($family['name']) ?></h3>
+        <p style="margin-top:-.5rem">
+            <a href="<?= BASE_URL ?>/onboarding" class="btn btn-secondary btn-sm">🚀 Relancer le configurateur familial</a>
+        </p>
         <form method="POST" action="<?= BASE_URL ?>/settings/family"><?= \App\Core\Csrf::field() ?>
             <div class="form-row">
                 <div class="form-group flex-1">
