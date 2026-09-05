@@ -141,7 +141,9 @@ class InvitationController extends BaseController
         Session::flash('success', $isCoparent
             ? 'Accès restreint activé pour le suivi de garde partagée.'
             : 'Bienvenue dans la famille ' . $invitation['family_name'] . ' !');
-        header('Location: ' . BASE_URL . '/');
+        // Nouveau compte co-parent : présentation de ce qu'il peut faire avec son accès
+        // restreint avant de le laisser sur son espace — pas un configurateur, juste un tour.
+        header('Location: ' . BASE_URL . ($isCoparent ? '/coparent/welcome' : '/'));
         exit;
     }
 

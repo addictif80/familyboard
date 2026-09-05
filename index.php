@@ -442,6 +442,8 @@ $router->post('/api/custody/checklist/:id/toggle', [CustodyController::class, 't
 
 // Vue co-parent à accès restreint
 $router->get('/coparent', [CoparentController::class, 'index']);
+$router->get('/coparent/welcome', [CoparentController::class, 'welcome']);
+$router->post('/api/coparent/welcome/dismiss', [CoparentController::class, 'dismissWelcome']);
 $router->post('/api/coparent/create-family', [CoparentController::class, 'createFamily']);
 $router->get('/api/coparent/custody-events', [CoparentController::class, 'apiCustodyEvents']);
 $router->post('/api/coparent/custody-proposal', [CoparentController::class, 'proposeCustody']);
