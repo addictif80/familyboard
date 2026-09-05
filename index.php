@@ -530,6 +530,8 @@ $router->post('/admin/mailcow', [AdminController::class, 'updateMailcowSettings'
 $router->post('/admin/mailcow/test', [AdminController::class, 'testMailcowConnection']);
 $router->post('/admin/subscriptions/settings', [AdminController::class, 'updateSubscriptionSettings']);
 $router->post('/admin/subscriptions/stripe', [AdminController::class, 'updateStripeSettings']);
+$router->post('/admin/subscriptions/urssaf', [AdminController::class, 'updateUrssafSettings']);
+$router->post('/admin/subscriptions/urssaf/send-now', [AdminController::class, 'sendUrssafReportNow']);
 $router->post('/admin/plans', [AdminController::class, 'savePlan']);
 $router->post('/admin/plans/:id/deactivate', [AdminController::class, 'deactivatePlan']);
 $router->post('/admin/families/:id/subscription/grant', [AdminController::class, 'grantManualSubscription']);

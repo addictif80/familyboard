@@ -135,6 +135,14 @@ try {
     error_log('Subscription lapse processing error: ' . $e->getMessage());
 }
 
+// Rapport mensuel de chiffre d'affaires (déclaration URSSAF) — transverse, pas lié à une
+// famille en particulier : le chiffre d'affaires est celui de la plateforme elle-même.
+try {
+    sendUrssafReport();
+} catch (\Throwable $e) {
+    error_log('URSSAF report error: ' . $e->getMessage());
+}
+
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -805,6 +813,39 @@ function processSubscriptionLapses(string $appUrl): void
                 error_log("Premium data purge error for family #$familyId: " . $e->getMessage());
             }
         }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Rapport mensuel de chiffre d'affaires (déclaration URSSAF de l'auto-entrepreneur
+// exploitant la plateforme) — voir App\Core\UrssafReport. Envoyé le jour du mois configuré
+// (urssaf_report_day), pour le mois civil précédent (le seul complet à cette date). Idempotent
+// via urssaf_report_last_sent (période "Y-m" déjà envoyée) — le cron tournant chaque minute,
+// sans cette garde le rapport serait renvoyé à chaque exécution du bon jour.
+// ──────────────────────────────────────────────────────────────────────────
+function sendUrssafReport(): void
+{
+    if ((int)(AppSetting::get('urssaf_report_enabled') ?? '0') !== 1) return;
+    if (!\App\Core\StripeGateway::isConfigured()) return;
+
+    $day = max(1, min(28, (int)(AppSetting::get('urssaf_report_day') ?? '5')));
+    if ((int)date('j') !== $day) return;
+
+    $currentPeriod = date('Y-m');
+    if (AppSetting::get('urssaf_report_last_sent') === $currentPeriod) return;
+
+    $adminEmail = AppSetting::get('admin_email');
+    if (!$adminEmail) return;
+
+    $prevMonth = new \DateTimeImmutable('first day of last month');
+    $year = (int)$prevMonth->format('Y');
+    $month = (int)$prevMonth->format('n');
+
+    $sent = \App\Core\UrssafReport::sendForMonth($year, $month, $adminEmail);
+
+    if ($sent) {
+        AppSetting::set('urssaf_report_last_sent', $currentPeriod);
+        echo '  → URSSAF report sent for ' . \App\Core\UrssafReport::monthLabel($year, $month) . PHP_EOL;
     }
 }
 

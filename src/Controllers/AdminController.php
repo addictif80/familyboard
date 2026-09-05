@@ -204,6 +204,10 @@ class AdminController extends BaseController
         $stripePublishableKey = AppSetting::get('stripe_publishable_key') ?? '';
         $stripeSecretKey = AppSetting::get('stripe_secret_key') ?? '';
         $stripeWebhookSecret = AppSetting::get('stripe_webhook_secret') ?? '';
+        $urssafReportEnabled = (bool)(int)(AppSetting::get('urssaf_report_enabled') ?? '0');
+        $urssafReportDay = (int)(AppSetting::get('urssaf_report_day') ?? '5');
+        $urssafReportLastSent = AppSetting::get('urssaf_report_last_sent') ?: null;
+        $urssafAdminEmail = AppSetting::get('admin_email') ?? '';
         $plans = Plan::getAll();
         $familySubscriptions = Database::fetchAll(
             'SELECT fs.*, f.name as family_name, p.name as plan_name
@@ -707,6 +711,45 @@ class AdminController extends BaseController
         AppSetting::set('stripe_secret_key', $newSecret);
         AppSetting::set('stripe_webhook_secret', $newWebhookSecret);
         $this->redirect('/admin?tab=subscriptions&msg=stripe_saved');
+    }
+
+    /** Rapport mensuel de chiffre d'affaires (déclaration URSSAF) — voir App\Core\UrssafReport
+     *  et cron.php::sendUrssafReport(). Chiffre d'affaires de la PLATEFORME (paiements Stripe
+     *  encaissés auprès des familles), sans rapport avec le module Budget d'une famille. */
+    public function updateUrssafSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('urssaf_report_enabled', !empty($_POST['urssaf_report_enabled']) ? '1' : '0');
+        AppSetting::set('urssaf_report_day', (string)max(1, min(28, (int)($_POST['urssaf_report_day'] ?? 5))));
+        $this->redirect('/admin?tab=subscriptions&msg=urssaf_settings_saved');
+    }
+
+    /** Génère et envoie immédiatement le rapport du mois civil précédent — pour vérifier la
+     *  configuration sans attendre le jour programmé. Met aussi à jour urssaf_report_last_sent
+     *  pour que le cron du jour programmé ne le renvoie pas une seconde fois le même mois. */
+    public function sendUrssafReportNow(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $adminEmail = AppSetting::get('admin_email') ?? '';
+        if (!$adminEmail) {
+            $this->redirect('/admin?tab=subscriptions&msg=urssaf_no_admin_email');
+            return;
+        }
+        if (!\App\Core\StripeGateway::isConfigured()) {
+            $this->redirect('/admin?tab=subscriptions&msg=urssaf_stripe_not_configured');
+            return;
+        }
+        $prevMonth = new \DateTimeImmutable('first day of last month');
+        try {
+            $sent = \App\Core\UrssafReport::sendForMonth((int)$prevMonth->format('Y'), (int)$prevMonth->format('n'), $adminEmail);
+        } catch (\Throwable $e) {
+            error_log('URSSAF manual report error: ' . $e->getMessage());
+            $sent = false;
+        }
+        if ($sent) {
+            AppSetting::set('urssaf_report_last_sent', date('Y-m'));
+        }
+        $this->redirect('/admin?tab=subscriptions&msg=' . ($sent ? 'urssaf_sent' : 'urssaf_send_failed'));
     }
 
     public function savePlan(array $params): void
