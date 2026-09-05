@@ -67,6 +67,25 @@ class CoparentController extends BaseController
         require BASE_PATH . '/templates/coparent/index.php';
     }
 
+    /** Présentation (pas un configurateur) de ce qu'un accès "Garde partagée" permet de faire —
+     *  affichée une fois après la création d'un nouveau compte co-parent (voir
+     *  InvitationController::accept()), et réaccessible depuis les réglages. */
+    public function welcome(array $params): void
+    {
+        $this->requireAuth(true);
+        require BASE_PATH . '/templates/coparent/welcome.php';
+    }
+
+    public function dismissWelcome(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            Database::execute('UPDATE users SET coparent_welcome_seen_at = NOW() WHERE id = ?', [(int)$user['id']]);
+            return ['success' => true];
+        });
+    }
+
     /**
      * Un compte à accès restreint (role=coparent) peut, s'il le souhaite, se
      * créer sa propre famille FamilyBoard complète. On bascule alors son

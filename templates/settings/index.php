@@ -24,6 +24,14 @@ ob_start();
     <!-- ═══ Onglet : Mon compte ═══ -->
     <div class="settings-tab-panel" data-tab="compte">
 
+    <?php if ($isCoparentSettings): ?>
+    <div class="card settings-section">
+        <p style="margin:0">
+            <a href="<?= BASE_URL ?>/coparent/welcome" class="btn btn-secondary btn-sm">🔒 Revoir ce que permet mon accès « Garde partagée »</a>
+        </p>
+    </div>
+    <?php endif; ?>
+
     <!-- Profile -->
     <div class="card settings-section">
         <h3>👤 Mon profil</h3>
