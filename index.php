@@ -35,6 +35,7 @@ use App\Controllers\CustodyController;
 use App\Controllers\ProjectController;
 use App\Controllers\SettingsController;
 use App\Controllers\FamilyChildController;
+use App\Controllers\OnboardingController;
 use App\Controllers\InvitationController;
 use App\Controllers\CoparentController;
 use App\Controllers\ContactController;
@@ -587,6 +588,8 @@ $router->post('/settings/family/code', [SettingsController::class, 'regenerateCo
 $router->post('/api/children', [FamilyChildController::class, 'create']);
 $router->post('/api/children/:id', [FamilyChildController::class, 'update']);
 $router->post('/api/children/:id/delete', [FamilyChildController::class, 'delete']);
+$router->get('/onboarding', [OnboardingController::class, 'index']);
+$router->post('/onboarding/complete', [OnboardingController::class, 'complete']);
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
 $router->post('/settings/member/:id/promote', [SettingsController::class, 'promoteMember']);
 $router->post('/settings/member/:id/demote', [SettingsController::class, 'demoteMember']);
