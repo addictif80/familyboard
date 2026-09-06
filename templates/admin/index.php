@@ -73,7 +73,7 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid','plan_saved_stripe_error']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','mailcow_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted','sub_settings_saved','stripe_saved','plan_saved','plan_deactivated']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid','plan_saved_stripe_error','urssaf_send_failed','urssaf_no_admin_email','urssaf_stripe_not_configured']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','mailcow_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted','sub_settings_saved','stripe_saved','plan_saved','plan_deactivated','urssaf_settings_saved','urssaf_sent']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
@@ -105,6 +105,11 @@
                     'stripe_saved'        => 'Clés Stripe enregistrées.',
                     'plan_saved'          => 'Palier enregistré. Produit/prix Stripe synchronisés automatiquement.',
                     'plan_saved_stripe_error' => 'Palier enregistré, mais la synchronisation avec Stripe a échoué (vérifiez la clé secrète dans l\'onglet « Clés Stripe »).',
+                    'urssaf_settings_saved' => 'Réglages du rapport URSSAF enregistrés.',
+                    'urssaf_sent'          => 'Rapport URSSAF envoyé par e-mail.',
+                    'urssaf_send_failed'   => 'Échec de l\'envoi du rapport URSSAF (vérifiez la configuration SMTP).',
+                    'urssaf_no_admin_email' => 'Aucune adresse e-mail admin configurée (onglet Profil admin).',
+                    'urssaf_stripe_not_configured' => 'Stripe n\'est pas configuré (onglet « Clés Stripe »).',
                     'plan_deactivated'    => 'Palier désactivé.',
                     default       => ''
                 } ?>
@@ -283,6 +288,7 @@
             <button type="button" class="settings-tab-btn" data-tab="sub-plans" onclick="switchAdminSubTab('sub-plans')">📦 Paliers</button>
             <button type="button" class="settings-tab-btn" data-tab="sub-families" onclick="switchAdminSubTab('sub-families')">👪 Abonnements des familles</button>
             <button type="button" class="settings-tab-btn" data-tab="sub-purges" onclick="switchAdminSubTab('sub-purges')">🗑️ Suppressions</button>
+            <button type="button" class="settings-tab-btn" data-tab="sub-urssaf" onclick="switchAdminSubTab('sub-urssaf')">📄 Rapport URSSAF</button>
         </div>
         <script>
         function switchAdminSubTab(tab) {
@@ -520,6 +526,38 @@
             <?php endif; ?>
             </tbody>
         </table>
+        </div>
+
+        <div class="settings-tab-panel" data-admin-subtab-panel="sub-urssaf">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Chiffre d'affaires de <strong>la plateforme elle-même</strong> (paiements Stripe encaissés auprès des
+            familles abonnées) — sans rapport avec le module Budget d'une famille. Chaque mois, au jour choisi
+            ci-dessous, un PDF détaillant les transactions du mois civil précédent et le total à déclarer est envoyé
+            par e-mail à l'adresse admin (<?= $urssafAdminEmail ? htmlspecialchars($urssafAdminEmail) : 'non configurée — onglet Profil admin' ?>),
+            avec un rappel d'effectuer la déclaration URSSAF.
+        </p>
+        <?php if (!$stripeSecretKey): ?>
+        <p style="color:var(--danger);font-size:.85rem">Configurez d'abord une clé secrète Stripe (onglet « Clés Stripe ») — sans elle, aucun paiement ne peut être récupéré.</p>
+        <?php endif; ?>
+        <form method="POST" action="<?= BASE_URL ?>/admin/subscriptions/urssaf" class="card" style="padding:1.25rem;max-width:520px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label><input type="checkbox" name="urssaf_report_enabled" value="1" <?= $urssafReportEnabled ? 'checked' : '' ?>> Envoyer automatiquement le rapport mensuel</label>
+            </div>
+            <div class="form-group">
+                <label>Jour du mois d'envoi</label>
+                <input type="number" name="urssaf_report_day" min="1" max="28" value="<?= $urssafReportDay ?>">
+                <small style="color:var(--text-muted)">Le rapport envoyé ce jour-là couvre le mois civil précédent (le seul complet à cette date).</small>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+        </form>
+        <div class="card" style="padding:1.25rem;max-width:520px;margin-top:1rem">
+            <p style="margin-top:0">
+                Dernier envoi : <?= $urssafReportLastSent ? htmlspecialchars($urssafReportLastSent) : 'jamais' ?>
+            </p>
+            <form method="POST" action="<?= BASE_URL ?>/admin/subscriptions/urssaf/send-now" onsubmit="return confirmSubmit(this, 'Générer et envoyer maintenant le rapport du mois précédent ?')"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">📧 Envoyer maintenant (mois précédent)</button>
+            </form>
+        </div>
         </div>
 
         <?php elseif ($tab === 'notifications'): ?>
