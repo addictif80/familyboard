@@ -35,6 +35,7 @@ class Family
         'school'      => ['label' => 'Suivi scolaire',      'icon' => '🎓'],
         'employment'  => ['label' => 'Suivi salarié',       'icon' => '💼'],
         'nanny'       => ['label' => 'Suivi nounou',         'icon' => '🕒'],
+        'deals'       => ['label' => 'Bons plans',           'icon' => '🏷️'],
     ];
 
     /** Modules ayant une page de destination directe (donc utilisables dans la barre de
@@ -48,7 +49,7 @@ class Family
         'emergency' => '/emergency', 'comm_log' => '/comm-log', 'meals' => '/meals',
         'wishlist' => '/wishlist', 'polls' => '/polls', 'links' => '/links',
         'additions' => '/additions', 'letters' => '/letters', 'disputes' => '/disputes',
-        'school' => '/school', 'employment' => '/employment', 'nanny' => '/nanny',
+        'school' => '/school', 'employment' => '/employment', 'nanny' => '/nanny', 'deals' => '/deals',
     ];
 
     /** Sélection par défaut de la barre de navigation rapide (mobile/PWA), tant que

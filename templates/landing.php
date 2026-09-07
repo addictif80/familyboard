@@ -264,6 +264,11 @@
             'Totaux mensuel et annuel calculés automatiquement',
             'Rapport PDF téléchargeable, mois par mois ou sur l\'année entière',
         ]],
+        ['id' => 'deals', 'icon' => '🏷️', 'title' => 'Bons plans', 'badge' => 'Nouveau', 'tagline' => 'L\'annuaire privé de vos bonnes affaires, codes promo et adresses préférées.', 'points' => [
+            'Titre, description, lien, code promo et réduction pour chaque bon plan',
+            'Classement par catégorie (alimentation, loisirs, enfants…)',
+            'Date de validité optionnelle, avec signalement des bons plans expirés',
+        ]],
     ];
     ?>
     <section class="landing-section">
