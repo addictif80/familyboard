@@ -59,6 +59,7 @@ use App\Controllers\DisputeController;
 use App\Controllers\SchoolController;
 use App\Controllers\EmploymentController;
 use App\Controllers\NannyController;
+use App\Controllers\DealController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -330,6 +331,12 @@ $router->post('/api/nanny/entries/:id', [NannyController::class, 'updateEntry'])
 $router->post('/api/nanny/entries/:id/delete', [NannyController::class, 'deleteEntry']);
 $router->get('/nanny/report/:year/:month/pdf', [NannyController::class, 'monthlyPdf']);
 $router->get('/nanny/report/:year/pdf', [NannyController::class, 'annualPdf']);
+
+// ── Bons plans ────────────────────────────────────────────────
+$router->get('/deals', [DealController::class, 'index']);
+$router->post('/api/deals', [DealController::class, 'create']);
+$router->post('/api/deals/:id', [DealController::class, 'update']);
+$router->post('/api/deals/:id/delete', [DealController::class, 'delete']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
