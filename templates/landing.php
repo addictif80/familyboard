@@ -279,6 +279,11 @@
             'Échéances d\'assurance et de contrôle technique signalées automatiquement',
             'Un véhicule par membre ou partagé, sans limite',
         ]],
+        ['id' => 'pets', 'icon' => '🐾', 'title' => 'Animaux de compagnie', 'badge' => 'Nouveau', 'tagline' => 'Le carnet de santé de vos animaux, vétérinaire et rappels de vaccins.', 'points' => [
+            'Fiche par animal avec coordonnées du vétérinaire',
+            'Carnet de soins : vaccins, vermifuges, visites, avec rappel de la prochaine échéance',
+            'Un animal par famille ou plusieurs, sans limite',
+        ]],
     ];
     ?>
     <section class="landing-section">

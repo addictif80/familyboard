@@ -396,6 +396,14 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('pets')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/pets') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/pets" class="nav-link">
+                    <span class="nav-icon">🐾</span>
+                    <span class="nav-label">Animaux</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('deals')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/deals" class="nav-link">

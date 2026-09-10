@@ -259,6 +259,13 @@ function sendExpiryReminders(int $familyId, array $members, string $appUrl): voi
             $items[] = ['kind' => 'Le contrôle technique de', 'ref' => 'vehicle_ct_' . $v['id'], 'label' => $v['name'], 'date' => $v['technical_control_expiry'], 'url' => '/vehicles?id=' . $v['id']];
         }
     }
+    foreach (Database::fetchAll(
+        'SELECT pc.id, pc.title, pc.reminder_date, p.id AS pet_id, p.name AS pet_name
+         FROM pet_care_entries pc JOIN pets p ON p.id=pc.pet_id
+         WHERE p.family_id=? AND pc.reminder_date IS NOT NULL', [$familyId]
+    ) as $c) {
+        $items[] = ['kind' => 'Le rappel de', 'ref' => 'pet_care_' . $c['id'], 'label' => $c['pet_name'] . ' — ' . $c['title'], 'date' => $c['reminder_date'], 'url' => '/pets?id=' . $c['pet_id']];
+    }
 
     foreach ($items as $item) {
         $end = new \DateTime($item['date']);

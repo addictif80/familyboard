@@ -62,6 +62,7 @@ use App\Controllers\NannyController;
 use App\Controllers\DealController;
 use App\Controllers\HealthController;
 use App\Controllers\VehicleController;
+use App\Controllers\PetController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -358,6 +359,14 @@ $router->post('/api/vehicles/:id', [VehicleController::class, 'update']);
 $router->post('/api/vehicles/:id/delete', [VehicleController::class, 'delete']);
 $router->post('/api/vehicles/:id/maintenance', [VehicleController::class, 'addMaintenance']);
 $router->post('/api/vehicles/:id/maintenance/:maintenanceId/delete', [VehicleController::class, 'deleteMaintenance']);
+
+// ── Animaux de compagnie ─────────────────────────────────────
+$router->get('/pets', [PetController::class, 'index']);
+$router->post('/api/pets', [PetController::class, 'create']);
+$router->post('/api/pets/:id', [PetController::class, 'update']);
+$router->post('/api/pets/:id/delete', [PetController::class, 'delete']);
+$router->post('/api/pets/:id/care', [PetController::class, 'addCareEntry']);
+$router->post('/api/pets/:id/care/:careId/delete', [PetController::class, 'deleteCareEntry']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);

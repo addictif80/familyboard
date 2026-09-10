@@ -52,6 +52,7 @@ class PremiumDataPurge
         'deals'      => ['deals'],
         'health'     => ['health_entries', 'health_growth', 'health_doctors'],
         'vehicles'   => ['vehicles'],
+        'pets'       => ['pets'],
     ];
 
     /** Requêtes de collecte des chemins de fichiers À EXÉCUTER AVANT la suppression des lignes
