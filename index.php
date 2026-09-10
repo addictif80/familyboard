@@ -618,6 +618,11 @@ $router->post('/admin/announcements/:id', [AdminController::class, 'updateAnnoun
 $router->post('/admin/announcements/:id/publish', [AdminController::class, 'publishAnnouncement']);
 $router->post('/admin/announcements/:id/unpublish', [AdminController::class, 'unpublishAnnouncement']);
 $router->post('/admin/announcements/:id/delete', [AdminController::class, 'deleteAnnouncement']);
+$router->post('/admin/testimonials', [AdminController::class, 'createTestimonial']);
+$router->post('/admin/testimonials/:id/approve', [AdminController::class, 'approveTestimonial']);
+$router->post('/admin/testimonials/:id/reject', [AdminController::class, 'rejectTestimonial']);
+$router->post('/admin/testimonials/:id/order', [AdminController::class, 'updateTestimonialOrder']);
+$router->post('/admin/testimonials/:id/delete', [AdminController::class, 'deleteTestimonial']);
 $router->post('/admin/subscriptions/urssaf', [AdminController::class, 'updateUrssafSettings']);
 $router->post('/admin/subscriptions/urssaf/send-now', [AdminController::class, 'sendUrssafReportNow']);
 $router->post('/admin/plans', [AdminController::class, 'savePlan']);
@@ -702,6 +707,7 @@ $router->post('/settings/vault/invite', [SettingsController::class, 'requestVaul
 $router->post('/settings/timers', [SettingsController::class, 'createTimer']);
 $router->post('/settings/timers/:id/delete', [SettingsController::class, 'deleteTimer']);
 $router->post('/settings/home-location', [SettingsController::class, 'updateHomeLocation']);
+$router->post('/settings/testimonial', [SettingsController::class, 'submitTestimonial']);
 $router->post('/settings/home-location/clear', [SettingsController::class, 'clearHomeLocation']);
 $router->get('/notifications/:id', [NotificationController::class, 'show']);
 $router->get('/api/alerts/active', [AlertController::class, 'active']);

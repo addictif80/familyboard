@@ -222,6 +222,7 @@ class AdminController extends BaseController
         $announcements = \App\Models\Announcement::getAll();
         $editingAnnouncement = ($tab === 'announcements' && !empty($_GET['edit']))
             ? \App\Models\Announcement::getById((int)$_GET['edit']) : null;
+        $testimonials = \App\Models\Testimonial::getAll();
 
         // Coûteux (SUM sur information_schema, appel `du`) : calculé uniquement quand l'onglet
         // est effectivement consulté, pas à chaque chargement du panneau admin.
@@ -768,6 +769,52 @@ class AdminController extends BaseController
             AppSetting::set('urssaf_report_last_sent', date('Y-m'));
         }
         $this->redirect('/admin?tab=subscriptions&msg=' . ($sent ? 'urssaf_sent' : 'urssaf_send_failed'));
+    }
+
+    // ── Gestion des témoignages ────────────────────────────────────
+
+    public function createTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $authorName = trim($_POST['author_name'] ?? '');
+        $content = trim($_POST['content'] ?? '');
+        if ($authorName === '' || $content === '') {
+            $this->redirect('/admin?tab=testimonials&msg=testimonial_invalid');
+            return;
+        }
+        $authorRole = trim($_POST['author_role'] ?? '') ?: null;
+        $rating = (int)($_POST['rating'] ?? 0);
+        $rating = ($rating >= 1 && $rating <= 5) ? $rating : null;
+        \App\Models\Testimonial::createManual($authorName, $authorRole, $content, $rating, !empty($_POST['approve_now']));
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_saved');
+    }
+
+    public function approveTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::approve((int)$params['id']);
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_approved');
+    }
+
+    public function rejectTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::reject((int)$params['id']);
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_rejected');
+    }
+
+    public function updateTestimonialOrder(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::updateSortOrder((int)$params['id'], max(0, (int)($_POST['sort_order'] ?? 0)));
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_saved');
+    }
+
+    public function deleteTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::delete((int)$params['id']);
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_deleted');
     }
 
     // ── Centre d'annonces système ─────────────────────────────────

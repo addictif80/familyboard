@@ -233,6 +233,53 @@ ob_start();
     </div>
     <?php endif; ?>
 
+    <!-- Témoignage -->
+    <div class="card settings-section">
+        <h3>💬 Partagez votre avis</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Votre témoignage pourra être publié sur la page d'accueil pour aider d'autres familles
+            à découvrir FamilyBoard (après validation par notre équipe).
+        </p>
+        <div class="form-group">
+            <label>Votre témoignage</label>
+            <textarea id="testimonial-content" rows="3" maxlength="1000" placeholder="Ce que FamilyBoard a changé pour votre famille…"></textarea>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Votre rôle (optionnel)</label>
+                <input type="text" id="testimonial-role" placeholder="Maman de 2 enfants…">
+            </div>
+            <div class="form-group">
+                <label>Note (optionnel)</label>
+                <select id="testimonial-rating">
+                    <option value="">—</option>
+                    <?php for ($i = 5; $i >= 1; $i--): ?>
+                        <option value="<?= $i ?>"><?= str_repeat('⭐', $i) ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="submitTestimonial()">Envoyer mon témoignage</button>
+        <?php if (!empty($myTestimonials)): ?>
+        <table class="admin-table" style="margin-top:1rem">
+            <thead><tr><th>Témoignage</th><th>Statut</th></tr></thead>
+            <tbody>
+            <?php foreach ($myTestimonials as $t): ?>
+                <tr>
+                    <td><?= htmlspecialchars(mb_strimwidth($t['content'], 0, 100, '…')) ?></td>
+                    <td>
+                        <?php if ($t['status'] === 'approved'): ?>✅ Publié
+                        <?php elseif ($t['status'] === 'rejected'): ?>Non retenu
+                        <?php else: ?>⏳ En attente
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+    </div>
+
     <!-- Zone dangereuse -->
     <div class="card settings-section" style="border:1px solid var(--danger)">
         <h3 style="color:var(--danger)">⚠️ Zone dangereuse</h3>

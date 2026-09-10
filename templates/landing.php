@@ -443,6 +443,26 @@
         </div>
     </section>
 
+    <?php if (!empty($testimonials)): ?>
+    <section class="landing-section">
+        <div class="section-heading">
+            <span class="kicker">Témoignages</span>
+            <h2>Ce qu'en disent les familles</h2>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;max-width:1100px;margin:0 auto">
+            <?php foreach ($testimonials as $t): ?>
+            <div class="card" style="padding:1.25rem;display:flex;flex-direction:column;gap:.5rem">
+                <?php if ($t['rating']): ?><div><?= str_repeat('⭐', (int)$t['rating']) ?></div><?php endif; ?>
+                <p style="margin:0;font-style:italic">« <?= htmlspecialchars($t['content']) ?> »</p>
+                <div style="color:var(--text-muted);font-size:.85rem;margin-top:auto">
+                    <strong><?= htmlspecialchars($t['author_name']) ?></strong><?= $t['author_role'] ? ' — ' . htmlspecialchars($t['author_role']) : '' ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
+
     <?php if (!empty($pricingPlans)): ?>
     <section class="landing-section pricing-section">
         <div class="section-heading">

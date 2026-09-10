@@ -53,6 +53,7 @@ class SettingsController extends BaseController
             $referralEnabled = false;
             $referralCode = null;
             $referrals = [];
+            $myTestimonials = [];
             require BASE_PATH . '/templates/settings/index.php';
             return;
         }
@@ -88,6 +89,7 @@ class SettingsController extends BaseController
         $referralEnabled = (bool)(int)(\App\Models\AppSetting::get('referral_enabled') ?? '0');
         $referralCode = ($referralEnabled && $user['role'] === 'admin') ? Family::ensureReferralCode((int)$user['family_id']) : null;
         $referrals = ($referralEnabled && $user['role'] === 'admin') ? \App\Models\Referral::getByReferrer((int)$user['family_id']) : [];
+        $myTestimonials = \App\Models\Testimonial::getByFamily((int)$user['family_id']);
 
         require BASE_PATH . '/templates/settings/index.php';
     }
@@ -514,6 +516,27 @@ class SettingsController extends BaseController
         Session::flash('success', 'Accès complet rétabli.');
         header('Location: ' . BASE_URL . '/settings');
         exit;
+    }
+
+    /** Soumission d'un témoignage par un membre de la famille — toujours mis en attente de
+     *  modération par un administrateur système avant toute publication (voir Testimonial). */
+    public function submitTestimonial(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $authorName = trim($data['author_name'] ?? '') ?: $user['name'];
+            $authorRole = trim($data['author_role'] ?? '') ?: null;
+            $content = trim($data['content'] ?? '');
+            $rating = (int)($data['rating'] ?? 0);
+            $rating = ($rating >= 1 && $rating <= 5) ? $rating : null;
+            if ($content === '' || mb_strlen($content) > 1000) {
+                return ['success' => false, 'error' => 'Un témoignage (1000 caractères max) est requis.'];
+            }
+            \App\Models\Testimonial::submit((int)$user['family_id'], $authorName, $authorRole, $content, $rating);
+            return ['success' => true];
+        });
     }
 
     public function exportData(array $params): void
