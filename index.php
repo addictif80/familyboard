@@ -60,6 +60,7 @@ use App\Controllers\SchoolController;
 use App\Controllers\EmploymentController;
 use App\Controllers\NannyController;
 use App\Controllers\DealController;
+use App\Controllers\HealthController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -338,6 +339,16 @@ $router->post('/api/deals', [DealController::class, 'create']);
 $router->post('/api/deals/:id', [DealController::class, 'update']);
 $router->post('/api/deals/:id/delete', [DealController::class, 'delete']);
 $router->get('/deals/:id/file', [DealController::class, 'serveFile']);
+
+// ── Santé ─────────────────────────────────────────────────────
+$router->get('/health', [HealthController::class, 'index']);
+$router->post('/api/health/entries', [HealthController::class, 'addEntry']);
+$router->post('/api/health/entries/:id/delete', [HealthController::class, 'deleteEntry']);
+$router->post('/api/health/growth', [HealthController::class, 'addGrowth']);
+$router->post('/api/health/growth/:id/delete', [HealthController::class, 'deleteGrowth']);
+$router->post('/api/health/doctors', [HealthController::class, 'addDoctor']);
+$router->post('/api/health/doctors/:id', [HealthController::class, 'updateDoctor']);
+$router->post('/api/health/doctors/:id/delete', [HealthController::class, 'deleteDoctor']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);

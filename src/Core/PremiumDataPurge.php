@@ -50,6 +50,7 @@ class PremiumDataPurge
         'school'     => ['school_students'],
         'nanny'      => ['nanny_hours_entries'],
         'deals'      => ['deals'],
+        'health'     => ['health_entries', 'health_growth', 'health_doctors'],
     ];
 
     /** Requêtes de collecte des chemins de fichiers À EXÉCUTER AVANT la suppression des lignes

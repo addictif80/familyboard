@@ -269,6 +269,11 @@
             'Classement par catégorie (alimentation, loisirs, enfants…)',
             'Date de validité optionnelle, avec signalement des bons plans expirés',
         ]],
+        ['id' => 'health', 'icon' => '🏥', 'title' => 'Santé', 'badge' => 'Nouveau', 'tagline' => 'Carnet de santé, courbes de croissance et carnet médical de toute la famille.', 'points' => [
+            'Vaccins, allergies et traitements par membre ou par enfant',
+            'Courbes de croissance (taille, poids) pour chaque enfant',
+            'Médecins et spécialistes, avec rappels de renouvellement d\'ordonnance',
+        ]],
     ];
     ?>
     <section class="landing-section">
