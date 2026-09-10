@@ -195,6 +195,44 @@ ob_start();
         </div>
     </div>
 
+    <?php if ($referralEnabled && $user['role'] === 'admin'): ?>
+    <!-- Parrainage -->
+    <div class="card settings-section">
+        <h3>🤝 Parrainez une famille</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Partagez votre lien : les familles qui s'inscrivent avec ce lien vous font gagner une
+            récompense, si l'équipe FamilyBoard en a configuré une.
+        </p>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+            <input type="text" id="referral-link" readonly value="" style="flex:1;min-width:220px">
+            <button type="button" class="btn btn-secondary" onclick="copyReferralLink()">🔗 Copier le lien</button>
+        </div>
+        <script>
+        document.getElementById('referral-link').value = window.location.origin + <?= json_encode(BASE_URL) ?> + '/register?ref=' + <?= json_encode($referralCode) ?>;
+        function copyReferralLink() {
+            const input = document.getElementById('referral-link');
+            navigator.clipboard.writeText(input.value).then(() => Dialog.toast('Lien copié.', 'success'));
+        }
+        </script>
+        <?php if (!empty($referrals)): ?>
+        <table class="admin-table" style="margin-top:1rem">
+            <thead><tr><th>Famille parrainée</th><th>Date</th><th>Récompense</th></tr></thead>
+            <tbody>
+            <?php foreach ($referrals as $r): ?>
+                <tr>
+                    <td><?= htmlspecialchars($r['referred_family_name']) ?></td>
+                    <td><?= \App\Core\DateHelper::fromUtc($r['created_at'], 'd/m/Y') ?></td>
+                    <td><?= $r['reward_granted_at'] ? '✅ Offerte' : '—' ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php else: ?>
+            <p style="color:var(--text-muted);font-size:.85rem;margin-top:1rem">Aucune famille parrainée pour le moment.</p>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
     <!-- Zone dangereuse -->
     <div class="card settings-section" style="border:1px solid var(--danger)">
         <h3 style="color:var(--danger)">⚠️ Zone dangereuse</h3>

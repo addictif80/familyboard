@@ -191,6 +191,7 @@ class AuthController
         }
         $error = Session::getFlash('error');
         $inviteCode = $_GET['invite'] ?? '';
+        $refCode = preg_replace('/[^A-Z0-9]/', '', strtoupper($_GET['ref'] ?? ''));
         require BASE_PATH . '/templates/auth/register.php';
     }
 
@@ -272,6 +273,22 @@ class AuthController
             $familyId = Family::create($familyName);
             $role = 'admin';
             $isFounder = true;
+
+            $refCode = preg_replace('/[^A-Z0-9]/', '', strtoupper(trim($_POST['referral_code'] ?? '')));
+            if ($refCode && (bool)(int)(\App\Models\AppSetting::get('referral_enabled') ?? '0')) {
+                $referrer = Family::findByReferralCode($refCode);
+                if ($referrer) {
+                    $referralId = \App\Models\Referral::create((int)$referrer['id'], $familyId);
+                    if ($referralId) {
+                        $rewardPlanId = (int)(\App\Models\AppSetting::get('referral_reward_plan_id') ?? '0');
+                        $rewardDays = (int)(\App\Models\AppSetting::get('referral_reward_days') ?? '30');
+                        if ($rewardPlanId) {
+                            \App\Models\FamilySubscription::extendManualDays((int)$referrer['id'], $rewardPlanId, $rewardDays);
+                            \App\Models\Referral::markRewarded($referralId);
+                        }
+                    }
+                }
+            }
         }
 
         $colors = ['#4A90D9', '#E74C3C', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C', '#E67E22', '#3498DB'];

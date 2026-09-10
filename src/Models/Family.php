@@ -89,6 +89,34 @@ class Family
         return Database::fetch('SELECT * FROM families WHERE invite_code = ?', [$code]);
     }
 
+    public static function findByReferralCode(string $code): ?array
+    {
+        return Database::fetch('SELECT * FROM families WHERE referral_code = ?', [$code]);
+    }
+
+    /** Code de parrainage stable (voir Referral) — généré à la demande plutôt qu'à la création,
+     *  même principe que ensureMailAliasSlug() (auto-guérison pour les familles créées avant
+     *  l'ajout de cette fonctionnalité). */
+    public static function ensureReferralCode(int $id): ?string
+    {
+        $family = self::findById($id);
+        if (!$family) return null;
+        if (!empty($family['referral_code'])) return $family['referral_code'];
+        $code = self::generateReferralCode();
+        Database::execute('UPDATE families SET referral_code=? WHERE id=? AND referral_code IS NULL', [$code, $id]);
+        $row = Database::fetch('SELECT referral_code FROM families WHERE id=?', [$id]);
+        return $row['referral_code'] ?? $code;
+    }
+
+    private static function generateReferralCode(): string
+    {
+        do {
+            $code = strtoupper(substr(bin2hex(random_bytes(4)), 0, 7));
+            $existing = Database::fetch('SELECT id FROM families WHERE referral_code = ?', [$code]);
+        } while ($existing);
+        return $code;
+    }
+
     public static function create(string $name): int
     {
         $code = self::generateCode();

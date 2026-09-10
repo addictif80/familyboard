@@ -50,6 +50,9 @@ class SettingsController extends BaseController
             $subStripeConfigured = false;
             $subMemberCount = 0;
             $familyChildren = [];
+            $referralEnabled = false;
+            $referralCode = null;
+            $referrals = [];
             require BASE_PATH . '/templates/settings/index.php';
             return;
         }
@@ -81,6 +84,10 @@ class SettingsController extends BaseController
         $subStripeConfigured = \App\Core\StripeGateway::isConfigured();
         $subMemberCount     = count($members);
         $familyChildren     = \App\Models\FamilyChild::getByFamily((int)$user['family_id']);
+
+        $referralEnabled = (bool)(int)(\App\Models\AppSetting::get('referral_enabled') ?? '0');
+        $referralCode = ($referralEnabled && $user['role'] === 'admin') ? Family::ensureReferralCode((int)$user['family_id']) : null;
+        $referrals = ($referralEnabled && $user['role'] === 'admin') ? \App\Models\Referral::getByReferrer((int)$user['family_id']) : [];
 
         require BASE_PATH . '/templates/settings/index.php';
     }

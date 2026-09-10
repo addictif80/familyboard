@@ -106,6 +106,24 @@ class FamilySubscription
         );
     }
 
+    /** Récompense de parrainage (voir Referral) : prolonge l'accès manuel de $days jours à
+     *  partir de MAINTENANT, ou de la date de fin actuelle si elle est déjà plus tardive (pour
+     *  que plusieurs récompenses s'accumulent au lieu de s'écraser, contrairement à
+     *  grantManual() qui remplace toujours la date de fin). */
+    public static function extendManualDays(int $familyId, int $planId, int $days): void
+    {
+        self::ensureRow($familyId);
+        $current = self::getByFamily($familyId);
+        $base = $current['current_period_end'] ?? null;
+        $baseTs = ($base && strtotime($base) > time()) ? strtotime($base) : time();
+        $newEnd = date('Y-m-d H:i:s', $baseTs + $days * 86400);
+        Database::execute(
+            'UPDATE family_subscriptions SET plan_id=?, status="active", billing_interval=NULL, current_period_end=?, grace_started_at=NULL, grace_ends_at=NULL,
+             data_purged_at=NULL, reminder_downgrade_sent_at=NULL, reminder_midpoint_sent_at=NULL, reminder_final_sent_at=NULL, manual=1 WHERE family_id=?',
+            [$planId, $newEnd, $familyId]
+        );
+    }
+
     public static function revokeManual(int $familyId): void
     {
         Database::execute(
