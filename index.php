@@ -53,6 +53,7 @@ use App\Controllers\PushController;
 use App\Controllers\LocationController;
 use App\Controllers\EmergencyController;
 use App\Controllers\CommLogController;
+use App\Controllers\AnnouncementController;
 use App\Controllers\MealController;
 use App\Controllers\LetterController;
 use App\Controllers\DisputeController;
@@ -60,6 +61,15 @@ use App\Controllers\SchoolController;
 use App\Controllers\EmploymentController;
 use App\Controllers\NannyController;
 use App\Controllers\DealController;
+use App\Controllers\HealthController;
+use App\Controllers\VehicleController;
+use App\Controllers\PetController;
+use App\Controllers\MeterController;
+use App\Controllers\AdminProcedureController;
+use App\Controllers\LeaveRequestController;
+use App\Controllers\TravelController;
+use App\Controllers\VaultController;
+use App\Controllers\VaultAccessController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -339,6 +349,70 @@ $router->post('/api/deals/:id', [DealController::class, 'update']);
 $router->post('/api/deals/:id/delete', [DealController::class, 'delete']);
 $router->get('/deals/:id/file', [DealController::class, 'serveFile']);
 
+// ── Santé ─────────────────────────────────────────────────────
+$router->get('/health', [HealthController::class, 'index']);
+$router->post('/api/health/entries', [HealthController::class, 'addEntry']);
+$router->post('/api/health/entries/:id/delete', [HealthController::class, 'deleteEntry']);
+$router->post('/api/health/growth', [HealthController::class, 'addGrowth']);
+$router->post('/api/health/growth/:id/delete', [HealthController::class, 'deleteGrowth']);
+$router->post('/api/health/doctors', [HealthController::class, 'addDoctor']);
+$router->post('/api/health/doctors/:id', [HealthController::class, 'updateDoctor']);
+$router->post('/api/health/doctors/:id/delete', [HealthController::class, 'deleteDoctor']);
+
+// ── Véhicules ─────────────────────────────────────────────────
+$router->get('/vehicles', [VehicleController::class, 'index']);
+$router->post('/api/vehicles', [VehicleController::class, 'create']);
+$router->post('/api/vehicles/:id', [VehicleController::class, 'update']);
+$router->post('/api/vehicles/:id/delete', [VehicleController::class, 'delete']);
+$router->post('/api/vehicles/:id/maintenance', [VehicleController::class, 'addMaintenance']);
+$router->post('/api/vehicles/:id/maintenance/:maintenanceId/delete', [VehicleController::class, 'deleteMaintenance']);
+
+// ── Animaux de compagnie ─────────────────────────────────────
+$router->get('/pets', [PetController::class, 'index']);
+$router->post('/api/pets', [PetController::class, 'create']);
+$router->post('/api/pets/:id', [PetController::class, 'update']);
+$router->post('/api/pets/:id/delete', [PetController::class, 'delete']);
+$router->post('/api/pets/:id/care', [PetController::class, 'addCareEntry']);
+$router->post('/api/pets/:id/care/:careId/delete', [PetController::class, 'deleteCareEntry']);
+
+// ── Compteurs & consommation ─────────────────────────────────
+$router->get('/meters', [MeterController::class, 'index']);
+$router->post('/api/meters', [MeterController::class, 'create']);
+$router->post('/api/meters/:id', [MeterController::class, 'update']);
+$router->post('/api/meters/:id/delete', [MeterController::class, 'delete']);
+$router->post('/api/meters/:id/readings', [MeterController::class, 'addReading']);
+$router->post('/api/meters/:id/readings/:readingId/delete', [MeterController::class, 'deleteReading']);
+
+// ── Démarches administratives ────────────────────────────────
+$router->get('/admin-procedures', [AdminProcedureController::class, 'index']);
+$router->post('/api/admin-procedures', [AdminProcedureController::class, 'create']);
+$router->post('/api/admin-procedures/:id/done', [AdminProcedureController::class, 'toggleDone']);
+$router->post('/api/admin-procedures/:id/delete', [AdminProcedureController::class, 'delete']);
+
+// ── Congés familiaux ──────────────────────────────────────────
+$router->get('/leave', [LeaveRequestController::class, 'index']);
+$router->post('/api/leave', [LeaveRequestController::class, 'create']);
+$router->post('/api/leave/:id/delete', [LeaveRequestController::class, 'delete']);
+
+$router->get('/travels', [TravelController::class, 'index']);
+$router->post('/api/travels', [TravelController::class, 'create']);
+$router->post('/api/travels/:id', [TravelController::class, 'update']);
+$router->post('/api/travels/:id/delete', [TravelController::class, 'delete']);
+$router->post('/api/travels/:id/reservations', [TravelController::class, 'addReservation']);
+$router->post('/api/travels/:id/reservations/:reservationId/delete', [TravelController::class, 'deleteReservation']);
+
+$router->get('/vault', [VaultController::class, 'index']);
+$router->post('/api/vault/entries', [VaultController::class, 'createEntry']);
+$router->post('/api/vault/entries/:id', [VaultController::class, 'updateEntry']);
+$router->post('/api/vault/entries/:id/delete', [VaultController::class, 'deleteEntry']);
+$router->get('/api/vault/entries/:id/file', [VaultController::class, 'serveFile']);
+$router->post('/api/vault/trustees', [VaultController::class, 'createTrustee']);
+$router->post('/api/vault/trustees/:id/delete', [VaultController::class, 'deleteTrustee']);
+$router->post('/api/vault/trustees/:id/decide', [VaultController::class, 'decideTrustee']);
+$router->post('/api/vault/trustees/:id/revoke', [VaultController::class, 'revokeTrustee']);
+$router->get('/vault-access/:token', [VaultAccessController::class, 'view']);
+$router->post('/vault-access/:token/request', [VaultAccessController::class, 'request']);
+
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
 $router->get('/additions/espace/:token', [AdditionController::class, 'guestSpace']);
@@ -538,6 +612,17 @@ $router->post('/admin/mailcow', [AdminController::class, 'updateMailcowSettings'
 $router->post('/admin/mailcow/test', [AdminController::class, 'testMailcowConnection']);
 $router->post('/admin/subscriptions/settings', [AdminController::class, 'updateSubscriptionSettings']);
 $router->post('/admin/subscriptions/stripe', [AdminController::class, 'updateStripeSettings']);
+$router->post('/admin/referrals/settings', [AdminController::class, 'updateReferralSettings']);
+$router->post('/admin/announcements', [AdminController::class, 'createAnnouncement']);
+$router->post('/admin/announcements/:id', [AdminController::class, 'updateAnnouncement']);
+$router->post('/admin/announcements/:id/publish', [AdminController::class, 'publishAnnouncement']);
+$router->post('/admin/announcements/:id/unpublish', [AdminController::class, 'unpublishAnnouncement']);
+$router->post('/admin/announcements/:id/delete', [AdminController::class, 'deleteAnnouncement']);
+$router->post('/admin/testimonials', [AdminController::class, 'createTestimonial']);
+$router->post('/admin/testimonials/:id/approve', [AdminController::class, 'approveTestimonial']);
+$router->post('/admin/testimonials/:id/reject', [AdminController::class, 'rejectTestimonial']);
+$router->post('/admin/testimonials/:id/order', [AdminController::class, 'updateTestimonialOrder']);
+$router->post('/admin/testimonials/:id/delete', [AdminController::class, 'deleteTestimonial']);
 $router->post('/admin/subscriptions/urssaf', [AdminController::class, 'updateUrssafSettings']);
 $router->post('/admin/subscriptions/urssaf/send-now', [AdminController::class, 'sendUrssafReportNow']);
 $router->post('/admin/plans', [AdminController::class, 'savePlan']);
@@ -605,6 +690,8 @@ $router->post('/onboarding/complete', [OnboardingController::class, 'complete'])
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
 $router->post('/settings/member/:id/promote', [SettingsController::class, 'promoteMember']);
 $router->post('/settings/member/:id/demote', [SettingsController::class, 'demoteMember']);
+$router->post('/settings/member/:id/set-ado', [SettingsController::class, 'setAdo']);
+$router->post('/settings/member/:id/unset-ado', [SettingsController::class, 'unsetAdo']);
 $router->get('/settings/export', [SettingsController::class, 'exportData']);
 $router->post('/settings/delete-account', [SettingsController::class, 'deleteAccount']);
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
@@ -620,6 +707,7 @@ $router->post('/settings/vault/invite', [SettingsController::class, 'requestVaul
 $router->post('/settings/timers', [SettingsController::class, 'createTimer']);
 $router->post('/settings/timers/:id/delete', [SettingsController::class, 'deleteTimer']);
 $router->post('/settings/home-location', [SettingsController::class, 'updateHomeLocation']);
+$router->post('/settings/testimonial', [SettingsController::class, 'submitTestimonial']);
 $router->post('/settings/home-location/clear', [SettingsController::class, 'clearHomeLocation']);
 $router->get('/notifications/:id', [NotificationController::class, 'show']);
 $router->get('/api/alerts/active', [AlertController::class, 'active']);
@@ -706,6 +794,8 @@ $router->get('/comm-log', [CommLogController::class, 'index']);
 $router->post('/api/comm-log/send', [CommLogController::class, 'send']);
 $router->get('/api/comm-log/poll', [CommLogController::class, 'poll']);
 $router->get('/api/comm-log/:id/audio', [CommLogController::class, 'serveAudio']);
+$router->get('/comm-log/export', [CommLogController::class, 'exportJudicial']);
+$router->get('/announcements', [AnnouncementController::class, 'index']);
 
 // Repas
 $router->get('/meals', [MealController::class, 'index']);

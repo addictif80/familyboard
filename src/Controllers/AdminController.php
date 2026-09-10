@@ -215,6 +215,25 @@ class AdminController extends BaseController
              WHERE fs.status != "none" OR fs.manual = 1 ORDER BY fs.updated_at DESC'
         );
         $premiumDataPurges = Database::fetchAll('SELECT id, family_id, family_name, modules_purged, purged_at FROM premium_data_purges ORDER BY purged_at DESC LIMIT 200');
+        $referralEnabled = (bool)(int)(AppSetting::get('referral_enabled') ?? '0');
+        $referralRewardPlanId = (int)(AppSetting::get('referral_reward_plan_id') ?? '0');
+        $referralRewardDays = (int)(AppSetting::get('referral_reward_days') ?? '30');
+        $referrals = \App\Models\Referral::getAll();
+        $announcements = \App\Models\Announcement::getAll();
+        $editingAnnouncement = ($tab === 'announcements' && !empty($_GET['edit']))
+            ? \App\Models\Announcement::getById((int)$_GET['edit']) : null;
+        $testimonials = \App\Models\Testimonial::getAll();
+
+        // Coûteux (SUM sur information_schema, appel `du`) : calculé uniquement quand l'onglet
+        // est effectivement consulté, pas à chaque chargement du panneau admin.
+        $cronStatus = $errorStats = $emailStats = $dbSizeBytes = $storageSizeBytes = null;
+        if ($tab === 'health') {
+            $cronStatus = \App\Core\PlatformHealth::cronStatus();
+            $errorStats = \App\Core\PlatformHealth::errorStats();
+            $emailStats = \App\Core\PlatformHealth::emailStats();
+            $dbSizeBytes = \App\Core\PlatformHealth::dbSizeBytes();
+            $storageSizeBytes = \App\Core\PlatformHealth::storageSizeBytes();
+        }
 
         require BASE_PATH . '/templates/admin/index.php';
     }
@@ -750,6 +769,116 @@ class AdminController extends BaseController
             AppSetting::set('urssaf_report_last_sent', date('Y-m'));
         }
         $this->redirect('/admin?tab=subscriptions&msg=' . ($sent ? 'urssaf_sent' : 'urssaf_send_failed'));
+    }
+
+    // ── Gestion des témoignages ────────────────────────────────────
+
+    public function createTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $authorName = trim($_POST['author_name'] ?? '');
+        $content = trim($_POST['content'] ?? '');
+        if ($authorName === '' || $content === '') {
+            $this->redirect('/admin?tab=testimonials&msg=testimonial_invalid');
+            return;
+        }
+        $authorRole = trim($_POST['author_role'] ?? '') ?: null;
+        $rating = (int)($_POST['rating'] ?? 0);
+        $rating = ($rating >= 1 && $rating <= 5) ? $rating : null;
+        \App\Models\Testimonial::createManual($authorName, $authorRole, $content, $rating, !empty($_POST['approve_now']));
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_saved');
+    }
+
+    public function approveTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::approve((int)$params['id']);
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_approved');
+    }
+
+    public function rejectTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::reject((int)$params['id']);
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_rejected');
+    }
+
+    public function updateTestimonialOrder(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::updateSortOrder((int)$params['id'], max(0, (int)($_POST['sort_order'] ?? 0)));
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_saved');
+    }
+
+    public function deleteTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::delete((int)$params['id']);
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_deleted');
+    }
+
+    // ── Centre d'annonces système ─────────────────────────────────
+
+    public function createAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title = trim($_POST['title'] ?? '');
+        $content = trim($_POST['content'] ?? '');
+        $type = array_key_exists($_POST['type'] ?? '', \App\Models\Announcement::TYPES) ? $_POST['type'] : 'info';
+        if ($title === '' || $content === '') {
+            $this->redirect('/admin?tab=announcements&msg=announcement_invalid');
+            return;
+        }
+        \App\Models\Announcement::create($title, $content, $type, !empty($_POST['publish_now']));
+        $this->redirect('/admin?tab=announcements&msg=announcement_saved');
+    }
+
+    public function updateAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)$params['id'];
+        $title = trim($_POST['title'] ?? '');
+        $content = trim($_POST['content'] ?? '');
+        $type = array_key_exists($_POST['type'] ?? '', \App\Models\Announcement::TYPES) ? $_POST['type'] : 'info';
+        if ($title === '' || $content === '') {
+            $this->redirect('/admin?tab=announcements&msg=announcement_invalid');
+            return;
+        }
+        \App\Models\Announcement::update($id, $title, $content, $type);
+        $this->redirect('/admin?tab=announcements&msg=announcement_saved');
+    }
+
+    public function publishAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Announcement::publish((int)$params['id']);
+        $this->redirect('/admin?tab=announcements&msg=announcement_published');
+    }
+
+    public function unpublishAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Announcement::unpublish((int)$params['id']);
+        $this->redirect('/admin?tab=announcements&msg=announcement_unpublished');
+    }
+
+    public function deleteAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Announcement::delete((int)$params['id']);
+        $this->redirect('/admin?tab=announcements&msg=announcement_deleted');
+    }
+
+    // ── Programme de parrainage ───────────────────────────────────
+
+    public function updateReferralSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('referral_enabled', !empty($_POST['referral_enabled']) ? '1' : '0');
+        $planId = (int)($_POST['referral_reward_plan_id'] ?? 0);
+        AppSetting::set('referral_reward_plan_id', $planId ? (string)$planId : '');
+        AppSetting::set('referral_reward_days', (string)max(1, (int)($_POST['referral_reward_days'] ?? 30)));
+        $this->redirect('/admin?tab=referrals&msg=referral_settings_saved');
     }
 
     public function savePlan(array $params): void

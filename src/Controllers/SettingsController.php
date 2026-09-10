@@ -50,6 +50,10 @@ class SettingsController extends BaseController
             $subStripeConfigured = false;
             $subMemberCount = 0;
             $familyChildren = [];
+            $referralEnabled = false;
+            $referralCode = null;
+            $referrals = [];
+            $myTestimonials = [];
             require BASE_PATH . '/templates/settings/index.php';
             return;
         }
@@ -81,6 +85,11 @@ class SettingsController extends BaseController
         $subStripeConfigured = \App\Core\StripeGateway::isConfigured();
         $subMemberCount     = count($members);
         $familyChildren     = \App\Models\FamilyChild::getByFamily((int)$user['family_id']);
+
+        $referralEnabled = (bool)(int)(\App\Models\AppSetting::get('referral_enabled') ?? '0');
+        $referralCode = ($referralEnabled && $user['role'] === 'admin') ? Family::ensureReferralCode((int)$user['family_id']) : null;
+        $referrals = ($referralEnabled && $user['role'] === 'admin') ? \App\Models\Referral::getByReferrer((int)$user['family_id']) : [];
+        $myTestimonials = \App\Models\Testimonial::getByFamily((int)$user['family_id']);
 
         require BASE_PATH . '/templates/settings/index.php';
     }
@@ -462,6 +471,72 @@ class SettingsController extends BaseController
         Session::flash('success', 'Administrateur rétrogradé.');
         header('Location: ' . BASE_URL . '/settings');
         exit;
+    }
+
+    /** Bascule un membre vers le rôle "ado" : accès conservé aux modules du quotidien, mais
+     *  automatiquement privé des modules financiers/juridiques/administratifs sensibles (voir
+     *  Family::ADO_RESTRICTED_MODULES) — utile pour donner un accès autonome à un adolescent
+     *  sans exposer le budget familial, le coffre-fort ou les dossiers de litige. */
+    public function setAdo(array $params): void
+    {
+        $this->requireAdmin();
+        $user = Session::user();
+        $id = (int)$params['id'];
+        if ($id !== $user['id']) {
+            $member = User::findById($id);
+            if ($member && $member['family_id'] === $user['family_id'] && $member['role'] === 'member') {
+                \App\Core\Database::execute("UPDATE users SET role='ado' WHERE id=?", [$id]);
+                \App\Models\Notification::create(
+                    $id, 'settings', 'Type de compte modifié',
+                    $user['name'] . ' a activé l\'accès « ado » sur votre compte : certains modules (budget, coffre-fort, litiges…) ne sont plus accessibles.', BASE_URL . '/settings'
+                );
+            }
+        }
+        Session::flash('success', 'Accès ado activé.');
+        header('Location: ' . BASE_URL . '/settings');
+        exit;
+    }
+
+    /** Rétablit un compte ado en membre à accès complet. */
+    public function unsetAdo(array $params): void
+    {
+        $this->requireAdmin();
+        $user = Session::user();
+        $id = (int)$params['id'];
+        if ($id !== $user['id']) {
+            $member = User::findById($id);
+            if ($member && $member['family_id'] === $user['family_id'] && $member['role'] === 'ado') {
+                \App\Core\Database::execute("UPDATE users SET role='member' WHERE id=?", [$id]);
+                \App\Models\Notification::create(
+                    $id, 'settings', 'Type de compte modifié',
+                    $user['name'] . ' a retiré la restriction « ado » de votre compte : accès complet rétabli.', BASE_URL . '/settings'
+                );
+            }
+        }
+        Session::flash('success', 'Accès complet rétabli.');
+        header('Location: ' . BASE_URL . '/settings');
+        exit;
+    }
+
+    /** Soumission d'un témoignage par un membre de la famille — toujours mis en attente de
+     *  modération par un administrateur système avant toute publication (voir Testimonial). */
+    public function submitTestimonial(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $authorName = trim($data['author_name'] ?? '') ?: $user['name'];
+            $authorRole = trim($data['author_role'] ?? '') ?: null;
+            $content = trim($data['content'] ?? '');
+            $rating = (int)($data['rating'] ?? 0);
+            $rating = ($rating >= 1 && $rating <= 5) ? $rating : null;
+            if ($content === '' || mb_strlen($content) > 1000) {
+                return ['success' => false, 'error' => 'Un témoignage (1000 caractères max) est requis.'];
+            }
+            \App\Models\Testimonial::submit((int)$user['family_id'], $authorName, $authorRole, $content, $rating);
+            return ['success' => true];
+        });
     }
 
     public function exportData(array $params): void

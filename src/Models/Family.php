@@ -36,6 +36,23 @@ class Family
         'employment'  => ['label' => 'Suivi salarié',       'icon' => '💼'],
         'nanny'       => ['label' => 'Suivi nounou',         'icon' => '🕒'],
         'deals'       => ['label' => 'Bons plans',           'icon' => '🏷️'],
+        'health'      => ['label' => 'Santé',                'icon' => '🏥'],
+        'vehicles'    => ['label' => 'Véhicules',             'icon' => '🚗'],
+        'pets'        => ['label' => 'Animaux de compagnie',  'icon' => '🐾'],
+        'meters'      => ['label' => 'Compteurs',             'icon' => '📊'],
+        'admin_procedures' => ['label' => 'Démarches admin.', 'icon' => '🪪'],
+        'leave'       => ['label' => 'Congés familiaux',      'icon' => '🏖️'],
+        'travels'     => ['label' => 'Voyages & réservations', 'icon' => '✈️'],
+        'vault'       => ['label' => 'Coffre-fort numérique',  'icon' => '🔐'],
+    ];
+
+    /** Modules automatiquement masqués aux comptes au rôle 'ado' — financier, juridique ou
+     *  administratif sensible. Bloqué côté serveur dans BaseController::requireModule(), en plus
+     *  d'être masqué côté navigation (voir templates/layout.php, $_navEnabled). Un administrateur
+     *  famille ne peut pas réactiver ces modules pour un compte ado : c'est une restriction de
+     *  rôle, pas une préférence de famille comme disabled_modules. */
+    public const ADO_RESTRICTED_MODULES = [
+        'budget', 'vault', 'admin_procedures', 'disputes', 'letters', 'employment', 'nanny', 'comm_log', 'additions',
     ];
 
     /** Modules ayant une page de destination directe (donc utilisables dans la barre de
@@ -49,7 +66,7 @@ class Family
         'emergency' => '/emergency', 'comm_log' => '/comm-log', 'meals' => '/meals',
         'wishlist' => '/wishlist', 'polls' => '/polls', 'links' => '/links',
         'additions' => '/additions', 'letters' => '/letters', 'disputes' => '/disputes',
-        'school' => '/school', 'employment' => '/employment', 'nanny' => '/nanny', 'deals' => '/deals',
+        'school' => '/school', 'employment' => '/employment', 'nanny' => '/nanny', 'deals' => '/deals', 'health' => '/health', 'vehicles' => '/vehicles', 'pets' => '/pets', 'meters' => '/meters', 'admin_procedures' => '/admin-procedures', 'leave' => '/leave', 'travels' => '/travels', 'vault' => '/vault',
     ];
 
     /** Sélection par défaut de la barre de navigation rapide (mobile/PWA), tant que
@@ -70,6 +87,34 @@ class Family
     public static function findByInviteCode(string $code): ?array
     {
         return Database::fetch('SELECT * FROM families WHERE invite_code = ?', [$code]);
+    }
+
+    public static function findByReferralCode(string $code): ?array
+    {
+        return Database::fetch('SELECT * FROM families WHERE referral_code = ?', [$code]);
+    }
+
+    /** Code de parrainage stable (voir Referral) — généré à la demande plutôt qu'à la création,
+     *  même principe que ensureMailAliasSlug() (auto-guérison pour les familles créées avant
+     *  l'ajout de cette fonctionnalité). */
+    public static function ensureReferralCode(int $id): ?string
+    {
+        $family = self::findById($id);
+        if (!$family) return null;
+        if (!empty($family['referral_code'])) return $family['referral_code'];
+        $code = self::generateReferralCode();
+        Database::execute('UPDATE families SET referral_code=? WHERE id=? AND referral_code IS NULL', [$code, $id]);
+        $row = Database::fetch('SELECT referral_code FROM families WHERE id=?', [$id]);
+        return $row['referral_code'] ?? $code;
+    }
+
+    private static function generateReferralCode(): string
+    {
+        do {
+            $code = strtoupper(substr(bin2hex(random_bytes(4)), 0, 7));
+            $existing = Database::fetch('SELECT id FROM families WHERE referral_code = ?', [$code]);
+        } while ($existing);
+        return $code;
     }
 
     public static function create(string $name): int

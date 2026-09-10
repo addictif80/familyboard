@@ -269,6 +269,46 @@
             'Classement par catégorie (alimentation, loisirs, enfants…)',
             'Date de validité optionnelle, avec signalement des bons plans expirés',
         ]],
+        ['id' => 'health', 'icon' => '🏥', 'title' => 'Santé', 'badge' => 'Nouveau', 'tagline' => 'Carnet de santé, courbes de croissance et carnet médical de toute la famille.', 'points' => [
+            'Vaccins, allergies et traitements par membre ou par enfant',
+            'Courbes de croissance (taille, poids) pour chaque enfant',
+            'Médecins et spécialistes, avec rappels de renouvellement d\'ordonnance',
+        ]],
+        ['id' => 'vehicles', 'icon' => '🚗', 'title' => 'Véhicules', 'badge' => 'Nouveau', 'tagline' => 'Entretien, contrôle technique, assurance et kilométrage de chaque véhicule.', 'points' => [
+            'Historique d\'entretien daté, avec kilométrage et coût',
+            'Échéances d\'assurance et de contrôle technique signalées automatiquement',
+            'Un véhicule par membre ou partagé, sans limite',
+        ]],
+        ['id' => 'pets', 'icon' => '🐾', 'title' => 'Animaux de compagnie', 'badge' => 'Nouveau', 'tagline' => 'Le carnet de santé de vos animaux, vétérinaire et rappels de vaccins.', 'points' => [
+            'Fiche par animal avec coordonnées du vétérinaire',
+            'Carnet de soins : vaccins, vermifuges, visites, avec rappel de la prochaine échéance',
+            'Un animal par famille ou plusieurs, sans limite',
+        ]],
+        ['id' => 'meters', 'icon' => '📊', 'title' => 'Compteurs & consommation', 'badge' => 'Nouveau', 'tagline' => 'Relevés eau, électricité, gaz — suivez votre consommation dans le temps.', 'points' => [
+            'Un compteur par point de mesure, avec fournisseur et numéro de contrat',
+            'Historique des relevés avec calcul automatique de la consommation entre deux dates',
+            'Autant de compteurs que nécessaire (eau, électricité, gaz…)',
+        ]],
+        ['id' => 'admin_procedures', 'icon' => '🪪', 'title' => 'Démarches administratives', 'badge' => 'Nouveau', 'tagline' => 'CNI, passeport, CAF, mutuelle… plus aucune échéance oubliée.', 'points' => [
+            'Une échéance par membre ou enfant, avec type de démarche',
+            'Rappels automatiques avant expiration (J-30 et J-7)',
+            'Coché une fois fait, sans jamais supprimer l\'historique',
+        ]],
+        ['id' => 'leave', 'icon' => '🏖️', 'title' => 'Congés familiaux', 'badge' => 'Nouveau', 'tagline' => 'Le planning des congés de toute la famille, pour ne plus se marcher dessus.', 'points' => [
+            'Un congé par membre, avec type (payés, RTT, sans solde…) et dates',
+            'Détection automatique des chevauchements entre membres',
+            'Vue d\'ensemble pour organiser les départs sans conflit',
+        ]],
+        ['id' => 'travels', 'icon' => '✈️', 'title' => 'Voyages & réservations', 'badge' => 'Nouveau', 'tagline' => 'Chaque voyage avec ses réservations : transport, hébergement, activités.', 'points' => [
+            'Un voyage par séjour, avec dates, destination et budget',
+            'Réservations détaillées avec numéro de confirmation et coût',
+            'Tout centralisé pour ne plus fouiller les e-mails avant de partir',
+        ]],
+        ['id' => 'vault', 'icon' => '🔐', 'title' => 'Coffre-fort numérique', 'badge' => 'Nouveau', 'tagline' => 'Documents et informations essentielles, accessibles à vos proches en cas de besoin.', 'points' => [
+            'Documents, comptes, contacts utiles et souhaits, classés par catégorie',
+            'Personnes de confiance désignées avec un lien d\'accès personnel',
+            'Accès d\'urgence toujours validé manuellement par un administrateur, jamais automatique',
+        ]],
     ];
     ?>
     <section class="landing-section">
@@ -402,6 +442,26 @@
             </div>
         </div>
     </section>
+
+    <?php if (!empty($testimonials)): ?>
+    <section class="landing-section">
+        <div class="section-heading">
+            <span class="kicker">Témoignages</span>
+            <h2>Ce qu'en disent les familles</h2>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;max-width:1100px;margin:0 auto">
+            <?php foreach ($testimonials as $t): ?>
+            <div class="card" style="padding:1.25rem;display:flex;flex-direction:column;gap:.5rem">
+                <?php if ($t['rating']): ?><div><?= str_repeat('⭐', (int)$t['rating']) ?></div><?php endif; ?>
+                <p style="margin:0;font-style:italic">« <?= htmlspecialchars($t['content']) ?> »</p>
+                <div style="color:var(--text-muted);font-size:.85rem;margin-top:auto">
+                    <strong><?= htmlspecialchars($t['author_name']) ?></strong><?= $t['author_role'] ? ' — ' . htmlspecialchars($t['author_role']) : '' ?>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php endif; ?>
 
     <?php if (!empty($pricingPlans)): ?>
     <section class="landing-section pricing-section">

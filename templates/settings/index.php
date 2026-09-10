@@ -195,6 +195,91 @@ ob_start();
         </div>
     </div>
 
+    <?php if ($referralEnabled && $user['role'] === 'admin'): ?>
+    <!-- Parrainage -->
+    <div class="card settings-section">
+        <h3>🤝 Parrainez une famille</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Partagez votre lien : les familles qui s'inscrivent avec ce lien vous font gagner une
+            récompense, si l'équipe FamilyBoard en a configuré une.
+        </p>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+            <input type="text" id="referral-link" readonly value="" style="flex:1;min-width:220px">
+            <button type="button" class="btn btn-secondary" onclick="copyReferralLink()">🔗 Copier le lien</button>
+        </div>
+        <script>
+        document.getElementById('referral-link').value = window.location.origin + <?= json_encode(BASE_URL) ?> + '/register?ref=' + <?= json_encode($referralCode) ?>;
+        function copyReferralLink() {
+            const input = document.getElementById('referral-link');
+            navigator.clipboard.writeText(input.value).then(() => Dialog.toast('Lien copié.', 'success'));
+        }
+        </script>
+        <?php if (!empty($referrals)): ?>
+        <table class="admin-table" style="margin-top:1rem">
+            <thead><tr><th>Famille parrainée</th><th>Date</th><th>Récompense</th></tr></thead>
+            <tbody>
+            <?php foreach ($referrals as $r): ?>
+                <tr>
+                    <td><?= htmlspecialchars($r['referred_family_name']) ?></td>
+                    <td><?= \App\Core\DateHelper::fromUtc($r['created_at'], 'd/m/Y') ?></td>
+                    <td><?= $r['reward_granted_at'] ? '✅ Offerte' : '—' ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php else: ?>
+            <p style="color:var(--text-muted);font-size:.85rem;margin-top:1rem">Aucune famille parrainée pour le moment.</p>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- Témoignage -->
+    <div class="card settings-section">
+        <h3>💬 Partagez votre avis</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Votre témoignage pourra être publié sur la page d'accueil pour aider d'autres familles
+            à découvrir FamilyBoard (après validation par notre équipe).
+        </p>
+        <div class="form-group">
+            <label>Votre témoignage</label>
+            <textarea id="testimonial-content" rows="3" maxlength="1000" placeholder="Ce que FamilyBoard a changé pour votre famille…"></textarea>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Votre rôle (optionnel)</label>
+                <input type="text" id="testimonial-role" placeholder="Maman de 2 enfants…">
+            </div>
+            <div class="form-group">
+                <label>Note (optionnel)</label>
+                <select id="testimonial-rating">
+                    <option value="">—</option>
+                    <?php for ($i = 5; $i >= 1; $i--): ?>
+                        <option value="<?= $i ?>"><?= str_repeat('⭐', $i) ?></option>
+                    <?php endfor; ?>
+                </select>
+            </div>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="submitTestimonial()">Envoyer mon témoignage</button>
+        <?php if (!empty($myTestimonials)): ?>
+        <table class="admin-table" style="margin-top:1rem">
+            <thead><tr><th>Témoignage</th><th>Statut</th></tr></thead>
+            <tbody>
+            <?php foreach ($myTestimonials as $t): ?>
+                <tr>
+                    <td><?= htmlspecialchars(mb_strimwidth($t['content'], 0, 100, '…')) ?></td>
+                    <td>
+                        <?php if ($t['status'] === 'approved'): ?>✅ Publié
+                        <?php elseif ($t['status'] === 'rejected'): ?>Non retenu
+                        <?php else: ?>⏳ En attente
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+    </div>
+
     <!-- Zone dangereuse -->
     <div class="card settings-section" style="border:1px solid var(--danger)">
         <h3 style="color:var(--danger)">⚠️ Zone dangereuse</h3>
@@ -643,6 +728,8 @@ ob_start();
                                 <?php if (!empty($coparentChildren[$member['id']])): ?>
                                     — <?= htmlspecialchars(implode(', ', $coparentChildren[$member['id']])) ?>
                                 <?php endif; ?>
+                            <?php elseif ($member['role'] === 'ado'): ?>
+                                🧒 Ado (accès restreint)
                             <?php else: ?>
                                 Membre
                             <?php endif; ?>
@@ -654,6 +741,13 @@ ob_start();
                         <?php if ($member['role'] === 'member'): ?>
                             <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/promote" onsubmit="return confirmSubmit(this,'Promouvoir <?= htmlspecialchars(addslashes($member['name'])) ?> administrateur ?')"><?= \App\Core\Csrf::field() ?>
                                 <button type="submit" class="btn btn-secondary btn-sm">👑 Promouvoir admin</button>
+                            </form>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/set-ado" onsubmit="return confirmSubmit(this,'Activer l\'accès « ado » pour <?= htmlspecialchars(addslashes($member['name'])) ?> ? Le budget, le coffre-fort et les dossiers de litige ne seront plus accessibles pour ce compte.')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm">🧒 Passer en ado</button>
+                            </form>
+                        <?php elseif ($member['role'] === 'ado'): ?>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/unset-ado" onsubmit="return confirmSubmit(this,'Rétablir l\'accès complet pour <?= htmlspecialchars(addslashes($member['name'])) ?> ?')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm">Rétablir l'accès complet</button>
                             </form>
                         <?php elseif ($member['role'] === 'admin' && !$founderProtected): ?>
                             <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/demote" onsubmit="return confirmSubmit(this,'Rétrograder <?= htmlspecialchars(addslashes($member['name'])) ?> au rôle de membre ?')"><?= \App\Core\Csrf::field() ?>

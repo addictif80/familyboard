@@ -80,6 +80,20 @@ class CommLogMessage
         );
     }
 
+    /** Tous les messages (sans limite), pour l'export judiciaire — filtrable par période. */
+    public static function getAllByFamily(int $familyId, ?string $from = null, ?string $to = null): array
+    {
+        $sql = 'SELECT m.*, COALESCE(u.name, m.former_user_name) as user_name
+                FROM comm_log_messages m
+                LEFT JOIN users u ON u.id = m.user_id
+                WHERE m.family_id=?';
+        $params = [$familyId];
+        if ($from) { $sql .= ' AND m.created_at >= ?'; $params[] = $from . ' 00:00:00'; }
+        if ($to)   { $sql .= ' AND m.created_at <= ?'; $params[] = $to . ' 23:59:59'; }
+        $sql .= ' ORDER BY m.created_at ASC, m.id ASC';
+        return Database::fetchAll($sql, $params);
+    }
+
     public static function getNew(int $familyId, int $afterId): array
     {
         return Database::fetchAll(

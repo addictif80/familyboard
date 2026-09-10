@@ -15,6 +15,9 @@ ob_start();
 
     <form method="POST" action="<?= BASE_URL ?>/register" class="auth-form">
         <?= \App\Core\Csrf::field() ?>
+        <?php if (!empty($refCode)): ?>
+            <input type="hidden" name="referral_code" value="<?= htmlspecialchars($refCode) ?>">
+        <?php endif; ?>
         <div class="form-group">
             <label>Votre prénom / nom</label>
             <input type="text" name="name" required autofocus placeholder="Marie Dupont">

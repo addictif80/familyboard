@@ -33,6 +33,7 @@ class DashboardController extends \App\Controllers\BaseController
             $pricingPlans = $billingEnabled ? \App\Models\Plan::getAll(true) : [];
             $annualDiscount = (int)(\App\Models\AppSetting::get('sub_annual_discount_pct') ?? '20');
             $trialDays = (int)(\App\Models\AppSetting::get('sub_trial_days') ?? '14');
+            $testimonials = \App\Models\Testimonial::getApproved();
             require BASE_PATH . '/templates/landing.php';
             return;
         }

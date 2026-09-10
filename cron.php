@@ -41,6 +41,7 @@ use App\Core\Push;
 use App\Models\HomePresence;
 use App\Models\FamilySubscription;
 use App\Core\PremiumDataPurge;
+use App\Core\PlatformHealth;
 
 // Le cron tourne chaque minute (pour la synchro CalDAV) mais un run peut dépasser 60s (envois
 // SMTP séquentiels, appels HTTP externes) — un verrou évite que deux exécutions se chevauchent
@@ -59,6 +60,14 @@ register_shutdown_function(function () use ($lockHandle) {
     flock($lockHandle, LOCK_UN);
     fclose($lockHandle);
 });
+
+// Heartbeat pour le tableau de bord santé plateforme (/admin?tab=health) — indépendant du succès
+// des jobs qui suivent : un heartbeat qui ne bouge plus signale que le cron lui-même s'est arrêté.
+try {
+    PlatformHealth::recordCronHeartbeat();
+} catch (\Throwable) {
+    // Jamais bloquant : mieux vaut un heartbeat manquant qu'un cron qui échoue à cause de lui.
+}
 
 $appUrl = (getenv('APP_URL') ?: 'https://board.abhd.fr') . BASE_URL;
 
@@ -250,6 +259,24 @@ function sendExpiryReminders(int $familyId, array $members, string $appUrl): voi
     }
     foreach (Database::fetchAll('SELECT id, title, expiry_date FROM documents WHERE family_id=? AND expiry_date IS NOT NULL', [$familyId]) as $d) {
         $items[] = ['kind' => 'Le document', 'ref' => 'document_' . $d['id'], 'label' => $d['title'], 'date' => $d['expiry_date'], 'url' => '/documents'];
+    }
+    foreach (Database::fetchAll('SELECT id, name, insurance_expiry, technical_control_expiry FROM vehicles WHERE family_id=?', [$familyId]) as $v) {
+        if ($v['insurance_expiry']) {
+            $items[] = ['kind' => "L'assurance de", 'ref' => 'vehicle_insurance_' . $v['id'], 'label' => $v['name'], 'date' => $v['insurance_expiry'], 'url' => '/vehicles?id=' . $v['id']];
+        }
+        if ($v['technical_control_expiry']) {
+            $items[] = ['kind' => 'Le contrôle technique de', 'ref' => 'vehicle_ct_' . $v['id'], 'label' => $v['name'], 'date' => $v['technical_control_expiry'], 'url' => '/vehicles?id=' . $v['id']];
+        }
+    }
+    foreach (Database::fetchAll(
+        'SELECT pc.id, pc.title, pc.reminder_date, p.id AS pet_id, p.name AS pet_name
+         FROM pet_care_entries pc JOIN pets p ON p.id=pc.pet_id
+         WHERE p.family_id=? AND pc.reminder_date IS NOT NULL', [$familyId]
+    ) as $c) {
+        $items[] = ['kind' => 'Le rappel de', 'ref' => 'pet_care_' . $c['id'], 'label' => $c['pet_name'] . ' — ' . $c['title'], 'date' => $c['reminder_date'], 'url' => '/pets?id=' . $c['pet_id']];
+    }
+    foreach (Database::fetchAll('SELECT id, title, deadline_date FROM admin_procedures WHERE family_id=? AND done=0', [$familyId]) as $p) {
+        $items[] = ['kind' => 'La démarche', 'ref' => 'admin_procedure_' . $p['id'], 'label' => $p['title'], 'date' => $p['deadline_date'], 'url' => '/admin-procedures'];
     }
 
     foreach ($items as $item) {

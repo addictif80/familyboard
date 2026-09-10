@@ -390,3 +390,20 @@ async function deleteFamilyChild(id) {
     if (r.success) window.location.reload();
     else Dialog.toast(r.error || 'Erreur.', 'error');
 }
+
+async function submitTestimonial() {
+    const content = document.getElementById('testimonial-content').value.trim();
+    if (!content) { Dialog.toast('Un témoignage est requis.', 'error'); return; }
+    const payload = {
+        content,
+        author_role: document.getElementById('testimonial-role').value,
+        rating: document.getElementById('testimonial-rating').value,
+    };
+    const r = await apiFetch(`${BASE_URL}/settings/testimonial`, { method: 'POST', body: JSON.stringify(payload) });
+    if (r.success) {
+        Dialog.toast('Merci pour votre témoignage !', 'success');
+        window.location.reload();
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}

@@ -132,10 +132,12 @@ document.documentElement.style.setProperty('--banners-h', document.getElementByI
 $currentUser = \App\Core\Session::user();
 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $unreadCount = \App\Models\Notification::getUnreadCount($currentUser['id']);
+$unreadAnnouncements = \App\Models\Announcement::unreadCountForUser($currentUser['id']);
 $family = \App\Models\Family::findById($currentUser['family_id']);
 $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
 $_hasCustodyAccess = \App\Models\Custody::getSchedulesForUser($currentUser['id']);
-$_navEnabled = fn (string $module) => !in_array($module, $_disabledModules);
+$_navEnabled = fn (string $module) => !in_array($module, $_disabledModules)
+    && !($currentUser['role'] === 'ado' && in_array($module, \App\Models\Family::ADO_RESTRICTED_MODULES, true));
 $_vaultwarden = \App\Models\VaultwardenSettings::get();
 ?>
 <?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
@@ -380,6 +382,70 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('health')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/health') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/health" class="nav-link">
+                    <span class="nav-icon">🏥</span>
+                    <span class="nav-label">Santé</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('vehicles')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/vehicles') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/vehicles" class="nav-link">
+                    <span class="nav-icon">🚗</span>
+                    <span class="nav-label">Véhicules</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('pets')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/pets') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/pets" class="nav-link">
+                    <span class="nav-icon">🐾</span>
+                    <span class="nav-label">Animaux</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('meters')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/meters') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/meters" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Compteurs</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('admin_procedures')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/admin-procedures') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/admin-procedures" class="nav-link">
+                    <span class="nav-icon">🪪</span>
+                    <span class="nav-label">Démarches admin.</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('leave')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/leave') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/leave" class="nav-link">
+                    <span class="nav-icon">🏖️</span>
+                    <span class="nav-label">Congés familiaux</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('travels')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/travels') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/travels" class="nav-link">
+                    <span class="nav-icon">✈️</span>
+                    <span class="nav-label">Voyages & réservations</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('vault') && $currentUser['role'] === 'admin'): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/vault') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/vault" class="nav-link">
+                    <span class="nav-icon">🔐</span>
+                    <span class="nav-label">Coffre-fort numérique</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('deals')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/deals" class="nav-link">
@@ -537,6 +603,12 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                 </button>
                 <button class="btn-icon nav-search-trigger-mobile" onclick="openNavSearch()" title="Rechercher">🔎</button>
                 <button class="btn-icon" onclick="openReportIssueModal()" title="Signaler un problème">🐞</button>
+                <a class="btn-icon" href="<?= BASE_URL ?>/announcements" title="Annonces" style="position:relative;text-decoration:none">
+                    📣
+                    <?php if ($unreadAnnouncements > 0): ?>
+                        <span class="badge-dot"><?= $unreadAnnouncements ?></span>
+                    <?php endif; ?>
+                </a>
                 <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème">
                     <span class="theme-icon-sun">☀️</span>
                     <span class="theme-icon-moon">🌙</span>

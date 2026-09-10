@@ -30,12 +30,12 @@
         <ul class="admin-nav">
             <?php
             $adminNavGroups = [
-                'Vue d\'ensemble' => ['dashboard' => '📊 Tableau de bord'],
+                'Vue d\'ensemble' => ['dashboard' => '📊 Tableau de bord', 'health' => '🩺 Santé plateforme'],
                 'Comptes' => ['families' => '🏠 Familles', 'users' => '👥 Utilisateurs', 'deleted-accounts' => '🗑️ Comptes supprimés'],
-                'Facturation' => ['subscriptions' => '💳 Abonnements'],
+                'Facturation' => ['subscriptions' => '💳 Abonnements', 'referrals' => '🤝 Parrainage'],
                 'Support & sécurité' => ['tickets' => '🎫 Tickets support', 'impersonation' => '🕵️ Impersonation', 'ips' => '🚫 IPs bloquées'],
                 'Communication' => ['notifications' => '📣 Notifications & intégrations', 'smtp' => '✉️ SMTP', 'email' => '📧 Emails'],
-                'Contenu' => ['namedays' => '🎉 Fêtes des prénoms', 'highlights' => '🏢 Mises en avant ABHD', 'links' => '🔗 Liens certifiés', 'legal' => '📜 Contenu légal', 'roadmap' => '🗺️ Roadmap'],
+                'Contenu' => ['announcements' => '📣 Annonces', 'testimonials' => '💬 Témoignages', 'namedays' => '🎉 Fêtes des prénoms', 'highlights' => '🏢 Mises en avant ABHD', 'links' => '🔗 Liens certifiés', 'legal' => '📜 Contenu légal', 'roadmap' => '🗺️ Roadmap'],
             ];
             ?>
             <?php foreach ($adminNavGroups as $groupLabel => $items): ?>
@@ -132,6 +132,57 @@
             <div class="admin-stat-card"><div class="stat-val"><?= $stats['users'] ?></div><div class="stat-label">Utilisateurs</div></div>
             <div class="admin-stat-card <?= $stats['blocked'] ? 'stat-warn' : '' ?>"><div class="stat-val"><?= $stats['blocked'] ?></div><div class="stat-label">Comptes bloqués</div></div>
             <div class="admin-stat-card <?= $stats['tickets'] ? 'stat-warn' : '' ?>"><div class="stat-val"><?= $stats['tickets'] ?></div><div class="stat-label">Tickets ouverts</div></div>
+        </div>
+
+        <?php elseif ($tab === 'health'): ?>
+        <h2>🩺 Santé plateforme</h2>
+        <div class="admin-stats-grid">
+            <div class="admin-stat-card <?= $cronStatus['stale'] ? 'stat-warn' : '' ?>">
+                <div class="stat-val"><?= $cronStatus['last_run'] ? ($cronStatus['minutes_ago'] . ' min' ) : '—' ?></div>
+                <div class="stat-label">Dernier passage cron<?= $cronStatus['stale'] ? ' ⚠️' : '' ?></div>
+            </div>
+            <div class="admin-stat-card <?= $errorStats['last_24h'] ? 'stat-warn' : '' ?>">
+                <div class="stat-val"><?= $errorStats['last_24h'] ?></div>
+                <div class="stat-label">Erreurs techniques (24h)</div>
+            </div>
+            <div class="admin-stat-card <?= $emailStats['last_24h']['fail'] ? 'stat-warn' : '' ?>">
+                <div class="stat-val"><?= $emailStats['last_24h']['ok'] ?> / <?= $emailStats['last_24h']['ok'] + $emailStats['last_24h']['fail'] ?></div>
+                <div class="stat-label">E-mails envoyés avec succès (24h)</div>
+            </div>
+            <div class="admin-stat-card"><div class="stat-val"><?= \App\Core\PlatformHealth::formatBytes($dbSizeBytes) ?></div><div class="stat-label">Taille base de données</div></div>
+            <div class="admin-stat-card"><div class="stat-val"><?= \App\Core\PlatformHealth::formatBytes($storageSizeBytes) ?></div><div class="stat-label">Fichiers stockés</div></div>
+        </div>
+
+        <?php if ($cronStatus['stale']): ?>
+        <div class="alert alert-error" style="margin-top:1rem">
+            ⚠️ Le cron n'a pas tourné depuis <?= $cronStatus['last_run'] ? $cronStatus['minutes_ago'] . ' minutes' : 'que l\'on sache' ?> — les rappels par e-mail, la synchro CalDAV et les autres tâches planifiées sont à l'arrêt. Vérifiez la configuration crontab du serveur.
+        </div>
+        <?php endif; ?>
+
+        <div class="card settings-section" style="margin-top:1rem">
+            <h3>E-mails — 7 derniers jours</h3>
+            <p>✅ <?= $emailStats['last_7d']['ok'] ?> envoyés · <?php if ($emailStats['last_7d']['fail']): ?><span style="color:var(--danger)">❌ <?= $emailStats['last_7d']['fail'] ?> échoués</span><?php else: ?>❌ 0 échoué<?php endif; ?></p>
+        </div>
+
+        <div class="card settings-section" style="margin-top:1rem">
+            <h3>Erreurs techniques récentes (auto-détectées)</h3>
+            <p style="color:var(--text-muted);font-size:.85rem"><?= $errorStats['last_7d'] ?> sur les 7 derniers jours.</p>
+            <table class="admin-table">
+                <thead><tr><th>Sujet</th><th>Famille</th><th>Date</th><th></th></tr></thead>
+                <tbody>
+                <?php foreach ($errorStats['recent'] as $e): ?>
+                <tr>
+                    <td><?= htmlspecialchars($e['subject']) ?></td>
+                    <td><?= htmlspecialchars($e['family_name']) ?></td>
+                    <td><?= \App\Core\DateHelper::fromUtc($e['created_at'], 'd/m/Y H:i') ?></td>
+                    <td><a href="<?= BASE_URL ?>/admin/tickets/<?= $e['id'] ?>" class="btn btn-secondary btn-sm">Voir</a></td>
+                </tr>
+                <?php endforeach; ?>
+                <?php if (empty($errorStats['recent'])): ?>
+                    <tr><td colspan="4" class="empty-state">Aucune erreur technique détectée récemment.</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
         </div>
 
         <?php elseif ($tab === 'families'): ?>
@@ -560,6 +611,54 @@
         </div>
         </div>
 
+        <?php elseif ($tab === 'referrals'): ?>
+        <h2>🤝 Programme de parrainage</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Chaque famille peut partager son propre lien de parrainage (visible dans ses réglages une fois
+            le programme activé ici). Quand une nouvelle famille s'inscrit via ce lien, le parrainage est
+            tracé ci-dessous ; si un palier de récompense est configuré, il est offert automatiquement au
+            parrain (jours cumulables à chaque nouveau filleul).
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/referrals/settings" class="card" style="padding:1.25rem;max-width:640px;margin-bottom:1.5rem"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label><input type="checkbox" name="referral_enabled" value="1" <?= $referralEnabled ? 'checked' : '' ?>> Activer le programme de parrainage</label>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Palier offert au parrain</label>
+                    <select name="referral_reward_plan_id">
+                        <option value="">— Aucune récompense automatique (parrainage tracé uniquement) —</option>
+                        <?php foreach ($plans as $p): ?>
+                            <option value="<?= $p['id'] ?>" <?= $referralRewardPlanId === (int)$p['id'] ? 'selected' : '' ?>><?= htmlspecialchars($p['name']) ?> (<?= htmlspecialchars($p['code']) ?>)</option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Jours offerts par filleul</label>
+                    <input type="number" name="referral_reward_days" min="1" max="365" value="<?= $referralRewardDays ?>">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </form>
+
+        <h3>Parrainages (<?= count($referrals) ?>)</h3>
+        <table class="admin-table">
+            <thead><tr><th>Parrain</th><th>Filleul</th><th>Date</th><th>Récompense</th></tr></thead>
+            <tbody>
+            <?php foreach ($referrals as $r): ?>
+            <tr>
+                <td><?= htmlspecialchars($r['referrer_family_name']) ?></td>
+                <td><?= htmlspecialchars($r['referred_family_name']) ?></td>
+                <td><?= \App\Core\DateHelper::fromUtc($r['created_at'], 'd/m/Y') ?></td>
+                <td><?= $r['reward_granted_at'] ? '✅ Offerte' : '—' ?></td>
+            </tr>
+            <?php endforeach; ?>
+            <?php if (empty($referrals)): ?>
+                <tr><td colspan="4" class="empty-state">Aucun parrainage pour le moment.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+
         <?php elseif ($tab === 'notifications'): ?>
         <h2>Notification système</h2>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
@@ -843,6 +942,183 @@
             </tbody>
         </table>
         <?php endif; ?>
+
+        <?php elseif ($tab === 'announcements'): ?>
+        <h2>📣 Centre d'annonces</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Nouveautés, maintenances programmées, avertissements — publiés ici, visibles de tous
+            les membres de toutes les familles sur la page « Annonces » de l'application. Un
+            brouillon (non publié) n'est visible que dans ce panneau.
+        </p>
+
+        <div class="card" style="padding:1.25rem;max-width:680px;margin-bottom:1.5rem">
+            <h3 style="margin-top:0"><?= $editingAnnouncement ? 'Modifier l\'annonce' : 'Nouvelle annonce' ?></h3>
+            <form method="POST" action="<?= BASE_URL ?>/admin/announcements<?= $editingAnnouncement ? '/' . $editingAnnouncement['id'] : '' ?>"><?= \App\Core\Csrf::field() ?>
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label>Titre</label>
+                        <input type="text" name="title" required value="<?= htmlspecialchars($editingAnnouncement['title'] ?? '') ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select name="type">
+                            <?php foreach (\App\Models\Announcement::TYPES as $slug => $t): ?>
+                                <option value="<?= $slug ?>" <?= ($editingAnnouncement['type'] ?? '') === $slug ? 'selected' : '' ?>><?= $t['icon'] ?> <?= htmlspecialchars($t['label']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Contenu</label>
+                    <textarea name="content" rows="4" required><?= htmlspecialchars($editingAnnouncement['content'] ?? '') ?></textarea>
+                </div>
+                <?php if (!$editingAnnouncement): ?>
+                <div class="form-group">
+                    <label><input type="checkbox" name="publish_now" value="1"> Publier immédiatement (sinon enregistrée en brouillon)</label>
+                </div>
+                <?php endif; ?>
+                <div style="display:flex;gap:.5rem">
+                    <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                    <?php if ($editingAnnouncement): ?>
+                        <a href="<?= BASE_URL ?>/admin?tab=announcements" class="btn btn-secondary btn-sm">Annuler</a>
+                    <?php endif; ?>
+                </div>
+            </form>
+        </div>
+
+        <h3>Annonces (<?= count($announcements) ?>)</h3>
+        <table class="admin-table">
+            <thead><tr><th>Titre</th><th>Type</th><th>Statut</th><th>Date</th><th>Actions</th></tr></thead>
+            <tbody>
+            <?php foreach ($announcements as $a): ?>
+                <?php $t = \App\Models\Announcement::TYPES[$a['type']]; ?>
+                <tr>
+                    <td><strong><?= htmlspecialchars($a['title']) ?></strong><div style="color:var(--text-muted);font-size:.8rem;max-width:320px;white-space:pre-wrap"><?= htmlspecialchars(mb_strimwidth($a['content'], 0, 140, '…')) ?></div></td>
+                    <td><?= $t['icon'] ?> <?= htmlspecialchars($t['label']) ?></td>
+                    <td><?= $a['published_at'] ? '✅ Publiée' : '📝 Brouillon' ?></td>
+                    <td><?= $a['published_at'] ? \App\Core\DateHelper::fromUtc($a['published_at'], 'd/m/Y') : \App\Core\DateHelper::fromUtc($a['created_at'], 'd/m/Y') ?></td>
+                    <td style="display:flex;gap:.3rem;flex-wrap:wrap">
+                        <a href="<?= BASE_URL ?>/admin?tab=announcements&edit=<?= $a['id'] ?>" class="btn btn-secondary btn-sm">✏️</a>
+                        <?php if ($a['published_at']): ?>
+                            <form method="POST" action="<?= BASE_URL ?>/admin/announcements/<?= $a['id'] ?>/unpublish"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm">Dépublier</button>
+                            </form>
+                        <?php else: ?>
+                            <form method="POST" action="<?= BASE_URL ?>/admin/announcements/<?= $a['id'] ?>/publish"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm">Publier</button>
+                            </form>
+                        <?php endif; ?>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/announcements/<?= $a['id'] ?>/delete" onsubmit="return confirmSubmit(this, 'Supprimer cette annonce ?')"><?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-danger btn-sm">🗑</button>
+                        </form>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($announcements)): ?>
+                <tr><td colspan="5" class="empty-state">Aucune annonce.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+
+        <?php elseif ($tab === 'testimonials'): ?>
+        <?php
+            $pendingTestimonials = array_values(array_filter($testimonials, fn($t) => $t['status'] === 'pending'));
+            $otherTestimonials = array_values(array_filter($testimonials, fn($t) => $t['status'] !== 'pending'));
+        ?>
+        <h2>💬 Témoignages</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Les témoignages soumis par les familles (réglages → « Partagez votre avis ») arrivent
+            ici en attente de validation. Une fois approuvés, ils s'affichent sur la page d'accueil
+            publique, dans l'ordre choisi (plus petit d'abord).
+        </p>
+
+        <?php if ($pendingTestimonials): ?>
+        <h3>⏳ En attente (<?= count($pendingTestimonials) ?>)</h3>
+        <table class="admin-table" style="margin-bottom:1.5rem">
+            <thead><tr><th>Auteur</th><th>Témoignage</th><th>Note</th><th>Actions</th></tr></thead>
+            <tbody>
+            <?php foreach ($pendingTestimonials as $t): ?>
+                <tr>
+                    <td><?= htmlspecialchars($t['author_name']) ?><?= $t['author_role'] ? '<div style="color:var(--text-muted);font-size:.8rem">' . htmlspecialchars($t['author_role']) . '</div>' : '' ?><?= $t['family_name'] ? '<div style="color:var(--text-muted);font-size:.75rem">' . htmlspecialchars($t['family_name']) . '</div>' : '' ?></td>
+                    <td style="max-width:340px;white-space:pre-wrap"><?= htmlspecialchars($t['content']) ?></td>
+                    <td><?= $t['rating'] ? str_repeat('⭐', (int)$t['rating']) : '—' ?></td>
+                    <td style="display:flex;gap:.3rem;flex-wrap:wrap">
+                        <form method="POST" action="<?= BASE_URL ?>/admin/testimonials/<?= $t['id'] ?>/approve"><?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-primary btn-sm">✅ Approuver</button>
+                        </form>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/testimonials/<?= $t['id'] ?>/reject"><?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-secondary btn-sm">Rejeter</button>
+                        </form>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+
+        <div class="card" style="padding:1.25rem;max-width:680px;margin-bottom:1.5rem">
+            <h3 style="margin-top:0">Ajouter un témoignage manuellement</h3>
+            <form method="POST" action="<?= BASE_URL ?>/admin/testimonials"><?= \App\Core\Csrf::field() ?>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Auteur</label>
+                        <input type="text" name="author_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Rôle (optionnel)</label>
+                        <input type="text" name="author_role" placeholder="Papa de 3 enfants…">
+                    </div>
+                    <div class="form-group">
+                        <label>Note</label>
+                        <select name="rating">
+                            <option value="">—</option>
+                            <?php for ($i = 5; $i >= 1; $i--): ?><option value="<?= $i ?>"><?= str_repeat('⭐', $i) ?></option><?php endfor; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Témoignage</label>
+                    <textarea name="content" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" name="approve_now" value="1"> Publier immédiatement</label>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+            </form>
+        </div>
+
+        <h3>Approuvés / rejetés (<?= count($otherTestimonials) ?>)</h3>
+        <table class="admin-table">
+            <thead><tr><th>Auteur</th><th>Témoignage</th><th>Statut</th><th>Ordre</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($otherTestimonials as $t): ?>
+                <tr>
+                    <td><?= htmlspecialchars($t['author_name']) ?><?= $t['author_role'] ? '<div style="color:var(--text-muted);font-size:.8rem">' . htmlspecialchars($t['author_role']) . '</div>' : '' ?></td>
+                    <td style="max-width:300px;white-space:pre-wrap"><?= htmlspecialchars(mb_strimwidth($t['content'], 0, 140, '…')) ?></td>
+                    <td><?= $t['status'] === 'approved' ? '✅ Publié' : 'Rejeté' ?></td>
+                    <td>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/testimonials/<?= $t['id'] ?>/order" style="display:flex;gap:.3rem"><?= \App\Core\Csrf::field() ?>
+                            <input type="number" name="sort_order" value="<?= $t['sort_order'] ?>" style="width:70px">
+                            <button type="submit" class="btn btn-secondary btn-sm">OK</button>
+                        </form>
+                    </td>
+                    <td style="display:flex;gap:.3rem">
+                        <?php if ($t['status'] !== 'approved'): ?>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/testimonials/<?= $t['id'] ?>/approve"><?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-secondary btn-sm">Approuver</button>
+                        </form>
+                        <?php endif; ?>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/testimonials/<?= $t['id'] ?>/delete" onsubmit="return confirmSubmit(this, 'Supprimer ce témoignage ?')"><?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-danger btn-sm">🗑</button>
+                        </form>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($otherTestimonials)): ?>
+                <tr><td colspan="5" class="empty-state">Aucun témoignage approuvé ou rejeté.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
 
         <?php elseif ($tab === 'namedays'): ?>
         <h2>Fêtes des prénoms</h2>
