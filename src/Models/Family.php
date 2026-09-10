@@ -46,6 +46,15 @@ class Family
         'vault'       => ['label' => 'Coffre-fort numérique',  'icon' => '🔐'],
     ];
 
+    /** Modules automatiquement masqués aux comptes au rôle 'ado' — financier, juridique ou
+     *  administratif sensible. Bloqué côté serveur dans BaseController::requireModule(), en plus
+     *  d'être masqué côté navigation (voir templates/layout.php, $_navEnabled). Un administrateur
+     *  famille ne peut pas réactiver ces modules pour un compte ado : c'est une restriction de
+     *  rôle, pas une préférence de famille comme disabled_modules. */
+    public const ADO_RESTRICTED_MODULES = [
+        'budget', 'vault', 'admin_procedures', 'disputes', 'letters', 'employment', 'nanny', 'comm_log', 'additions',
+    ];
+
     /** Modules ayant une page de destination directe (donc utilisables dans la barre de
      *  navigation rapide) : exclut 'sitter' et 'kiosk', qui se gèrent depuis les réglages via
      *  des liens générés plutôt que d'être des pages qu'on visite au quotidien. */

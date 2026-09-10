@@ -678,6 +678,8 @@ $router->post('/onboarding/complete', [OnboardingController::class, 'complete'])
 $router->post('/settings/member/:id/remove', [SettingsController::class, 'removeMember']);
 $router->post('/settings/member/:id/promote', [SettingsController::class, 'promoteMember']);
 $router->post('/settings/member/:id/demote', [SettingsController::class, 'demoteMember']);
+$router->post('/settings/member/:id/set-ado', [SettingsController::class, 'setAdo']);
+$router->post('/settings/member/:id/unset-ado', [SettingsController::class, 'unsetAdo']);
 $router->get('/settings/export', [SettingsController::class, 'exportData']);
 $router->post('/settings/delete-account', [SettingsController::class, 'deleteAccount']);
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);

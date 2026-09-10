@@ -643,6 +643,8 @@ ob_start();
                                 <?php if (!empty($coparentChildren[$member['id']])): ?>
                                     — <?= htmlspecialchars(implode(', ', $coparentChildren[$member['id']])) ?>
                                 <?php endif; ?>
+                            <?php elseif ($member['role'] === 'ado'): ?>
+                                🧒 Ado (accès restreint)
                             <?php else: ?>
                                 Membre
                             <?php endif; ?>
@@ -654,6 +656,13 @@ ob_start();
                         <?php if ($member['role'] === 'member'): ?>
                             <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/promote" onsubmit="return confirmSubmit(this,'Promouvoir <?= htmlspecialchars(addslashes($member['name'])) ?> administrateur ?')"><?= \App\Core\Csrf::field() ?>
                                 <button type="submit" class="btn btn-secondary btn-sm">👑 Promouvoir admin</button>
+                            </form>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/set-ado" onsubmit="return confirmSubmit(this,'Activer l\'accès « ado » pour <?= htmlspecialchars(addslashes($member['name'])) ?> ? Le budget, le coffre-fort et les dossiers de litige ne seront plus accessibles pour ce compte.')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm">🧒 Passer en ado</button>
+                            </form>
+                        <?php elseif ($member['role'] === 'ado'): ?>
+                            <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/unset-ado" onsubmit="return confirmSubmit(this,'Rétablir l\'accès complet pour <?= htmlspecialchars(addslashes($member['name'])) ?> ?')"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm">Rétablir l'accès complet</button>
                             </form>
                         <?php elseif ($member['role'] === 'admin' && !$founderProtected): ?>
                             <form method="POST" action="<?= BASE_URL ?>/settings/member/<?= $member['id'] ?>/demote" onsubmit="return confirmSubmit(this,'Rétrograder <?= htmlspecialchars(addslashes($member['name'])) ?> au rôle de membre ?')"><?= \App\Core\Csrf::field() ?>

@@ -117,6 +117,16 @@ class BaseController
             header('Location: ' . BASE_URL . '/');
             exit;
         }
+        if ($user['role'] === 'ado' && in_array($slug, \App\Models\Family::ADO_RESTRICTED_MODULES, true)) {
+            if ($this->isAjax()) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Module non accessible avec ce type de compte.']);
+                exit;
+            }
+            Session::flash('error', 'Ce module n\'est pas accessible avec ce type de compte.');
+            header('Location: ' . BASE_URL . '/');
+            exit;
+        }
 
         try {
             $entitled = \App\Models\FamilySubscription::isEntitled((int)$user['family_id'], $slug);

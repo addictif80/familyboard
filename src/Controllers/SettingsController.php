@@ -464,6 +464,51 @@ class SettingsController extends BaseController
         exit;
     }
 
+    /** Bascule un membre vers le rôle "ado" : accès conservé aux modules du quotidien, mais
+     *  automatiquement privé des modules financiers/juridiques/administratifs sensibles (voir
+     *  Family::ADO_RESTRICTED_MODULES) — utile pour donner un accès autonome à un adolescent
+     *  sans exposer le budget familial, le coffre-fort ou les dossiers de litige. */
+    public function setAdo(array $params): void
+    {
+        $this->requireAdmin();
+        $user = Session::user();
+        $id = (int)$params['id'];
+        if ($id !== $user['id']) {
+            $member = User::findById($id);
+            if ($member && $member['family_id'] === $user['family_id'] && $member['role'] === 'member') {
+                \App\Core\Database::execute("UPDATE users SET role='ado' WHERE id=?", [$id]);
+                \App\Models\Notification::create(
+                    $id, 'settings', 'Type de compte modifié',
+                    $user['name'] . ' a activé l\'accès « ado » sur votre compte : certains modules (budget, coffre-fort, litiges…) ne sont plus accessibles.', BASE_URL . '/settings'
+                );
+            }
+        }
+        Session::flash('success', 'Accès ado activé.');
+        header('Location: ' . BASE_URL . '/settings');
+        exit;
+    }
+
+    /** Rétablit un compte ado en membre à accès complet. */
+    public function unsetAdo(array $params): void
+    {
+        $this->requireAdmin();
+        $user = Session::user();
+        $id = (int)$params['id'];
+        if ($id !== $user['id']) {
+            $member = User::findById($id);
+            if ($member && $member['family_id'] === $user['family_id'] && $member['role'] === 'ado') {
+                \App\Core\Database::execute("UPDATE users SET role='member' WHERE id=?", [$id]);
+                \App\Models\Notification::create(
+                    $id, 'settings', 'Type de compte modifié',
+                    $user['name'] . ' a retiré la restriction « ado » de votre compte : accès complet rétabli.', BASE_URL . '/settings'
+                );
+            }
+        }
+        Session::flash('success', 'Accès complet rétabli.');
+        header('Location: ' . BASE_URL . '/settings');
+        exit;
+    }
+
     public function exportData(array $params): void
     {
         $this->requireAuth(true);
