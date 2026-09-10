@@ -337,6 +337,7 @@ $router->get('/deals', [DealController::class, 'index']);
 $router->post('/api/deals', [DealController::class, 'create']);
 $router->post('/api/deals/:id', [DealController::class, 'update']);
 $router->post('/api/deals/:id/delete', [DealController::class, 'delete']);
+$router->get('/deals/:id/file', [DealController::class, 'serveFile']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
