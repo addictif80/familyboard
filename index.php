@@ -779,6 +779,7 @@ $router->get('/comm-log', [CommLogController::class, 'index']);
 $router->post('/api/comm-log/send', [CommLogController::class, 'send']);
 $router->get('/api/comm-log/poll', [CommLogController::class, 'poll']);
 $router->get('/api/comm-log/:id/audio', [CommLogController::class, 'serveAudio']);
+$router->get('/comm-log/export', [CommLogController::class, 'exportJudicial']);
 
 // Repas
 $router->get('/meals', [MealController::class, 'index']);

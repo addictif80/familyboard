@@ -7,6 +7,7 @@ ob_start();
     <p style="color:var(--text-muted);font-size:.8rem;padding:.5rem 1rem 0">
         📝 Ces messages sont horodatés et ne peuvent jamais être modifiés ni supprimés — utile comme trace
         de communication entre parents.
+        <a href="<?= BASE_URL ?>/comm-log/export" target="_blank" style="margin-left:.5rem">⚖️ Export judiciaire (PDF)</a>
     </p>
     <div class="chat-messages" id="chat-messages">
         <?php foreach ($messages as $msg): ?>
