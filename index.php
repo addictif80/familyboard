@@ -67,6 +67,8 @@ use App\Controllers\MeterController;
 use App\Controllers\AdminProcedureController;
 use App\Controllers\LeaveRequestController;
 use App\Controllers\TravelController;
+use App\Controllers\VaultController;
+use App\Controllers\VaultAccessController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -397,6 +399,18 @@ $router->post('/api/travels/:id', [TravelController::class, 'update']);
 $router->post('/api/travels/:id/delete', [TravelController::class, 'delete']);
 $router->post('/api/travels/:id/reservations', [TravelController::class, 'addReservation']);
 $router->post('/api/travels/:id/reservations/:reservationId/delete', [TravelController::class, 'deleteReservation']);
+
+$router->get('/vault', [VaultController::class, 'index']);
+$router->post('/api/vault/entries', [VaultController::class, 'createEntry']);
+$router->post('/api/vault/entries/:id', [VaultController::class, 'updateEntry']);
+$router->post('/api/vault/entries/:id/delete', [VaultController::class, 'deleteEntry']);
+$router->get('/api/vault/entries/:id/file', [VaultController::class, 'serveFile']);
+$router->post('/api/vault/trustees', [VaultController::class, 'createTrustee']);
+$router->post('/api/vault/trustees/:id/delete', [VaultController::class, 'deleteTrustee']);
+$router->post('/api/vault/trustees/:id/decide', [VaultController::class, 'decideTrustee']);
+$router->post('/api/vault/trustees/:id/revoke', [VaultController::class, 'revokeTrustee']);
+$router->get('/vault-access/:token', [VaultAccessController::class, 'view']);
+$router->post('/vault-access/:token/request', [VaultAccessController::class, 'request']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);

@@ -436,6 +436,14 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('vault') && $currentUser['role'] === 'admin'): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/vault') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/vault" class="nav-link">
+                    <span class="nav-icon">🔐</span>
+                    <span class="nav-label">Coffre-fort numérique</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('deals')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/deals" class="nav-link">

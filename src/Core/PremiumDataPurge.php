@@ -57,6 +57,7 @@ class PremiumDataPurge
         'admin_procedures' => ['admin_procedures'],
         'leave'      => ['leave_requests'],
         'travels'    => ['travels'],
+        'vault'      => ['vault_entries', 'vault_trustees'],
     ];
 
     /** Requêtes de collecte des chemins de fichiers À EXÉCUTER AVANT la suppression des lignes
@@ -93,6 +94,9 @@ class PremiumDataPurge
             ],
             'deals' => [
                 ['sql' => 'SELECT file_path p FROM deals WHERE family_id=? AND file_path IS NOT NULL', 'dir' => 'deals'],
+            ],
+            'vault' => [
+                ['sql' => 'SELECT file_path p FROM vault_entries WHERE family_id=? AND file_path IS NOT NULL', 'dir' => 'vault'],
             ],
         ];
     }

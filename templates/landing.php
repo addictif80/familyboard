@@ -304,6 +304,11 @@
             'Réservations détaillées avec numéro de confirmation et coût',
             'Tout centralisé pour ne plus fouiller les e-mails avant de partir',
         ]],
+        ['id' => 'vault', 'icon' => '🔐', 'title' => 'Coffre-fort numérique', 'badge' => 'Nouveau', 'tagline' => 'Documents et informations essentielles, accessibles à vos proches en cas de besoin.', 'points' => [
+            'Documents, comptes, contacts utiles et souhaits, classés par catégorie',
+            'Personnes de confiance désignées avec un lien d\'accès personnel',
+            'Accès d\'urgence toujours validé manuellement par un administrateur, jamais automatique',
+        ]],
     ];
     ?>
     <section class="landing-section">
