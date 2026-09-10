@@ -54,9 +54,14 @@ $today = date('Y-m-d');
             <?php if ($d['expires_at']): ?>
                 <p style="font-size:.75rem;color:var(--text-muted);margin:.3rem 0">Valable jusqu'au <?= (new DateTime($d['expires_at']))->format('d/m/Y') ?></p>
             <?php endif; ?>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.4rem">
             <?php if ($d['url']): ?>
-                <a href="<?= htmlspecialchars($d['url']) ?>" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:.4rem">Voir l'offre ↗</a>
+                <a href="<?= htmlspecialchars($d['url']) ?>" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Voir l'offre ↗</a>
             <?php endif; ?>
+            <?php if ($d['file_path']): ?>
+                <a href="<?= BASE_URL ?>/deals/<?= $d['id'] ?>/file" target="_blank" rel="noopener" class="btn btn-secondary btn-sm"><?= str_starts_with($d['file_mime'], 'image/') ? '🖼️' : '📄' ?> Pièce jointe</a>
+            <?php endif; ?>
+            </div>
         </div>
         <?php endforeach; ?>
     </div>
@@ -109,6 +114,14 @@ $today = date('Y-m-d');
             <div class="form-group">
                 <label>Lien</label>
                 <input type="text" id="deal-url" placeholder="www.exemple.fr">
+            </div>
+            <div class="form-group">
+                <label>Pièce jointe (image ou PDF)</label>
+                <div id="deal-current-file" style="display:none;margin-bottom:.4rem;font-size:.85rem">
+                    <a href="#" id="deal-current-file-link" target="_blank" rel="noopener">📎 Fichier actuel</a>
+                    <label style="font-weight:normal;margin-left:.6rem"><input type="checkbox" id="deal-remove-file"> Supprimer</label>
+                </div>
+                <input type="file" id="deal-file" accept="image/*,application/pdf">
             </div>
         </div>
         <div class="modal-footer">

@@ -84,6 +84,9 @@ class PremiumDataPurge
             'school' => [
                 ['sql' => 'SELECT sd.file_path p FROM school_documents sd JOIN school_students ss ON ss.id=sd.student_id WHERE ss.family_id=?', 'dir' => 'school'],
             ],
+            'deals' => [
+                ['sql' => 'SELECT file_path p FROM deals WHERE family_id=? AND file_path IS NOT NULL', 'dir' => 'deals'],
+            ],
         ];
     }
 

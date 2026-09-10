@@ -20,9 +20,9 @@ class DealController extends BaseController
         $this->requireAuth();
         $this->json(function () {
             $user = Session::user();
-            $d = $this->validated($this->jsonInput());
+            $d = $this->validated($_POST ?: $this->jsonInput());
             if (!$d) return ['success' => false, 'error' => 'Le titre est requis.'];
-            $id = Deal::create((int)$user['family_id'], (int)$user['id'], $d);
+            $id = Deal::create((int)$user['family_id'], (int)$user['id'], $d, $_FILES['file'] ?? null);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -34,9 +34,11 @@ class DealController extends BaseController
             $user = Session::user();
             $deal = $this->owned((int)$params['id']);
             if (!$deal) return ['success' => false, 'error' => 'Bon plan introuvable.'];
-            $d = $this->validated($this->jsonInput());
+            $data = $_POST ?: $this->jsonInput();
+            $d = $this->validated($data);
             if (!$d) return ['success' => false, 'error' => 'Le titre est requis.'];
-            Deal::update((int)$params['id'], (int)$user['family_id'], $d);
+            $d['remove_file'] = !empty($data['remove_file']);
+            Deal::update((int)$params['id'], (int)$user['family_id'], $d, $_FILES['file'] ?? null);
             return ['success' => true];
         });
     }
@@ -51,6 +53,22 @@ class DealController extends BaseController
             Deal::delete((int)$params['id'], (int)$user['family_id']);
             return ['success' => true];
         });
+    }
+
+    public function serveFile(array $params): void
+    {
+        $this->requireAuth();
+        $deal = $this->owned((int)$params['id']);
+        if (!$deal || !$deal['file_path']) { http_response_code(404); echo 'Introuvable.'; return; }
+        $path = BASE_PATH . $deal['file_path'];
+        if (!file_exists($path)) { http_response_code(404); echo 'Introuvable.'; return; }
+
+        header('Content-Type: ' . $deal['file_mime']);
+        header('Content-Length: ' . filesize($path));
+        header($this->contentDispositionHeader($deal['file_original']));
+        header('Cache-Control: private, max-age=3600');
+        readfile($path);
+        exit;
     }
 
     private function owned(int $id): ?array
