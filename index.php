@@ -64,6 +64,7 @@ use App\Controllers\HealthController;
 use App\Controllers\VehicleController;
 use App\Controllers\PetController;
 use App\Controllers\MeterController;
+use App\Controllers\AdminProcedureController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -376,6 +377,12 @@ $router->post('/api/meters/:id', [MeterController::class, 'update']);
 $router->post('/api/meters/:id/delete', [MeterController::class, 'delete']);
 $router->post('/api/meters/:id/readings', [MeterController::class, 'addReading']);
 $router->post('/api/meters/:id/readings/:readingId/delete', [MeterController::class, 'deleteReading']);
+
+// ── Démarches administratives ────────────────────────────────
+$router->get('/admin-procedures', [AdminProcedureController::class, 'index']);
+$router->post('/api/admin-procedures', [AdminProcedureController::class, 'create']);
+$router->post('/api/admin-procedures/:id/done', [AdminProcedureController::class, 'toggleDone']);
+$router->post('/api/admin-procedures/:id/delete', [AdminProcedureController::class, 'delete']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);

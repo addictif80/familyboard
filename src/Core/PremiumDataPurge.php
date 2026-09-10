@@ -54,6 +54,7 @@ class PremiumDataPurge
         'vehicles'   => ['vehicles'],
         'pets'       => ['pets'],
         'meters'     => ['meters'],
+        'admin_procedures' => ['admin_procedures'],
     ];
 
     /** Requêtes de collecte des chemins de fichiers À EXÉCUTER AVANT la suppression des lignes

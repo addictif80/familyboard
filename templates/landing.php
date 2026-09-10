@@ -289,6 +289,11 @@
             'Historique des relevés avec calcul automatique de la consommation entre deux dates',
             'Autant de compteurs que nécessaire (eau, électricité, gaz…)',
         ]],
+        ['id' => 'admin_procedures', 'icon' => '🪪', 'title' => 'Démarches administratives', 'badge' => 'Nouveau', 'tagline' => 'CNI, passeport, CAF, mutuelle… plus aucune échéance oubliée.', 'points' => [
+            'Une échéance par membre ou enfant, avec type de démarche',
+            'Rappels automatiques avant expiration (J-30 et J-7)',
+            'Coché une fois fait, sans jamais supprimer l\'historique',
+        ]],
     ];
     ?>
     <section class="landing-section">

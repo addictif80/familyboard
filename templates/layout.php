@@ -412,6 +412,14 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('admin_procedures')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/admin-procedures') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/admin-procedures" class="nav-link">
+                    <span class="nav-icon">🪪</span>
+                    <span class="nav-label">Démarches admin.</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('deals')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/deals" class="nav-link">

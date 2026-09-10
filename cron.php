@@ -266,6 +266,9 @@ function sendExpiryReminders(int $familyId, array $members, string $appUrl): voi
     ) as $c) {
         $items[] = ['kind' => 'Le rappel de', 'ref' => 'pet_care_' . $c['id'], 'label' => $c['pet_name'] . ' — ' . $c['title'], 'date' => $c['reminder_date'], 'url' => '/pets?id=' . $c['pet_id']];
     }
+    foreach (Database::fetchAll('SELECT id, title, deadline_date FROM admin_procedures WHERE family_id=? AND done=0', [$familyId]) as $p) {
+        $items[] = ['kind' => 'La démarche', 'ref' => 'admin_procedure_' . $p['id'], 'label' => $p['title'], 'date' => $p['deadline_date'], 'url' => '/admin-procedures'];
+    }
 
     foreach ($items as $item) {
         $end = new \DateTime($item['date']);
