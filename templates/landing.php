@@ -274,6 +274,11 @@
             'Courbes de croissance (taille, poids) pour chaque enfant',
             'Médecins et spécialistes, avec rappels de renouvellement d\'ordonnance',
         ]],
+        ['id' => 'vehicles', 'icon' => '🚗', 'title' => 'Véhicules', 'badge' => 'Nouveau', 'tagline' => 'Entretien, contrôle technique, assurance et kilométrage de chaque véhicule.', 'points' => [
+            'Historique d\'entretien daté, avec kilométrage et coût',
+            'Échéances d\'assurance et de contrôle technique signalées automatiquement',
+            'Un véhicule par membre ou partagé, sans limite',
+        ]],
     ];
     ?>
     <section class="landing-section">

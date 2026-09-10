@@ -251,6 +251,14 @@ function sendExpiryReminders(int $familyId, array $members, string $appUrl): voi
     foreach (Database::fetchAll('SELECT id, title, expiry_date FROM documents WHERE family_id=? AND expiry_date IS NOT NULL', [$familyId]) as $d) {
         $items[] = ['kind' => 'Le document', 'ref' => 'document_' . $d['id'], 'label' => $d['title'], 'date' => $d['expiry_date'], 'url' => '/documents'];
     }
+    foreach (Database::fetchAll('SELECT id, name, insurance_expiry, technical_control_expiry FROM vehicles WHERE family_id=?', [$familyId]) as $v) {
+        if ($v['insurance_expiry']) {
+            $items[] = ['kind' => "L'assurance de", 'ref' => 'vehicle_insurance_' . $v['id'], 'label' => $v['name'], 'date' => $v['insurance_expiry'], 'url' => '/vehicles?id=' . $v['id']];
+        }
+        if ($v['technical_control_expiry']) {
+            $items[] = ['kind' => 'Le contrôle technique de', 'ref' => 'vehicle_ct_' . $v['id'], 'label' => $v['name'], 'date' => $v['technical_control_expiry'], 'url' => '/vehicles?id=' . $v['id']];
+        }
+    }
 
     foreach ($items as $item) {
         $end = new \DateTime($item['date']);

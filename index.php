@@ -61,6 +61,7 @@ use App\Controllers\EmploymentController;
 use App\Controllers\NannyController;
 use App\Controllers\DealController;
 use App\Controllers\HealthController;
+use App\Controllers\VehicleController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -349,6 +350,14 @@ $router->post('/api/health/growth/:id/delete', [HealthController::class, 'delete
 $router->post('/api/health/doctors', [HealthController::class, 'addDoctor']);
 $router->post('/api/health/doctors/:id', [HealthController::class, 'updateDoctor']);
 $router->post('/api/health/doctors/:id/delete', [HealthController::class, 'deleteDoctor']);
+
+// ── Véhicules ─────────────────────────────────────────────────
+$router->get('/vehicles', [VehicleController::class, 'index']);
+$router->post('/api/vehicles', [VehicleController::class, 'create']);
+$router->post('/api/vehicles/:id', [VehicleController::class, 'update']);
+$router->post('/api/vehicles/:id/delete', [VehicleController::class, 'delete']);
+$router->post('/api/vehicles/:id/maintenance', [VehicleController::class, 'addMaintenance']);
+$router->post('/api/vehicles/:id/maintenance/:maintenanceId/delete', [VehicleController::class, 'deleteMaintenance']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
