@@ -65,6 +65,7 @@ use App\Controllers\VehicleController;
 use App\Controllers\PetController;
 use App\Controllers\MeterController;
 use App\Controllers\AdminProcedureController;
+use App\Controllers\LeaveRequestController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -383,6 +384,11 @@ $router->get('/admin-procedures', [AdminProcedureController::class, 'index']);
 $router->post('/api/admin-procedures', [AdminProcedureController::class, 'create']);
 $router->post('/api/admin-procedures/:id/done', [AdminProcedureController::class, 'toggleDone']);
 $router->post('/api/admin-procedures/:id/delete', [AdminProcedureController::class, 'delete']);
+
+// ── Congés familiaux ──────────────────────────────────────────
+$router->get('/leave', [LeaveRequestController::class, 'index']);
+$router->post('/api/leave', [LeaveRequestController::class, 'create']);
+$router->post('/api/leave/:id/delete', [LeaveRequestController::class, 'delete']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);

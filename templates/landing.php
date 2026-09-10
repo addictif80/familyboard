@@ -294,6 +294,11 @@
             'Rappels automatiques avant expiration (J-30 et J-7)',
             'Coché une fois fait, sans jamais supprimer l\'historique',
         ]],
+        ['id' => 'leave', 'icon' => '🏖️', 'title' => 'Congés familiaux', 'badge' => 'Nouveau', 'tagline' => 'Le planning des congés de toute la famille, pour ne plus se marcher dessus.', 'points' => [
+            'Un congé par membre, avec type (payés, RTT, sans solde…) et dates',
+            'Détection automatique des chevauchements entre membres',
+            'Vue d\'ensemble pour organiser les départs sans conflit',
+        ]],
     ];
     ?>
     <section class="landing-section">
