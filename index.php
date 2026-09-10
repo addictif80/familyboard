@@ -66,6 +66,7 @@ use App\Controllers\PetController;
 use App\Controllers\MeterController;
 use App\Controllers\AdminProcedureController;
 use App\Controllers\LeaveRequestController;
+use App\Controllers\TravelController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -389,6 +390,13 @@ $router->post('/api/admin-procedures/:id/delete', [AdminProcedureController::cla
 $router->get('/leave', [LeaveRequestController::class, 'index']);
 $router->post('/api/leave', [LeaveRequestController::class, 'create']);
 $router->post('/api/leave/:id/delete', [LeaveRequestController::class, 'delete']);
+
+$router->get('/travels', [TravelController::class, 'index']);
+$router->post('/api/travels', [TravelController::class, 'create']);
+$router->post('/api/travels/:id', [TravelController::class, 'update']);
+$router->post('/api/travels/:id/delete', [TravelController::class, 'delete']);
+$router->post('/api/travels/:id/reservations', [TravelController::class, 'addReservation']);
+$router->post('/api/travels/:id/reservations/:reservationId/delete', [TravelController::class, 'deleteReservation']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);

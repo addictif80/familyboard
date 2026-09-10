@@ -428,6 +428,14 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('travels')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/travels') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/travels" class="nav-link">
+                    <span class="nav-icon">✈️</span>
+                    <span class="nav-label">Voyages & réservations</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('deals')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/deals" class="nav-link">

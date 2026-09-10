@@ -56,6 +56,7 @@ class PremiumDataPurge
         'meters'     => ['meters'],
         'admin_procedures' => ['admin_procedures'],
         'leave'      => ['leave_requests'],
+        'travels'    => ['travels'],
     ];
 
     /** Requêtes de collecte des chemins de fichiers À EXÉCUTER AVANT la suppression des lignes

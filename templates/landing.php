@@ -299,6 +299,11 @@
             'Détection automatique des chevauchements entre membres',
             'Vue d\'ensemble pour organiser les départs sans conflit',
         ]],
+        ['id' => 'travels', 'icon' => '✈️', 'title' => 'Voyages & réservations', 'badge' => 'Nouveau', 'tagline' => 'Chaque voyage avec ses réservations : transport, hébergement, activités.', 'points' => [
+            'Un voyage par séjour, avec dates, destination et budget',
+            'Réservations détaillées avec numéro de confirmation et coût',
+            'Tout centralisé pour ne plus fouiller les e-mails avant de partir',
+        ]],
     ];
     ?>
     <section class="landing-section">
