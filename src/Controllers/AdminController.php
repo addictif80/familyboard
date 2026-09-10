@@ -219,6 +219,9 @@ class AdminController extends BaseController
         $referralRewardPlanId = (int)(AppSetting::get('referral_reward_plan_id') ?? '0');
         $referralRewardDays = (int)(AppSetting::get('referral_reward_days') ?? '30');
         $referrals = \App\Models\Referral::getAll();
+        $announcements = \App\Models\Announcement::getAll();
+        $editingAnnouncement = ($tab === 'announcements' && !empty($_GET['edit']))
+            ? \App\Models\Announcement::getById((int)$_GET['edit']) : null;
 
         // Coûteux (SUM sur information_schema, appel `du`) : calculé uniquement quand l'onglet
         // est effectivement consulté, pas à chaque chargement du panneau admin.
@@ -765,6 +768,58 @@ class AdminController extends BaseController
             AppSetting::set('urssaf_report_last_sent', date('Y-m'));
         }
         $this->redirect('/admin?tab=subscriptions&msg=' . ($sent ? 'urssaf_sent' : 'urssaf_send_failed'));
+    }
+
+    // ── Centre d'annonces système ─────────────────────────────────
+
+    public function createAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title = trim($_POST['title'] ?? '');
+        $content = trim($_POST['content'] ?? '');
+        $type = array_key_exists($_POST['type'] ?? '', \App\Models\Announcement::TYPES) ? $_POST['type'] : 'info';
+        if ($title === '' || $content === '') {
+            $this->redirect('/admin?tab=announcements&msg=announcement_invalid');
+            return;
+        }
+        \App\Models\Announcement::create($title, $content, $type, !empty($_POST['publish_now']));
+        $this->redirect('/admin?tab=announcements&msg=announcement_saved');
+    }
+
+    public function updateAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)$params['id'];
+        $title = trim($_POST['title'] ?? '');
+        $content = trim($_POST['content'] ?? '');
+        $type = array_key_exists($_POST['type'] ?? '', \App\Models\Announcement::TYPES) ? $_POST['type'] : 'info';
+        if ($title === '' || $content === '') {
+            $this->redirect('/admin?tab=announcements&msg=announcement_invalid');
+            return;
+        }
+        \App\Models\Announcement::update($id, $title, $content, $type);
+        $this->redirect('/admin?tab=announcements&msg=announcement_saved');
+    }
+
+    public function publishAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Announcement::publish((int)$params['id']);
+        $this->redirect('/admin?tab=announcements&msg=announcement_published');
+    }
+
+    public function unpublishAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Announcement::unpublish((int)$params['id']);
+        $this->redirect('/admin?tab=announcements&msg=announcement_unpublished');
+    }
+
+    public function deleteAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Announcement::delete((int)$params['id']);
+        $this->redirect('/admin?tab=announcements&msg=announcement_deleted');
     }
 
     // ── Programme de parrainage ───────────────────────────────────

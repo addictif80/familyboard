@@ -53,6 +53,7 @@ use App\Controllers\PushController;
 use App\Controllers\LocationController;
 use App\Controllers\EmergencyController;
 use App\Controllers\CommLogController;
+use App\Controllers\AnnouncementController;
 use App\Controllers\MealController;
 use App\Controllers\LetterController;
 use App\Controllers\DisputeController;
@@ -612,6 +613,11 @@ $router->post('/admin/mailcow/test', [AdminController::class, 'testMailcowConnec
 $router->post('/admin/subscriptions/settings', [AdminController::class, 'updateSubscriptionSettings']);
 $router->post('/admin/subscriptions/stripe', [AdminController::class, 'updateStripeSettings']);
 $router->post('/admin/referrals/settings', [AdminController::class, 'updateReferralSettings']);
+$router->post('/admin/announcements', [AdminController::class, 'createAnnouncement']);
+$router->post('/admin/announcements/:id', [AdminController::class, 'updateAnnouncement']);
+$router->post('/admin/announcements/:id/publish', [AdminController::class, 'publishAnnouncement']);
+$router->post('/admin/announcements/:id/unpublish', [AdminController::class, 'unpublishAnnouncement']);
+$router->post('/admin/announcements/:id/delete', [AdminController::class, 'deleteAnnouncement']);
 $router->post('/admin/subscriptions/urssaf', [AdminController::class, 'updateUrssafSettings']);
 $router->post('/admin/subscriptions/urssaf/send-now', [AdminController::class, 'sendUrssafReportNow']);
 $router->post('/admin/plans', [AdminController::class, 'savePlan']);
@@ -783,6 +789,7 @@ $router->post('/api/comm-log/send', [CommLogController::class, 'send']);
 $router->get('/api/comm-log/poll', [CommLogController::class, 'poll']);
 $router->get('/api/comm-log/:id/audio', [CommLogController::class, 'serveAudio']);
 $router->get('/comm-log/export', [CommLogController::class, 'exportJudicial']);
+$router->get('/announcements', [AnnouncementController::class, 'index']);
 
 // Repas
 $router->get('/meals', [MealController::class, 'index']);

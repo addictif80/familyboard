@@ -132,6 +132,7 @@ document.documentElement.style.setProperty('--banners-h', document.getElementByI
 $currentUser = \App\Core\Session::user();
 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $unreadCount = \App\Models\Notification::getUnreadCount($currentUser['id']);
+$unreadAnnouncements = \App\Models\Announcement::unreadCountForUser($currentUser['id']);
 $family = \App\Models\Family::findById($currentUser['family_id']);
 $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
 $_hasCustodyAccess = \App\Models\Custody::getSchedulesForUser($currentUser['id']);
@@ -602,6 +603,12 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                 </button>
                 <button class="btn-icon nav-search-trigger-mobile" onclick="openNavSearch()" title="Rechercher">🔎</button>
                 <button class="btn-icon" onclick="openReportIssueModal()" title="Signaler un problème">🐞</button>
+                <a class="btn-icon" href="<?= BASE_URL ?>/announcements" title="Annonces" style="position:relative;text-decoration:none">
+                    📣
+                    <?php if ($unreadAnnouncements > 0): ?>
+                        <span class="badge-dot"><?= $unreadAnnouncements ?></span>
+                    <?php endif; ?>
+                </a>
                 <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème">
                     <span class="theme-icon-sun">☀️</span>
                     <span class="theme-icon-moon">🌙</span>
