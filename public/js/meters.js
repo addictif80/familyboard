@@ -6,6 +6,8 @@ function onMeterTypeChange() {
     const select = document.getElementById('meter-type');
     const unit = select.options[select.selectedIndex]?.dataset.unit;
     document.getElementById('meter-unit').value = unit || '';
+    document.getElementById('meter-hp-hc-row').style.display = select.value === 'electricite' ? '' : 'none';
+    if (select.value !== 'electricite') document.getElementById('meter-has-hp-hc').checked = false;
 }
 
 function openNewMeterModal() {
@@ -15,6 +17,7 @@ function openNewMeterModal() {
     document.getElementById('meter-type').value = 'electricite';
     document.getElementById('meter-provider').value = '';
     document.getElementById('meter-contract').value = '';
+    document.getElementById('meter-has-hp-hc').checked = false;
     onMeterTypeChange();
     openModal('meter-modal');
 }
@@ -27,6 +30,8 @@ function openEditMeterModal(m) {
     document.getElementById('meter-unit').value = m.unit;
     document.getElementById('meter-provider').value = m.provider || '';
     document.getElementById('meter-contract').value = m.contract_ref || '';
+    onMeterTypeChange();
+    document.getElementById('meter-has-hp-hc').checked = !!m.has_hp_hc;
     openModal('meter-modal');
 }
 
@@ -36,6 +41,7 @@ async function saveMeter() {
     const payload = {
         name,
         meter_type: document.getElementById('meter-type').value,
+        has_hp_hc: document.getElementById('meter-has-hp-hc').checked,
         unit: document.getElementById('meter-unit').value,
         provider: document.getElementById('meter-provider').value,
         contract_ref: document.getElementById('meter-contract').value,
@@ -59,13 +65,21 @@ async function deleteMeter(id) {
 
 async function addReading() {
     const date = document.getElementById('reading-date').value;
-    const value = document.getElementById('reading-value').value;
-    if (!date || value === '') { Dialog.toast('Date et index requis.', 'error'); return; }
     const payload = {
         reading_at: date,
-        value,
         notes: document.getElementById('reading-notes').value,
     };
+    if (METER_HAS_HP_HC) {
+        const valueHp = document.getElementById('reading-value-hp').value;
+        const valueHc = document.getElementById('reading-value-hc').value;
+        if (!date || valueHp === '' || valueHc === '') { Dialog.toast('Date et index HP/HC requis.', 'error'); return; }
+        payload.value_hp = valueHp;
+        payload.value_hc = valueHc;
+    } else {
+        const value = document.getElementById('reading-value').value;
+        if (!date || value === '') { Dialog.toast('Date et index requis.', 'error'); return; }
+        payload.value = value;
+    }
     const r = await apiFetch(`${BASE_URL}/api/meters/${METER_ID}/readings`, { method: 'POST', body: JSON.stringify(payload) });
     if (r.success) window.location.reload();
     else Dialog.toast(r.error || 'Erreur.', 'error');
