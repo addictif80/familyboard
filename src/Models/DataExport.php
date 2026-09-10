@@ -40,6 +40,27 @@ class DataExport
         'sondages'                   => 'polls',
         'portail_liens'              => 'portal_links',
         'additions'                  => 'additions',
+        'albums'                     => 'albums',
+        'liens_baby_sitter'          => 'sitter_links',
+        'liens_ecran_mural'          => 'kiosk_links',
+        'courriers'                  => 'letters',
+        'modeles_courriers'          => 'letter_templates',
+        'dossiers_litige'            => 'dispute_cases',
+        'eleves_suivi_scolaire'      => 'school_students',
+        'enfants_nounou'             => 'nanny_children',
+        'heures_nounou'              => 'nanny_hours_entries',
+        'bons_plans'                 => 'deals',
+        'entrees_sante'              => 'health_entries',
+        'croissance_sante'           => 'health_growth',
+        'medecins_sante'             => 'health_doctors',
+        'vehicules'                  => 'vehicles',
+        'animaux'                    => 'pets',
+        'compteurs'                  => 'meters',
+        'demarches_administratives'  => 'admin_procedures',
+        'conges_familiaux'           => 'leave_requests',
+        'voyages'                    => 'travels',
+        'coffre_fort_entrees'        => 'vault_entries',
+        'coffre_fort_personnes_confiance' => 'vault_trustees',
     ];
 
     /**
@@ -93,6 +114,20 @@ class DataExport
         'periodes_garde'      => ['custody_events', 'custody_schedules', 'schedule_id'],
         'options_sondages'    => ['poll_options', 'polls', 'poll_id'],
         'votes_sondages'      => ['poll_votes', 'polls', 'poll_id'],
+        'photos_albums'            => ['album_photos', 'albums', 'album_id'],
+        'envois_courriers'         => ['letter_sends', 'letters', 'letter_id'],
+        'documents_litige'         => ['dispute_documents', 'dispute_cases', 'dispute_id'],
+        'echanges_litige'          => ['dispute_exchanges', 'dispute_cases', 'dispute_id'],
+        'matieres_scolaires'       => ['school_subjects', 'school_students', 'student_id'],
+        'emploi_temps_scolaire'    => ['school_timetable_slots', 'school_students', 'student_id'],
+        'notes_scolaires'          => ['school_grades', 'school_students', 'student_id'],
+        'absences_scolaires'       => ['school_absences', 'school_students', 'student_id'],
+        'activites_scolaires'      => ['school_activities', 'school_students', 'student_id'],
+        'documents_scolaires'      => ['school_documents', 'school_students', 'student_id'],
+        'entretien_vehicules'      => ['vehicle_maintenance', 'vehicles', 'vehicle_id'],
+        'soins_animaux'            => ['pet_care_entries', 'pets', 'pet_id'],
+        'releves_compteurs'        => ['meter_readings', 'meters', 'meter_id'],
+        'reservations_voyages'     => ['travel_reservations', 'travels', 'travel_id'],
     ];
 
     /** [table, colonne(s) contenant un chemin de fichier] pour la copie des pièces jointes. */
@@ -105,6 +140,16 @@ class DataExport
         'babies'     => 'avatar',
         'contacts'   => 'avatar',
         'portal_links' => 'image_path',
+        'deals'        => 'file_path',
+        'vault_entries' => 'file_path',
+    ];
+
+    /** Comme FILE_COLUMNS, mais pour des tables sans family_id propre (jointes via une table
+     *  parente) : [table, colonne fichier, table parente, colonne de jointure]. */
+    private const FILE_JOIN_COLUMNS = [
+        ['album_photos', 'image_path', 'albums', 'album_id'],
+        ['dispute_documents', 'file_path', 'dispute_cases', 'dispute_id'],
+        ['school_documents', 'file_path', 'school_students', 'student_id'],
     ];
 
     /**
@@ -199,7 +244,7 @@ class DataExport
             if ($userId !== null) {
                 if (in_array($table, ['documents', 'warranties', 'posts', 'messages', 'comm_log_messages'], true)) {
                     $ownerCol = 'user_id';
-                } elseif (in_array($table, ['babies', 'contacts', 'portal_links'], true)) {
+                } elseif (in_array($table, ['babies', 'contacts', 'portal_links', 'deals', 'vault_entries'], true)) {
                     continue; // ressources partagées, non attribuables à un seul membre
                 }
             }
@@ -207,6 +252,20 @@ class DataExport
             $params = $ownerCol ? [$familyId, $userId] : [$familyId];
             foreach (Database::fetchAll($sql, $params) as $row) {
                 if (!empty($row['p'])) $paths[] = $row['p'];
+            }
+        }
+        // Fichiers de tables sans family_id propre (jointes via une table parente) — uniquement
+        // pertinent pour l'export famille entière : pour l'export personnel, ces pièces jointes
+        // ne sont de toute façon pas attribuables à un seul membre (mêmes raisons que ci-dessus).
+        if ($userId === null) {
+            foreach (self::FILE_JOIN_COLUMNS as [$table, $col, $parent, $joinCol]) {
+                $rows = Database::fetchAll(
+                    "SELECT c.`$col` as p FROM `$table` c JOIN `$parent` par ON c.`$joinCol`=par.id WHERE par.family_id=?",
+                    [$familyId]
+                );
+                foreach ($rows as $row) {
+                    if (!empty($row['p'])) $paths[] = $row['p'];
+                }
             }
         }
         return array_unique($paths);
