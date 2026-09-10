@@ -284,6 +284,11 @@
             'Carnet de soins : vaccins, vermifuges, visites, avec rappel de la prochaine échéance',
             'Un animal par famille ou plusieurs, sans limite',
         ]],
+        ['id' => 'meters', 'icon' => '📊', 'title' => 'Compteurs & consommation', 'badge' => 'Nouveau', 'tagline' => 'Relevés eau, électricité, gaz — suivez votre consommation dans le temps.', 'points' => [
+            'Un compteur par point de mesure, avec fournisseur et numéro de contrat',
+            'Historique des relevés avec calcul automatique de la consommation entre deux dates',
+            'Autant de compteurs que nécessaire (eau, électricité, gaz…)',
+        ]],
     ];
     ?>
     <section class="landing-section">
