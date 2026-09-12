@@ -34,7 +34,7 @@ class PremiumDataPurge
         'projects'   => ['projects'],
         'warranties' => ['warranties'],
         'documents'  => ['documents'],
-        'baby'       => ['babies', 'pregnancies'],
+        'baby'       => ['babies', 'pregnancies', 'birth_lists'],
         'location'   => ['location_checkins', 'saved_places'],
         'emergency'  => ['emergency_cards'],
         'comm_log'   => ['comm_log_messages'],
@@ -79,6 +79,7 @@ class PremiumDataPurge
             'baby' => [
                 ['sql' => 'SELECT avatar p FROM babies WHERE family_id=?'],
                 ['sql' => 'SELECT file_path p FROM pregnancy_images WHERE family_id=?'],
+                ['sql' => 'SELECT bli.image_path p FROM birth_list_items bli JOIN birth_lists bl ON bl.id=bli.birth_list_id WHERE bl.family_id=? AND bli.image_path IS NOT NULL', 'dir' => 'birth-list'],
             ],
             'comm_log' => [
                 ['sql' => 'SELECT audio_path p FROM comm_log_messages WHERE family_id=? AND audio_path IS NOT NULL', 'dir' => 'voice'],
