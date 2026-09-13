@@ -70,6 +70,8 @@ use App\Controllers\LeaveRequestController;
 use App\Controllers\TravelController;
 use App\Controllers\VaultController;
 use App\Controllers\VaultAccessController;
+use App\Controllers\BirthListController;
+use App\Controllers\BirthListAccessController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -412,6 +414,15 @@ $router->post('/api/vault/trustees/:id/decide', [VaultController::class, 'decide
 $router->post('/api/vault/trustees/:id/revoke', [VaultController::class, 'revokeTrustee']);
 $router->get('/vault-access/:token', [VaultAccessController::class, 'view']);
 $router->post('/vault-access/:token/request', [VaultAccessController::class, 'request']);
+
+$router->get('/api/birth-list', [BirthListController::class, 'get']);
+$router->post('/api/birth-list/regenerate-link', [BirthListController::class, 'regenerateLink']);
+$router->post('/api/birth-list/items', [BirthListController::class, 'createItem']);
+$router->post('/api/birth-list/items/:id', [BirthListController::class, 'updateItem']);
+$router->post('/api/birth-list/items/:id/delete', [BirthListController::class, 'deleteItem']);
+$router->get('/liste-naissance/:token', [BirthListAccessController::class, 'view']);
+$router->post('/liste-naissance/:token/items/:itemId/reserve', [BirthListAccessController::class, 'reserve']);
+$router->post('/liste-naissance/:token/items/:itemId/unreserve', [BirthListAccessController::class, 'unreserve']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);

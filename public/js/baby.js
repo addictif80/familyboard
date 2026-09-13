@@ -514,6 +514,76 @@ var BabyApp = (() => {
             renderPregnancyInfo(data.pregnancy);
             renderPregnancyConsultations(data.consultations);
         });
+        loadBirthList();
+    }
+
+    // ── Birth list (liste de naissance) ────────────────────────
+
+    let birthListToken = null;
+
+    function loadBirthList() {
+        api('/api/birth-list').then(data => {
+            if (!data.success) return;
+            birthListToken = data.token;
+            renderBirthListItems(data.items);
+        });
+    }
+
+    function renderBirthListItems(items) {
+        const el = document.getElementById('birth-list-items');
+        if (!items.length) {
+            el.innerHTML = '<p class="text-muted">Aucun article dans la liste.</p>';
+            return;
+        }
+        el.innerHTML = items.map(it => `
+            <div class="card" style="padding:.6rem;display:flex;flex-direction:column;gap:.4rem">
+                ${it.image_path ? `<img src="${BASE_URL + it.image_path}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px">` : ''}
+                <strong style="font-size:.85rem">${escHtml(it.title)}</strong>
+                ${it.price ? `<span class="text-muted" style="font-size:.8rem">${Number(it.price).toFixed(2)} €</span>` : ''}
+                <button class="btn-icon" title="Supprimer" onclick="BabyApp.deleteBirthListItem(${it.id})" style="align-self:flex-end">🗑</button>
+            </div>
+        `).join('');
+    }
+
+    function copyBirthListLink() {
+        if (!birthListToken) { Dialog.toast('Chargement en cours, réessayez.', 'error'); return; }
+        const url = `${window.location.origin}${BASE_URL}/liste-naissance/${birthListToken}`;
+        navigator.clipboard.writeText(url).then(() => Dialog.toast('Lien copié.', 'success'));
+    }
+
+    function addBirthListItem() {
+        const title = document.getElementById('birth-list-title').value.trim();
+        const url = document.getElementById('birth-list-url').value.trim();
+        if (!title && !url) { Dialog.toast('Un titre ou un lien produit est requis.', 'error'); return; }
+
+        const fd = new FormData();
+        fd.append('title', title);
+        fd.append('url', url);
+        fd.append('price', document.getElementById('birth-list-price').value);
+        fd.append('notes', document.getElementById('birth-list-notes').value);
+        const fileInput = document.getElementById('birth-list-image');
+        if (fileInput.files[0]) fd.append('image', fileInput.files[0]);
+
+        apiForm('/api/birth-list/items', fd).then(r => {
+            if (r.success) {
+                document.getElementById('birth-list-url').value = '';
+                document.getElementById('birth-list-title').value = '';
+                document.getElementById('birth-list-price').value = '';
+                document.getElementById('birth-list-notes').value = '';
+                fileInput.value = '';
+                loadBirthList();
+                Dialog.toast('Article ajouté.', 'success');
+            } else {
+                Dialog.toast(r.error || 'Erreur.', 'error');
+            }
+        });
+    }
+
+    function deleteBirthListItem(id) {
+        if (!confirm('Supprimer cet article de la liste de naissance ?')) return;
+        api(`/api/birth-list/items/${id}/delete`, { method: 'POST' }).then(r => {
+            if (r.success) loadBirthList();
+        });
     }
 
     function renderPregnancyInfo(p) {
@@ -812,5 +882,6 @@ var BabyApp = (() => {
         openBirthForm, saveBirth,
         openConsultationForm, saveConsultation, editConsultation, deleteConsultation,
         closeModal,
+        copyBirthListLink, addBirthListItem, deleteBirthListItem,
     };
 })();

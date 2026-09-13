@@ -97,6 +97,44 @@ ob_start();
                 <button class="btn btn-primary btn-sm" onclick="BabyApp.openPregnancyConsultation()">+ Ajouter</button>
             </div>
             <div id="pregnancy-consultations-list" class="consultations-list"></div>
+
+            <div class="section-header" style="margin-top:1.5rem">
+                <h3>🎁 Liste de naissance</h3>
+                <button class="btn btn-secondary btn-sm" onclick="BabyApp.copyBirthListLink()">🔗 Copier le lien à partager</button>
+            </div>
+            <p class="text-muted" style="font-size:.85rem;margin-top:-.5rem">
+                Partagez ce lien à vos proches : ils pourront réserver un cadeau pour éviter les
+                doublons, sans créer de compte. Vous ne verrez jamais ce qui a été réservé — la
+                surprise est garantie !
+            </p>
+            <div class="card settings-section">
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label>Lien du produit (optionnel)</label>
+                        <input type="text" id="birth-list-url" placeholder="https://...">
+                    </div>
+                    <div class="form-group flex-2">
+                        <label>Titre</label>
+                        <input type="text" id="birth-list-title" placeholder="Laissez vide pour le récupérer automatiquement">
+                    </div>
+                    <div class="form-group">
+                        <label>Prix (€)</label>
+                        <input type="text" id="birth-list-price">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label>Notes</label>
+                        <input type="text" id="birth-list-notes" placeholder="Taille, couleur…">
+                    </div>
+                    <div class="form-group">
+                        <label>Photo manuelle (si pas de lien)</label>
+                        <input type="file" id="birth-list-image" accept="image/*">
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="BabyApp.addBirthListItem()">+ Ajouter à la liste</button>
+                <div id="birth-list-items" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.8rem;margin-top:1rem"></div>
+            </div>
         </div>
 
         <!-- TAB: Birth -->
