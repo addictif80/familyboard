@@ -54,6 +54,7 @@ ob_start();
             <button class="baby-tab" data-tab="pregnancy" onclick="BabyApp.switchTab('pregnancy', this)">🤰 Grossesse</button>
             <button class="baby-tab" data-tab="birth" onclick="BabyApp.switchTab('birth', this)">🎉 Naissance</button>
             <button class="baby-tab" data-tab="consultations" onclick="BabyApp.switchTab('consultations', this)">🩺 Consultations</button>
+            <button class="baby-tab" data-tab="birth-list" onclick="BabyApp.switchTab('birth-list', this)">🎁 Liste de naissance</button>
         </div>
 
         <!-- TAB: Tracking -->
@@ -97,8 +98,31 @@ ob_start();
                 <button class="btn btn-primary btn-sm" onclick="BabyApp.openPregnancyConsultation()">+ Ajouter</button>
             </div>
             <div id="pregnancy-consultations-list" class="consultations-list"></div>
+        </div>
 
-            <div class="section-header" style="margin-top:1.5rem">
+        <!-- TAB: Birth -->
+        <div id="tab-birth" class="baby-tab-content" style="display:none">
+            <div class="section-header">
+                <h3>Informations de naissance</h3>
+                <button class="btn btn-primary btn-sm" onclick="BabyApp.openBirthForm()">✏️ Modifier</button>
+            </div>
+            <div id="birth-info" class="birth-info-card">
+                <p class="text-muted">Aucune information de naissance enregistrée.</p>
+            </div>
+        </div>
+
+        <!-- TAB: Consultations -->
+        <div id="tab-consultations" class="baby-tab-content" style="display:none">
+            <div class="section-header">
+                <h3>Consultations médicales</h3>
+                <button class="btn btn-primary btn-sm" onclick="BabyApp.openConsultationForm()">+ Ajouter</button>
+            </div>
+            <div id="consultations-list" class="consultations-list"></div>
+        </div>
+
+        <!-- TAB: Birth list -->
+        <div id="tab-birth-list" class="baby-tab-content" style="display:none">
+            <div class="section-header">
                 <h3>🎁 Liste de naissance</h3>
                 <button class="btn btn-secondary btn-sm" onclick="BabyApp.copyBirthListLink()">🔗 Copier le lien à partager</button>
             </div>
@@ -135,26 +159,6 @@ ob_start();
                 <button class="btn btn-primary btn-sm" onclick="BabyApp.addBirthListItem()">+ Ajouter à la liste</button>
                 <div id="birth-list-items" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.8rem;margin-top:1rem"></div>
             </div>
-        </div>
-
-        <!-- TAB: Birth -->
-        <div id="tab-birth" class="baby-tab-content" style="display:none">
-            <div class="section-header">
-                <h3>Informations de naissance</h3>
-                <button class="btn btn-primary btn-sm" onclick="BabyApp.openBirthForm()">✏️ Modifier</button>
-            </div>
-            <div id="birth-info" class="birth-info-card">
-                <p class="text-muted">Aucune information de naissance enregistrée.</p>
-            </div>
-        </div>
-
-        <!-- TAB: Consultations -->
-        <div id="tab-consultations" class="baby-tab-content" style="display:none">
-            <div class="section-header">
-                <h3>Consultations médicales</h3>
-                <button class="btn btn-primary btn-sm" onclick="BabyApp.openConsultationForm()">+ Ajouter</button>
-            </div>
-            <div id="consultations-list" class="consultations-list"></div>
         </div>
 
     </div><!-- #baby-dashboard -->
