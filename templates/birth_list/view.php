@@ -44,7 +44,6 @@ ob_start();
 
 <script>
 const LIST_TOKEN = <?= json_encode($params['token'] ?? '') ?>;
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const STORAGE_KEY = 'fb-birth-list-reservations';
 
 function myReservations() {

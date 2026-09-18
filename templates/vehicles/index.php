@@ -178,7 +178,6 @@ $expiryClass = function ($date) use ($today, $soon) {
 
 <script>
 const VEHICLE_ID = <?= json_encode($selected['id'] ?? null) ?>;
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 </script>
 <?php
 $content = ob_get_clean();

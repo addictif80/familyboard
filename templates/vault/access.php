@@ -49,7 +49,6 @@ use App\Models\Vault;
 
 <script>
 const VAULT_TOKEN = <?= json_encode($params['token'] ?? '') ?>;
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 
 async function requestVaultAccess() {
     const r = await fetch(`${BASE_URL}/vault-access/${VAULT_TOKEN}/request`, {

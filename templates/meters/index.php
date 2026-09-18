@@ -160,7 +160,6 @@ use App\Models\Meter;
 <script>
 const METER_ID = <?= json_encode($selected['id'] ?? null) ?>;
 const METER_HAS_HP_HC = <?= json_encode((bool)($selected['has_hp_hc'] ?? false)) ?>;
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 </script>
 <?php
 $content = ob_get_clean();
