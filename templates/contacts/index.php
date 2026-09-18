@@ -181,7 +181,6 @@ ob_start();
 </div>
 
 <script>
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 // Pass server-side contacts for initial JS state (system contacts excluded — shown separately)
 let contactsData = <?= json_encode($regularContacts) ?>;
 </script>

@@ -425,6 +425,7 @@ $router->get('/liste-naissance/:token', [BirthListAccessController::class, 'view
 $router->post('/liste-naissance/:token/items/:itemId/reserve', [BirthListAccessController::class, 'reserve']);
 $router->post('/liste-naissance/:token/items/:itemId/unreserve', [BirthListAccessController::class, 'unreserve']);
 $router->get('/ai-assistant', [AiAssistantController::class, 'index']);
+$router->get('/api/ai-assistant/messages', [AiAssistantController::class, 'getMessages']);
 $router->post('/api/ai-assistant/message', [AiAssistantController::class, 'sendMessage']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);

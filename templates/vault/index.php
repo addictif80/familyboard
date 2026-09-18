@@ -156,9 +156,6 @@ use App\Models\Vault;
     </div>
 </div>
 
-<script>
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
-</script>
 <?php
 $content = ob_get_clean();
 require __DIR__ . '/../layout.php';

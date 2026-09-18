@@ -353,7 +353,6 @@ ob_start();
 </div>
 
 <script>
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const PROJECT_ID = <?= json_encode($project['id']) ?>;
 </script>
 <?php

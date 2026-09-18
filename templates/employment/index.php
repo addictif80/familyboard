@@ -422,7 +422,6 @@ $euros = fn($cents) => number_format(((int)$cents) / 100, 2, ',', ' ') . ' €';
 <script>
 const PROFILE_ID = <?= json_encode($selected['id'] ?? null) ?>;
 const SELECTED_PROFILE = <?= json_encode($selected) ?>;
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 </script>
 <?php
 $content = ob_get_clean();

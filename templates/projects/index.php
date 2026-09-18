@@ -109,7 +109,6 @@ ob_start();
 </div>
 
 <script>
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 
 // ---- Project mini-calendar ----
 let _projDate = new Date();

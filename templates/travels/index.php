@@ -164,7 +164,6 @@ use App\Models\Travel;
 
 <script>
 const TRAVEL_ID = <?= json_encode($selected['id'] ?? null) ?>;
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 </script>
 <?php
 $content = ob_get_clean();

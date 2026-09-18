@@ -1,16 +1,18 @@
 <?php
-$pageTitle = 'Assistant IA';
-$extraJs = ['ai_assistant.js'];
+$pageTitle = 'Historique — Assistant IA';
 ob_start();
 ?>
-<div class="chat-container">
-    <p style="color:var(--text-muted);font-size:.8rem;padding:.5rem 1rem 0">
-        🤖 Assistant auto-hébergé (aucune donnée n'est envoyée à un service tiers). Il peut ajouter
-        des tâches, des articles à la liste de courses et des événements au calendrier — jamais
-        rien d'autre, et jamais sans que vous le lui demandiez explicitement. Conversation visible
-        de toute la famille.
-    </p>
-    <div class="chat-messages" id="chat-messages">
+<div class="tasks-header">
+    <h2>🤖 Historique de l'assistant</h2>
+</div>
+<p style="color:var(--text-muted);font-size:.85rem;margin-top:-.5rem">
+    Pour discuter avec l'assistant, utilisez la bulle 🤖 dans le menu (ou 🎤 dans la barre du bas
+    sur mobile) — cette page est une vue en lecture seule de l'historique complet.
+</p>
+
+<div class="card settings-section">
+    <h3 style="margin-top:0">Conversation</h3>
+    <div id="ai-history-messages" style="display:flex;flex-direction:column;gap:.5rem;max-height:500px;overflow-y:auto">
         <?php foreach ($messages as $msg): ?>
             <?php $isAssistant = $msg['role'] === 'assistant'; ?>
             <div class="message-row <?= $isAssistant ? '' : 'own' ?>">
@@ -27,19 +29,13 @@ ob_start();
             </div>
         <?php endforeach; ?>
         <?php if (empty($messages)): ?>
-            <p class="empty-state">Posez une question, ou demandez d'ajouter une tâche, un article de courses ou un événement.</p>
+            <p class="empty-state">Aucun message pour le moment.</p>
         <?php endif; ?>
-    </div>
-
-    <div class="chat-input-bar">
-        <input type="text" id="chat-input" placeholder="Écrire à l'assistant…" onkeydown="if(event.key==='Enter')sendAssistantMessage()">
-        <button type="button" class="voice-record-btn" id="chat-mic-btn" onclick="toggleVoiceInput()" title="Dicter votre message" style="display:none">🎤</button>
-        <button class="btn btn-primary" id="chat-send-btn" onclick="sendAssistantMessage()">Envoyer</button>
     </div>
 </div>
 
 <div class="card settings-section" style="margin-top:1rem">
-    <h3>📋 Actions récentes de l'assistant</h3>
+    <h3 style="margin-top:0">📋 Actions effectuées</h3>
     <table class="admin-table">
         <thead><tr><th>Action</th><th>Demandée par</th><th>Date</th></tr></thead>
         <tbody>
@@ -56,11 +52,6 @@ ob_start();
         </tbody>
     </table>
 </div>
-
-<script>
-const CURRENT_USER_NAME = <?= json_encode($user['name']) ?>;
-const AUTO_TALK = <?= json_encode(!empty($_GET['talk'])) ?>;
-</script>
 <?php
 $content = ob_get_clean();
 require __DIR__ . '/../layout.php';

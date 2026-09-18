@@ -448,11 +448,11 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/ai-assistant') ? 'active' : '' ?>" data-section="organisation">
-                <a href="<?= BASE_URL ?>/ai-assistant" class="nav-link">
+            <li class="nav-item" data-section="organisation">
+                <button type="button" onclick="toggleAiAssistantPanel()" class="nav-link" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit">
                     <span class="nav-icon">🤖</span>
                     <span class="nav-label">Assistant IA</span>
-                </a>
+                </button>
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('deals')): ?>
@@ -595,10 +595,10 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             <span class="bottom-nav-label">Plus</span>
         </button>
         <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
-        <a href="<?= BASE_URL ?>/ai-assistant?talk=1" class="bottom-nav-item <?= str_contains($currentPath, '/ai-assistant') ? 'active' : '' ?>">
+        <button type="button" class="bottom-nav-item" onclick="toggleAiAssistantPanel(true)">
             <span class="bottom-nav-icon">🎤</span>
             <span class="bottom-nav-label">Assistant</span>
-        </a>
+        </button>
         <?php endif; ?>
     </nav>
     <?php endif; ?>
@@ -645,6 +645,28 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </div>
             <div id="notif-list"></div>
         </div>
+
+        <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
+        <!-- Assistant IA : bulle superposée, pas une page (voir toggleAiAssistantPanel()) -->
+        <div class="ai-assistant-panel" id="ai-assistant-panel">
+            <div class="ai-assistant-panel-header">
+                <span>🤖 Assistant</span>
+                <div style="display:flex;gap:.5rem;align-items:center">
+                    <a href="<?= BASE_URL ?>/ai-assistant" class="btn-text" title="Historique complet">Historique</a>
+                    <button onclick="toggleAiAssistantPanel()" class="btn-text" title="Fermer">✕</button>
+                </div>
+            </div>
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-input-bar">
+                    <input type="text" id="chat-input" placeholder="Écrire à l'assistant…" onkeydown="if(event.key==='Enter')sendAssistantMessage()">
+                    <button type="button" class="voice-record-btn" id="chat-mic-btn" onclick="toggleVoiceInput()" title="Dicter votre message" style="display:none">🎤</button>
+                    <button class="btn btn-primary" id="chat-send-btn" onclick="sendAssistantMessage()">Envoyer</button>
+                </div>
+            </div>
+        </div>
+        <script src="<?= ASSETS_URL ?>/js/ai_assistant.js?v=<?= APP_VERSION ?>"></script>
+        <?php endif; ?>
 
         <!-- Flash messages -->
         <?php $success = \App\Core\Session::getFlash('success'); $error = \App\Core\Session::getFlash('error'); ?>
@@ -705,6 +727,7 @@ const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const APP_TIMEZONE = <?= json_encode(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Paris') ?>;
 const APP_VERSION = <?= json_encode((string)APP_VERSION) ?>;
 const LOCATION_TRACKING_ENABLED = <?= json_encode(\App\Core\Session::isLoggedIn() && !empty(\App\Core\Session::user()['location_tracking_enabled'])) ?>;
+const CURRENT_USER_NAME = <?= json_encode(\App\Core\Session::isLoggedIn() ? (\App\Core\Session::user()['name'] ?? '') : '') ?>;
 </script>
 <script src="<?= ASSETS_URL ?>/js/app.js?v=<?= APP_VERSION ?>"></script>
 <script>

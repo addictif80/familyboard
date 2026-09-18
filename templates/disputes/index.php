@@ -218,7 +218,6 @@ $exchangeTypeLabel = ['telephone' => '📞 Téléphone', 'email' => '✉️ E-ma
 <script>
 const DISPUTE_ID = <?= json_encode($selected['id'] ?? null) ?>;
 const SELECTED_DISPUTE = <?= json_encode($selected) ?>;
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const EXCHANGE_CONTACT_LABELS = {
     telephone: 'Numéro de téléphone',
     email: 'Adresse e-mail',

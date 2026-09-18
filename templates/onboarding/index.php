@@ -219,9 +219,6 @@ $proMembers = array_values(array_filter($members, fn($m) => $m['role'] !== 'copa
 .btn-link { background:none; border:none; color:var(--text-muted); text-decoration:underline; cursor:pointer; }
 </style>
 
-<script>
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
-</script>
 <?php
 $content = ob_get_clean();
 require __DIR__ . '/../layout.php';

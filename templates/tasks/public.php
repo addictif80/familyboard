@@ -17,7 +17,6 @@ ob_start();
 <?php if ($list): ?>
 <script>
 const SHARE_TOKEN = <?= json_encode($token) ?>;
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 
 function publicEscapeHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
