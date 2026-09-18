@@ -87,6 +87,7 @@
                     'notification_sent'   => 'Notification envoyée.',
                     'meteofrance_saved'   => 'Clé API Météo-France enregistrée.',
                     'vaultwarden_saved'   => 'Configuration Vaultwarden enregistrée.',
+                    'ollama_saved'        => 'Configuration Ollama enregistrée.',
                     '2fa_policy_saved'    => 'Politique de double authentification enregistrée.',
                     'highlight_saved'     => 'Mise en avant enregistrée.',
                     'highlight_deleted'   => 'Mise en avant supprimée.',
@@ -829,6 +830,33 @@
                 <?php endif; ?>
             </div>
             <div id="vaultwarden-test-result" style="margin-top:.75rem"></div>
+        </form>
+
+        <h2 style="margin-top:2rem">Assistant IA (Ollama auto-hébergé)</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Branche un assistant conversationnel sur votre propre serveur Ollama (<code>https://ollama.com</code>) :
+            aucune donnée famille n'est envoyée à un service tiers. L'assistant peut créer des
+            tâches, des articles de liste de courses et des événements calendrier à la demande —
+            jamais rien d'autre (pas de suppression, pas d'accès aux modules sensibles). N'apparaît
+            dans une famille que si le module « Assistant IA » y est activé (réglages de la famille).
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/ollama" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>URL du serveur Ollama</label>
+                <input type="url" name="url" value="<?= htmlspecialchars($ollamaSettings['url'] ?? '') ?>" placeholder="http://localhost:11434">
+            </div>
+            <div class="form-group">
+                <label>Modèle</label>
+                <input type="text" name="model" value="<?= htmlspecialchars($ollamaSettings['model'] ?? '') ?>" placeholder="llama3.1">
+                <small style="color:var(--text-muted)">Doit être un modèle installé sur le serveur (<code>ollama pull &lt;modèle&gt;</code>) supportant l'appel d'outils (llama3.1, qwen2.5, mistral-nemo…).</small>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+                <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                <?php if ($ollamaSettings): ?>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testOllama()">🔌 Tester la connexion</button>
+                <?php endif; ?>
+            </div>
+            <div id="ollama-test-result" style="margin-top:.75rem"></div>
         </form>
 
         <h2 style="margin-top:2rem">Alias e-mail famille (Mailcow)</h2>

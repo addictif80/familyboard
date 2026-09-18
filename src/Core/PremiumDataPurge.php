@@ -58,6 +58,7 @@ class PremiumDataPurge
         'leave'      => ['leave_requests'],
         'travels'    => ['travels'],
         'vault'      => ['vault_entries', 'vault_trustees'],
+        'ai_assistant' => ['ai_assistant_messages', 'ai_assistant_actions'],
     ];
 
     /** Requêtes de collecte des chemins de fichiers À EXÉCUTER AVANT la suppression des lignes

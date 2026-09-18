@@ -66,6 +66,20 @@ class TaskList
         return self::create($familyId, $userId, 'Décisions', 'tasks', '#8E44AD');
     }
 
+    /** Première liste existante du type demandé (peu importe son nom), ou une liste par défaut
+     *  créée à la volée — utilisé par l'assistant IA pour ne jamais avoir à faire choisir une
+     *  liste précise par le modèle (surface d'erreur inutile pour un modèle local). */
+    public static function findOrCreateDefaultList(int $familyId, int $userId, string $type): int
+    {
+        $existing = Database::fetch(
+            'SELECT id FROM task_lists WHERE family_id=? AND type=? ORDER BY id LIMIT 1',
+            [$familyId, $type]
+        );
+        if ($existing) return (int)$existing['id'];
+        $name = $type === 'shopping' ? 'Courses' : 'Tâches';
+        return self::create($familyId, $userId, $name, $type);
+    }
+
     public static function update(int $id, string $name, string $color): void
     {
         Database::execute('UPDATE task_lists SET name=?, color=? WHERE id=?', [$name, $color, $id]);
