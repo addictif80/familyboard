@@ -33,6 +33,7 @@ ob_start();
 
     <div class="chat-input-bar">
         <input type="text" id="chat-input" placeholder="Écrire à l'assistant…" onkeydown="if(event.key==='Enter')sendAssistantMessage()">
+        <button type="button" class="voice-record-btn" id="chat-mic-btn" onclick="toggleVoiceInput()" title="Dicter votre message" style="display:none">🎤</button>
         <button class="btn btn-primary" id="chat-send-btn" onclick="sendAssistantMessage()">Envoyer</button>
     </div>
 </div>
@@ -57,8 +58,8 @@ ob_start();
 </div>
 
 <script>
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const CURRENT_USER_NAME = <?= json_encode($user['name']) ?>;
+const AUTO_TALK = <?= json_encode(!empty($_GET['talk'])) ?>;
 </script>
 <?php
 $content = ob_get_clean();

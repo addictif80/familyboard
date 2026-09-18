@@ -26,6 +26,83 @@ function escHtmlAi(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ── Saisie vocale (Web Speech API) ──────────────────────────
+// Reconnaissance embarquée du navigateur, jamais un service tiers — cohérent avec le principe
+// "aucune donnée envoyée hors de l'infrastructure auto-hébergée" de l'assistant lui-même.
+// Non disponible sur tous les navigateurs (Firefox desktop notamment) : le micro reste caché
+// dans ce cas plutôt que d'afficher un bouton qui échouerait à chaque appui.
+
+let voiceRecognition = null;
+let voiceListening = false;
+
+function initVoiceInput() {
+    const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const micBtn = document.getElementById('chat-mic-btn');
+    if (!SpeechRecognitionApi || !micBtn) return;
+
+    micBtn.style.display = '';
+    voiceRecognition = new SpeechRecognitionApi();
+    voiceRecognition.lang = 'fr-FR';
+    voiceRecognition.continuous = false;
+    voiceRecognition.interimResults = true;
+
+    let finalTranscript = '';
+
+    voiceRecognition.onresult = (event) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) finalTranscript += transcript;
+            else interim += transcript;
+        }
+        document.getElementById('chat-input').value = (finalTranscript + interim).trim();
+    };
+
+    voiceRecognition.onerror = () => {
+        stopVoiceListening();
+    };
+
+    voiceRecognition.onend = () => {
+        stopVoiceListening();
+        const text = document.getElementById('chat-input').value.trim();
+        if (text) sendAssistantMessage();
+        finalTranscript = '';
+    };
+
+    voiceRecognition.onstart = () => {
+        finalTranscript = '';
+        voiceListening = true;
+        micBtn.classList.add('recording');
+        document.getElementById('chat-input').value = '';
+        document.getElementById('chat-input').placeholder = 'Je vous écoute…';
+    };
+}
+
+function stopVoiceListening() {
+    voiceListening = false;
+    const micBtn = document.getElementById('chat-mic-btn');
+    if (micBtn) micBtn.classList.remove('recording');
+    document.getElementById('chat-input').placeholder = "Écrire à l'assistant…";
+}
+
+function toggleVoiceInput() {
+    if (!voiceRecognition) return;
+    if (voiceListening) {
+        voiceRecognition.stop();
+    } else {
+        try {
+            voiceRecognition.start();
+        } catch (e) {
+            // start() jette si un appel est déjà en cours (double-clic) — sans conséquence.
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initVoiceInput();
+    if (AUTO_TALK && voiceRecognition) toggleVoiceInput();
+});
+
 async function sendAssistantMessage() {
     const input = document.getElementById('chat-input');
     const btn = document.getElementById('chat-send-btn');
