@@ -1,6 +1,38 @@
 // ============================================
-// FamilyBoard - Assistant IA
+// FamilyBoard - Assistant IA (bulle superposée, voir .ai-assistant-panel)
 // ============================================
+
+let aiPanelOpen = false;
+let aiHistoryLoaded = false;
+
+function toggleAiAssistantPanel(autoTalk) {
+    const panel = document.getElementById('ai-assistant-panel');
+    if (!panel) return;
+    aiPanelOpen = !aiPanelOpen;
+    panel.style.display = aiPanelOpen ? 'flex' : 'none';
+    if (aiPanelOpen) {
+        if (!aiHistoryLoaded) loadAiAssistantHistory();
+        if (autoTalk && voiceRecognition) toggleVoiceInput();
+    } else if (voiceListening) {
+        voiceRecognition.stop();
+    }
+}
+
+function loadAiAssistantHistory() {
+    aiHistoryLoaded = true;
+    fetch(`${BASE_URL}/api/ai-assistant/messages`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            const wrap = document.getElementById('chat-messages');
+            wrap.innerHTML = '';
+            if (!data.messages.length) {
+                wrap.innerHTML = '<p class="empty-state">Posez une question, ou demandez d\'ajouter une tâche, un article de courses ou un événement.</p>';
+                return;
+            }
+            data.messages.forEach(m => appendAssistantMessage(m.role, m.content, m.user_name));
+        });
+}
 
 function appendAssistantMessage(role, content, authorName) {
     const wrap = document.getElementById('chat-messages');
@@ -90,6 +122,8 @@ function toggleVoiceInput() {
     if (voiceListening) {
         voiceRecognition.stop();
     } else {
+        // La bulle doit être ouverte pour que le micro (dans son en-tête) capte quoi que ce soit.
+        if (!aiPanelOpen) toggleAiAssistantPanel();
         try {
             voiceRecognition.start();
         } catch (e) {
@@ -98,10 +132,7 @@ function toggleVoiceInput() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    initVoiceInput();
-    if (AUTO_TALK && voiceRecognition) toggleVoiceInput();
-});
+document.addEventListener('DOMContentLoaded', initVoiceInput);
 
 async function sendAssistantMessage() {
     const input = document.getElementById('chat-input');

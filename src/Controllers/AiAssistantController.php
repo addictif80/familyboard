@@ -35,6 +35,24 @@ TXT;
         require BASE_PATH . '/templates/ai_assistant/index.php';
     }
 
+    /** Historique récent pour le chargement initial de la bulle (voir toggleAiAssistantPanel()
+     *  dans ai_assistant.js) — la bulle étant globale à toutes les pages, son contenu ne peut pas
+     *  être pré-rendu côté serveur sans refaire cette requête sur CHAQUE page de l'application. */
+    public function getMessages(array $params): void
+    {
+        $this->requireAuth();
+        $this->requireModule('ai_assistant');
+        $this->json(function () {
+            $user = Session::user();
+            $messages = array_reverse(AiAssistantMessage::getByFamily((int)$user['family_id'], 50));
+            return ['success' => true, 'messages' => array_map(fn($m) => [
+                'role' => $m['role'],
+                'content' => $m['content'],
+                'user_name' => $m['user_name'],
+            ], $messages)];
+        });
+    }
+
     public function sendMessage(array $params): void
     {
         $this->requireAuth();

@@ -729,6 +729,35 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
   font-weight: 600;
 }
 
+/* ---- Assistant IA : bulle superposée à la page courante (même principe que le panneau de
+   notifications) plutôt qu'une page à part — évite de perdre le contexte de navigation pour une
+   simple commande rapide ("ajoute une tâche"). ---- */
+.ai-assistant-panel {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(380px, calc(100vw - 2rem));
+  max-height: min(600px, calc(100vh - var(--topbar-height) - 2rem));
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), 0 8px 30px rgba(0,0,0,.16);
+  z-index: 250;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ai-assistant-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.ai-assistant-panel .chat-container { flex: 1; min-height: 0; height: auto; display: flex; flex-direction: column; }
+.ai-assistant-panel .chat-messages { flex: 1; min-height: 0; }
+
 /* ---- Content area ---- */
 .content-area { padding: 1.5rem; flex: 1; }
 
@@ -1498,6 +1527,14 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 
   /* Notifications panel */
   .notifications-panel { width: calc(100vw - 2rem); right: 1rem; left: auto; }
+
+  /* Assistant IA : la bulle doit rester au-dessus de la barre de navigation bottom-nav */
+  .ai-assistant-panel {
+    width: calc(100vw - 2rem);
+    right: 1rem;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    max-height: calc(100vh - var(--topbar-height) - 5.5rem - env(safe-area-inset-bottom, 0px));
+  }
 
   /* Material items: hide qty/price columns, keep check/name/total/actions */
   .material-item { grid-template-columns: 24px 1fr auto auto; }
