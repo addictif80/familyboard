@@ -594,6 +594,12 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             <span class="bottom-nav-icon">☰</span>
             <span class="bottom-nav-label">Plus</span>
         </button>
+        <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
+        <a href="<?= BASE_URL ?>/ai-assistant" class="bottom-nav-item <?= str_contains($currentPath, '/ai-assistant') ? 'active' : '' ?>">
+            <span class="bottom-nav-icon">🎤</span>
+            <span class="bottom-nav-label">Assistant</span>
+        </a>
+        <?php endif; ?>
     </nav>
     <?php endif; ?>
 
