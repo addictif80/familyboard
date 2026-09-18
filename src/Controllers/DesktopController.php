@@ -21,9 +21,13 @@ class DesktopController extends BaseController
             return array_map(fn($e) => [
                 'id' => (int)$e['id'],
                 'title' => $e['title'],
+                'description' => $e['description'],
                 'start' => $e['start_datetime'],
+                'end' => $e['end_datetime'],
                 'is_all_day' => (bool)$e['is_all_day'],
                 'color' => $e['color'],
+                'location' => $e['location'],
+                'user_name' => $e['user_name'],
             ], $events);
         });
     }
