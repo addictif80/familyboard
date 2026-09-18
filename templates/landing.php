@@ -309,6 +309,11 @@
             'Personnes de confiance désignées avec un lien d\'accès personnel',
             'Accès d\'urgence toujours validé manuellement par un administrateur, jamais automatique',
         ]],
+        ['id' => 'ai_assistant', 'icon' => '🤖', 'title' => 'Assistant IA', 'badge' => 'Nouveau', 'tagline' => 'Un assistant auto-hébergé qui ajoute vos tâches, courses et événements pour vous.', 'points' => [
+            'Ajoutez une tâche, un article de courses ou un événement en une phrase',
+            'Fonctionne sur un serveur Ollama auto-hébergé : aucune donnée envoyée à un tiers',
+            'Actions toujours tracées et visibles de toute la famille',
+        ]],
     ];
     ?>
     <section class="landing-section">

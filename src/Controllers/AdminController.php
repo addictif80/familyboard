@@ -191,6 +191,7 @@ class AdminController extends BaseController
         $deletedUsers = AccountDeletion::getDeletedUsers();
         $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
         $vaultwardenSettings = VaultwardenSettings::get();
+        $ollamaSettings = \App\Models\OllamaSettings::get();
         $mailcowSettings = MailcowSettings::get();
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
@@ -654,6 +655,28 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $this->json(fn() => Vaultwarden::testConnection());
+    }
+
+    // ── Assistant IA (Ollama auto-hébergé) ──────────────────────────
+
+    public function updateOllamaSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $url = trim($_POST['url'] ?? '');
+        $model = trim($_POST['model'] ?? '');
+        if ($url && $model) {
+            \App\Models\OllamaSettings::save($url, $model);
+        } else {
+            AppSetting::set('ollama_url', '');
+            AppSetting::set('ollama_model', '');
+        }
+        $this->redirect('/admin?tab=notifications&msg=ollama_saved');
+    }
+
+    public function testOllamaConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\Ollama::testConnection());
     }
 
     // ── Mailcow (alias e-mail <slug-famille>@domaine, redirigé vers les membres) ────

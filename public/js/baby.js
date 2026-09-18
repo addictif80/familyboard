@@ -280,6 +280,7 @@ var BabyApp = (() => {
         if (tab === 'pregnancy') loadPregnancy();
         if (tab === 'birth') renderBirthTab();
         if (tab === 'consultations') loadConsultations();
+        if (tab === 'birth-list') loadBirthList();
     }
 
     // ── Tracking tab ──────────────────────────────────────────
@@ -514,7 +515,6 @@ var BabyApp = (() => {
             renderPregnancyInfo(data.pregnancy);
             renderPregnancyConsultations(data.consultations);
         });
-        loadBirthList();
     }
 
     // ── Birth list (liste de naissance) ────────────────────────

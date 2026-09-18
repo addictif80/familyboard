@@ -72,6 +72,7 @@ use App\Controllers\VaultController;
 use App\Controllers\VaultAccessController;
 use App\Controllers\BirthListController;
 use App\Controllers\BirthListAccessController;
+use App\Controllers\AiAssistantController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -423,6 +424,8 @@ $router->post('/api/birth-list/items/:id/delete', [BirthListController::class, '
 $router->get('/liste-naissance/:token', [BirthListAccessController::class, 'view']);
 $router->post('/liste-naissance/:token/items/:itemId/reserve', [BirthListAccessController::class, 'reserve']);
 $router->post('/liste-naissance/:token/items/:itemId/unreserve', [BirthListAccessController::class, 'unreserve']);
+$router->get('/ai-assistant', [AiAssistantController::class, 'index']);
+$router->post('/api/ai-assistant/message', [AiAssistantController::class, 'sendMessage']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
@@ -619,6 +622,8 @@ $router->post('/admin/meteofrance-key/test', [AdminController::class, 'testMeteo
 $router->post('/admin/2fa-policy', [AdminController::class, 'updateTwoFactorPolicy']);
 $router->post('/admin/vaultwarden', [AdminController::class, 'updateVaultwardenSettings']);
 $router->post('/admin/vaultwarden/test', [AdminController::class, 'testVaultwardenConnection']);
+$router->post('/admin/ollama', [AdminController::class, 'updateOllamaSettings']);
+$router->post('/admin/ollama/test', [AdminController::class, 'testOllamaConnection']);
 $router->post('/admin/mailcow', [AdminController::class, 'updateMailcowSettings']);
 $router->post('/admin/mailcow/test', [AdminController::class, 'testMailcowConnection']);
 $router->post('/admin/subscriptions/settings', [AdminController::class, 'updateSubscriptionSettings']);

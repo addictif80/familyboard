@@ -139,6 +139,7 @@ $_hasCustodyAccess = \App\Models\Custody::getSchedulesForUser($currentUser['id']
 $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules)
     && !($currentUser['role'] === 'ado' && in_array($module, \App\Models\Family::ADO_RESTRICTED_MODULES, true));
 $_vaultwarden = \App\Models\VaultwardenSettings::get();
+$_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
 ?>
 <?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
 <div class="app-wrapper">
@@ -446,6 +447,14 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/ai-assistant') ? 'active' : '' ?>" data-section="organisation">
+                <a href="<?= BASE_URL ?>/ai-assistant" class="nav-link">
+                    <span class="nav-icon">🤖</span>
+                    <span class="nav-label">Assistant IA</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('deals')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="organisation">
                 <a href="<?= BASE_URL ?>/deals" class="nav-link">
@@ -585,6 +594,12 @@ $_vaultwarden = \App\Models\VaultwardenSettings::get();
             <span class="bottom-nav-icon">☰</span>
             <span class="bottom-nav-label">Plus</span>
         </button>
+        <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
+        <a href="<?= BASE_URL ?>/ai-assistant?talk=1" class="bottom-nav-item <?= str_contains($currentPath, '/ai-assistant') ? 'active' : '' ?>">
+            <span class="bottom-nav-icon">🎤</span>
+            <span class="bottom-nav-label">Assistant</span>
+        </a>
+        <?php endif; ?>
     </nav>
     <?php endif; ?>
 
