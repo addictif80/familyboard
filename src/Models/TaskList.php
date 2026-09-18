@@ -90,6 +90,20 @@ class TaskList
         Database::execute('DELETE FROM task_lists WHERE id=?', [$id]);
     }
 
+    /** Tâches non cochées, toutes listes d'un type confondues (ex. "Courses" combinées) —
+     *  utilisé par le widget de la barre des tâches de l'interface bureau. */
+    public static function getPendingItemsByType(int $familyId, string $type, int $limit = 30): array
+    {
+        return Database::fetchAll(
+            'SELECT t.id, t.title, t.list_id, tl.name as list_name, tl.color as list_color
+             FROM tasks t
+             JOIN task_lists tl ON tl.id = t.list_id
+             WHERE tl.family_id = ? AND tl.type = ? AND t.is_completed = 0
+             ORDER BY t.priority DESC, t.created_at DESC LIMIT ?',
+            [$familyId, $type, $limit]
+        );
+    }
+
     public static function getTasks(int $listId): array
     {
         return Database::fetchAll(

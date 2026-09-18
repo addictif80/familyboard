@@ -36,6 +36,7 @@
                 'Support & sécurité' => ['tickets' => '🎫 Tickets support', 'impersonation' => '🕵️ Impersonation', 'ips' => '🚫 IPs bloquées'],
                 'Communication' => ['notifications' => '📣 Notifications & intégrations', 'smtp' => '✉️ SMTP', 'email' => '📧 Emails'],
                 'Contenu' => ['announcements' => '📣 Annonces', 'testimonials' => '💬 Témoignages', 'namedays' => '🎉 Fêtes des prénoms', 'highlights' => '🏢 Mises en avant ABHD', 'links' => '🔗 Liens certifiés', 'legal' => '📜 Contenu légal', 'roadmap' => '🗺️ Roadmap'],
+                'Interface' => ['desktop-menu' => '🖥️ Menu Démarrer (bureau PC)'],
             ];
             ?>
             <?php foreach ($adminNavGroups as $groupLabel => $items): ?>
@@ -1181,6 +1182,82 @@
             </tbody>
         </table>
         <?php endif; ?>
+
+        <?php elseif ($tab === 'desktop-menu'): ?>
+        <h2>Menu Démarrer (interface bureau PC)</h2>
+        <p style="color:var(--text-muted);font-size:.88rem;margin-bottom:1rem">
+            Catégories affichées dans le menu Démarrer de l'interface bureau (écrans PC, ≥ 769px).
+            Un module non affecté à une catégorie apparaît automatiquement dans « Autre ».
+        </p>
+
+        <h3>Catégories</h3>
+        <?php $realNavCategories = array_values(array_filter($navCategories, fn($c) => $c['id'] !== null)); ?>
+        <table class="admin-table" style="margin-bottom:1rem">
+            <thead><tr><th></th><th>Icône</th><th>Nom</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($realNavCategories as $i => $cat): ?>
+                <tr>
+                    <td style="white-space:nowrap">
+                        <form method="POST" action="<?= BASE_URL ?>/admin/nav-categories/<?= $cat['id'] ?>/move" style="display:inline"><?= \App\Core\Csrf::field() ?>
+                            <input type="hidden" name="direction" value="up">
+                            <button class="btn-icon" title="Monter" <?= $i === 0 ? 'disabled' : '' ?>>↑</button>
+                        </form>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/nav-categories/<?= $cat['id'] ?>/move" style="display:inline"><?= \App\Core\Csrf::field() ?>
+                            <input type="hidden" name="direction" value="down">
+                            <button class="btn-icon" title="Descendre" <?= $i === count($realNavCategories) - 1 ? 'disabled' : '' ?>>↓</button>
+                        </form>
+                    </td>
+                    <td colspan="2">
+                        <form method="POST" action="<?= BASE_URL ?>/admin/nav-categories/<?= $cat['id'] ?>" class="admin-inline-form"><?= \App\Core\Csrf::field() ?>
+                            <input type="text" name="icon" value="<?= htmlspecialchars($cat['icon']) ?>" style="width:60px" maxlength="10">
+                            <input type="text" name="name" value="<?= htmlspecialchars($cat['name']) ?>" style="width:220px" required>
+                            <button class="btn btn-secondary btn-sm">Enregistrer</button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/nav-categories/<?= $cat['id'] ?>/delete" onsubmit="return confirm('Supprimer cette catégorie ? Ses modules basculeront dans « Autre ».');"><?= \App\Core\Csrf::field() ?>
+                            <button class="btn btn-secondary btn-sm">🗑 Supprimer</button>
+                        </form>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <form method="POST" action="<?= BASE_URL ?>/admin/nav-categories" class="admin-inline-form" style="margin-bottom:1.5rem"><?= \App\Core\Csrf::field() ?>
+            <input type="text" name="icon" placeholder="📁" style="width:60px" maxlength="10">
+            <input type="text" name="name" placeholder="Nouvelle catégorie…" style="width:220px" required>
+            <button class="btn btn-primary btn-sm">+ Ajouter</button>
+        </form>
+
+        <h3>Modules par catégorie</h3>
+        <form method="POST" action="<?= BASE_URL ?>/admin/nav-categories/assign-modules"><?= \App\Core\Csrf::field() ?>
+            <table class="admin-table">
+                <thead><tr><th>Module</th><th>Catégorie</th></tr></thead>
+                <tbody>
+                <?php
+                $moduleToCategory = [];
+                foreach ($navCategories as $cat) {
+                    foreach ($cat['modules'] as $slug) $moduleToCategory[$slug] = $cat['id'];
+                }
+                ?>
+                <?php foreach (\App\Models\Family::MODULES as $slug => $meta): ?>
+                    <tr>
+                        <td><?= $meta['icon'] ?> <?= htmlspecialchars($meta['label']) ?></td>
+                        <td>
+                            <select name="module_category[<?= $slug ?>]">
+                                <option value="0" <?= ($moduleToCategory[$slug] ?? null) === null ? 'selected' : '' ?>>Autre</option>
+                                <?php foreach ($navCategories as $cat): ?>
+                                    <?php if ($cat['id'] === null) continue; ?>
+                                    <option value="<?= $cat['id'] ?>" <?= ($moduleToCategory[$slug] ?? null) === $cat['id'] ? 'selected' : '' ?>><?= $cat['icon'] ?> <?= htmlspecialchars($cat['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <button class="btn btn-primary btn-sm" style="margin-top:1rem">Enregistrer les affectations</button>
+        </form>
 
         <?php elseif ($tab === 'tickets'): ?>
         <h2>Tickets de support (<?= count(array_filter($tickets, fn($t) => $t['status'] !== 'closed')) ?> ouverts)</h2>

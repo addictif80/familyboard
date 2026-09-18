@@ -2116,3 +2116,197 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
     }
     @page { size: A4; margin: 8mm 10mm 8mm 10mm; }
 }
+
+/* ============================================================
+   Interface bureau (PC, >= 769px) — barre des tâches, menu Démarrer,
+   fenêtres flottantes. Masquée par défaut (mobile/PWA garde la sidebar
+   classique) ; bascule au-dessus du seuil desktop. Voir public/js/win-desktop.js.
+   ============================================================ */
+
+.win-desktop-shell { display: none; }
+
+@media (min-width: 769px) {
+    .win-desktop-shell { display: block; }
+    .app-wrapper { display: none; }
+}
+
+.win-desktop-shell {
+    position: fixed;
+    top: var(--banners-h, 0px); left: 0; right: 0; bottom: 0;
+    background:
+        radial-gradient(circle at 15% 15%, rgba(255,255,255,.05), transparent 45%),
+        linear-gradient(160deg, var(--primary-dark), var(--primary));
+    overflow: hidden;
+}
+:root[data-theme="dark"] .win-desktop-shell {
+    background:
+        radial-gradient(circle at 15% 15%, rgba(255,255,255,.03), transparent 45%),
+        linear-gradient(160deg, #10141F, #1B2032);
+}
+
+.win-desktop-area {
+    position: absolute;
+    left: 0; right: 220px; top: 0; bottom: 56px;
+}
+
+/* ── Widgets latéraux ───────────────────────────────────────── */
+
+.win-widgets-panel {
+    position: absolute;
+    right: 12px; top: 12px; bottom: 68px; width: 200px;
+    display: flex; flex-direction: column; gap: .75rem;
+    overflow-y: auto;
+}
+.win-widget {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: .75rem .85rem;
+}
+.win-widget h4 { margin: 0 0 .5rem; font-size: .82rem; color: var(--text); }
+.win-widget-body { display: flex; flex-direction: column; gap: .4rem; max-height: 260px; overflow-y: auto; }
+.win-widget-row { display: flex; align-items: center; gap: .4rem; font-size: .76rem; color: var(--text); }
+.win-widget-row-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-widget-row-meta { color: var(--text-muted); font-size: .68rem; white-space: nowrap; }
+.win-widget-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.win-widget-empty { color: var(--text-muted); font-size: .76rem; margin: 0; }
+
+/* ── Barre des tâches ───────────────────────────────────────── */
+
+.win-taskbar {
+    position: absolute;
+    left: 0; right: 0; bottom: 0; height: 56px;
+    background: var(--sidebar-bg);
+    display: flex; align-items: center; gap: .4rem;
+    padding: 0 .6rem;
+    box-shadow: 0 -2px 10px rgba(0,0,0,.2);
+    z-index: 5000;
+}
+.win-start-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px; border-radius: var(--radius-sm);
+    background: transparent; border: none; cursor: pointer;
+}
+.win-start-btn:hover { background: rgba(255,255,255,.1); }
+.win-start-btn img { width: 24px; height: 24px; }
+.win-taskbar-pin {
+    display: flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px; border-radius: var(--radius-sm);
+    background: transparent; border: none; cursor: pointer; font-size: 1.2rem;
+}
+.win-taskbar-pin:hover { background: rgba(255,255,255,.1); }
+.win-taskbar-windows { flex: 1; display: flex; gap: .4rem; overflow-x: auto; height: 100%; align-items: center; }
+.win-taskbar-chip {
+    display: flex; align-items: center; gap: .4rem;
+    background: rgba(255,255,255,.08); border: none; border-radius: var(--radius-sm);
+    color: var(--sidebar-text); padding: .4rem .7rem; cursor: pointer; max-width: 200px;
+    font-size: .82rem;
+}
+.win-taskbar-chip.active { background: var(--accent); color: #241C0D; }
+.win-taskbar-chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-taskbar-tray {
+    display: flex; align-items: center; gap: .8rem; color: var(--sidebar-text);
+    font-size: .78rem; padding-right: .4rem; white-space: nowrap;
+}
+.win-tray-clock { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.win-tray-time { font-weight: 700; font-size: .92rem; color: #fff; }
+.win-tray-date { font-size: .68rem; text-transform: capitalize; }
+
+/* ── Menu Démarrer ──────────────────────────────────────────── */
+
+.win-start-menu {
+    position: absolute;
+    left: .6rem; bottom: 64px; width: 480px; max-height: 70vh;
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg), 0 20px 50px rgba(0,0,0,.35);
+    z-index: 5001;
+    flex-direction: column;
+    overflow: hidden;
+}
+.win-start-header {
+    display: flex; align-items: center; gap: .6rem;
+    padding: 1rem 1.1rem .75rem;
+    border-bottom: 1px solid var(--border);
+}
+.win-start-logo { width: 28px; height: 28px; }
+.win-start-header input {
+    flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: .5rem .7rem; background: var(--card-bg-alt); color: var(--text); font-size: .85rem;
+}
+.win-start-categories {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem;
+    padding: 1rem 1.1rem; overflow-y: auto;
+}
+.win-category-tile {
+    background: var(--card-bg-alt); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .75rem; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: .5rem;
+}
+.win-category-tile:hover { border-color: var(--accent); }
+.win-category-preview { display: flex; gap: .3rem; font-size: 1.2rem; }
+.win-category-label { font-size: .8rem; font-weight: 600; color: var(--text); }
+.win-start-grid {
+    flex-direction: column; padding: 1rem 1.1rem; overflow-y: auto;
+}
+.win-start-back {
+    align-self: flex-start; background: none; border: none; color: var(--accent);
+    font-size: .8rem; cursor: pointer; margin-bottom: .6rem; padding: 0;
+}
+.win-start-grid-items {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem;
+}
+.win-app-tile {
+    display: flex; flex-direction: column; align-items: center; gap: .35rem;
+    background: none; border: none; cursor: pointer; padding: .6rem .3rem; border-radius: var(--radius-sm);
+}
+.win-app-tile:hover { background: var(--card-bg-alt); }
+.win-app-icon { font-size: 1.6rem; }
+.win-app-label { font-size: .7rem; color: var(--text); text-align: center; line-height: 1.2; }
+.win-start-footer {
+    display: flex; justify-content: space-between; padding: .75rem 1.1rem;
+    border-top: 1px solid var(--border); font-size: .78rem;
+}
+.win-start-footer a { color: var(--text-muted); text-decoration: none; }
+.win-start-footer a:hover { color: var(--accent); }
+
+/* ── Fenêtres flottantes ────────────────────────────────────── */
+
+.win-window {
+    position: absolute;
+    display: flex; flex-direction: column;
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg), 0 16px 40px rgba(0,0,0,.3);
+    overflow: hidden;
+    min-width: 360px; min-height: 240px;
+}
+.win-window--active { box-shadow: var(--shadow-lg), 0 20px 50px rgba(0,0,0,.4), 0 0 0 2px var(--accent); }
+.win-window-header {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--sidebar-bg-alt); color: #fff;
+    padding: .5rem .7rem; cursor: move; user-select: none; flex-shrink: 0;
+}
+.win-window-title { font-size: .82rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-window-controls { display: flex; gap: .3rem; flex-shrink: 0; }
+.win-window-btn {
+    width: 26px; height: 22px; border: none; border-radius: 4px;
+    background: rgba(255,255,255,.08); color: #fff; cursor: pointer; font-size: .7rem;
+}
+.win-window-btn:hover { background: rgba(255,255,255,.2); }
+.win-window-close:hover { background: var(--danger); }
+.win-window-body { flex: 1; position: relative; background: var(--bg); }
+.win-window-iframe { width: 100%; height: 100%; border: none; display: block; }
+.win-resize-handle {
+    position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize;
+}
+.win-resize-handle::after {
+    content: ''; position: absolute; right: 3px; bottom: 3px; width: 8px; height: 8px;
+    border-right: 2px solid var(--border); border-bottom: 2px solid var(--border);
+}
+body.win-dragging { cursor: move; user-select: none; }
+body.win-dragging .win-window-iframe { pointer-events: none; }
+
+/* ── Mode embed (page chargée dans une fenêtre flottante) ────── */
+
+body.embed-mode { background: var(--bg); }
+.embed-content-area { padding: 1.25rem; max-width: 100%; }

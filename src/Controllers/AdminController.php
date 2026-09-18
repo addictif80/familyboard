@@ -196,6 +196,7 @@ class AdminController extends BaseController
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
         $customNameDays = NameDay::getCustomEntries();
+        $navCategories = \App\Models\NavCategory::getAllWithModules();
         $roadmapItems = RoadmapItem::getAll();
         $subBillingEnabled = FamilySubscription::billingEnabled();
         $subTrialDays = (int)(AppSetting::get('sub_trial_days') ?? '14');
@@ -531,6 +532,73 @@ class AdminController extends BaseController
         $this->requireSuperAdmin();
         NameDay::deleteCustom((int)$params['id']);
         $this->redirect('/admin?tab=namedays');
+    }
+
+    // ── Catégories du menu Démarrer (interface bureau PC) ──────────
+
+    public function createNavCategory(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $name = trim($_POST['name'] ?? '');
+        $icon = trim($_POST['icon'] ?? '') ?: '📁';
+        if ($name) {
+            \App\Models\NavCategory::create($name, $icon);
+        }
+        $this->redirect('/admin?tab=desktop-menu');
+    }
+
+    public function updateNavCategory(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $name = trim($_POST['name'] ?? '');
+        $icon = trim($_POST['icon'] ?? '') ?: '📁';
+        if ($name) {
+            \App\Models\NavCategory::update((int)$params['id'], $name, $icon);
+        }
+        $this->redirect('/admin?tab=desktop-menu');
+    }
+
+    public function deleteNavCategory(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\NavCategory::delete((int)$params['id']);
+        $this->redirect('/admin?tab=desktop-menu');
+    }
+
+    public function moveNavCategory(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $categories = \App\Models\NavCategory::getAll();
+        $ids = array_column($categories, 'id');
+        $pos = array_search((int)$params['id'], $ids, true);
+        $direction = $_POST['direction'] ?? '';
+        if ($pos !== false) {
+            $swapWith = $direction === 'up' ? $pos - 1 : $pos + 1;
+            if ($swapWith >= 0 && $swapWith < count($ids)) {
+                [$ids[$pos], $ids[$swapWith]] = [$ids[$swapWith], $ids[$pos]];
+                \App\Models\NavCategory::reorder($ids);
+            }
+        }
+        $this->redirect('/admin?tab=desktop-menu');
+    }
+
+    /** Réaffecte, en une soumission, chaque module à sa nouvelle catégorie — plus simple à
+     *  manipuler pour l'admin qu'un formulaire par catégorie, et évite les doublons puisque
+     *  chaque module n'a qu'une seule catégorie à la fois (contrainte UNIQUE en base). */
+    public function assignNavCategoryModules(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $bySlugCategory = $_POST['module_category'] ?? [];
+        $byCategory = [];
+        foreach ($bySlugCategory as $slug => $categoryId) {
+            $categoryId = (int)$categoryId;
+            if ($categoryId <= 0 || !array_key_exists($slug, \App\Models\Family::MODULES)) continue;
+            $byCategory[$categoryId][] = $slug;
+        }
+        foreach ($byCategory as $categoryId => $slugs) {
+            \App\Models\NavCategory::setModules($categoryId, $slugs);
+        }
+        $this->redirect('/admin?tab=desktop-menu');
     }
 
     // ── Support tickets ──────────────────────────────────────────
