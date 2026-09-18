@@ -65,7 +65,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
 </head>
-<body>
+<?php
+// Mode "embed" : la page se charge dans une fenêtre flottante de l'interface bureau (PC),
+// via un <iframe src=".../embed=1">. On saute toute la chrome (bandeaux, sidebar, topbar,
+// panneaux superposés) pour n'afficher que le contenu de la page — la fenêtre flottante
+// fournit déjà sa propre barre de titre. Voir public/js/win-desktop.js (openWindow()).
+$__embed = isset($_GET['embed']) && $_GET['embed'] == '1' && \App\Core\Session::isLoggedIn();
+?>
+<body<?= $__embed ? ' class="embed-mode"' : '' ?>>
+
+<?php if ($__embed): ?>
+    <div class="content-area embed-content-area">
+        <?php $success = \App\Core\Session::getFlash('success'); $error = \App\Core\Session::getFlash('error'); ?>
+        <?php if ($success): ?><div class="alert alert-success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
+        <?php if ($error): ?><div class="alert alert-error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+        <?= $content ?? '' ?>
+    </div>
+<?php else: ?>
 
 <div id="top-banners">
 <div class="impersonation-banner" id="offline-banner" style="background:#6B5B3D;display:none">
@@ -140,6 +156,29 @@ $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules)
     && !($currentUser['role'] === 'ado' && in_array($module, \App\Models\Family::ADO_RESTRICTED_MODULES, true));
 $_vaultwarden = \App\Models\VaultwardenSettings::get();
 $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
+
+// Menu Démarrer de l'interface bureau (PC) : mêmes règles de visibilité que la sidebar
+// (module désactivé, restriction "ado", coffre-fort réservé à l'admin famille, assistant IA
+// non configuré) plus l'exclusion des modules sans page de destination directe (sitter/kiosk,
+// voir Family::QUICK_NAV_ROUTES).
+$_desktopModuleVisible = fn (string $slug) => isset(\App\Models\Family::QUICK_NAV_ROUTES[$slug])
+    && $_navEnabled($slug)
+    && !($slug === 'vault' && $currentUser['role'] !== 'admin')
+    && !($slug === 'ai_assistant' && !$_ollamaConfigured);
+$_desktopCategories = array_values(array_filter(array_map(function ($cat) use ($_desktopModuleVisible) {
+    $slugs = array_values(array_filter($cat['modules'], $_desktopModuleVisible));
+    if (!$slugs) return null;
+    return [
+        'name' => $cat['name'],
+        'icon' => $cat['icon'],
+        'modules' => array_map(fn ($slug) => [
+            'slug'  => $slug,
+            'label' => \App\Models\Family::MODULES[$slug]['label'],
+            'icon'  => \App\Models\Family::MODULES[$slug]['icon'],
+            'route' => \App\Models\Family::QUICK_NAV_ROUTES[$slug],
+        ], $slugs),
+    ];
+}, \App\Models\NavCategory::getAllWithModules())));
 ?>
 <?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
 <div class="app-wrapper">
@@ -694,12 +733,73 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
         </div>
     </div>
 </div>
+
+<!-- Interface bureau (PC, >=769px — voir CSS) : remplace la sidebar/topbar ci-dessus, qui
+     reste utilisée sur mobile/PWA. Chaque module s'ouvre dans une fenêtre flottante chargeant
+     sa page existante via <iframe src="…?embed=1">, voir public/js/win-desktop.js. -->
+<div class="win-desktop-shell" id="win-desktop-shell">
+    <div class="win-desktop-area" id="win-desktop-area"></div>
+
+    <div class="win-start-menu" id="win-start-menu" style="display:none">
+        <div class="win-start-header">
+            <img src="<?= BASE_URL ?>/public/icons/icon.svg" alt="" class="win-start-logo">
+            <input type="text" id="win-start-search-input" placeholder="Rechercher un module…" autocomplete="off">
+        </div>
+        <div class="win-start-categories" id="win-start-categories"></div>
+        <div class="win-start-grid" id="win-start-grid" style="display:none">
+            <button type="button" class="win-start-back" id="win-start-back">← Catégories</button>
+            <div class="win-start-grid-items" id="win-start-grid-items"></div>
+        </div>
+        <div class="win-start-footer">
+            <a href="<?= BASE_URL ?>/settings">⚙️ Paramètres</a>
+            <a href="<?= BASE_URL ?>/logout">🚪 Déconnexion</a>
+        </div>
+    </div>
+
+    <aside class="win-widgets-panel" id="win-widgets-panel">
+        <div class="win-widget">
+            <h4>📅 Calendrier</h4>
+            <div class="win-widget-body" id="win-widget-calendar-body"><p class="win-widget-empty">Chargement…</p></div>
+        </div>
+        <div class="win-widget">
+            <h4>🛒 Courses</h4>
+            <div class="win-widget-body" id="win-widget-shopping-body"><p class="win-widget-empty">Chargement…</p></div>
+        </div>
+    </aside>
+
+    <div class="win-taskbar" id="win-taskbar">
+        <button type="button" class="win-start-btn" id="win-start-btn" title="Menu Démarrer">
+            <img src="<?= BASE_URL ?>/public/icons/icon.svg" alt="">
+        </button>
+        <button type="button" class="win-taskbar-pin" id="win-home-btn" title="Tableau de bord">🏠</button>
+        <?php if ($_navEnabled('family-wall')): ?>
+        <button type="button" class="win-taskbar-pin" id="win-wall-btn" title="Écran mural">📺</button>
+        <?php endif; ?>
+        <div class="win-taskbar-windows" id="win-taskbar-windows"></div>
+        <div class="win-taskbar-tray" id="win-taskbar-tray">
+            <span class="win-tray-weather" id="win-tray-weather" title="Météo"></span>
+            <span class="win-tray-nameday" id="win-tray-nameday" title="Éphéméride"></span>
+            <span class="win-tray-clock" id="win-tray-clock"></span>
+        </div>
+    </div>
+</div>
+<script>
+    const DESKTOP_CATEGORIES = <?= json_encode($_desktopCategories) ?>;
+    const DESKTOP_WEATHER_CITY = <?= json_encode($family['weather_city'] ?? null) ?>;
+    const DESKTOP_CURRENT_PATH = <?= json_encode(substr($_SERVER['REQUEST_URI'], strlen(BASE_URL))) ?>;
+    const DESKTOP_CURRENT_TITLE = <?= json_encode($pageTitle ?? APP_NAME) ?>;
+</script>
+<script src="<?= ASSETS_URL ?>/js/win-desktop.js?v=<?= APP_VERSION ?>"></script>
+
 <?php else: ?>
 <div class="auth-wrapper">
     <?= $content ?? '' ?>
 </div>
 <?php endif; ?>
 
+<?php endif; // $__embed ?>
+
+<?php if (!$__embed): ?>
 <!-- Signaler un problème (disponible sur toutes les pages, y compris l'accès co-parent restreint) -->
 <div class="modal-overlay" id="report-issue-modal" style="display:none">
     <div class="modal">
@@ -721,6 +821,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <script>
 const BASE_URL = <?= json_encode(BASE_URL) ?>;
