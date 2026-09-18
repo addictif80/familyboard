@@ -782,6 +782,25 @@ $_desktopCategories = array_values(array_filter(array_map(function ($cat) use ($
             <span class="win-tray-clock" id="win-tray-clock"></span>
         </div>
     </div>
+
+    <!-- Détail d'un événement du widget calendrier (voir win-desktop.js, showEventDetail()) -->
+    <div class="modal-overlay" id="win-event-detail-modal" style="display:none">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="win-event-detail-title">Événement</h3>
+                <button onclick="closeModal('win-event-detail-modal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="win-event-detail-when" style="color:var(--text-muted);font-size:.85rem;margin-bottom:.6rem"></div>
+                <div id="win-event-detail-location" style="font-size:.85rem;margin-bottom:.6rem"></div>
+                <div id="win-event-detail-description" style="white-space:pre-wrap;font-size:.9rem"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('win-event-detail-modal')">Fermer</button>
+                <button class="btn btn-primary" id="win-event-detail-open-calendar" onclick="winOpenCalendarFromDetail()">📅 Ouvrir le calendrier</button>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
     const DESKTOP_CATEGORIES = <?= json_encode($_desktopCategories) ?>;

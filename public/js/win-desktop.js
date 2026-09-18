@@ -362,6 +362,15 @@ async function loadWinWeather(city) {
 
 // ── Widgets (calendrier / courses) ───────────────────────────
 
+const winCalendarEvents = {}; // id -> event, mémorisé pour l'ouverture du détail au clic
+
+function winFormatEventDate(ev) {
+    const d = new Date(ev.start.replace(' ', 'T'));
+    return ev.is_all_day
+        ? d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+        : d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
 async function loadCalendarWidget() {
     const body = document.getElementById('win-widget-calendar-body');
     if (!body) return;
@@ -373,15 +382,33 @@ async function loadCalendarWidget() {
             return;
         }
         body.innerHTML = events.slice(0, 8).map(ev => {
+            winCalendarEvents[ev.id] = ev;
             const d = new Date(ev.start.replace(' ', 'T'));
             const dateLabel = ev.is_all_day
                 ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
                 : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-            return `<div class="win-widget-row"><span class="win-widget-dot" style="background:${ev.color || '#4A90D9'}"></span><span class="win-widget-row-title">${escapeWinHtml(ev.title)}</span><span class="win-widget-row-meta">${dateLabel}</span></div>`;
+            return `<button type="button" class="win-widget-row win-widget-row-clickable" onclick="showEventDetail(${ev.id})"><span class="win-widget-dot" style="background:${ev.color || '#4A90D9'}"></span><span class="win-widget-row-title">${escapeWinHtml(ev.title)}</span><span class="win-widget-row-meta">${dateLabel}</span></button>`;
         }).join('');
     } catch (_) {
         body.innerHTML = '<p class="win-widget-empty">Indisponible.</p>';
     }
+}
+
+function showEventDetail(id) {
+    const ev = winCalendarEvents[id];
+    if (!ev || typeof openModal !== 'function') return;
+    document.getElementById('win-event-detail-title').textContent = ev.title;
+    document.getElementById('win-event-detail-when').textContent = winFormatEventDate(ev) + (ev.user_name ? ' · ' + ev.user_name : '');
+    const locEl = document.getElementById('win-event-detail-location');
+    locEl.textContent = ev.location ? '📍 ' + ev.location : '';
+    locEl.style.display = ev.location ? 'block' : 'none';
+    document.getElementById('win-event-detail-description').textContent = ev.description || '';
+    openModal('win-event-detail-modal');
+}
+
+function winOpenCalendarFromDetail() {
+    closeModal('win-event-detail-modal');
+    openWindow({ key: 'module:calendar', title: 'Calendrier', icon: '📅', url: winEmbedUrl('/calendar') });
 }
 
 async function loadShoppingWidget() {
