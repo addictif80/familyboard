@@ -392,6 +392,11 @@ async function saveEvent() {
 
     if (result.success) {
         closeModal('event-modal');
+        // loadEvents() ne recharge que le mois actuellement affiché : sans ceci, un événement
+        // ajouté pour un mois futur/passé semble "disparaître" (enregistré en base, mais hors
+        // de la vue courante) jusqu'à ce qu'on navigue manuellement jusque-là.
+        const newEventDate = tzDate(data.start_datetime);
+        currentDate = new Date(newEventDate.getFullYear(), newEventDate.getMonth(), 1);
         loadEvents();
     } else {
         Dialog.toast(result.error || 'Erreur lors de l\'enregistrement.', 'error');
