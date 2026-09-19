@@ -70,7 +70,12 @@ class CalendarController extends BaseController
             $user = Session::user();
             $start = $_GET['start'] ?? date('Y-m-01');
             $end = $_GET['end'] ?? date('Y-m-t');
-            $events = Event::getByFamily($user['family_id'], $start, $end);
+            // $start/$end arrivent en date pure (YYYY-MM-DD) : sans heure, MySQL les compare à
+            // minuit, ce qui exclut silencieusement tout événement du dernier jour de la plage
+            // ayant une heure de début après 00h00 (ex. un rendez-vous à 14h le 31 du mois).
+            $rangeStart = str_contains($start, ':') ? $start : $start . ' 00:00:00';
+            $rangeEnd = str_contains($end, ':') ? $end : $end . ' 23:59:59';
+            $events = Event::getByFamily($user['family_id'], $rangeStart, $rangeEnd);
             $formatted = array_map(function ($e) {
                 $statuses = array_filter(explode(',', (string)($e['share_statuses'] ?? '')));
                 $shareStatus = null;
