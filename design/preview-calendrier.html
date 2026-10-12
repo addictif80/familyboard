@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyBoard — Aperçu calendrier v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
+<!-- Feuille réelle de l'application : cet aperçu reflète exactement le rendu de production. -->
+<link rel="stylesheet" href="../public/css/app.css">
+<style>
+  /* Uniquement pour l'aperçu. */
+  .preview-note { max-width: 1180px; margin: 1.25rem auto 0; padding: 0 1.75rem; }
+  .preview-section { max-width: 1180px; margin: 2rem auto; padding: 0 1.75rem; }
+  .preview-section > h2 { margin-bottom: 1rem; }
+  .preview-toggle { display: flex; gap: .5rem; align-items: center; }
+</style>
+</head>
+<body>
+
+<div class="preview-note">
+  <div class="page-head">
+    <div class="page-head-main">
+      <span class="page-head-eyebrow">Aperçu statique</span>
+      <span class="page-head-title">Calendrier v3</span>
+      <span class="page-head-sub">Grille, puces d'événement et états de chargement/erreur — rendu réel de <code>public/css/app.css</code>.</span>
+    </div>
+    <div class="page-head-actions preview-toggle">
+      <button class="btn btn-secondary" onclick="document.documentElement.setAttribute('data-theme','light')">☀️ Clair</button>
+      <button class="btn btn-secondary" onclick="document.documentElement.setAttribute('data-theme','dark')">🌙 Sombre</button>
+    </div>
+  </div>
+</div>
+
+<div class="preview-section">
+  <div class="calendar-container">
+    <div class="calendar-toolbar">
+      <div class="calendar-filters">
+        <label class="member-filter" style="--color:#3A5885"><input type="checkbox" checked> Adrien</label>
+        <label class="member-filter" style="--color:#C8973F"><input type="checkbox" checked> Camille</label>
+        <label class="member-filter" style="--color:#3C8558"><input type="checkbox" checked> Léa</label>
+      </div>
+      <div class="calendar-actions">
+        <label class="member-filter" style="--color:#E67E22"><input type="checkbox"> 👶 Garde alternée</label>
+        <label class="member-filter" style="--color:#27AE60"><input type="checkbox"> 📋 Projets</label>
+        <label class="member-filter" style="--color:#0EA5E9"><input type="checkbox" checked> 🏖 Congés</label>
+        <label class="member-filter" style="--color:#7C3AED"><input type="checkbox" checked> 🎓 Vacances scolaires</label>
+        <button class="btn btn-secondary btn-sm">+ Congé</button>
+        <button class="btn btn-secondary btn-sm">🔗 CalDAV</button>
+        <button class="btn btn-primary btn-sm">+ Événement</button>
+      </div>
+    </div>
+    <div id="calendar"></div>
+  </div>
+</div>
+
+<div class="preview-section">
+  <h2>États de chargement et d'erreur</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.25rem">
+    <div class="cal-wrapper cal-loading">
+      <span class="cal-spinner" aria-hidden="true"></span>
+      <span>Chargement du calendrier…</span>
+    </div>
+    <div class="empty-state-card cal-error">
+      <div class="empty-icon">⚠️</div>
+      <h3>Calendrier indisponible</h3>
+      <p>Impossible de joindre le serveur. Vérifiez votre connexion puis réessayez.</p>
+      <button class="btn btn-primary btn-sm">Réessayer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Reproduit fidèlement le rendu de loadEvents()/renderCalendar() (calendar.js) pour l'aperçu.
+(function () {
+  const year = 2026, month = 9; // octobre (0-indexé)
+  const events = [
+    { day: 5,  title: 'Réunion parents',            color: '#3A5885', type: 'event' },
+    { day: 5,  title: 'Piscine Léa',                 color: '#3C8558', type: 'event' },
+    { day: 8,  title: '🎓 Vacances de la Toussaint', color: '#7C3AED', type: 'school_holiday', span: 12 },
+    { day: 12, title: 'Dentiste Camille',            color: '#C8973F', type: 'event' },
+    { day: 12, title: 'Léa chez Papa',               color: '#E67E22', type: 'custody' },
+    { day: 12, title: 'Anniversaire Mamie',          color: '#E91E63', type: 'birthday' },
+    { day: 12, title: 'Devis salle de bain',         color: '#4A90D9', type: 'event' },
+    { day: 20, title: '🎂 Anniversaire Mamie',       color: '#E91E63', type: 'birthday' },
+    { day: 28, title: '🏖 Congé — Adrien',           color: '#0EA5E9', type: 'vacation', span: 4 },
+  ];
+
+  const firstDay = new Date(year, month, 1);
+  let startDow = firstDay.getDay(); if (startDow === 0) startDow = 7;
+  const startDate = new Date(firstDay); startDate.setDate(startDate.getDate() - (startDow - 1));
+  const today = new Date(); today.setHours(0,0,0,0);
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const fmtMY = new Date(year, month, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+  let html =
+    '<div class="cal-wrapper"><div class="cal-nav">' +
+      '<button class="btn btn-secondary btn-sm">‹</button>' +
+      '<h3>' + fmtMY.charAt(0).toUpperCase() + fmtMY.slice(1) + '</h3>' +
+      '<button class="btn btn-secondary btn-sm">›</button>' +
+      '<button class="btn btn-secondary btn-sm" style="margin-left:.5rem">Aujourd’hui</button>' +
+    '</div><div class="cal-grid">' +
+      ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map(d => '<div class="cal-dayname">'+d+'</div>').join('');
+
+  let d = new Date(startDate);
+  for (let i = 0; i < 42; i++) {
+    const dateStr = iso(d);
+    const isCurrentMonth = d.getMonth() === month;
+    const isToday = d.getTime() === today.getTime();
+    const dayEvents = events.filter(e => {
+      const s = new Date(year, month, e.day);
+      const en = new Date(year, month, e.day + (e.span || 1) - 1);
+      return d >= s && d <= en;
+    });
+
+    const dots = '<div class="cal-day-dots">' + dayEvents.slice(0,4).map(e =>
+      '<span class="cal-day-dot" style="background:' + e.color + '"></span>').join('') + '</div>';
+
+    html += '<div class="cal-day ' + (isCurrentMonth ? '' : 'cal-other-month') + ' ' + (isToday ? 'cal-today' : '') + '">' +
+      '<span class="cal-day-num">' + d.getDate() + '</span>' + dots + '<div class="cal-events">';
+
+    dayEvents.slice(0,3).forEach(e => {
+      const isSchool = e.type === 'school_holiday';
+      const isCustody = e.type === 'custody';
+      const label = isCustody ? '👶 ' : '';
+      html += '<div class="cal-event' + (isCustody ? ' cal-event-custody' : '') + '"' +
+        ' style="background:' + e.color + ';' + (isSchool ? 'opacity:.85;cursor:default' : 'cursor:pointer') + '"' +
+        ' title="' + e.title + '">' + label + e.title + '</div>';
+    });
+    if (dayEvents.length > 3) html += '<div class="cal-more">+' + (dayEvents.length - 3) + '</div>';
+    html += '</div></div>';
+    d.setDate(d.getDate() + 1);
+  }
+  html += '</div></div>';
+  document.getElementById('calendar').innerHTML = html;
+})();
+</script>
+</body>
+</html>

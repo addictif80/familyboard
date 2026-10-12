@@ -7,16 +7,33 @@ class Event
 {
     public static function getByFamily(int $familyId, string $start, string $end): array
     {
-        return Database::fetchAll(
-            "SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name, u.color as user_color, sf.name as shared_from_family_name,
-                    (SELECT GROUP_CONCAT(DISTINCT es.status) FROM event_shares es WHERE es.origin_event_id = e.id AND es.ended_at IS NULL) as share_statuses
-             FROM events e
-             LEFT JOIN users u ON u.id = e.user_id
-             LEFT JOIN families sf ON sf.id = e.shared_from_family_id
-             WHERE e.family_id = ? AND e.start_datetime < ? AND e.end_datetime > ?
-             ORDER BY e.start_datetime",
-            [$familyId, $end, $start]
-        );
+        try {
+            return Database::fetchAll(
+                "SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name, u.color as user_color, sf.name as shared_from_family_name,
+                        (SELECT GROUP_CONCAT(DISTINCT es.status) FROM event_shares es WHERE es.origin_event_id = e.id AND es.ended_at IS NULL) as share_statuses
+                 FROM events e
+                 LEFT JOIN users u ON u.id = e.user_id
+                 LEFT JOIN families sf ON sf.id = e.shared_from_family_id
+                 WHERE e.family_id = ? AND e.start_datetime < ? AND e.end_datetime > ?
+                 ORDER BY e.start_datetime",
+                [$familyId, $end, $start]
+            );
+        } catch (\Throwable $e) {
+            // Repli : le partage inter-familles est une fonctionnalité optionnelle dont les
+            // tables/colonnes (event_shares, shared_from_family_id, former_user_name) peuvent
+            // être absentes si la migration n'a pas encore été appliquée. Un calendrier vide
+            // ou en erreur serait pire que l'absence des seuls indicateurs de partage : on
+            // relance alors une requête minimale qui reste fonctionnelle.
+            error_log('Event::getByFamily: repli sans partage inter-familles — ' . $e->getMessage());
+            return Database::fetchAll(
+                "SELECT e.*, u.name as user_name, u.color as user_color
+                 FROM events e
+                 LEFT JOIN users u ON u.id = e.user_id
+                 WHERE e.family_id = ? AND e.start_datetime < ? AND e.end_datetime > ?
+                 ORDER BY e.start_datetime",
+                [$familyId, $end, $start]
+            );
+        }
     }
 
     public static function getById(int $id): ?array

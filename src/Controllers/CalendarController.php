@@ -93,6 +93,8 @@ class CalendarController extends BaseController
                     'description' => $e['description'],
                     'user_name' => $e['user_name'],
                     'user_color' => $e['user_color'],
+                    // Rattaché à une personne : permet le filtrage par membre côté client.
+                    'user_id' => isset($e['user_id']) && $e['user_id'] !== null ? (int)$e['user_id'] : null,
                     'caldav' => (bool)$e['caldav_uid'],
                     'type' => 'event',
                     'custody_schedule_ids' => $e['custody_schedule_ids'] ?? null,
@@ -108,8 +110,21 @@ class CalendarController extends BaseController
                 ];
             }, $events);
 
+            // Les sources optionnelles (garde alternée, congés, vacances scolaires, anniversaires,
+            // projets) sont indépendantes : si l'une échoue (table ou migration absente, donnée
+            // corrompue…), elle ne doit pas faire échouer tout le calendrier. Chacune est donc
+            // isolée et son échec est journalisé sans être remonté au client.
+            $safe = function (string $label, callable $fn) {
+                try {
+                    $fn();
+                } catch (\Throwable $e) {
+                    error_log('apiEvents(' . $label . '): ' . $e->getMessage());
+                }
+            };
+
             // Optionally include custody events
             if (!empty($_GET['custody'])) {
+                $safe('custody', function () use (&$formatted, $user, $start, $end) {
                 $custodyEvents = \App\Models\Custody::getAllEventsForFamily($user['family_id'], $start, $end);
                 foreach ($custodyEvents as $e) {
                     $range = \App\Models\Custody::toDisplayRange($e);
@@ -128,10 +143,12 @@ class CalendarController extends BaseController
                         ],
                     ];
                 }
+                });
             }
 
             // Personal vacations
             if (!empty($_GET['vacations'])) {
+                $safe('vacations', function () use (&$formatted, $user, $start, $end) {
                 $vacations = Vacation::getByFamily($user['family_id'], $start, $end);
                 foreach ($vacations as $v) {
                     $formatted[] = [
@@ -148,10 +165,12 @@ class CalendarController extends BaseController
                         ],
                     ];
                 }
+                });
             }
 
             // School holidays (if family has a configured zone)
             if (!empty($_GET['school'])) {
+                $safe('school', function () use (&$formatted, $user, $start, $end) {
                 $family     = Family::findById($user['family_id']);
                 $schoolZone = $family['school_zone'] ?? null;
                 if ($schoolZone) {
@@ -168,9 +187,11 @@ class CalendarController extends BaseController
                         ];
                     }
                 }
+                });
             }
 
             // Birthdays from contacts directory
+            $safe('birthdays', function () use (&$formatted, $user, $start, $end) {
             $contactsWithBirthday = \App\Core\Database::fetchAll(
                 'SELECT id, first_name, last_name, birthday, color FROM contacts
                   WHERE family_id=? AND birthday IS NOT NULL AND birthday != \'\' AND is_system=0',
@@ -203,9 +224,11 @@ class CalendarController extends BaseController
                     }
                 }
             }
+            });
 
             // Optionally include project deadlines
             if (!empty($_GET['projects'])) {
+                $safe('projects', function () use (&$formatted, $user, $start, $end) {
                 $deadlines = \App\Models\Project::getDeadlines($user['family_id'], $start, $end);
                 foreach ($deadlines as $p) {
                     $formatted[] = [
@@ -221,6 +244,7 @@ class CalendarController extends BaseController
                         ],
                     ];
                 }
+                });
             }
 
             return $formatted;
