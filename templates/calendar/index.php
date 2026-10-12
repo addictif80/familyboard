@@ -207,6 +207,23 @@ ob_start();
     </div>
 </div>
 
+<!-- Day details Modal — liste tous les événements d'une journée (desktop) -->
+<div class="modal-overlay" id="day-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="day-modal-title">Journée</h3>
+            <button onclick="closeModal('day-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="day-modal-list" class="cal-day-list"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('day-modal')">Fermer</button>
+            <button class="btn btn-primary" id="day-modal-add">+ Ajouter un événement</button>
+        </div>
+    </div>
+</div>
+
 <!-- Vacation Modal -->
 <div class="modal-overlay" id="vacation-modal" style="display:none">
     <div class="modal">

@@ -2391,13 +2391,43 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
 .cal-event-school { font-style: italic; opacity: .9; }
 .cal-more {
     align-self: flex-start;
+    font-family: inherit;
     font-size: .68rem;
     font-weight: 600;
+    line-height: 1.4;
     color: var(--primary);
     background: var(--primary-soft);
+    border: 1px solid transparent;
     border-radius: 999px;
-    padding: 1px 7px;
+    padding: 1px 8px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
 }
+.cal-more:hover { background: var(--primary); color: #fff; }
+.cal-more:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* Lignes d'agenda — partagées par l'agenda mobile et la fenêtre « journée » (desktop).
+   Ces styles vivaient uniquement dans le bloc `max-width:768px` ; la fenêtre « journée »
+   réutilisant `.cal-agenda-event` sur desktop, on les (re)définit ici pour tous les écrans. */
+.cal-agenda-header { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }
+.cal-agenda-title { font-weight: 600; font-size: .95rem; }
+.cal-agenda-empty { color: var(--text-muted); font-size: .85rem; }
+.cal-agenda-event {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .55rem 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.cal-agenda-event:last-child { border-bottom: none; }
+.cal-agenda-event:hover { background: var(--surface-2); }
+.cal-agenda-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cal-agenda-info { flex: 1; min-width: 0; }
+.cal-agenda-name { font-size: .88rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-agenda-time { font-size: .75rem; color: var(--text-muted); }
+.cal-day-list { max-height: 52vh; overflow-y: auto; padding: 0 .25rem; }
 .caldav-list { border: 1px solid var(--border); }
 .caldav-item { padding: .5rem 0; }
 

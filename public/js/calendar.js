@@ -46,6 +46,47 @@ function isEventVisible(e, memberIds) {
     return memberIds.has(Number(uid));
 }
 
+// Tous les événements d'une date (filtre par membre appliqué), dans l'ordre du serveur.
+function eventsForDate(dateStr, memberIds) {
+    if (memberIds === undefined) memberIds = checkedMemberIds();
+    return events.filter(e => {
+        if (!isEventVisible(e, memberIds)) return false;
+        const start = e.start.substring(0, 10);
+        const end = (e.end || e.start).substring(0, 10);
+        return dateStr >= start && dateStr <= end;
+    });
+}
+
+// Action déclenchée au clic sur un événement, selon son type.
+function eventClickAction(e) {
+    const type = e.extendedProps && e.extendedProps.type;
+    if (type === 'custody')  return `window.location='${BASE_URL}/custody'`;
+    if (type === 'project')  return `window.location='${BASE_URL}/projects/${e.extendedProps.project_id}'`;
+    if (type === 'birthday') return `window.location='${BASE_URL}/contacts'`;
+    if (type === 'vacation') return `deleteVacationPrompt(${e.extendedProps.vacation_id})`;
+    if (type === 'school_holiday') return '';
+    return `openEventDetails(${JSON.stringify(e.id)})`;
+}
+
+// Préfixe d'icône d'un événement (garde alternée / projet) + indicateurs de partage.
+function eventIconPrefix(e) {
+    const type = e.extendedProps && e.extendedProps.type;
+    return (type === 'custody' ? '👶 ' : type === 'project' ? '📋 ' : '') + eventShareIcon(e);
+}
+
+// Ligne d'événement réutilisée par l'agenda mobile et la fenêtre « journée » (desktop).
+// `prefix` est un fragment JS optionnel exécuté avant l'action (ex. fermer la fenêtre).
+function eventRowHtml(e, prefix) {
+    const onClick = eventClickAction(e);
+    const time = e.start && e.start.length > 10 ? fmtEventTime(e.start) : 'Toute la journée';
+    return `<div class="cal-agenda-event" onclick="${prefix || ''}${onClick}" style="cursor:${onClick ? 'pointer' : 'default'}">` +
+        `<span class="cal-agenda-dot" style="background:${safeColor(e.color)}"></span>` +
+        `<div class="cal-agenda-info">` +
+            `<div class="cal-agenda-name">${eventIconPrefix(e)}${escapeHtml(e.title)}</div>` +
+            `<div class="cal-agenda-time">${escapeHtml(time)}${escapeHtml(eventShareTitleSuffix(e))}</div>` +
+        `</div></div>`;
+}
+
 // fetch() avec délai maximal : sur réseau mobile une requête peut rester en suspens très
 // longtemps sans jamais échouer, laissant le calendrier bloqué sur un état de chargement.
 async function fetchEventsWithTimeout(url, ms) {
@@ -142,12 +183,7 @@ function renderCalendar() {
         const isToday = d.getTime() === today.getTime();
         const dateStr = formatDateISO(d);
 
-        const dayEvents = events.filter(e => {
-            if (!isEventVisible(e, memberIds)) return false;
-            const start = e.start.substring(0,10);
-            const end = (e.end || e.start).substring(0,10);
-            return dateStr >= start && dateStr <= end;
-        });
+        const dayEvents = eventsForDate(dateStr, memberIds);
 
         // Dots for mobile (max 4 shown)
         const dotsHtml = '<div class="cal-day-dots">' +
@@ -162,35 +198,30 @@ function renderCalendar() {
             <div class="cal-events">`;
 
         dayEvents.slice(0, 3).forEach(e => {
-            const isCustody  = e.extendedProps?.type === 'custody';
-            const isProject  = e.extendedProps?.type === 'project';
-            const isBirthday = e.extendedProps?.type === 'birthday';
-            const isVacation = e.extendedProps?.type === 'vacation';
-            const isSchool   = e.extendedProps?.type === 'school_holiday';
-            const onClick = isCustody
-                ? `window.location='${BASE_URL}/custody'`
-                : isProject
-                    ? `window.location='${BASE_URL}/projects/${e.extendedProps.project_id}'`
-                    : isBirthday
-                        ? `window.location='${BASE_URL}/contacts'`
-                        : isVacation
-                            ? `deleteVacationPrompt(${e.extendedProps.vacation_id})`
-                            : isSchool
-                                ? ''
-                                : `openEventDetails(${JSON.stringify(e.id)})`;
-            const label  = (isCustody ? '👶 ' : isProject ? '📋 ' : '') + eventShareIcon(e);
-            const suffix = (isCustody ? ' (Garde alternée)' : isProject ? ' (Projet)' : isBirthday ? ' (Anniversaire)' : isVacation ? ' — cliquer pour supprimer' : '') + eventShareTitleSuffix(e);
+            const isCustody = e.extendedProps?.type === 'custody';
+            const isSchool  = e.extendedProps?.type === 'school_holiday';
+            const onClick = eventClickAction(e);
+            const typeLabel = isCustody ? ' (Garde alternée)'
+                : e.extendedProps?.type === 'project'  ? ' (Projet)'
+                : e.extendedProps?.type === 'birthday' ? ' (Anniversaire)'
+                : e.extendedProps?.type === 'vacation' ? ' — cliquer pour supprimer'
+                : '';
             // Un seul attribut style (un doublon était ignoré par le parseur, laissant les
-            // puces non cliquables) ; titre échappé dans son intégralité (le suffixe peut
-            // contenir le nom d'une famille amie, donc des guillemets).
+            // puces non cliquables) ; titre échappé dans son intégralité.
             html += `<div class="cal-event${isCustody ? ' cal-event-custody' : ''}"
                           style="background:${safeColor(e.color)};${isSchool ? 'opacity:.85;cursor:default' : 'cursor:pointer'}"
                           onclick="event.stopPropagation();${onClick}"
-                          title="${escapeHtml(e.title + suffix)}">
-                ${label}${escapeHtml(e.title)}
+                          title="${escapeHtml(e.title + typeLabel + eventShareTitleSuffix(e))}">
+                ${eventIconPrefix(e)}${escapeHtml(e.title)}
             </div>`;
         });
-        if (dayEvents.length > 3) html += `<div class="cal-more">+${dayEvents.length - 3}</div>`;
+        // Au-delà de 3 événements, la puce « +N » ouvre la vue « journée » qui les liste tous
+        // (auparavant elle était purement décorative : impossible de voir les événements cachés).
+        if (dayEvents.length > 3) {
+            html += `<button type="button" class="cal-more"
+                          onclick="event.stopPropagation();openDayModal('${dateStr}')"
+                          title="Voir les ${dayEvents.length} événements de cette journée">+${dayEvents.length - 3}</button>`;
+        }
 
         html += `</div></div>`;
         d.setDate(d.getDate() + 1);
@@ -221,13 +252,7 @@ function renderMobileAgenda(dateStr) {
     const agenda = document.getElementById('cal-mobile-agenda');
     if (!agenda) return;
 
-    const memberIds = checkedMemberIds();
-    const dayEvents = events.filter(e => {
-        if (!isEventVisible(e, memberIds)) return false;
-        const start = e.start.substring(0, 10);
-        const end = (e.end || e.start).substring(0, 10);
-        return dateStr >= start && dateStr <= end;
-    });
+    const dayEvents = eventsForDate(dateStr);
 
     const d = new Date(dateStr + 'T12:00:00');
     const label = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -237,38 +262,36 @@ function renderMobileAgenda(dateStr) {
         <button class="btn btn-primary btn-sm" onclick="openEventModal('${dateStr}')">+ Ajouter</button>
     </div>`;
 
-    if (dayEvents.length === 0) {
-        inner += `<p class="cal-agenda-empty">Aucun événement ce jour.</p>`;
-    } else {
-        dayEvents.forEach(e => {
-            const isCustody  = e.extendedProps?.type === 'custody';
-            const isProject  = e.extendedProps?.type === 'project';
-            const isBirthday = e.extendedProps?.type === 'birthday';
-            const isVacation = e.extendedProps?.type === 'vacation';
-            const isSchool   = e.extendedProps?.type === 'school_holiday';
-            const timeStr = e.start && e.start.length > 10 ? fmtEventTime(e.start) : 'Toute la journée';
-            const onClick = isCustody
-                ? `window.location='${BASE_URL}/custody'`
-                : isProject
-                    ? `window.location='${BASE_URL}/projects/${e.extendedProps.project_id}'`
-                    : isBirthday
-                        ? `window.location='${BASE_URL}/contacts'`
-                        : isVacation
-                            ? `deleteVacationPrompt(${e.extendedProps.vacation_id})`
-                            : isSchool ? '' : `openEventDetails(${JSON.stringify(e.id)})`;
-            const label = (isCustody ? '👶 ' : isProject ? '📋 ' : '') + eventShareIcon(e);
-            inner += `<div class="cal-agenda-event" onclick="${onClick}" style="cursor:${onClick ? 'pointer' : 'default'}">
-                <span class="cal-agenda-dot" style="background:${safeColor(e.color)}"></span>
-                <div class="cal-agenda-info">
-                    <div class="cal-agenda-name">${label}${escapeHtml(e.title)}</div>
-                    <div class="cal-agenda-time">${timeStr}</div>
-                </div>
-            </div>`;
-        });
-    }
+    inner += dayEvents.length
+        ? dayEvents.map(e => eventRowHtml(e)).join('')
+        : `<p class="cal-agenda-empty">Aucun événement ce jour.</p>`;
 
     agenda.innerHTML = inner;
     agenda.style.display = 'block';
+}
+
+// Fenêtre « journée » (desktop) : liste TOUS les événements de la date, y compris ceux qui ne
+// tiennent pas dans les 3 puces de la case, et permet d'en ajouter un.
+function openDayModal(dateStr) {
+    const list = document.getElementById('day-modal-list');
+    if (!list) { openEventModal(dateStr); return; } // repli si le markup est absent
+
+    const dayEvents = eventsForDate(dateStr);
+    const d = new Date(dateStr + 'T12:00:00');
+    const label = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const title = document.getElementById('day-modal-title');
+    if (title) title.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+
+    list.innerHTML = dayEvents.length
+        ? dayEvents.map(e => eventRowHtml(e, "closeModal('day-modal');")).join('')
+        : '<p class="cal-agenda-empty">Aucun événement ce jour.</p>';
+
+    const addBtn = document.getElementById('day-modal-add');
+    if (addBtn) {
+        addBtn.onclick = function () { closeModal('day-modal'); openEventModal(dateStr); };
+    }
+
+    openModal('day-modal');
 }
 
 function eventsUrl() {
@@ -383,6 +406,13 @@ function goToday() {
 function handleDayClick(dateStr) {
     if (window.innerWidth <= 768) {
         renderMobileAgenda(dateStr);
+        return;
+    }
+    // Desktop : un jour qui contient déjà des événements ouvre la vue « journée » (on y voit
+    // tout, même au-delà des 3 puces affichées, et on peut en ajouter) ; un jour vide ouvre
+    // directement le formulaire d'ajout (création rapide préservée).
+    if (eventsForDate(dateStr).length) {
+        openDayModal(dateStr);
     } else {
         openEventModal(dateStr);
     }

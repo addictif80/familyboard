@@ -6,7 +6,7 @@
 <title>FamilyBoard — Aperçu calendrier v3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
-<!-- Feuille réelle de l'application : cet aperçu reflète exactement le rendu de production. -->
+<!-- Feuille réelle de l'application : cet aperçu reflète le rendu de production. -->
 <link rel="stylesheet" href="../public/css/app.css">
 <style>
   /* Uniquement pour l'aperçu. */
@@ -14,6 +14,8 @@
   .preview-section { max-width: 1180px; margin: 2rem auto; padding: 0 1.75rem; }
   .preview-section > h2 { margin-bottom: 1rem; }
   .preview-toggle { display: flex; gap: .5rem; align-items: center; }
+  .preview-hint { color: var(--text-muted); font-size: .85rem; margin-bottom: .75rem; }
+  #day-modal { display: none; }
 </style>
 </head>
 <body>
@@ -23,7 +25,7 @@
     <div class="page-head-main">
       <span class="page-head-eyebrow">Aperçu statique</span>
       <span class="page-head-title">Calendrier v3</span>
-      <span class="page-head-sub">Grille, puces d'événement et états de chargement/erreur — rendu réel de <code>public/css/app.css</code>.</span>
+      <span class="page-head-sub">Grille, puces d'événement, vue « journée » et états de chargement/erreur — rendu réel de <code>public/css/app.css</code>.</span>
     </div>
     <div class="page-head-actions preview-toggle">
       <button class="btn btn-secondary" onclick="document.documentElement.setAttribute('data-theme','light')">☀️ Clair</button>
@@ -33,6 +35,7 @@
 </div>
 
 <div class="preview-section">
+  <p class="preview-hint">Cliquez sur une case d'un jour <strong>avec</strong> des événements (ou sur la puce <strong>+2</strong> du 12) : la vue « journée » s'ouvre et liste tous les événements. Une case vide ouvre l'ajout.</p>
   <div class="calendar-container">
     <div class="calendar-toolbar">
       <div class="calendar-filters">
@@ -70,27 +73,48 @@
   </div>
 </div>
 
+<!-- Vue « journée » (mêmes classes/markup que templates/calendar/index.php) -->
+<div class="modal-overlay" id="day-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="day-modal-title">Journée</h3>
+      <button onclick="closeModal('day-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="day-modal-list" class="cal-day-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('day-modal')">Fermer</button>
+      <button class="btn btn-primary" id="day-modal-add">+ Ajouter un événement</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // Reproduit fidèlement le rendu de loadEvents()/renderCalendar() (calendar.js) pour l'aperçu.
 (function () {
   const year = 2026, month = 9; // octobre (0-indexé)
-  const events = [
-    { day: 5,  title: 'Réunion parents',            color: '#3A5885', type: 'event' },
-    { day: 5,  title: 'Piscine Léa',                 color: '#3C8558', type: 'event' },
-    { day: 8,  title: '🎓 Vacances de la Toussaint', color: '#7C3AED', type: 'school_holiday', span: 12 },
-    { day: 12, title: 'Dentiste Camille',            color: '#C8973F', type: 'event' },
-    { day: 12, title: 'Léa chez Papa',               color: '#E67E22', type: 'custody' },
-    { day: 12, title: 'Anniversaire Mamie',          color: '#E91E63', type: 'birthday' },
-    { day: 12, title: 'Devis salle de bain',         color: '#4A90D9', type: 'event' },
-    { day: 20, title: '🎂 Anniversaire Mamie',       color: '#E91E63', type: 'birthday' },
-    { day: 28, title: '🏖 Congé — Adrien',           color: '#0EA5E9', type: 'vacation', span: 4 },
+  const sample = [
+    { day: 5,  title: 'Réunion parents',            color: '#3A5885', time: '18:00' },
+    { day: 5,  title: 'Piscine Léa',                 color: '#3C8558', time: '17:00' },
+    { day: 8,  title: '🎓 Vacances de la Toussaint', color: '#7C3AED', type: 'school', span: 12, allDay: true },
+    { day: 12, title: 'Dentiste Camille',            color: '#C8973F', time: '09:30' },
+    { day: 12, title: 'Léa chez Papa',               color: '#E67E22', type: 'custody', time: 'Toute la journée' },
+    { day: 12, title: 'Devis salle de bain',         color: '#4A90D9', time: '14:00' },
+    { day: 12, title: '🎂 Anniversaire Mamie',       color: '#E91E63', type: 'birthday', allDay: true },
+    { day: 20, title: '🎂 Anniversaire Mamie',       color: '#E91E63', type: 'birthday', allDay: true },
+    { day: 28, title: '🏖 Congé — Adrien',           color: '#0EA5E9', type: 'vacation', span: 4, allDay: true },
   ];
+
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const dayDate = e => new Date(year, month, e.day);
+  const endDate = e => new Date(year, month, e.day + (e.span || 1) - 1);
+  const eventsForDate = dateStr => sample.filter(e => dateStr >= iso(dayDate(e)) && dateStr <= iso(endDate(e)));
 
   const firstDay = new Date(year, month, 1);
   let startDow = firstDay.getDay(); if (startDow === 0) startDow = 7;
   const startDate = new Date(firstDay); startDate.setDate(startDate.getDate() - (startDow - 1));
   const today = new Date(); today.setHours(0,0,0,0);
-  const iso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   const fmtMY = new Date(year, month, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
   let html =
@@ -107,32 +131,57 @@
     const dateStr = iso(d);
     const isCurrentMonth = d.getMonth() === month;
     const isToday = d.getTime() === today.getTime();
-    const dayEvents = events.filter(e => {
-      const s = new Date(year, month, e.day);
-      const en = new Date(year, month, e.day + (e.span || 1) - 1);
-      return d >= s && d <= en;
-    });
+    const dayEvents = eventsForDate(dateStr);
 
     const dots = '<div class="cal-day-dots">' + dayEvents.slice(0,4).map(e =>
       '<span class="cal-day-dot" style="background:' + e.color + '"></span>').join('') + '</div>';
 
-    html += '<div class="cal-day ' + (isCurrentMonth ? '' : 'cal-other-month') + ' ' + (isToday ? 'cal-today' : '') + '">' +
+    html += '<div class="cal-day ' + (isCurrentMonth ? '' : 'cal-other-month') + ' ' + (isToday ? 'cal-today' : '') + '"' +
+      ' onclick="handleDayClick(\'' + dateStr + '\')">' +
       '<span class="cal-day-num">' + d.getDate() + '</span>' + dots + '<div class="cal-events">';
 
     dayEvents.slice(0,3).forEach(e => {
-      const isSchool = e.type === 'school_holiday';
+      const isSchool = e.type === 'school';
       const isCustody = e.type === 'custody';
       const label = isCustody ? '👶 ' : '';
       html += '<div class="cal-event' + (isCustody ? ' cal-event-custody' : '') + '"' +
         ' style="background:' + e.color + ';' + (isSchool ? 'opacity:.85;cursor:default' : 'cursor:pointer') + '"' +
         ' title="' + e.title + '">' + label + e.title + '</div>';
     });
-    if (dayEvents.length > 3) html += '<div class="cal-more">+' + (dayEvents.length - 3) + '</div>';
+    if (dayEvents.length > 3) {
+      html += '<button type="button" class="cal-more" onclick="event.stopPropagation();openDayModal(\'' + dateStr + '\')"' +
+        ' title="Voir les ' + dayEvents.length + ' événements de cette journée">+' + (dayEvents.length - 3) + '</button>';
+    }
     html += '</div></div>';
     d.setDate(d.getDate() + 1);
   }
   html += '</div></div>';
   document.getElementById('calendar').innerHTML = html;
+
+  // --- Interactions minimales (identiques à l'app : openModal/closeModal viennent d'app.js) ---
+  window.openModal = id => { document.getElementById(id).style.display = 'flex'; document.body.style.overflow = 'hidden'; };
+  window.closeModal = id => { document.getElementById(id).style.display = 'none'; document.body.style.overflow = ''; };
+
+  window.handleDayClick = dateStr => {
+    if (eventsForDate(dateStr).length) window.openDayModal(dateStr);
+    else alert('Aperçu : ouvrirait le formulaire d\'ajout pour le ' + dateStr);
+  };
+
+  window.openDayModal = dateStr => {
+    const list = document.getElementById('day-modal-list');
+    const evts = eventsForDate(dateStr);
+    const dt = new Date(dateStr + 'T12:00:00');
+    const label = dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    document.getElementById('day-modal-title').textContent = label.charAt(0).toUpperCase() + label.slice(1);
+    list.innerHTML = evts.length
+      ? evts.map(e => '<div class="cal-agenda-event">' +
+          '<span class="cal-agenda-dot" style="background:' + e.color + '"></span>' +
+          '<div class="cal-agenda-info"><div class="cal-agenda-name">' +
+            ((e.type === 'custody' ? '👶 ' : '')) + e.title + '</div>' +
+          '<div class="cal-agenda-time">' + (e.time || 'Toute la journée') + '</div></div></div>').join('')
+      : '<p class="cal-agenda-empty">Aucun événement ce jour.</p>';
+    window.openModal('day-modal');
+  };
 })();
 </script>
 </body>
