@@ -5,3 +5,15 @@ public/uploads/*
 .DS_Store
 /vendor/
 /storage/app_key.bin
+
+# TWA (Trusted Web Activity) Android project — jamais la clé de signature ni
+# les fichiers générés localement par Gradle/Bubblewrap (voir .github/workflows/android.yml
+# et le guide dans le dépôt pour builder l'APK/AAB via GitHub Actions).
+android/android.keystore
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/app-release-signed.apk
+android/app-release-bundle.aab
+android/app-release-unsigned-aligned.apk
