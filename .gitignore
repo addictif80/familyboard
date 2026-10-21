@@ -1,7 +1,53 @@
-config/config.local.php
-public/uploads/*
-!public/uploads/.gitkeep
+# Gradle
+.gradle/
+build/
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration
+local.properties
+*.properties
+
+# Logs
 *.log
+
+# Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Generated files
+*.apk
+*.aab
+*.ap_
+
+# Keystores
+*.jks
+*.keystore
+
+# OS files
 .DS_Store
-/vendor/
-/storage/app_key.bin
+Thumbs.db
+
+# Kotlin
+*.klib
+
+# Hilt
+app/build/generated/hilt/
+
+# Room
+schemas/
+
+# ProGuard
+proguard/
+
+# Test reports
+reports/
+
+# Coverage
+coverage/
+
+# Signing configs
+signing.properties
