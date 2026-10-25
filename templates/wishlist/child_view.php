@@ -5,8 +5,9 @@ ob_start();
 <!-- .auth-wrapper (layout.php, visiteur non connecté) est un flex-row pensé pour une seule
      carte centrée : ce wrapper column permet d'empiler la carte principale et la bannière
      promo en dessous plutôt qu'à côté. -->
-<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%">
-<div class="card" style="max-width:1100px;margin:2rem auto 0;padding:1.5rem;width:100%">
+<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%;margin-top:2rem">
+<?php if ($child): $bannerFamilyId = (int)$child['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
+<div class="card" style="max-width:1100px;margin:0 auto;padding:1.5rem;width:100%">
 <?php if (!$child): ?>
     <h2>⛔ Lien invalide</h2>
     <p style="color:var(--text-muted)">Ce lien de liste de cadeaux n'existe pas. Contactez la famille pour en obtenir un nouveau.</p>
@@ -47,17 +48,19 @@ ob_start();
     </div>
 <?php endif; ?>
 </div>
-
-<?php if ($child): $bannerFamilyId = (int)$child['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
 </div>
 
 <style>
-.gift-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1.25rem; }
+/* minmax(0, 1fr) et non 1fr seul : un 1fr "nu" a un minimum implicite de auto, donc une
+   colonne ne rétrécit jamais sous la taille de son contenu (titre long, image...) — c'est ce
+   qui faisait déborder la dernière colonne hors du cadre blanc plutôt que de s'y adapter. */
+.gift-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 1.25rem; }
+.gift-grid > .card { min-width: 0; }
 .gift-actions { display: flex; align-items: center; gap: .5rem; margin-top: auto; }
 .gift-actions .btn, .gift-actions .item-status { flex: 1; min-width: 0; }
 .gift-actions .item-status button { width: 100%; }
-@media (max-width: 900px) { .gift-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) { .gift-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .gift-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .gift-grid { grid-template-columns: minmax(0, 1fr); } }
 </style>
 
 <script>

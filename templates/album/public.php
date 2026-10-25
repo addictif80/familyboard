@@ -7,8 +7,9 @@ ob_start();
 <!-- .auth-wrapper (layout.php, visiteur non connecté) est un flex-row pensé pour une seule
      carte centrée : ce wrapper column permet d'empiler la carte principale et la bannière
      promo en dessous plutôt qu'à côté. -->
-<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%">
-<div class="card album-public-card">
+<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%;margin-top:2rem">
+<?php if ($album): $bannerFamilyId = (int)$album['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
+<div class="card album-public-card" style="margin:0 auto">
 <?php if (!$album): ?>
     <h2>⛔ Lien invalide ou révoqué</h2>
     <p style="color:var(--text-muted)">Ce lien de partage d'album n'est plus valable. Demandez-en un nouveau à la famille.</p>
@@ -47,8 +48,6 @@ ob_start();
     </div>
 <?php endif; ?>
 </div>
-
-<?php if ($album): $bannerFamilyId = (int)$album['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
 </div>
 
 <style>
