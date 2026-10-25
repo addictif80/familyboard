@@ -219,6 +219,13 @@ foreach ($friendItems as $it) {
             </div>
             <div id="wl-image-preview" style="display:none;margin-bottom:.5rem">
                 <img id="wl-image-preview-img" src="" alt="" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px">
+                <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;margin-top:.3rem;font-weight:normal">
+                    <input type="checkbox" id="wl-remove-image"> Retirer cette image
+                </label>
+            </div>
+            <div class="form-group">
+                <label>Image (si elle n'a pas pu être récupérée automatiquement)</label>
+                <input type="file" id="wl-image-file" accept="image/*">
             </div>
             <div class="form-group">
                 <label>Titre</label>

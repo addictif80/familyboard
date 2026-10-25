@@ -89,7 +89,11 @@ class PremiumDataPurge
                 ['sql' => 'SELECT image_path p FROM portal_links WHERE family_id=?'],
             ],
             'wishlist' => [
-                ['sql' => 'SELECT image_path p FROM wishlist_items WHERE family_id=? AND image_path IS NOT NULL'],
+                // image_path pointe soit vers public/uploads/ (récupération automatique via lien
+                // produit), soit vers storage/wishlist/<familyId>/ (image jointe manuellement) —
+                // 'dir' nettoie ce second dossier, le premier est couvert par unlink() fichier
+                // par fichier à partir des chemins remontés par le SELECT.
+                ['sql' => 'SELECT image_path p FROM wishlist_items WHERE family_id=? AND image_path IS NOT NULL', 'dir' => 'wishlist'],
             ],
             'disputes' => [
                 ['sql' => 'SELECT dd.file_path p FROM dispute_documents dd JOIN dispute_cases dc ON dc.id=dd.dispute_id WHERE dc.family_id=?', 'dir' => 'disputes'],
