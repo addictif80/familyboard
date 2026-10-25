@@ -60,6 +60,12 @@ async function deleteWishlistItem(id) {
     else Dialog.toast(r.error || 'Erreur.', 'error');
 }
 
+async function refreshWishlistImage(id) {
+    const r = await apiFetch(BASE_URL + '/api/wishlist/' + id + '/refresh-image', { method: 'POST', body: '{}' });
+    if (r.success) window.location.reload();
+    else Dialog.toast(r.error || "Aucune image trouvée sur ce lien.", 'error');
+}
+
 async function reserveWishlistItem(id) {
     const r = await apiFetch(BASE_URL + '/api/wishlist/' + id + '/reserve', { method: 'POST', body: '{}' });
     if (r.success) window.location.reload();
