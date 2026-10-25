@@ -19,7 +19,7 @@
     <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon-192.png" type="image/png">
     <!-- PWA -->
     <link rel="manifest" href="<?= BASE_URL ?>/public/manifest.json">
-    <meta name="theme-color" content="#232A3D">
+    <meta name="theme-color" content="#212838">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="FamilyBoard">
@@ -290,7 +290,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties') || $_navEnabled('links') || $_navEnabled('additions')): ?>
+            <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties') || $_navEnabled('links')): ?>
             <li class="nav-section-label" data-section-toggle="organisation" role="button" tabindex="0">
                 <span>Organisation</span><span class="nav-section-chevron">▾</span>
             </li>
@@ -343,8 +343,13 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('letters') || $_navEnabled('disputes') || $_navEnabled('school') || $_navEnabled('employment') || $_navEnabled('nanny') || $_navEnabled('health') || $_navEnabled('vehicles') || $_navEnabled('pets') || $_navEnabled('meters')): ?>
+            <li class="nav-section-label" data-section-toggle="famille-suivi" role="button" tabindex="0">
+                <span>Famille & suivi</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('letters')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/letters') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/letters') ? 'active' : '' ?>" data-section="famille-suivi">
                 <a href="<?= BASE_URL ?>/letters" class="nav-link">
                     <span class="nav-icon">✉️</span>
                     <span class="nav-label">Courriers</span>
@@ -352,7 +357,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('disputes')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/disputes') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/disputes') ? 'active' : '' ?>" data-section="famille-suivi">
                 <a href="<?= BASE_URL ?>/disputes" class="nav-link">
                     <span class="nav-icon">⚖️</span>
                     <span class="nav-label">Dossiers de litige</span>
@@ -360,7 +365,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('school')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/school') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/school') ? 'active' : '' ?>" data-section="famille-suivi">
                 <a href="<?= BASE_URL ?>/school" class="nav-link">
                     <span class="nav-icon">🎓</span>
                     <span class="nav-label">Suivi scolaire</span>
@@ -368,7 +373,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('employment')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/employment') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/employment') ? 'active' : '' ?>" data-section="famille-suivi">
                 <a href="<?= BASE_URL ?>/employment" class="nav-link">
                     <span class="nav-icon">💼</span>
                     <span class="nav-label">Suivi salarié</span>
@@ -376,7 +381,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('nanny')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/nanny') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/nanny') ? 'active' : '' ?>" data-section="famille-suivi">
                 <a href="<?= BASE_URL ?>/nanny" class="nav-link">
                     <span class="nav-icon">🕒</span>
                     <span class="nav-label">Suivi nounou</span>
@@ -384,7 +389,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('health')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/health') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/health') ? 'active' : '' ?>" data-section="famille-suivi">
                 <a href="<?= BASE_URL ?>/health" class="nav-link">
                     <span class="nav-icon">🏥</span>
                     <span class="nav-label">Santé</span>
@@ -392,7 +397,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('vehicles')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/vehicles') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/vehicles') ? 'active' : '' ?>" data-section="famille-suivi">
                 <a href="<?= BASE_URL ?>/vehicles" class="nav-link">
                     <span class="nav-icon">🚗</span>
                     <span class="nav-label">Véhicules</span>
@@ -400,7 +405,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('pets')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/pets') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/pets') ? 'active' : '' ?>" data-section="famille-suivi">
                 <a href="<?= BASE_URL ?>/pets" class="nav-link">
                     <span class="nav-icon">🐾</span>
                     <span class="nav-label">Animaux</span>
@@ -408,15 +413,20 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('meters')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/meters') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/meters') ? 'active' : '' ?>" data-section="famille-suivi">
                 <a href="<?= BASE_URL ?>/meters" class="nav-link">
                     <span class="nav-icon">📊</span>
                     <span class="nav-label">Compteurs</span>
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('admin_procedures') || $_navEnabled('leave') || $_navEnabled('travels') || $_navEnabled('deals') || $_navEnabled('additions') || ($_navEnabled('vault') && $currentUser['role'] === 'admin') || ($_navEnabled('ai_assistant') && $_ollamaConfigured)): ?>
+            <li class="nav-section-label" data-section-toggle="demarches" role="button" tabindex="0">
+                <span>Démarches & services</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('admin_procedures')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/admin-procedures') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/admin-procedures') ? 'active' : '' ?>" data-section="demarches">
                 <a href="<?= BASE_URL ?>/admin-procedures" class="nav-link">
                     <span class="nav-icon">🪪</span>
                     <span class="nav-label">Démarches admin.</span>
@@ -424,7 +434,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('leave')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/leave') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/leave') ? 'active' : '' ?>" data-section="demarches">
                 <a href="<?= BASE_URL ?>/leave" class="nav-link">
                     <span class="nav-icon">🏖️</span>
                     <span class="nav-label">Congés familiaux</span>
@@ -432,7 +442,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('travels')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/travels') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/travels') ? 'active' : '' ?>" data-section="demarches">
                 <a href="<?= BASE_URL ?>/travels" class="nav-link">
                     <span class="nav-icon">✈️</span>
                     <span class="nav-label">Voyages & réservations</span>
@@ -440,7 +450,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('vault') && $currentUser['role'] === 'admin'): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/vault') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/vault') ? 'active' : '' ?>" data-section="demarches">
                 <a href="<?= BASE_URL ?>/vault" class="nav-link">
                     <span class="nav-icon">🔐</span>
                     <span class="nav-label">Coffre-fort numérique</span>
@@ -448,7 +458,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
-            <li class="nav-item" data-section="organisation">
+            <li class="nav-item" data-section="demarches">
                 <button type="button" onclick="toggleAiAssistantPanel()" class="nav-link" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit">
                     <span class="nav-icon">🤖</span>
                     <span class="nav-label">Assistant IA</span>
@@ -456,7 +466,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('deals')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="demarches">
                 <a href="<?= BASE_URL ?>/deals" class="nav-link">
                     <span class="nav-icon">🏷️</span>
                     <span class="nav-label">Bons plans</span>
@@ -464,7 +474,7 @@ $_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('additions')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/additions') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/additions') ? 'active' : '' ?>" data-section="demarches">
                 <a href="<?= BASE_URL ?>/additions" class="nav-link">
                     <span class="nav-icon">🧾</span>
                     <span class="nav-label">Additions</span>

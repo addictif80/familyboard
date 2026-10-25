@@ -63,7 +63,7 @@ ob_start();
                 <?php if ($source['last_sync']): ?>
                     <small>Sync: <?= \App\Core\DateHelper::fromUtc($source['last_sync'], 'd/m H:i') ?></small>
                 <?php endif; ?>
-                <button class="btn-icon-sm" onclick="syncCalDAV(<?= $source['id'] ?>)">🔄</button>
+                <button class="btn-icon-sm" onclick="syncCalDAV(<?= $source['id'] ?>, this)">🔄</button>
                 <button class="btn-icon-sm" onclick="deleteCalDAV(<?= $source['id'] ?>)">🗑</button>
             </div>
         <?php endforeach; ?>
@@ -203,6 +203,23 @@ ob_start();
             <button class="btn btn-secondary" onclick="closeModal('event-modal')">Annuler</button>
             <button class="btn btn-danger" id="event-delete-btn" style="display:none" onclick="deleteEvent()">Supprimer</button>
             <button class="btn btn-primary" onclick="saveEvent()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Day details Modal — liste tous les événements d'une journée (desktop) -->
+<div class="modal-overlay" id="day-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="day-modal-title">Journée</h3>
+            <button onclick="closeModal('day-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="day-modal-list" class="cal-day-list"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('day-modal')">Fermer</button>
+            <button class="btn btn-primary" id="day-modal-add">+ Ajouter un événement</button>
         </div>
     </div>
 </div>

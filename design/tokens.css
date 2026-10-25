@@ -1,0 +1,169 @@
+/* ============================================================
+   FamilyBoard — Design tokens v3 « Maison »
+   ------------------------------------------------------------
+   Source unique de vérité pour couleur, typo, espace, forme,
+   ombres et mouvement. À charger AVANT app.css : les tokens
+   existants (--primary, --card-bg, --radius…) sont conservés
+   comme alias pour ne rien casser pendant la migration.
+
+   Correspondance avec l'existant (voir PROPOSAL.md §Migration) :
+     --primary      -> var(--brand-600)
+     --primary-dark -> var(--brand-700)
+     --accent       -> var(--accent-500)
+     --card-bg      -> var(--surface)
+     --bg           -> var(--bg)
+     --radius       -> var(--r-md)
+   ============================================================ */
+
+:root {
+  /* ---------- Neutres chauds (le « papier ») ---------- */
+  --bg:            #F7F4EE;
+  --surface:       #FFFFFF;   /* alias historique : --card-bg */
+  --surface-2:     #F1ECE3;
+  --surface-3:     #E8E1D3;
+  --card-bg:       var(--surface);
+  --card-bg-alt:   var(--surface-2);
+  --border:        #E7E0D1;
+  --border-strong: #D6CCB8;
+
+  --text:          #211E18;
+  --text-2:        #4A443A;
+  --text-muted:    #786F5F;
+
+  /* ---------- Marque : indigo « confiance » ---------- */
+  --brand-50:  #EEF2F9;
+  --brand-100: #DCE4F2;
+  --brand-200: #BBC9E4;
+  --brand-300: #93A9D3;
+  --brand-400: #6684BC;
+  --brand-500: #4A67A1;
+  --brand-600: #3D5A8A;   /* couleur principale */
+  --brand-700: #2F4670;
+  --brand-800: #253659;
+  --brand-900: #1B2844;
+  --primary:       var(--brand-600);
+  --primary-dark:  var(--brand-700);
+  --primary-light: var(--brand-400);
+
+  /* ---------- Accent : ambre « maison » ---------- */
+  --accent-50:  #FBF4E6;
+  --accent-100: #F6E7C6;
+  --accent-200: #EFD49B;
+  --accent-300: #E5BC6C;
+  --accent-400: #D9A64A;
+  --accent-500: #C99A44;
+  --accent-600: #A87D33;
+  --accent-700: #855F26;
+  --accent:       var(--accent-500);
+  --accent-dark:  var(--accent-600);
+
+  /* ---------- Sémantique ---------- */
+  --success: #3C8558;  --success-bg: #E4F2E9;  --success-text: #276B45;
+  --danger:  #C0503F;  --danger-bg:  #F8E7E3;  --danger-text:  #9E3E30;
+  --warning: #C9822F;  --warning-bg: #F8ECD8;  --warning-text: #8A5C1B;
+  --info:    #3D6FA8;  --info-bg:    #E6EDF7;  --info-text:    #2C4368;
+
+  /* ---------- Typographie ---------- */
+  --font-display: 'Fraunces', 'Inter', Georgia, serif; /* grands titres, accueil */
+  --font-body:    'Inter', system-ui, -apple-system, sans-serif;
+
+  --text-xs:   .75rem;    /* 12px — légendes, méta */
+  --text-sm:   .8125rem;  /* 13px — labels, tags */
+  --text-base: .875rem;   /* 14px — corps */
+  --text-md:   1rem;      /* 16px — sous-titres */
+  --text-lg:   1.125rem;  /* 18px — titre de carte */
+  --text-xl:   1.375rem;  /* 22px — titre de page */
+  --text-2xl:  1.75rem;
+  --text-3xl:  2.25rem;
+
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semi:    600;
+  --fw-bold:    700;
+
+  --leading-tight: 1.2;
+  --leading-snug:  1.4;
+  --leading-body:  1.6;
+
+  /* ---------- Espacement (base 4px) ---------- */
+  --s-1: .25rem;  --s-2: .5rem;   --s-3: .75rem;  --s-4: 1rem;
+  --s-5: 1.25rem; --s-6: 1.5rem;  --s-8: 2rem;    --s-10: 2.5rem;
+  --s-12: 3rem;   --s-16: 4rem;
+
+  /* ---------- Forme ---------- */
+  --r-xs:  6px;
+  --r-sm:  8px;
+  --r-md:  12px;
+  --r-lg:  16px;
+  --r-xl:  22px;
+  --r-pill: 999px;
+  --radius-sm: var(--r-sm);
+  --radius:    var(--r-md);
+  --radius-lg: var(--r-lg);
+
+  /* ---------- Élévation (ombres chaudes, jamais grises) ---------- */
+  --shadow-xs: 0 1px 2px rgba(45,32,16,.05);
+  --shadow-sm: 0 1px 2px rgba(45,32,16,.05), 0 2px 6px rgba(45,32,16,.05);
+  --shadow:    0 2px 4px rgba(45,32,16,.05), 0 10px 24px rgba(45,32,16,.07);
+  --shadow-lg: 0 12px 32px rgba(45,32,16,.12), 0 3px 10px rgba(45,32,16,.06);
+
+  /* ---------- Mouvement ---------- */
+  --ease:       cubic-bezier(.22,.61,.36,1);
+  --dur-fast:   120ms;
+  --dur:        200ms;
+  --dur-slow:   320ms;
+
+  /* ---------- Layout ---------- */
+  --sidebar-width: 264px;
+  --topbar-height: 64px;
+  --content-max:   1200px;
+}
+
+/* ============================================================
+   Thème sombre — charbon chaud, jamais noir pur. L'élévation
+   se traduit par plus de lumière (surface-2/3), pas par l'ombre.
+   ============================================================ */
+:root[data-theme="dark"] {
+  --bg:            #15120D;
+  --surface:       #201C16;
+  --surface-2:     #282218;
+  --surface-3:     #322B20;
+  --card-bg:       var(--surface);
+  --card-bg-alt:   var(--surface-2);
+  --border:        #3A332A;
+  --border-strong: #4E453A;
+
+  --text:          #F2ECE0;
+  --text-2:        #D0C7B6;
+  --text-muted:    #9C9282;
+
+  --brand-400: #8BA4DC;
+  --brand-500: #7896C8;
+  --brand-600: #6E8AC0;   /* liens/boutons en sombre */
+  --brand-700: #93A9D3;
+  --primary:       var(--brand-600);
+  --primary-dark:  var(--brand-500);
+  --primary-light: var(--brand-400);
+
+  --accent-400: #EDBE6C;
+  --accent-500: #E0B563;
+  --accent-600: #C99A44;
+  --accent:       var(--accent-500);
+  --accent-dark:  var(--accent-600);
+
+  --success: #6FBE8D;  --success-bg: #22352A;  --success-text: #9BD6B4;
+  --danger:  #E08672;  --danger-bg:  #3A2A26;  --danger-text:  #EEB0A0;
+  --warning: #E0AC5C;  --warning-bg: #38301F;  --warning-text: #EFCE8B;
+  --info:    #7896C8;  --info-bg:    #222B3E;  --info-text:    #B3C6EA;
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --shadow:    0 2px 6px rgba(0,0,0,.4), 0 10px 26px rgba(0,0,0,.35);
+  --shadow-lg: 0 14px 40px rgba(0,0,0,.5);
+
+  /* Chrome sombre de la barre latérale */
+  --sidebar-bg:     #12141C;
+  --sidebar-bg-alt: #0D0F16;
+  --sidebar-text:        #9AA3BD;
+  --sidebar-text-active: #FFFFFF;
+}
