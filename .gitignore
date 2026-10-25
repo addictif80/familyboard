@@ -31,6 +31,9 @@ out/
 .DS_Store
 /vendor/
 /storage/app_key.bin
+config/config.local.php
+public/uploads/*
+!public/uploads/.gitkeep
 
 # TWA (Trusted Web Activity) Android project — jamais la clé de signature ni
 # les fichiers générés localement par Gradle/Bubblewrap (voir .github/workflows/android.yml
