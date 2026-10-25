@@ -41,7 +41,7 @@ class PremiumDataPurge
         'meals'      => ['meal_plans', 'recipes'],
         'sitter'     => ['sitter_links'],
         'kiosk'      => ['kiosk_links'],
-        'wishlist'   => ['wishlist_items'],
+        'wishlist'   => ['wishlist_items', 'wishlist_child_links'],
         'polls'      => ['polls'],
         'links'      => ['portal_links'],
         'additions'  => ['additions'],
@@ -87,6 +87,9 @@ class PremiumDataPurge
             ],
             'links' => [
                 ['sql' => 'SELECT image_path p FROM portal_links WHERE family_id=?'],
+            ],
+            'wishlist' => [
+                ['sql' => 'SELECT image_path p FROM wishlist_items WHERE family_id=? AND image_path IS NOT NULL'],
             ],
             'disputes' => [
                 ['sql' => 'SELECT dd.file_path p FROM dispute_documents dd JOIN dispute_cases dc ON dc.id=dd.dispute_id WHERE dc.family_id=?', 'dir' => 'disputes'],

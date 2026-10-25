@@ -20,7 +20,7 @@ class LinkPreview
 
     private const MAX_REDIRECTS = 4;
 
-    /** @return array{ok:bool, error?:string, title?:?string, image_path?:?string} */
+    /** @return array{ok:bool, error?:string, title?:?string, image_path?:?string, description?:?string, price?:?float} */
     public static function fetch(string $url): array
     {
         if (self::safePublicIp($url) === null) {
@@ -35,7 +35,15 @@ class LinkPreview
         $html = $page['body'];
         $finalUrl = $page['url'];
 
-        $title = self::extractTitle($html) ?? parse_url($finalUrl, PHP_URL_HOST) ?? $url;
+        // Les pages produit e-commerce exposent très souvent un balisage schema.org Product en
+        // JSON-LD (Shopify, PrestaShop, Fnac, Cdiscount...), bien plus fiable pour le prix et la
+        // description qu'un parsing HTML ad hoc — on le tente en priorité, puis on retombe sur
+        // les balises Open Graph classiques.
+        $product = self::extractJsonLdProduct($html);
+        $title = $product['title'] ?? self::extractTitle($html) ?? parse_url($finalUrl, PHP_URL_HOST) ?? $url;
+        $description = $product['description'] ?? self::extractMetaContent($html, ['og:description', 'description']);
+        $price = $product['price'] ?? self::extractPriceFromMeta($html);
+
         // Beaucoup de sites institutionnels (impots.gouv.fr, caf.fr...) ne publient aucune
         // balise og:image/twitter:image : on retombe sur leur favicon plutôt que de laisser
         // la carte sans aucune image.
@@ -46,7 +54,13 @@ class LinkPreview
         // disque — c'est cette même convention que templates/routes utilisent pour préfixer BASE_URL.
         $imagePath = $imageUrl ? self::downloadImage($imageUrl) : null;
 
-        return ['ok' => true, 'title' => mb_substr(trim($title), 0, 255), 'image_path' => $imagePath];
+        return [
+            'ok' => true,
+            'title' => mb_substr(trim($title), 0, 255),
+            'image_path' => $imagePath,
+            'description' => $description ? mb_substr(trim(strip_tags($description)), 0, 1000) : null,
+            'price' => $price,
+        ];
     }
 
     /**
@@ -135,6 +149,60 @@ class LinkPreview
             return html_entity_decode(trim($m[1]), ENT_QUOTES, 'UTF-8');
         }
         return null;
+    }
+
+    /** Cherche un nœud schema.org Product dans les blocs JSON-LD de la page (format très
+     *  largement utilisé par les boutiques en ligne pour le référencement). Best-effort : une
+     *  page mal formée ou sans ce balisage renvoie simplement un tableau vide, sans erreur. */
+    private static function extractJsonLdProduct(string $html): array
+    {
+        if (!preg_match_all('/<script[^>]+type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/is', $html, $matches)) {
+            return [];
+        }
+        foreach ($matches[1] as $block) {
+            $data = json_decode(trim(html_entity_decode($block, ENT_QUOTES, 'UTF-8')), true);
+            if (!is_array($data)) continue;
+            $candidates = $data['@graph'] ?? $data;
+            if (isset($candidates['@type'])) $candidates = [$candidates];
+            foreach ((array)$candidates as $node) {
+                if (!is_array($node)) continue;
+                $types = (array)($node['@type'] ?? []);
+                if (!in_array('Product', $types, true)) continue;
+
+                $price = null;
+                $offers = $node['offers'] ?? null;
+                if (is_array($offers)) {
+                    $offerNode = $offers[0] ?? $offers;
+                    $rawPrice = $offerNode['price'] ?? $offerNode['lowPrice'] ?? null;
+                    if ($rawPrice !== null && is_numeric($rawPrice)) $price = (float)$rawPrice;
+                }
+                return [
+                    'title' => is_string($node['name'] ?? null) ? $node['name'] : null,
+                    'description' => is_string($node['description'] ?? null) ? $node['description'] : null,
+                    'price' => $price,
+                ];
+            }
+        }
+        return [];
+    }
+
+    private static function extractMetaContent(string $html, array $props): ?string
+    {
+        foreach ($props as $prop) {
+            if (preg_match('/<meta[^>]+(?:property|name)=["\']' . preg_quote($prop, '/') . '["\'][^>]+content=["\']([^"\']+)["\']/i', $html, $m)
+                || preg_match('/<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']' . preg_quote($prop, '/') . '["\']/i', $html, $m)) {
+                return html_entity_decode(trim($m[1]), ENT_QUOTES, 'UTF-8');
+            }
+        }
+        return null;
+    }
+
+    private static function extractPriceFromMeta(string $html): ?float
+    {
+        $raw = self::extractMetaContent($html, ['product:price:amount', 'og:price:amount']);
+        if ($raw === null) return null;
+        $normalized = str_replace(',', '.', preg_replace('/[^\d,.]/', '', $raw));
+        return is_numeric($normalized) ? (float)$normalized : null;
     }
 
     private static function extractPreviewImageUrl(string $html, string $pageUrl): ?string
