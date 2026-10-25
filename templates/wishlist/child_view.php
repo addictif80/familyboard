@@ -5,8 +5,9 @@ ob_start();
 <!-- .auth-wrapper (layout.php, visiteur non connecté) est un flex-row pensé pour une seule
      carte centrée : ce wrapper column permet d'empiler la carte principale et la bannière
      promo en dessous plutôt qu'à côté. -->
-<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%">
-<div class="card" style="max-width:1100px;margin:2rem auto 0;padding:1.5rem;width:100%">
+<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%;margin-top:2rem">
+<?php if ($child): $bannerFamilyId = (int)$child['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
+<div class="card" style="max-width:1100px;margin:0 auto;padding:1.5rem;width:100%">
 <?php if (!$child): ?>
     <h2>⛔ Lien invalide</h2>
     <p style="color:var(--text-muted)">Ce lien de liste de cadeaux n'existe pas. Contactez la famille pour en obtenir un nouveau.</p>
@@ -47,8 +48,6 @@ ob_start();
     </div>
 <?php endif; ?>
 </div>
-
-<?php if ($child): $bannerFamilyId = (int)$child['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
 </div>
 
 <style>
