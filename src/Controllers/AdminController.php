@@ -217,6 +217,7 @@ class AdminController extends BaseController
         );
         $premiumDataPurges = Database::fetchAll('SELECT id, family_id, family_name, modules_purged, purged_at FROM premium_data_purges ORDER BY purged_at DESC LIMIT 200');
         $referralEnabled = (bool)(int)(AppSetting::get('referral_enabled') ?? '0');
+        $publicSignupBannerEnabled = AppSetting::get('public_signup_banner_enabled', '1') !== '0';
         $referralRewardPlanId = (int)(AppSetting::get('referral_reward_plan_id') ?? '0');
         $referralRewardDays = (int)(AppSetting::get('referral_reward_days') ?? '30');
         $referrals = \App\Models\Referral::getAll();
@@ -901,6 +902,7 @@ class AdminController extends BaseController
         $planId = (int)($_POST['referral_reward_plan_id'] ?? 0);
         AppSetting::set('referral_reward_plan_id', $planId ? (string)$planId : '');
         AppSetting::set('referral_reward_days', (string)max(1, (int)($_POST['referral_reward_days'] ?? 30)));
+        AppSetting::set('public_signup_banner_enabled', !empty($_POST['public_signup_banner_enabled']) ? '1' : '0');
         $this->redirect('/admin?tab=referrals&msg=referral_settings_saved');
     }
 

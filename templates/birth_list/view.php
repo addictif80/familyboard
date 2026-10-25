@@ -2,7 +2,11 @@
 $pageTitle = 'Liste de naissance';
 ob_start();
 ?>
-<div class="card" style="max-width:720px;margin:2rem auto;padding:1.5rem">
+<!-- .auth-wrapper (layout.php, visiteur non connecté) est un flex-row pensé pour une seule
+     carte centrée : ce wrapper column permet d'empiler la carte principale et la bannière
+     promo en dessous plutôt qu'à côté. -->
+<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%">
+<div class="card" style="max-width:720px;margin:2rem auto 0;padding:1.5rem;width:100%">
 <?php if (!$list): ?>
     <h2>⛔ Lien invalide</h2>
     <p style="color:var(--text-muted)">Ce lien de liste de naissance n'existe pas. Contactez la famille pour en obtenir un nouveau.</p>
@@ -40,6 +44,9 @@ ob_start();
         <?php endif; ?>
     </div>
 <?php endif; ?>
+</div>
+
+<?php if ($list): $bannerFamilyId = (int)$list['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
 </div>
 
 <script>

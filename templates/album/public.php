@@ -4,6 +4,10 @@ $publicToken = $params['token'] ?? '';
 $extraJs = ['album-public.js'];
 ob_start();
 ?>
+<!-- .auth-wrapper (layout.php, visiteur non connecté) est un flex-row pensé pour une seule
+     carte centrée : ce wrapper column permet d'empiler la carte principale et la bannière
+     promo en dessous plutôt qu'à côté. -->
+<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%">
 <div class="card album-public-card">
 <?php if (!$album): ?>
     <h2>⛔ Lien invalide ou révoqué</h2>
@@ -42,6 +46,9 @@ ob_start();
         <img id="ap-lightbox-img" src="" alt="" style="max-width:92vw;max-height:92vh;border-radius:8px">
     </div>
 <?php endif; ?>
+</div>
+
+<?php if ($album): $bannerFamilyId = (int)$album['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
 </div>
 
 <style>

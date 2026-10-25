@@ -2,7 +2,11 @@
 $pageTitle = 'Liste de cadeaux';
 ob_start();
 ?>
-<div class="card" style="max-width:720px;margin:2rem auto;padding:1.5rem">
+<!-- .auth-wrapper (layout.php, visiteur non connecté) est un flex-row pensé pour une seule
+     carte centrée : ce wrapper column permet d'empiler la carte principale et la bannière
+     promo en dessous plutôt qu'à côté. -->
+<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%">
+<div class="card" style="max-width:1100px;margin:2rem auto 0;padding:1.5rem;width:100%">
 <?php if (!$child): ?>
     <h2>⛔ Lien invalide</h2>
     <p style="color:var(--text-muted)">Ce lien de liste de cadeaux n'existe pas. Contactez la famille pour en obtenir un nouveau.</p>
@@ -14,7 +18,7 @@ ob_start();
         jamais ce qui a été réservé : la surprise est garantie !
     </p>
 
-    <div id="wishlist-child-items" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-top:1.25rem">
+    <div id="wishlist-child-items" class="gift-grid">
         <?php foreach ($items as $item): ?>
             <?php $reserved = !empty($item['reservation_token']); ?>
             <div class="card" data-item-id="<?= $item['id'] ?>" style="padding:1rem;display:flex;flex-direction:column;gap:.5rem;<?= $reserved ? 'opacity:.6' : '' ?>">
@@ -24,14 +28,16 @@ ob_start();
                 <strong><?= htmlspecialchars($item['title']) ?></strong>
                 <?php if ($item['price']): ?><div style="color:var(--text-muted);font-size:.85rem"><?= number_format((float)$item['price'], 2, ',', ' ') ?> €</div><?php endif; ?>
                 <?php if ($item['description']): ?><div style="font-size:.85rem;white-space:pre-wrap"><?= htmlspecialchars($item['description']) ?></div><?php endif; ?>
-                <?php if ($item['url']): ?><a href="<?= htmlspecialchars($item['url']) ?>" target="_blank" rel="noopener noreferrer nofollow" style="font-size:.85rem">🔗 Voir le produit</a><?php endif; ?>
 
-                <div class="item-status" style="margin-top:auto;font-size:.85rem">
-                    <?php if ($reserved): ?>
-                        <span style="color:var(--danger)">🎁 Réservé par <?= htmlspecialchars($item['reserved_by_name']) ?></span>
-                    <?php else: ?>
-                        <button class="btn btn-primary btn-sm" style="width:100%" onclick="reserveChildWishlistItem(<?= $item['id'] ?>)">Je le prends</button>
-                    <?php endif; ?>
+                <div class="gift-actions">
+                    <?php if ($item['url']): ?><a class="btn btn-secondary btn-sm" href="<?= htmlspecialchars($item['url']) ?>" target="_blank" rel="noopener noreferrer nofollow">🔗 Voir le produit</a><?php endif; ?>
+                    <div class="item-status">
+                        <?php if ($reserved): ?>
+                            <span style="color:var(--danger)">🎁 Réservé par <?= htmlspecialchars($item['reserved_by_name']) ?></span>
+                        <?php else: ?>
+                            <button class="btn btn-primary btn-sm" onclick="reserveChildWishlistItem(<?= $item['id'] ?>)">Je le prends</button>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         <?php endforeach; ?>
@@ -41,6 +47,18 @@ ob_start();
     </div>
 <?php endif; ?>
 </div>
+
+<?php if ($child): $bannerFamilyId = (int)$child['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
+</div>
+
+<style>
+.gift-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 1.25rem; }
+.gift-actions { display: flex; align-items: center; gap: .5rem; margin-top: auto; }
+.gift-actions .btn, .gift-actions .item-status { flex: 1; min-width: 0; }
+.gift-actions .item-status button { width: 100%; }
+@media (max-width: 900px) { .gift-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .gift-grid { grid-template-columns: 1fr; } }
+</style>
 
 <script>
 const LIST_TOKEN = <?= json_encode($params['token'] ?? '') ?>;
