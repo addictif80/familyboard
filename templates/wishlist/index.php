@@ -61,9 +61,12 @@ foreach ($friendItems as $it) {
             <?php if ($it['url']): ?><p><a href="<?= htmlspecialchars($it['url']) ?>" target="_blank" rel="noopener noreferrer nofollow">🔗 Voir le produit</a></p><?php endif; ?>
 
             <?php if ($isMe): ?>
-                <div style="display:flex;gap:.4rem;margin-top:.5rem">
+                <div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap">
                     <button class="btn btn-secondary btn-sm" onclick="openWishlistModal(<?= htmlspecialchars(json_encode($it), ENT_QUOTES) ?>)">✏️ Modifier</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteWishlistItem(<?= (int)$it['id'] ?>)">🗑️</button>
+                    <?php if (!$it['image_path'] && $it['url']): ?>
+                        <button class="btn btn-secondary btn-sm" onclick="refreshWishlistImage(<?= (int)$it['id'] ?>)">🔄 Récupérer l'image</button>
+                    <?php endif; ?>
                 </div>
             <?php else: ?>
                 <div style="margin-top:.5rem">
@@ -188,9 +191,12 @@ foreach ($friendItems as $it) {
             <?php if ($it['description']): ?><p style="color:var(--text-muted);font-size:.85rem"><?= nl2br(htmlspecialchars($it['description'])) ?></p><?php endif; ?>
             <?php if ($it['price']): ?><p style="font-size:.85rem">💰 <?= number_format((float)$it['price'], 2, ',', ' ') ?> €</p><?php endif; ?>
             <?php if ($it['url']): ?><p><a href="<?= htmlspecialchars($it['url']) ?>" target="_blank" rel="noopener noreferrer nofollow">🔗 Voir le produit</a></p><?php endif; ?>
-            <div style="display:flex;gap:.4rem;margin-top:.5rem">
+            <div style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap">
                 <button class="btn btn-secondary btn-sm" onclick="openWishlistModal(<?= htmlspecialchars(json_encode($it), ENT_QUOTES) ?>, <?= $childId ?>)">✏️ Modifier</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteWishlistItem(<?= (int)$it['id'] ?>)">🗑️</button>
+                <?php if (!$it['image_path'] && $it['url']): ?>
+                    <button class="btn btn-secondary btn-sm" onclick="refreshWishlistImage(<?= (int)$it['id'] ?>)">🔄 Récupérer l'image</button>
+                <?php endif; ?>
             </div>
         </div>
         <?php endforeach; ?>

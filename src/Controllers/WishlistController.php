@@ -182,6 +182,38 @@ class WishlistController extends BaseController
         });
     }
 
+    /** Retente la récupération de l'image produit sur un souhait existant — pour les souhaits
+     *  ajoutés avant que LinkPreview sache lire l'image du JSON-LD, ou dont le site bloquait
+     *  temporairement la récupération automatique (anti-bot) au moment de l'ajout. */
+    public function refreshImage(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $item = WishlistItem::getById((int)$params['id']);
+            if (!$item || !$this->canManage($item, $user) || empty($item['url'])) {
+                return ['success' => false, 'error' => 'Action impossible.'];
+            }
+            $preview = LinkPreview::fetch($item['url']);
+            if (!$preview['ok'] || !$preview['image_path']) {
+                return ['success' => false, 'error' => "Toujours pas d'image trouvée sur ce lien."];
+            }
+            WishlistItem::update($item['id'], [
+                'title' => $item['title'],
+                'description' => $item['description'],
+                'url' => $item['url'],
+                'price' => $item['price'],
+                'priority' => $item['priority'],
+                'image_path' => $preview['image_path'],
+            ]);
+            $updated = WishlistItem::getById($item['id']);
+            $updated = $item['family_child_id']
+                ? WishlistItem::scrubForChildFamilyView($updated)
+                : WishlistItem::scrubForViewer($updated, (int)$user['id']);
+            return ['success' => true, 'item' => $updated];
+        });
+    }
+
     public function regenerateChildLink(array $params): void
     {
         $this->requireAuth();
