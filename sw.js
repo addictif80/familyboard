@@ -35,60 +35,95 @@ self.addEventListener('activate', e => {
     );
 });
 
+// Réponse JSON synthétique : sert de dernier recours quand le réseau est indisponible et
+// qu'aucune réponse n'est en cache. On ne renvoie JAMAIS `undefined` depuis respondWith :
+// le navigateur traduirait cela en erreur réseau opaque (« Load failed » sur Safari).
+function jsonResponse(body, status) {
+    return new Response(JSON.stringify(body), {
+        status: status || 200,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    });
+}
+
 self.addEventListener('fetch', e => {
     const url = new URL(e.request.url);
 
-    // Never intercept non-GET requests (POST actions never work offline — no retry queue).
+    // Jamais les requêtes non-GET (les POST ne marchent pas hors-ligne, pas de file d'attente).
     if (e.request.method !== 'GET') return;
 
-    // Static assets (/public/): cache-first, store on miss
+    // On n'intercepte que les ressources de l'application : le cross-origin (polices Google,
+    // Nominatim, tuiles OpenStreetMap, iframes…) doit rester un fetch réseau direct, sans mise
+    // en cache ni repli — sinon un échec réseau y produirait aussi une erreur opaque.
+    if (url.origin !== location.origin) return;
+
+    // Assets statiques (/public/) : cache-first, puis réseau, puis 504 réel (jamais undefined).
     if (url.pathname.startsWith('/public/')) {
         e.respondWith(
-            caches.match(e.request).then(cached => {
+            caches.match(e.request)
+                .then(cached => {
+                    if (cached) return cached;
+                    return fetch(e.request).then(resp => {
+                        if (resp && resp.ok) {
+                            const clone = resp.clone();
+                            caches.open(CACHE).then(c => c.put(e.request, clone)).catch(() => {});
+                        }
+                        return resp;
+                    });
+                })
+                .catch(() => new Response('', { status: 504, statusText: 'Offline' }))
+        );
+        return;
+    }
+
+    // Données dynamiques (/api/ GET, ex. événements du calendrier) : réseau en priorité, la
+    // réponse est mise en cache au passage pour rester lisible hors-ligne (figée à la dernière
+    // valeur connue). Si le réseau échoue ET qu'aucune valeur n'est en cache, on renvoie une
+    // vraie réponse 503 JSON : le client affiche un message clair au lieu d'une erreur opaque.
+    if (url.pathname.startsWith('/api/')) {
+        e.respondWith(
+            fetch(e.request).then(resp => {
+                if (resp && resp.ok) {
+                    const clone = resp.clone();
+                    caches.open(DATA_CACHE).then(c => c.put(e.request, clone)).catch(() => {});
+                }
+                return resp;
+            }).catch(async () => {
+                const cached = await caches.match(e.request);
                 if (cached) return cached;
-                return fetch(e.request).then(resp => {
-                    if (resp.ok) {
-                        const clone = resp.clone();
-                        caches.open(CACHE).then(c => c.put(e.request, clone));
-                    }
-                    return resp;
-                });
+                return jsonResponse(
+                    { error: 'offline', message: 'Hors ligne — données indisponibles.' },
+                    503
+                );
             })
         );
         return;
     }
 
-    // Données dynamiques (/api/ GET, ex. événements du calendrier) : réseau en priorité,
-    // la réponse est mise en cache au passage pour rester lisible hors-ligne (figée à la
-    // dernière valeur connue). En cas d'échec réseau, on sert cette dernière valeur si on
-    // l'a ; sinon l'appelant reçoit l'échec réseau normal (l'UI gère déjà ce cas).
-    if (url.pathname.startsWith('/api/')) {
+    // Pages HTML : réseau en priorité, mise en cache de la réponse au passage. Hors-ligne, on
+    // sert la page déjà visitée, sinon l'écran « hors-ligne » précaché, sinon une page minimale
+    // — pour ne jamais montrer l'erreur « pas de connexion » générique ni une erreur opaque.
+    const accept = e.request.headers.get('accept') || '';
+    if (e.request.mode === 'navigate' || accept.includes('text/html')) {
         e.respondWith(
             fetch(e.request).then(resp => {
-                if (resp.ok) {
+                if (resp && resp.ok) {
                     const clone = resp.clone();
-                    caches.open(DATA_CACHE).then(c => c.put(e.request, clone));
+                    caches.open(DATA_CACHE).then(c => c.put(e.request, clone)).catch(() => {});
                 }
                 return resp;
-            }).catch(() => caches.match(e.request))
+            }).catch(async () => {
+                const cached = await caches.match(e.request);
+                if (cached) return cached;
+                const offline = await caches.match('/public/offline.html');
+                if (offline) return offline;
+                return new Response(
+                    '<!doctype html><meta charset="utf-8"><title>Hors ligne</title>' +
+                    '<h1>Vous êtes hors ligne</h1><p>Reconnectez-vous à Internet puis réessayez.</p>',
+                    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+                );
+            })
         );
-        return;
     }
-
-    // Pages HTML : réseau en priorité, mise en cache de la réponse au passage. Hors-ligne,
-    // on sert cette page si elle a déjà été visitée, sinon l'écran "hors-ligne" précaché —
-    // pour ne jamais montrer l'erreur "pas de connexion" générique du navigateur.
-    e.respondWith(
-        fetch(e.request).then(resp => {
-            if (resp.ok) {
-                const clone = resp.clone();
-                caches.open(DATA_CACHE).then(c => c.put(e.request, clone));
-            }
-            return resp;
-        }).catch(() =>
-            caches.match(e.request).then(cached => cached || caches.match('/public/offline.html'))
-        )
-    );
 });
 
 // Web Push notifications

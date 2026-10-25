@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyBoard — Aperçu design v3 « Maison »</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
+<!-- Feuille réelle de l'application : cet aperçu reflète exactement le rendu de production. -->
+<link rel="stylesheet" href="../public/css/app.css">
+<style>
+  /* Uniquement pour l'aperçu : désactive les couches fixed/sticky afin de tout voir d'un bloc. */
+  .preview-note { max-width: 1100px; margin: 1.25rem auto 0; padding: 0 1.75rem; }
+  .preview-frame { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin: 1rem auto 3rem; max-width: 1180px; box-shadow: var(--shadow-lg); }
+  .preview-frame .sidebar { position: absolute; }
+  .preview-frame .app-wrapper { position: relative; min-height: 720px; }
+  .preview-frame .main-content { margin-left: var(--sidebar-width); }
+  .preview-frame .topbar { position: static; }
+  .preview-toggle { display: flex; gap: .5rem; align-items: center; }
+</style>
+</head>
+<body>
+
+<div class="preview-note">
+  <div class="page-head">
+    <div class="page-head-main">
+      <span class="page-head-eyebrow">Aperçu statique</span>
+      <span class="page-head-title">FamilyBoard v3 — « Maison »</span>
+      <span class="page-head-sub">Rendu réel de <code>public/css/app.css</code> : shell, en-têtes, cartes, formulaires, tableaux.</span>
+    </div>
+    <div class="page-head-actions preview-toggle">
+      <button class="btn btn-secondary" onclick="document.documentElement.setAttribute('data-theme','light')">☀️ Clair</button>
+      <button class="btn btn-secondary" onclick="document.documentElement.setAttribute('data-theme','dark')">🌙 Sombre</button>
+    </div>
+  </div>
+</div>
+
+<div class="preview-frame">
+  <div class="app-wrapper">
+
+    <!-- ================= Sidebar ================= -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo"><span class="logo-icon">🏠</span><span class="logo-text">Famille Martin</span></div>
+      </div>
+      <div class="sidebar-search"><span class="sidebar-search-icon">🔎</span><input type="text" placeholder="Rechercher un module…"></div>
+
+      <ul class="nav-menu">
+        <li class="nav-item active"><a href="#" class="nav-link"><span class="nav-icon">🏠</span><span class="nav-label">Tableau de bord</span></a></li>
+        <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">📺</span><span class="nav-label">Écran mural</span></a></li>
+
+        <li class="nav-section-label" data-section-toggle="vie-de-famille"><span>Vie de famille</span><span class="nav-section-chevron">▾</span></li>
+        <li class="nav-item" data-section="vie-de-famille"><a href="#" class="nav-link"><span class="nav-icon">📸</span><span class="nav-label">Mur familial</span></a></li>
+        <li class="nav-item" data-section="vie-de-famille"><a href="#" class="nav-link"><span class="nav-icon">✉️</span><span class="nav-label">Messages privés</span><span class="badge-dot">3</span></a></li>
+        <li class="nav-item" data-section="vie-de-famille"><a href="#" class="nav-link"><span class="nav-icon">💬</span><span class="nav-label">Chat familial</span></a></li>
+        <li class="nav-item" data-section="vie-de-famille"><a href="#" class="nav-link"><span class="nav-icon">📅</span><span class="nav-label">Calendrier</span></a></li>
+        <li class="nav-item" data-section="vie-de-famille"><a href="#" class="nav-link"><span class="nav-icon">📒</span><span class="nav-label">Répertoire</span></a></li>
+        <li class="nav-item" data-section="vie-de-famille"><a href="#" class="nav-link"><span class="nav-icon">🍽️</span><span class="nav-label">Repas</span></a></li>
+        <li class="nav-item" data-section="vie-de-famille"><a href="#" class="nav-link"><span class="nav-icon">🎁</span><span class="nav-label">Liste de cadeaux</span></a></li>
+
+        <li class="nav-section-label" data-section-toggle="garde-partagee"><span>Garde partagée</span><span class="nav-section-chevron">▾</span></li>
+        <li class="nav-item" data-section="garde-partagee"><a href="#" class="nav-link"><span class="nav-icon">👶</span><span class="nav-label">Garde alternée</span></a></li>
+        <li class="nav-item" data-section="garde-partagee"><a href="#" class="nav-link"><span class="nav-icon">🔒</span><span class="nav-label">Garde partagée</span></a></li>
+        <li class="nav-item" data-section="garde-partagee"><a href="#" class="nav-link"><span class="nav-icon">📝</span><span class="nav-label">Journal parental</span></a></li>
+
+        <li class="nav-section-label" data-section-toggle="organisation"><span>Organisation</span><span class="nav-section-chevron">▾</span></li>
+        <li class="nav-item" data-section="organisation"><a href="#" class="nav-link"><span class="nav-icon">✅</span><span class="nav-label">Tâches & Courses</span></a></li>
+        <li class="nav-item" data-section="organisation"><a href="#" class="nav-link"><span class="nav-icon">📋</span><span class="nav-label">Projets</span></a></li>
+        <li class="nav-item" data-section="organisation"><a href="#" class="nav-link"><span class="nav-icon">💰</span><span class="nav-label">Budget</span></a></li>
+        <li class="nav-item" data-section="organisation"><a href="#" class="nav-link"><span class="nav-icon">🗂️</span><span class="nav-label">Documents</span></a></li>
+        <li class="nav-item" data-section="organisation"><a href="#" class="nav-link"><span class="nav-icon">🛡️</span><span class="nav-label">Garanties</span></a></li>
+        <li class="nav-item" data-section="organisation"><a href="#" class="nav-link"><span class="nav-icon">🔗</span><span class="nav-label">Portail de liens</span></a></li>
+
+        <li class="nav-section-label" data-section-toggle="famille-suivi"><span>Famille & suivi</span><span class="nav-section-chevron">▾</span></li>
+        <li class="nav-item" data-section="famille-suivi"><a href="#" class="nav-link"><span class="nav-icon">✉️</span><span class="nav-label">Courriers</span></a></li>
+        <li class="nav-item" data-section="famille-suivi"><a href="#" class="nav-link"><span class="nav-icon">🎓</span><span class="nav-label">Suivi scolaire</span></a></li>
+        <li class="nav-item" data-section="famille-suivi"><a href="#" class="nav-link"><span class="nav-icon">💼</span><span class="nav-label">Suivi salarié</span></a></li>
+        <li class="nav-item" data-section="famille-suivi"><a href="#" class="nav-link"><span class="nav-icon">🏥</span><span class="nav-label">Santé</span></a></li>
+        <li class="nav-item" data-section="famille-suivi"><a href="#" class="nav-link"><span class="nav-icon">🚗</span><span class="nav-label">Véhicules</span></a></li>
+        <li class="nav-item" data-section="famille-suivi"><a href="#" class="nav-link"><span class="nav-icon">🐾</span><span class="nav-label">Animaux</span></a></li>
+        <li class="nav-item" data-section="famille-suivi"><a href="#" class="nav-link"><span class="nav-icon">📊</span><span class="nav-label">Compteurs</span></a></li>
+
+        <li class="nav-section-label" data-section-toggle="demarches"><span>Démarches & services</span><span class="nav-section-chevron">▾</span></li>
+        <li class="nav-item" data-section="demarches"><a href="#" class="nav-link"><span class="nav-icon">🪪</span><span class="nav-label">Démarches admin.</span></a></li>
+        <li class="nav-item" data-section="demarches"><a href="#" class="nav-link"><span class="nav-icon">🏖️</span><span class="nav-label">Congés familiaux</span></a></li>
+        <li class="nav-item" data-section="demarches"><a href="#" class="nav-link"><span class="nav-icon">✈️</span><span class="nav-label">Voyages & réservations</span></a></li>
+        <li class="nav-item" data-section="demarches"><a href="#" class="nav-link"><span class="nav-icon">🤖</span><span class="nav-label">Assistant IA</span></a></li>
+        <li class="nav-item" data-section="demarches"><a href="#" class="nav-link"><span class="nav-icon">🏷️</span><span class="nav-label">Bons plans</span></a></li>
+
+        <li class="nav-section-label" data-section-toggle="suivi-securite"><span>Suivi & sécurité</span><span class="nav-section-chevron">▾</span></li>
+        <li class="nav-item" data-section="suivi-securite"><a href="#" class="nav-link"><span class="nav-icon">🔐</span><span class="nav-label">Coffre-fort</span></a></li>
+        <li class="nav-item" data-section="suivi-securite"><a href="#" class="nav-link"><span class="nav-icon">🍼</span><span class="nav-label">Bébé</span></a></li>
+        <li class="nav-item" data-section="suivi-securite"><a href="#" class="nav-link"><span class="nav-icon">📍</span><span class="nav-label">Position</span></a></li>
+        <li class="nav-item" data-section="suivi-securite"><a href="#" class="nav-link"><span class="nav-icon">🚑</span><span class="nav-label">Fiches urgence</span></a></li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <button class="user-menu-trigger">
+          <div class="user-avatar" style="background:#3A5885">A</div>
+          <span class="user-menu-identity"><span class="user-menu-name">Adrien</span><span class="user-menu-role">Administrateur</span></span>
+          <span class="user-menu-caret">▾</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- ================= Main ================= -->
+    <div class="main-content">
+      <header class="topbar">
+        <h1 class="page-title">Congés familiaux</h1>
+        <div class="topbar-actions">
+          <button class="nav-search-trigger"><span>🔎 Rechercher…</span><span class="nav-search-kbd">Ctrl K</span></button>
+          <button class="btn-icon">🐞</button>
+          <a class="btn-icon" href="#" style="position:relative;text-decoration:none">📣<span class="badge-dot">2</span></a>
+          <button class="theme-toggle-btn" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark')"><span class="theme-icon-sun">☀️</span><span class="theme-icon-moon">🌙</span></button>
+          <button class="btn-icon">🔔<span class="badge-dot">5</span></button>
+        </div>
+      </header>
+
+      <div class="content-area">
+
+        <!-- Exemple 1 : page liste (pattern .tasks-header hérité) -->
+        <div class="tasks-main" style="width:100%">
+          <div class="tasks-header">
+            <h2>🏖️ Congés familiaux</h2>
+            <button class="btn btn-primary btn-sm">+ Poser un congé</button>
+          </div>
+          <div class="card settings-section">
+            <table class="admin-table">
+              <thead><tr><th>Membre</th><th>Type</th><th>Du</th><th>Au</th><th>Titre</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><span class="list-dot" style="background:#3A5885"></span> Adrien</td><td>🏖️ Congé</td><td>12/10/2026</td><td>16/10/2026</td><td>Vacances d'automne</td><td><button class="btn-icon-sm" title="Supprimer">🗑</button></td></tr>
+                <tr><td><span class="list-dot" style="background:#C8973F"></span> Camille</td><td>🤒 Maladie</td><td>05/10/2026</td><td>06/10/2026</td><td>Grippe</td><td><button class="btn-icon-sm" title="Supprimer">🗑</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Exemple 2 : grille de cartes + badges + boutons -->
+        <div class="content-header" style="margin-top:2rem">
+          <h2>🗂️ Documents</h2>
+          <button class="btn btn-primary btn-sm">+ Ajouter</button>
+        </div>
+        <div class="docs-toolbar">
+          <div class="docs-search-wrap"><input class="docs-search" type="text" placeholder="Rechercher un document…"></div>
+          <button class="btn btn-secondary btn-sm">Filtres</button>
+        </div>
+        <div class="docs-grid">
+          <article class="doc-card" style="border:1px solid var(--border)">
+            <div class="doc-card-head" style="background:linear-gradient(135deg,var(--primary),var(--primary-dark))">
+              <span class="doc-card-icon">📄</span><span class="doc-card-type">Assurance</span>
+            </div>
+            <div class="doc-card-body">
+              <div class="doc-card-title">Attestation habitation 2026</div>
+              <div class="doc-card-meta"><span>Ajouté le 03/09</span></div>
+              <div class="doc-card-footer"><span class="badge badge-ok">À jour</span><a class="doc-file-badge" href="#">PDF</a></div>
+            </div>
+          </article>
+          <article class="doc-card" style="border:1px solid var(--border)">
+            <div class="doc-card-head" style="background:linear-gradient(135deg,#C8973F,#A87D33)">
+              <span class="doc-card-icon">📄</span><span class="doc-card-type">Identité</span>
+            </div>
+            <div class="doc-card-body">
+              <div class="doc-card-title">Passeport — Camille</div>
+              <div class="doc-card-meta"><span>Expire le 12/11/2026</span></div>
+              <div class="doc-card-footer"><span class="badge badge-danger">Expire bientôt</span><a class="doc-file-badge" href="#">PDF</a></div>
+            </div>
+          </article>
+          <article class="doc-card" style="border:1px solid var(--border)">
+            <div class="doc-card-head" style="background:linear-gradient(135deg,#3C8558,#2F6B46)">
+              <span class="doc-card-icon">📄</span><span class="doc-card-type">Scolarité</span>
+            </div>
+            <div class="doc-card-body">
+              <div class="doc-card-title">Certificat de scolarité</div>
+              <div class="doc-card-meta"><span>Ajouté le 01/09</span></div>
+              <div class="doc-card-footer"><span class="badge badge-active">Actif</span><a class="doc-file-badge" href="#">PDF</a></div>
+            </div>
+          </article>
+        </div>
+
+        <!-- Exemple 3 : tableau de bord (hero) et chiffres clés -->
+        <div class="dashboard-hero" style="margin-top:2rem">
+          <div class="hero-identity">
+            <div class="hero-greeting">
+              <span class="hero-name">Bonjour, Adrien 👋</span>
+              <span class="hero-date">Lundi 12 octobre 2026</span>
+            </div>
+            <div class="hero-nameday">🎉 Fête : Wilfried</div>
+            <div class="hero-weather"><span class="weather-icon">⛅</span><span class="weather-temp">17°</span><span class="weather-city">Lyon</span></div>
+          </div>
+        </div>
+        <div class="budget-summary" style="margin-top:1rem">
+          <div class="summary-card"><span class="summary-label">Revenus</span><span class="summary-amount" style="color:var(--success)">4 210 €</span></div>
+          <div class="summary-card"><span class="summary-label">Dépenses</span><span class="summary-amount" style="color:var(--danger)">3 045 €</span></div>
+          <div class="summary-card"><span class="summary-label">Solde</span><span class="summary-amount">1 165 €</span></div>
+        </div>
+
+        <!-- Exemple 4 : formulaire + modal-like -->
+        <div class="card" style="margin-top:2rem;max-width:520px">
+          <div class="card-header"><h3>Nouveau congé</h3></div>
+          <div class="form-row">
+            <div class="form-group"><label>Membre</label><select><option>Adrien</option><option>Camille</option></select></div>
+            <div class="form-group"><label>Type</label><select><option>🏖️ Congé</option><option>🤒 Maladie</option></select></div>
+          </div>
+          <div class="form-group"><label>Titre</label><input type="text" placeholder="Ex : Vacances d'automne"></div>
+          <div style="display:flex;gap:.5rem;justify-content:flex-end"><button class="btn btn-secondary">Annuler</button><button class="btn btn-primary">Enregistrer</button></div>
+        </div>
+
+        <!-- Exemple 5 : états vides -->
+        <div class="empty-state-card" style="margin-top:2rem">
+          <div class="empty-icon">📭</div>
+          <h3>Aucun élément</h3>
+          <p>Ajoutez votre premier élément pour commencer.</p>
+          <button class="btn btn-primary">+ Ajouter</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    try {
+      var t = localStorage.getItem('fb-theme');
+      if (t) document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  });
+</script>
+</body>
+</html>
