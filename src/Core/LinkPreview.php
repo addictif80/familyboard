@@ -44,10 +44,14 @@ class LinkPreview
         $description = $product['description'] ?? self::extractMetaContent($html, ['og:description', 'description']);
         $price = $product['price'] ?? self::extractPriceFromMeta($html);
 
-        // Beaucoup de sites institutionnels (impots.gouv.fr, caf.fr...) ne publient aucune
-        // balise og:image/twitter:image : on retombe sur leur favicon plutôt que de laisser
-        // la carte sans aucune image.
-        $imageUrl = self::extractPreviewImageUrl($html, $finalUrl) ?? self::extractFaviconUrl($html, $finalUrl);
+        // La photo produit du JSON-LD (quand présente) passe avant og:image : de plus en plus de
+        // sites (vitrines Next.js/React notamment) ne posent plus og:image du tout et ne décrivent
+        // leur visuel que via ce balisage schema.org. Beaucoup de sites institutionnels
+        // (impots.gouv.fr, caf.fr...) n'ont ni l'un ni l'autre : on retombe sur leur favicon plutôt
+        // que de laisser la carte sans aucune image.
+        $imageUrl = self::resolveUrl($product['image'] ?? null, $finalUrl)
+            ?? self::extractPreviewImageUrl($html, $finalUrl)
+            ?? self::extractFaviconUrl($html, $finalUrl);
 
         // Chemin web relatif au format déjà utilisé par tous les autres uploads de l'app
         // (BaseController::uploadImage) : '/public/uploads/<fichier>', jamais un chemin absolu
@@ -176,10 +180,20 @@ class LinkPreview
                     $rawPrice = $offerNode['price'] ?? $offerNode['lowPrice'] ?? null;
                     if ($rawPrice !== null && is_numeric($rawPrice)) $price = (float)$rawPrice;
                 }
+                // "image" peut être une chaîne, un tableau de chaînes/d'objets ImageObject, ou un
+                // unique objet ImageObject ({"@type":"ImageObject","url":"..."}) selon le
+                // générateur du site — isset($image[0]) distingue une liste d'un objet unique
+                // (un objet JSON décodé en tableau associatif n'a jamais de clé numérique 0, sauf
+                // coïncidence avec une vraie propriété "0", improbable ici).
+                $image = $node['image'] ?? null;
+                if (is_array($image) && isset($image[0])) $image = $image[0];
+                if (is_array($image)) $image = $image['url'] ?? null;
+
                 return [
                     'title' => is_string($node['name'] ?? null) ? $node['name'] : null,
                     'description' => is_string($node['description'] ?? null) ? $node['description'] : null,
                     'price' => $price,
+                    'image' => is_string($image) ? $image : null,
                 ];
             }
         }
@@ -203,6 +217,18 @@ class LinkPreview
         if ($raw === null) return null;
         $normalized = str_replace(',', '.', preg_replace('/[^\d,.]/', '', $raw));
         return is_numeric($normalized) ? (float)$normalized : null;
+    }
+
+    /** Résout une URL potentiellement relative (ou protocole-relative "//...") par rapport à la
+     *  page source — le JSON-LD Product donne parfois un chemin relatif pour "image". */
+    private static function resolveUrl(?string $url, string $pageUrl): ?string
+    {
+        if (!$url) return null;
+        if (parse_url($url, PHP_URL_SCHEME)) return $url;
+        $base = parse_url($pageUrl);
+        $scheme = $base['scheme'] ?? 'https';
+        if (str_starts_with($url, '//')) return $scheme . ':' . $url;
+        return $scheme . '://' . ($base['host'] ?? '') . '/' . ltrim($url, '/');
     }
 
     private static function extractPreviewImageUrl(string $html, string $pageUrl): ?string

@@ -9,6 +9,8 @@ function openWishlistModal(item, familyChildId) {
     document.getElementById('wl-url').value = item ? (item.url || '') : '';
     document.getElementById('wl-price').value = item ? (item.price || '') : '';
     document.getElementById('wl-priority').value = item ? item.priority : 'medium';
+    document.getElementById('wl-image-file').value = '';
+    document.getElementById('wl-remove-image').checked = false;
 
     const preview = document.getElementById('wl-image-preview');
     const previewImg = document.getElementById('wl-image-preview-img');
@@ -25,18 +27,23 @@ function openWishlistModal(item, familyChildId) {
 async function saveWishlistItem() {
     const id = document.getElementById('wl-id').value;
     const familyChildId = document.getElementById('wl-family-child-id').value;
-    const payload = {
-        title: document.getElementById('wl-title').value.trim(),
-        description: document.getElementById('wl-description').value.trim(),
-        url: document.getElementById('wl-url').value.trim(),
-        price: document.getElementById('wl-price').value,
-        priority: document.getElementById('wl-priority').value,
-    };
-    if (familyChildId) payload.family_child_id = parseInt(familyChildId, 10);
-    if (!payload.title && !payload.url) { Dialog.toast('Indiquez un titre ou collez un lien.', 'error'); return; }
+    const title = document.getElementById('wl-title').value.trim();
+    const url = document.getElementById('wl-url').value.trim();
+    if (!title && !url) { Dialog.toast('Indiquez un titre ou collez un lien.', 'error'); return; }
 
-    const url = id ? BASE_URL + '/api/wishlist/' + id : BASE_URL + '/api/wishlist';
-    const r = await apiFetch(url, { method: 'POST', body: JSON.stringify(payload) });
+    const fd = new FormData();
+    fd.append('title', title);
+    fd.append('description', document.getElementById('wl-description').value.trim());
+    fd.append('url', url);
+    fd.append('price', document.getElementById('wl-price').value);
+    fd.append('priority', document.getElementById('wl-priority').value);
+    if (familyChildId) fd.append('family_child_id', familyChildId);
+    if (document.getElementById('wl-remove-image').checked) fd.append('remove_image', '1');
+    const fileInput = document.getElementById('wl-image-file');
+    if (fileInput.files[0]) fd.append('image', fileInput.files[0]);
+
+    const apiUrl = id ? BASE_URL + '/api/wishlist/' + id : BASE_URL + '/api/wishlist';
+    const r = await fetch(apiUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd }).then(res => res.json());
     if (r.success) {
         closeModal('wishlist-modal');
         window.location.reload();

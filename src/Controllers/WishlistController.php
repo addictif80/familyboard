@@ -55,7 +55,9 @@ class WishlistController extends BaseController
         $this->requireAuth();
         $this->json(function () {
             $user = Session::user();
-            $data = $this->jsonInput();
+            // $_POST (+ $_FILES) quand une image est jointe manuellement, JSON sinon — même
+            // bascule que BirthListController::createItem().
+            $data = $_POST ?: $this->jsonInput();
 
             $familyChildId = null;
             if (!empty($data['family_child_id'])) {
@@ -69,6 +71,11 @@ class WishlistController extends BaseController
             $data = $this->applyLinkPreview($data);
             if (empty($data['title'])) {
                 return ['success' => false, 'error' => 'Titre requis.'];
+            }
+            // Une image jointe manuellement prend le pas sur celle récupérée automatiquement du
+            // lien — utile quand le site bloque la récupération automatique (Cloudflare etc.).
+            if (!empty($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                [$data['image_path']] = \App\Core\OcrHelper::saveUploadedFile($_FILES['image'], 'wishlist', (int)$user['family_id']);
             }
 
             $userId = $familyChildId ? null : (int)$user['id'];
@@ -90,9 +97,12 @@ class WishlistController extends BaseController
             if (!$item || !$this->canManage($item, $user)) {
                 return ['success' => false, 'error' => 'Souhait introuvable.'];
             }
-            $data = $this->jsonInput();
+            $data = $_POST ?: $this->jsonInput();
             if (empty($data['title'])) {
                 return ['success' => false, 'error' => 'Titre requis.'];
+            }
+            if (!empty($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                [$data['image_path']] = \App\Core\OcrHelper::saveUploadedFile($_FILES['image'], 'wishlist', (int)$user['family_id']);
             }
             WishlistItem::update($item['id'], $data);
             $updated = WishlistItem::getById($item['id']);
