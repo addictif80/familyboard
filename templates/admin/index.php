@@ -639,6 +639,9 @@
                     <input type="number" name="referral_reward_days" min="1" max="365" value="<?= $referralRewardDays ?>">
                 </div>
             </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="public_signup_banner_enabled" value="1" <?= $publicSignupBannerEnabled ? 'checked' : '' ?>> Afficher une bannière FamilyBoard sur les pages publiques (liste de cadeaux, liste de naissance, album partagé)</label>
+            </div>
             <button type="submit" class="btn btn-primary">Enregistrer</button>
         </form>
 
