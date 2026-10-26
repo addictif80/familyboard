@@ -26,10 +26,12 @@ class Vault
         return Database::fetch('SELECT * FROM vault_entries WHERE id=?', [$id]);
     }
 
-    public static function createEntry(int $familyId, int $userId, array $d, ?array $file = null): int
+    public static function createEntry(int $familyId, int $userId, array $d, ?array $file = null, ?array $sourceDocument = null): int
     {
         $filePath = $fileOriginal = $fileMime = null;
-        if ($file && $file['error'] === UPLOAD_ERR_OK) {
+        if ($sourceDocument) {
+            [$filePath, $fileOriginal, $fileMime] = self::copyFromDocument($sourceDocument, $familyId);
+        } elseif ($file && $file['error'] === UPLOAD_ERR_OK) {
             [$filePath, $fileOriginal, $fileMime] = OcrHelper::saveUploadedFile($file, 'vault', $familyId);
         }
         return Database::insert(
@@ -38,7 +40,7 @@ class Vault
         );
     }
 
-    public static function updateEntry(int $id, int $familyId, array $d, ?array $file = null): void
+    public static function updateEntry(int $id, int $familyId, array $d, ?array $file = null, ?array $sourceDocument = null): void
     {
         $existing = self::getEntryById($id);
         $filePath = $existing['file_path'] ?? null;
@@ -49,7 +51,10 @@ class Vault
             if ($filePath) @unlink(BASE_PATH . $filePath);
             $filePath = $fileOriginal = $fileMime = null;
         }
-        if ($file && $file['error'] === UPLOAD_ERR_OK) {
+        if ($sourceDocument) {
+            if ($filePath) @unlink(BASE_PATH . $filePath);
+            [$filePath, $fileOriginal, $fileMime] = self::copyFromDocument($sourceDocument, $familyId);
+        } elseif ($file && $file['error'] === UPLOAD_ERR_OK) {
             if ($filePath) @unlink(BASE_PATH . $filePath);
             [$filePath, $fileOriginal, $fileMime] = OcrHelper::saveUploadedFile($file, 'vault', $familyId);
         }
@@ -58,6 +63,26 @@ class Vault
             'UPDATE vault_entries SET category=?, title=?, content=?, file_path=?, file_original=?, file_mime=? WHERE id=? AND family_id=?',
             [$d['category'], $d['title'], $d['content'], $filePath, $fileOriginal, $fileMime, $id, $familyId]
         );
+    }
+
+    /** Copie physique du fichier (jamais une simple référence au file_path du document source) :
+     *  le coffre-fort et le module Documents suppriment chacun leurs fichiers sans savoir si une
+     *  autre table les référence (voir Document::delete(), PremiumDataPurge) — partager le même
+     *  chemin ferait disparaître le fichier d'un module quand l'autre le supprime. */
+    private static function copyFromDocument(array $document, int $familyId): array
+    {
+        $srcPath = BASE_PATH . $document['file_path'];
+        if (!is_file($srcPath)) {
+            throw new \RuntimeException('Le fichier du document source est introuvable.');
+        }
+        $ext = pathinfo($document['file_path'], PATHINFO_EXTENSION);
+        $destDir = BASE_PATH . '/storage/vault/' . $familyId;
+        if (!is_dir($destDir)) mkdir($destDir, 0755, true);
+        $filename = bin2hex(random_bytes(16)) . ($ext ? '.' . $ext : '');
+        if (!@copy($srcPath, $destDir . '/' . $filename)) {
+            throw new \RuntimeException('Impossible de copier le document dans le coffre-fort.');
+        }
+        return ['/storage/vault/' . $familyId . '/' . $filename, $document['file_original'], $document['file_mime']];
     }
 
     public static function deleteEntry(int $id, int $familyId): void

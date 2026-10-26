@@ -110,6 +110,18 @@ use App\Models\Vault;
                 <textarea id="entry-content" rows="4" placeholder="Numéro de contrat, identifiants, instructions…"></textarea>
             </div>
             <div class="form-group">
+                <label>Document déjà présent dans « Documents »</label>
+                <select id="entry-document-id" onchange="onEntryDocumentChange()">
+                    <option value="">— Aucun, uploader un fichier ci-dessous —</option>
+                    <?php foreach ($documents as $doc): ?>
+                        <option value="<?= $doc['id'] ?>"><?= htmlspecialchars($doc['title']) ?><?= $doc['file_original'] ? ' (' . htmlspecialchars($doc['file_original']) . ')' : '' ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <p style="color:var(--text-muted);font-size:.78rem;margin:.3rem 0 0">
+                    Une copie du fichier est ajoutée au coffre-fort — modifier ou supprimer le document original n'affecte pas cette copie.
+                </p>
+            </div>
+            <div class="form-group" id="entry-file-group">
                 <label>Fichier (image/PDF)</label>
                 <input type="file" id="entry-file" accept="image/*,application/pdf">
                 <div id="entry-current-file" style="font-size:.85rem;margin-top:.3rem"></div>
