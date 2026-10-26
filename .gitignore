@@ -1,7 +1,70 @@
-config/config.local.php
-public/uploads/*
-!public/uploads/.gitkeep
+# Gradle
+.gradle/
+build/
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration
+local.properties
+*.properties
+
+# Logs
 *.log
+
+# Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Generated files
+*.apk
+*.aab
+*.ap_
+
+# Keystores
+*.jks
+*.keystore
+
+# OS files
 .DS_Store
 /vendor/
 /storage/app_key.bin
+config/config.local.php
+public/uploads/*
+!public/uploads/.gitkeep
+
+# TWA (Trusted Web Activity) Android project — jamais la clé de signature ni
+# les fichiers générés localement par Gradle/Bubblewrap (voir .github/workflows/android.yml
+# et le guide dans le dépôt pour builder l'APK/AAB via GitHub Actions).
+android/android.keystore
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/app-release-signed.apk
+android/app-release-bundle.aab
+android/app-release-unsigned-aligned.apk
+Thumbs.db
+
+# Kotlin
+*.klib
+
+# Hilt
+app/build/generated/hilt/
+
+# Room
+schemas/
+
+# ProGuard
+proguard/
+
+# Test reports
+reports/
+
+# Coverage
+coverage/
+
+# Signing configs
+signing.properties

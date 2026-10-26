@@ -40,6 +40,7 @@ use App\Controllers\InvitationController;
 use App\Controllers\CoparentController;
 use App\Controllers\ContactController;
 use App\Controllers\WishlistController;
+use App\Controllers\WishlistChildAccessController;
 use App\Controllers\PollController;
 use App\Controllers\PortalLinkController;
 use App\Controllers\HighlightController;
@@ -683,6 +684,11 @@ $router->post('/api/wishlist/:id/delete', [WishlistController::class, 'delete'])
 $router->post('/api/wishlist/:id/reserve', [WishlistController::class, 'reserve']);
 $router->post('/api/wishlist/:id/unreserve', [WishlistController::class, 'unreserve']);
 $router->post('/api/wishlist/:id/purchased', [WishlistController::class, 'markPurchased']);
+$router->post('/api/wishlist/:id/refresh-image', [WishlistController::class, 'refreshImage']);
+$router->post('/api/wishlist/children/:id/regenerate-link', [WishlistController::class, 'regenerateChildLink']);
+$router->get('/liste-cadeaux/:token', [WishlistChildAccessController::class, 'view']);
+$router->post('/liste-cadeaux/:token/items/:itemId/reserve', [WishlistChildAccessController::class, 'reserve']);
+$router->post('/liste-cadeaux/:token/items/:itemId/unreserve', [WishlistChildAccessController::class, 'unreserve']);
 
 // Sondages familiaux
 $router->get('/polls', [PollController::class, 'index']);
