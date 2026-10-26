@@ -25,6 +25,9 @@ use App\Models\Vault;
         <div style="background:color-mix(in srgb, var(--success) 12%, transparent);border-left:3px solid var(--success);border-radius:6px;padding:.85rem 1rem;margin:1.25rem 0">
             <p style="margin:0">✅ Votre accès a été validé. Vous pouvez consulter le contenu du coffre-fort ci-dessous.</p>
         </div>
+        <?php if (!empty($entries)): ?>
+        <a class="btn btn-primary" href="<?= BASE_URL ?>/vault-access/<?= htmlspecialchars($params['token'] ?? '') ?>/download-all">⬇️ Tout télécharger (.zip)</a>
+        <?php endif; ?>
         <?php foreach (Vault::CATEGORIES as $slug => $cat): ?>
             <?php $catEntries = array_values(array_filter($entries, fn($e) => $e['category'] === $slug)); ?>
             <?php if (!empty($catEntries)): ?>

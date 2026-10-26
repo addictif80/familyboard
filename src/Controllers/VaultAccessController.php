@@ -58,6 +58,27 @@ class VaultAccessController extends BaseController
         exit;
     }
 
+    /** Téléchargement de tout le coffre-fort en une fois (ZIP) par une personne de confiance
+     *  approuvée — même authentification par token que serveFile() ci-dessus. */
+    public function downloadAll(array $params): void
+    {
+        $token = $params['token'] ?? '';
+        $trustee = Vault::findTrusteeByToken($token);
+        if (!$trustee || $trustee['status'] !== 'approved') {
+            http_response_code(403);
+            echo 'Accès refusé.';
+            return;
+        }
+
+        $zipPath = Vault::buildZip((int)$trustee['family_id']);
+        header('Content-Type: application/zip');
+        header('Content-Length: ' . filesize($zipPath));
+        header($this->contentDispositionHeader('coffre-fort.zip', 'attachment'));
+        readfile($zipPath);
+        unlink($zipPath);
+        exit;
+    }
+
     /** Déclenche une demande d'accès d'urgence — notifie les administrateurs de la famille,
      *  qui devront valider depuis l'application (jamais d'ouverture automatique par e-mail). */
     public function request(array $params): void
