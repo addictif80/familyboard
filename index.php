@@ -416,6 +416,7 @@ $router->post('/api/vault/trustees/:id/decide', [VaultController::class, 'decide
 $router->post('/api/vault/trustees/:id/revoke', [VaultController::class, 'revokeTrustee']);
 $router->get('/vault-access/:token', [VaultAccessController::class, 'view']);
 $router->post('/vault-access/:token/request', [VaultAccessController::class, 'request']);
+$router->get('/vault-access/:token/entries/:id/file', [VaultAccessController::class, 'serveFile']);
 
 $router->get('/api/birth-list', [BirthListController::class, 'get']);
 $router->post('/api/birth-list/regenerate-link', [BirthListController::class, 'regenerateLink']);

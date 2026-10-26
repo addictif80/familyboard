@@ -34,7 +34,7 @@ use App\Models\Vault;
                         <li style="margin-bottom:.6rem">
                             <strong><?= htmlspecialchars($e['title']) ?></strong>
                             <?php if ($e['content']): ?><div style="white-space:pre-wrap;font-size:.9rem"><?= htmlspecialchars($e['content']) ?></div><?php endif; ?>
-                            <?php if ($e['file_path']): ?><div style="font-size:.85rem">📎 <?= htmlspecialchars($e['file_original']) ?></div><?php endif; ?>
+                            <?php if ($e['file_path']): ?><div style="font-size:.85rem">📎 <a href="<?= BASE_URL ?>/vault-access/<?= htmlspecialchars($params['token'] ?? '') ?>/entries/<?= $e['id'] ?>/file" target="_blank">📥 <?= htmlspecialchars($e['file_original']) ?></a></div><?php endif; ?>
                         </li>
                     <?php endforeach; ?>
                 </ul>

@@ -25,6 +25,39 @@ class VaultAccessController extends BaseController
         require BASE_PATH . '/templates/vault/access.php';
     }
 
+    /** Téléchargement d'une pièce jointe par une personne de confiance approuvée — authentifié
+     *  par son propre token de lien magique (pas de session), jamais par l'id seul de l'entrée. */
+    public function serveFile(array $params): void
+    {
+        $token = $params['token'] ?? '';
+        $trustee = Vault::findTrusteeByToken($token);
+        if (!$trustee || $trustee['status'] !== 'approved') {
+            http_response_code(403);
+            echo 'Accès refusé.';
+            return;
+        }
+
+        $entry = Vault::getEntryById((int)$params['id']);
+        if (!$entry || (int)$entry['family_id'] !== (int)$trustee['family_id'] || !$entry['file_path']) {
+            http_response_code(404);
+            echo 'Introuvable.';
+            return;
+        }
+        $path = BASE_PATH . $entry['file_path'];
+        if (!file_exists($path)) {
+            http_response_code(404);
+            echo 'Introuvable.';
+            return;
+        }
+
+        header('Content-Type: ' . $entry['file_mime']);
+        header('Content-Length: ' . filesize($path));
+        header($this->contentDispositionHeader($entry['file_original']));
+        header('Cache-Control: private, max-age=3600');
+        readfile($path);
+        exit;
+    }
+
     /** Déclenche une demande d'accès d'urgence — notifie les administrateurs de la famille,
      *  qui devront valider depuis l'application (jamais d'ouverture automatique par e-mail). */
     public function request(array $params): void
