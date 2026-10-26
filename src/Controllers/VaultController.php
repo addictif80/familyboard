@@ -2,6 +2,7 @@
 namespace App\Controllers;
 
 use App\Core\Session;
+use App\Models\Document;
 use App\Models\Vault;
 
 class VaultController extends BaseController
@@ -15,6 +16,7 @@ class VaultController extends BaseController
         $familyId = (int)$user['family_id'];
         $entries = Vault::getEntries($familyId);
         $trustees = Vault::getTrustees($familyId);
+        $documents = Document::getAll($familyId);
         require BASE_PATH . '/templates/vault/index.php';
     }
 
@@ -24,9 +26,12 @@ class VaultController extends BaseController
         $this->requireAdmin();
         $this->json(function () {
             $user = Session::user();
-            $d = $this->validatedEntry($_POST ?: $this->jsonInput());
+            $data = $_POST ?: $this->jsonInput();
+            $sourceDocument = $this->ownedDocument($data['document_id'] ?? null);
+            if (empty($data['title']) && $sourceDocument) $data['title'] = $sourceDocument['title'];
+            $d = $this->validatedEntry($data);
             if (!$d) return ['success' => false, 'error' => 'Le titre est requis.'];
-            $id = Vault::createEntry((int)$user['family_id'], (int)$user['id'], $d, $_FILES['file'] ?? null);
+            $id = Vault::createEntry((int)$user['family_id'], (int)$user['id'], $d, $_FILES['file'] ?? null, $sourceDocument);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -40,10 +45,12 @@ class VaultController extends BaseController
             $entry = $this->ownedEntry((int)$params['id']);
             if (!$entry) return ['success' => false, 'error' => 'Entrée introuvable.'];
             $data = $_POST ?: $this->jsonInput();
+            $sourceDocument = $this->ownedDocument($data['document_id'] ?? null);
+            if (empty($data['title']) && $sourceDocument) $data['title'] = $sourceDocument['title'];
             $d = $this->validatedEntry($data);
             if (!$d) return ['success' => false, 'error' => 'Le titre est requis.'];
             $d['remove_file'] = !empty($data['remove_file']);
-            Vault::updateEntry((int)$params['id'], (int)$user['family_id'], $d, $_FILES['file'] ?? null);
+            Vault::updateEntry((int)$params['id'], (int)$user['family_id'], $d, $_FILES['file'] ?? null, $sourceDocument);
             return ['success' => true];
         });
     }
@@ -139,6 +146,16 @@ class VaultController extends BaseController
             Vault::revokeAccess((int)$params['id'], (int)$user['family_id']);
             return ['success' => true];
         });
+    }
+
+    /** Document du module Documents choisi comme source d'une entrée du coffre-fort — jamais
+     *  référencé directement (voir Vault::copyFromDocument()), toujours copié physiquement. */
+    private function ownedDocument($id): ?array
+    {
+        $id = (int)$id;
+        if (!$id) return null;
+        $user = Session::user();
+        return Document::findById($id, (int)$user['family_id']);
     }
 
     private function ownedEntry(int $id): ?array

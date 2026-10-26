@@ -8,8 +8,10 @@ function openNewEntryModal() {
     document.getElementById('entry-title').value = '';
     document.getElementById('entry-category').value = 'autre';
     document.getElementById('entry-content').value = '';
+    document.getElementById('entry-document-id').value = '';
     document.getElementById('entry-file').value = '';
     document.getElementById('entry-current-file').innerHTML = '';
+    onEntryDocumentChange();
     openModal('entry-modal');
 }
 
@@ -19,23 +21,39 @@ function openEditEntryModal(entry) {
     document.getElementById('entry-title').value = entry.title;
     document.getElementById('entry-category').value = entry.category;
     document.getElementById('entry-content').value = entry.content || '';
+    document.getElementById('entry-document-id').value = '';
     document.getElementById('entry-file').value = '';
     document.getElementById('entry-current-file').innerHTML = entry.file_path
         ? `📎 <a href="${BASE_URL}/api/vault/entries/${entry.id}/file" target="_blank">${entry.file_original}</a>`
         : '';
+    onEntryDocumentChange();
     openModal('entry-modal');
+}
+
+/** Choisir un document existant et uploader un fichier sont mutuellement exclusifs — le champ
+ *  fichier est masqué tant qu'un document est sélectionné, pour éviter toute ambiguïté sur ce
+ *  qui sera réellement copié dans le coffre-fort au moment d'enregistrer. */
+function onEntryDocumentChange() {
+    const hasDocument = !!document.getElementById('entry-document-id').value;
+    document.getElementById('entry-file-group').style.display = hasDocument ? 'none' : '';
+    if (hasDocument) document.getElementById('entry-file').value = '';
 }
 
 async function saveEntry() {
     const title = document.getElementById('entry-title').value.trim();
-    if (!title) { Dialog.toast('Le titre est requis.', 'error'); return; }
+    const documentId = document.getElementById('entry-document-id').value;
+    if (!title && !documentId) { Dialog.toast('Le titre est requis.', 'error'); return; }
 
     const fd = new FormData();
     fd.append('title', title);
     fd.append('category', document.getElementById('entry-category').value);
     fd.append('content', document.getElementById('entry-content').value);
-    const fileInput = document.getElementById('entry-file');
-    if (fileInput.files[0]) fd.append('file', fileInput.files[0]);
+    if (documentId) {
+        fd.append('document_id', documentId);
+    } else {
+        const fileInput = document.getElementById('entry-file');
+        if (fileInput.files[0]) fd.append('file', fileInput.files[0]);
+    }
 
     const id = document.getElementById('entry-id').value;
     const url = id ? `${BASE_URL}/api/vault/entries/${id}` : `${BASE_URL}/api/vault/entries`;
