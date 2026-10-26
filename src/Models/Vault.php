@@ -3,6 +3,7 @@ namespace App\Models;
 
 use App\Core\Database;
 use App\Core\OcrHelper;
+use ZipArchive;
 
 class Vault
 {
@@ -151,5 +152,51 @@ class Vault
             "UPDATE vault_trustees SET status='denied', decided_at=NOW() WHERE id=? AND family_id=? AND status='approved'",
             [$id, $familyId]
         );
+    }
+
+    /**
+     * Archive ZIP de toutes les entrées du coffre-fort d'une famille : les pièces jointes
+     * (fichiers) sous fichiers/, et le texte (titre + contenu) de chaque entrée dans un
+     * recapitulatif.txt — pour que le "tout télécharger" conserve aussi les entrées sans fichier
+     * (comptes, contacts, souhaits...). Retourne le chemin absolu du ZIP temporaire (à supprimer
+     * après envoi par l'appelant).
+     */
+    public static function buildZip(int $familyId): string
+    {
+        $entries = self::getEntries($familyId);
+        $tmpZip = tempnam(sys_get_temp_dir(), 'coffrefort_') . '.zip';
+        $zip = new ZipArchive();
+        $zip->open($tmpZip, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+        $recap = '';
+        $used = [];
+        foreach ($entries as $e) {
+            $label = self::CATEGORIES[$e['category']]['label'] ?? 'Autre';
+            $recap .= "=== " . $e['title'] . " (" . $label . ") ===\n";
+            if ($e['content']) $recap .= $e['content'] . "\n";
+            if ($e['file_path']) $recap .= "Pièce jointe : " . $e['file_original'] . "\n";
+            $recap .= "\n";
+
+            if ($e['file_path']) {
+                $abs = BASE_PATH . $e['file_path'];
+                if (is_file($abs)) {
+                    $name = self::sanitizeFilename($e['title']) . '_' . basename($abs);
+                    if (isset($used[$name])) $name = uniqid() . '_' . $name;
+                    $used[$name] = true;
+                    $zip->addFile($abs, 'fichiers/' . $name);
+                }
+            }
+        }
+
+        $zip->addFromString('recapitulatif.txt', $recap !== '' ? $recap : "Le coffre-fort est vide.\n");
+        $zip->close();
+        return $tmpZip;
+    }
+
+    private static function sanitizeFilename(string $name): string
+    {
+        $name = preg_replace('/[^\p{L}\p{N} _-]+/u', '', $name);
+        $name = trim($name);
+        return $name !== '' ? mb_strimwidth($name, 0, 60, '') : 'entree';
     }
 }

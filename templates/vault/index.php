@@ -8,7 +8,10 @@ use App\Models\Vault;
 <div class="tasks-main" style="width:100%">
     <div class="tasks-header">
         <h2>🔐 Coffre-fort numérique</h2>
-        <button class="btn btn-primary btn-sm" onclick="openNewEntryModal()">+ Nouvelle entrée</button>
+        <div style="display:flex;gap:.5rem">
+            <a class="btn btn-secondary btn-sm" href="<?= BASE_URL ?>/api/vault/download-all">⬇️ Tout télécharger</a>
+            <button class="btn btn-primary btn-sm" onclick="openNewEntryModal()">+ Nouvelle entrée</button>
+        </div>
     </div>
     <p style="color:var(--text-muted);font-size:.85rem;margin-top:-.5rem">Documents importants, comptes, contacts utiles et souhaits — accessibles à vos personnes de confiance uniquement après validation d'une demande d'accès d'urgence.</p>
 

@@ -85,6 +85,20 @@ class VaultController extends BaseController
         exit;
     }
 
+    public function downloadAll(array $params): void
+    {
+        $this->requireAuth();
+        $this->requireAdmin();
+        $user = Session::user();
+        $zipPath = Vault::buildZip((int)$user['family_id']);
+        header('Content-Type: application/zip');
+        header('Content-Length: ' . filesize($zipPath));
+        header($this->contentDispositionHeader('coffre-fort.zip', 'attachment'));
+        readfile($zipPath);
+        unlink($zipPath);
+        exit;
+    }
+
     public function createTrustee(array $params): void
     {
         $this->requireAuth();

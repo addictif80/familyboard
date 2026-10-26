@@ -4,7 +4,12 @@ ob_start();
 
 use App\Models\Vault;
 ?>
-<div class="card" style="max-width:640px;margin:2rem auto;padding:1.5rem">
+<!-- .auth-wrapper (layout.php, visiteur non connecté) est un flex-row pensé pour une seule
+     carte centrée : ce wrapper column permet d'empiler la bannière promo au-dessus de la carte
+     principale plutôt qu'à côté. -->
+<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%;margin-top:2rem">
+<?php if ($trustee): $bannerFamilyId = (int)$trustee['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
+<div class="card" style="max-width:640px;margin:0 auto;padding:1.5rem;width:100%">
 <?php if (!$trustee): ?>
     <h2>⛔ Lien invalide</h2>
     <p style="color:var(--text-muted)">Ce lien d'accès n'existe pas. Contactez la famille pour en obtenir un nouveau.</p>
@@ -25,6 +30,9 @@ use App\Models\Vault;
         <div style="background:color-mix(in srgb, var(--success) 12%, transparent);border-left:3px solid var(--success);border-radius:6px;padding:.85rem 1rem;margin:1.25rem 0">
             <p style="margin:0">✅ Votre accès a été validé. Vous pouvez consulter le contenu du coffre-fort ci-dessous.</p>
         </div>
+        <?php if (!empty($entries)): ?>
+        <a class="btn btn-primary" href="<?= BASE_URL ?>/vault-access/<?= htmlspecialchars($params['token'] ?? '') ?>/download-all">⬇️ Tout télécharger (.zip)</a>
+        <?php endif; ?>
         <?php foreach (Vault::CATEGORIES as $slug => $cat): ?>
             <?php $catEntries = array_values(array_filter($entries, fn($e) => $e['category'] === $slug)); ?>
             <?php if (!empty($catEntries)): ?>
@@ -45,6 +53,7 @@ use App\Models\Vault;
         <?php endif; ?>
     <?php endif; ?>
 <?php endif; ?>
+</div>
 </div>
 
 <script>

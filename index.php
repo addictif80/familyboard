@@ -410,6 +410,7 @@ $router->post('/api/vault/entries', [VaultController::class, 'createEntry']);
 $router->post('/api/vault/entries/:id', [VaultController::class, 'updateEntry']);
 $router->post('/api/vault/entries/:id/delete', [VaultController::class, 'deleteEntry']);
 $router->get('/api/vault/entries/:id/file', [VaultController::class, 'serveFile']);
+$router->get('/api/vault/download-all', [VaultController::class, 'downloadAll']);
 $router->post('/api/vault/trustees', [VaultController::class, 'createTrustee']);
 $router->post('/api/vault/trustees/:id/delete', [VaultController::class, 'deleteTrustee']);
 $router->post('/api/vault/trustees/:id/decide', [VaultController::class, 'decideTrustee']);
@@ -417,6 +418,7 @@ $router->post('/api/vault/trustees/:id/revoke', [VaultController::class, 'revoke
 $router->get('/vault-access/:token', [VaultAccessController::class, 'view']);
 $router->post('/vault-access/:token/request', [VaultAccessController::class, 'request']);
 $router->get('/vault-access/:token/entries/:id/file', [VaultAccessController::class, 'serveFile']);
+$router->get('/vault-access/:token/download-all', [VaultAccessController::class, 'downloadAll']);
 
 $router->get('/api/birth-list', [BirthListController::class, 'get']);
 $router->post('/api/birth-list/regenerate-link', [BirthListController::class, 'regenerateLink']);
