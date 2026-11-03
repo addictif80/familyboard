@@ -272,6 +272,7 @@ $router->post('/api/additions', [AdditionController::class, 'create']);
 $router->post('/api/additions/:id/delete', [AdditionController::class, 'delete']);
 $router->post('/api/additions/:id/participants', [AdditionController::class, 'inviteParticipant']);
 $router->post('/api/additions/participants/:id/respond', [AdditionController::class, 'respond']);
+$router->post('/api/additions/participants/:id/paid', [AdditionController::class, 'markParticipantPaid']);
 $router->get('/letters', [LetterController::class, 'index']);
 $router->post('/api/letters', [LetterController::class, 'create']);
 $router->post('/api/letters/:id', [LetterController::class, 'update']);
