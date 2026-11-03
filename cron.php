@@ -23,6 +23,7 @@ use App\Core\Database;
 use App\Core\Mail;
 use App\Core\DateHelper;
 use App\Models\Family;
+use App\Models\Health;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\TaskList;
@@ -277,6 +278,16 @@ function sendExpiryReminders(int $familyId, array $members, string $appUrl): voi
     }
     foreach (Database::fetchAll('SELECT id, title, deadline_date FROM admin_procedures WHERE family_id=? AND done=0', [$familyId]) as $p) {
         $items[] = ['kind' => 'La démarche', 'ref' => 'admin_procedure_' . $p['id'], 'label' => $p['title'], 'date' => $p['deadline_date'], 'url' => '/admin-procedures'];
+    }
+    // Rappels de vaccination (et autres rappels du carnet de santé) : health_entries.reminder_date
+    // n'avait jamais été relié à ce mécanisme — restait saisi sans jamais rien rappeler à personne.
+    foreach (Database::fetchAll(
+        'SELECT id, title, reminder_date, entry_type, subject_type, subject_id FROM health_entries
+         WHERE family_id=? AND reminder_date IS NOT NULL', [$familyId]
+    ) as $h) {
+        $subject = Health::subjectLabel($familyId, $h['subject_type'], (int)$h['subject_id']);
+        $kind = $h['entry_type'] === 'vaccination' ? 'Le rappel de vaccination de' : 'Le rappel santé de';
+        $items[] = ['kind' => $kind, 'ref' => 'health_' . $h['id'], 'label' => ($subject['name'] ?? '?') . ' — ' . $h['title'], 'date' => $h['reminder_date'], 'url' => '/health'];
     }
 
     foreach ($items as $item) {

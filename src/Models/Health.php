@@ -17,9 +17,11 @@ class Health
      *  possibles d'une fiche santé. */
     public static function getSubjects(int $familyId): array
     {
-        $members = array_map(fn($m) => ['type' => 'user', 'id' => (int)$m['id'], 'name' => $m['name'], 'color' => $m['color']],
+        $members = array_map(fn($m) => ['type' => 'user', 'id' => (int)$m['id'], 'name' => $m['name'], 'color' => $m['color'], 'birth_date' => null],
             array_filter(User::getByFamily($familyId), fn($m) => $m['role'] !== 'coparent'));
-        $children = array_map(fn($c) => ['type' => 'child', 'id' => (int)$c['id'], 'name' => $c['name'], 'color' => $c['color']],
+        // birth_date (si connue) alimente la suggestion du calendrier vaccinal (voir health.js) —
+        // jamais exploitée ailleurs pour un sujet "enfant".
+        $children = array_map(fn($c) => ['type' => 'child', 'id' => (int)$c['id'], 'name' => $c['name'], 'color' => $c['color'], 'birth_date' => $c['birth_date'] ?? null],
             FamilyChild::getByFamily($familyId));
         return array_merge($members, $children);
     }

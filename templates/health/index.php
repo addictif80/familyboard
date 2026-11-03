@@ -32,7 +32,7 @@ $subjectLabel = function ($type, $id) use ($subjects) {
             <div class="form-row">
                 <div class="form-group">
                     <label>Concerne</label>
-                    <select id="entry-subject">
+                    <select id="entry-subject" onchange="updateVaccineScheduleVisibility()">
                         <?php foreach ($subjects as $s): ?>
                             <option value="<?= $s['type'] ?>:<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
                         <?php endforeach; ?>
@@ -40,7 +40,7 @@ $subjectLabel = function ($type, $id) use ($subjects) {
                 </div>
                 <div class="form-group">
                     <label>Type</label>
-                    <select id="entry-type">
+                    <select id="entry-type" onchange="updateVaccineScheduleVisibility()">
                         <?php foreach (Health::ENTRY_TYPES as $slug => $t): ?>
                             <option value="<?= $slug ?>"><?= $t['icon'] ?> <?= htmlspecialchars($t['label']) ?></option>
                         <?php endforeach; ?>
@@ -50,6 +50,13 @@ $subjectLabel = function ($type, $id) use ($subjects) {
                     <label>Date</label>
                     <input type="date" id="entry-date">
                 </div>
+            </div>
+            <div class="form-group" id="vaccine-schedule-wrap" style="display:none">
+                <label>💉 Calendrier vaccinal (France) — suggestion pour cet enfant</label>
+                <select id="vaccine-schedule-select" onchange="applyVaccineSuggestion()">
+                    <option value="">— Choisir un âge pour pré-remplir le titre, la date et le rappel —</option>
+                </select>
+                <small class="form-hint">Calcule la date à partir de la date de naissance de l'enfant. Vérifiez toujours avec votre médecin : ce calendrier peut évoluer.</small>
             </div>
             <div class="form-row">
                 <div class="form-group flex-2">
@@ -236,6 +243,12 @@ $subjectLabel = function ($type, $id) use ($subjects) {
         </div>
     </div>
 </div>
+<script>
+// Date de naissance des sujets "enfant" (null pour les membres adultes) — alimente la
+// suggestion du calendrier vaccinal (voir updateVaccineScheduleVisibility() dans health.js).
+const HEALTH_SUBJECT_BIRTHDATES = <?= json_encode(array_column(array_filter($subjects, fn($s) => $s['type'] === 'child'), 'birth_date', 'id')) ?>;
+document.addEventListener('DOMContentLoaded', () => { if (document.getElementById('entry-subject')) updateVaccineScheduleVisibility(); });
+</script>
 
 <?php
 $content = ob_get_clean();
