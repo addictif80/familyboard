@@ -20,6 +20,10 @@ use App\Models\VaultwardenSettings;
 class Vaultwarden
 {
     private const TIMEOUT = 15;
+    // /admin/invite fait envoyer un e-mail par Vaultwarden lui-même (SMTP synchrone côté serveur)
+    // avant de répondre — un relais SMTP lent/injoignable peut dépasser le délai habituel sans
+    // que la connexion à l'instance elle-même soit en cause.
+    private const INVITE_TIMEOUT = 30;
 
     /**
      * Authentifie le jeton admin et retourne le cookie de session à réutiliser, ou une erreur
@@ -79,7 +83,7 @@ class Vaultwarden
         $ch = curl_init($settings['url'] . '/admin/invite');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => self::TIMEOUT,
+            CURLOPT_TIMEOUT        => self::INVITE_TIMEOUT,
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode(['email' => $email]),
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Cookie: ' . $cookie],
