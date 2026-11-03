@@ -194,6 +194,7 @@ class AdminController extends BaseController
         $ollamaSettings = \App\Models\OllamaSettings::get();
         $oneMinSettings = \App\Models\OneMinAiSettings::get();
         $aiProvider = \App\Core\AiProvider::get();
+        $githubConfigured = \App\Core\GitHubPublisher::isConfigured();
         $mailcowSettings = MailcowSettings::get();
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
@@ -576,6 +577,82 @@ class AdminController extends BaseController
         $id = (int)$params['id'];
         SupportTicket::setStatus($id, 'open');
         $this->redirect('/admin/tickets/' . $id);
+    }
+
+    // ── Correction assistée par IA (voir App\Core\AiCodeFixer / GitHubPublisher) ──────
+
+    public function analyzeTicketWithAi(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () use ($params) {
+            $id = (int)$params['id'];
+            $ticket = SupportTicket::getById($id);
+            if (!$ticket) return ['success' => false, 'error' => 'Ticket introuvable.'];
+            if (empty($ticket['error_file'])) {
+                return ['success' => false, 'error' => 'Aucun fichier identifié pour ce ticket.'];
+            }
+            // Le sujet est tronqué à 80 caractères (voir ErrorReporter::report()) — le premier
+            // message du ticket contient le message d'erreur complet ("Détails : …").
+            $firstMessage = SupportTicket::getMessages($id)[0]['message'] ?? '';
+            $errorMessage = preg_match('/Détails\s*:\s*(.+)/u', $firstMessage, $m) ? trim($m[1]) : $ticket['subject'];
+            $result = \App\Core\AiCodeFixer::proposeFix($errorMessage, $ticket['error_file'], $ticket['error_line'] ? (int)$ticket['error_line'] : null);
+            if (!$result['ok']) {
+                SupportTicket::saveAiFixError($id, $result['error']);
+                return ['success' => false, 'error' => $result['error']];
+            }
+            SupportTicket::saveAiFixProposal($id, $result['diagnosis'], $result['relative_path'], $result['original_content'], $result['proposed_content']);
+            return ['success' => true];
+        });
+    }
+
+    public function publishTicketFix(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () use ($params) {
+            $id = (int)$params['id'];
+            $ticket = SupportTicket::getById($id);
+            if (!$ticket || $ticket['ai_fix_status'] !== 'proposed') {
+                return ['success' => false, 'error' => 'Aucune proposition en attente pour ce ticket.'];
+            }
+            $result = \App\Core\GitHubPublisher::openFixPr(
+                $id,
+                $ticket['ai_fix_relative_path'],
+                $ticket['ai_fix_proposed_content'],
+                $ticket['ai_fix_diagnosis'],
+                $ticket['subject']
+            );
+            if (!$result['ok']) {
+                SupportTicket::saveAiFixError($id, $result['error']);
+                return ['success' => false, 'error' => $result['error']];
+            }
+            SupportTicket::saveAiFixPrUrl($id, $result['pr_url']);
+            return ['success' => true, 'pr_url' => $result['pr_url']];
+        });
+    }
+
+    public function rejectTicketFix(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () use ($params) {
+            SupportTicket::clearAiFixProposal((int)$params['id']);
+            return ['success' => true];
+        });
+    }
+
+    /** Champ mot de passe laissé vide = ne pas changer le jeton existant (évite de le vider par
+     *  erreur en rouvrant le formulaire, puisqu'il n'est jamais réaffiché en clair). */
+    public function updateGithubSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $token = trim($_POST['github_pat'] ?? '');
+        if ($token !== '') AppSetting::set('github_pat', $token);
+        $this->redirect('/admin?tab=notifications&msg=ollama_saved');
+    }
+
+    public function testGithubConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\GitHubPublisher::testConnection());
     }
 
     // ── Notifications système (à tous les utilisateurs, ou ciblée) ─
