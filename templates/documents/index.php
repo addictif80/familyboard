@@ -120,6 +120,8 @@ $totalDocs = array_sum($typeCounts);
                     <?php if ($doc['file_path']): ?>
                         <a href="<?= BASE_URL ?>/documents/file/<?= $doc['id'] ?>" target="_blank"
                            class="doc-file-badge" onclick="event.stopPropagation()">📎 Voir</a>
+                        <a href="<?= BASE_URL ?>/documents/file/<?= $doc['id'] ?>?download=1"
+                           class="doc-file-badge" onclick="event.stopPropagation()" title="Télécharger">⬇️</a>
                     <?php endif; ?>
                     <?php if ($doc['tags']): ?>
                         <?php foreach (array_slice(explode(',', $doc['tags']), 0, 3) as $tag): ?>

@@ -165,9 +165,10 @@ class DocumentController extends BaseController
         $mime = $doc['file_mime'] ?: mime_content_type($path);
         $name = $doc['file_original'] ?: basename($path);
 
+        $disposition = !empty($_GET['download']) ? 'attachment' : 'inline';
         header('Content-Type: ' . $mime);
         header('Content-Length: ' . filesize($path));
-        header($this->contentDispositionHeader($name));
+        header($this->contentDispositionHeader($name, $disposition));
         header('Cache-Control: private, max-age=3600');
         readfile($path);
         exit;

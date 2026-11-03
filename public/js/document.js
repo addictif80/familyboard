@@ -409,7 +409,10 @@ function openDocDetail(item) {
             ${rows.map(([k,v]) => `<tr><th>${escapeHtml(k)}</th><td>${v}</td></tr>`).join('')}
         </table>
         ${item.file_path ? `
-        <div style="margin-top:1rem;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-height:500px">
+        <div style="margin-top:1rem;display:flex;justify-content:flex-end">
+            <a href="${BASE_URL}/documents/file/${item.id}?download=1" class="btn btn-sm btn-secondary">⬇️ Télécharger</a>
+        </div>
+        <div style="margin-top:.5rem;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-height:500px">
             ${item.file_mime && item.file_mime.startsWith('image/')
                 ? `<img src="${BASE_URL}/documents/file/${item.id}" style="width:100%;max-height:480px;object-fit:contain">`
                 : `<iframe src="${BASE_URL}/documents/file/${item.id}" style="width:100%;height:480px;border:none"></iframe>`
