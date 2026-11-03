@@ -1692,6 +1692,7 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .ai-diff-del { color: var(--danger); display: block; }
 .ai-diff-hunk { color: var(--text-muted); display: block; }
 .ai-diff-head { color: var(--text-muted); font-weight: 600; display: block; }
+#bw-items-list mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: inherit; border-radius: 3px; padding: 0 .1em; }
 .admin-layout { display: flex; min-height: 100vh; }
 .admin-sidebar { width: 220px; flex-shrink: 0; background: var(--card-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
 .admin-sidebar-header { padding: 1.25rem 1rem; font-weight: 700; font-size: 1.1rem; border-bottom: 1px solid var(--border); }
