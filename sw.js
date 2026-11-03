@@ -141,6 +141,42 @@ self.addEventListener('push', e => {
     e.waitUntil(self.registration.showNotification(title, options));
 });
 
+// Chrome fait parfois tourner/invalider l'abonnement push en silence (rotation interne, nettoyage
+// système...), y compris quand l'app n'est pas ouverte. Sans ce handler, l'ancien endpoint devient
+// mort côté serveur et l'utilisateur arrête de recevoir des notifications jusqu'à sa prochaine
+// visite — où public/js/app.js::initPushSubscription() ne fait que RE-ENVOYER l'abonnement
+// existant, sans jamais en recréer un nouveau. Ici, on se réabonne nous-mêmes avec la même clé
+// serveur et on prévient FamilyBoard, sans attendre que quelqu'un rouvre l'app.
+self.addEventListener('pushsubscriptionchange', e => {
+    const applicationServerKey = e.oldSubscription && e.oldSubscription.options
+        ? e.oldSubscription.options.applicationServerKey
+        : null;
+    if (!applicationServerKey) return;
+
+    e.waitUntil(
+        self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })
+            .then(newSub => fetch('/api/push/subscribe', {
+                method: 'POST',
+                // X-Requested-With est ce qui fait passer cette requête pour de l'AJAX côté
+                // serveur (voir BaseController::isAjax()) et donc dispense du jeton CSRF — sans
+                // lui, le serveur répond success:false et rien n'est corrigé silencieusement.
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                body: JSON.stringify(newSub.toJSON()),
+            }).then(() => {
+                if (e.oldSubscription) {
+                    return fetch('/api/push/unsubscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ endpoint: e.oldSubscription.endpoint }),
+                    });
+                }
+            }))
+            .catch(() => { /* retentera au prochain déclenchement ou à la prochaine visite */ })
+    );
+});
+
 self.addEventListener('notificationclick', e => {
     e.notification.close();
     const url = e.notification.data && e.notification.data.url ? e.notification.data.url : '/';
