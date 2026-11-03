@@ -210,6 +210,12 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                     <span class="nav-label">Albums photo</span>
                 </a>
             </li>
+            <li class="nav-item <?= str_contains($currentPath, '/annual-recap') ? 'active' : '' ?>" data-section="vie-de-famille">
+                <a href="<?= BASE_URL ?>/annual-recap" class="nav-link">
+                    <span class="nav-icon">🎞️</span>
+                    <span class="nav-label">Récap annuel</span>
+                </a>
+            </li>
             <?php endif; ?>
             <?php if ($_navEnabled('chat')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>" data-section="vie-de-famille">

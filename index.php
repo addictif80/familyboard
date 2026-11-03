@@ -77,6 +77,7 @@ use App\Controllers\VaultAccessController;
 use App\Controllers\BirthListController;
 use App\Controllers\BirthListAccessController;
 use App\Controllers\AiAssistantController;
+use App\Controllers\AnnualRecapController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -439,6 +440,8 @@ $router->post('/liste-naissance/:token/items/:itemId/unreserve', [BirthListAcces
 $router->get('/ai-assistant', [AiAssistantController::class, 'index']);
 $router->get('/api/ai-assistant/messages', [AiAssistantController::class, 'getMessages']);
 $router->post('/api/ai-assistant/message', [AiAssistantController::class, 'sendMessage']);
+$router->get('/annual-recap', [AnnualRecapController::class, 'index']);
+$router->get('/api/annual-recap/data', [AnnualRecapController::class, 'data']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
