@@ -139,7 +139,7 @@ $_hasCustodyAccess = \App\Models\Custody::getSchedulesForUser($currentUser['id']
 $_navEnabled = fn (string $module) => !in_array($module, $_disabledModules)
     && !($currentUser['role'] === 'ado' && in_array($module, \App\Models\Family::ADO_RESTRICTED_MODULES, true));
 $_vaultwarden = \App\Models\VaultwardenSettings::get();
-$_ollamaConfigured = \App\Models\OllamaSettings::get() !== null;
+$_ollamaConfigured = \App\Core\AiProvider::isConfigured();
 ?>
 <?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
 <div class="app-wrapper">

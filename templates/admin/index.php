@@ -835,15 +835,35 @@
             <div id="vaultwarden-test-result" style="margin-top:.75rem"></div>
         </form>
 
-        <h2 style="margin-top:2rem">Assistant IA (Ollama auto-hébergé)</h2>
+        <h2 style="margin-top:2rem">Assistant IA</h2>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Branche un assistant conversationnel sur votre propre serveur Ollama (<code>https://ollama.com</code>) :
-            aucune donnée famille n'est envoyée à un service tiers. L'assistant peut créer des
-            tâches, des articles de liste de courses et des événements calendrier à la demande —
-            jamais rien d'autre (pas de suppression, pas d'accès aux modules sensibles). N'apparaît
-            dans une famille que si le module « Assistant IA » y est activé (réglages de la famille).
+            L'assistant peut créer des tâches, des articles de liste de courses et des événements
+            calendrier à la demande — jamais rien d'autre (pas de suppression, pas d'accès aux
+            modules sensibles). N'apparaît dans une famille que si le module « Assistant IA » y est
+            activé (réglages de la famille).
         </p>
-        <form method="POST" action="<?= BASE_URL ?>/admin/ollama" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+
+        <form method="POST" action="<?= BASE_URL ?>/admin/ai-provider" class="card" style="padding:1.25rem;max-width:640px;margin-bottom:1rem"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>Fournisseur actif</label>
+                <label class="radio-option">
+                    <input type="radio" name="provider" value="ollama" <?= $aiProvider === 'ollama' ? 'checked' : '' ?>>
+                    <span>Ollama auto-hébergé — aucune donnée famille envoyée à un tiers</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="provider" value="1min" <?= $aiProvider === '1min' ? 'checked' : '' ?>>
+                    <span>1min.ai — service externe compatible OpenAI, sans serveur à héberger</span>
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer le fournisseur</button>
+        </form>
+
+        <h3>Ollama (auto-hébergé)</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Branche l'assistant sur votre propre serveur Ollama (<code>https://ollama.com</code>) :
+            aucune donnée famille n'est envoyée à un service tiers.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/ollama" class="card" style="padding:1.25rem;max-width:640px;margin-bottom:1.5rem"><?= \App\Core\Csrf::field() ?>
             <div class="form-group">
                 <label>URL du serveur Ollama</label>
                 <input type="url" name="url" value="<?= htmlspecialchars($ollamaSettings['url'] ?? '') ?>" placeholder="http://localhost:11434">
@@ -860,6 +880,30 @@
                 <?php endif; ?>
             </div>
             <div id="ollama-test-result" style="margin-top:.75rem"></div>
+        </form>
+
+        <h3>1min.ai (service externe)</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Clé API de votre compte <a href="https://1min.ai" target="_blank" rel="noopener">1min.ai</a>.
+            Contrairement à Ollama, les messages de l'assistant sont envoyés à ce service tiers.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/onemin" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>Clé API 1min.ai</label>
+                <input type="password" name="api_key" value="<?= htmlspecialchars($oneMinSettings['api_key'] ?? '') ?>" placeholder="sk-...">
+            </div>
+            <div class="form-group">
+                <label>Modèle</label>
+                <input type="text" name="model" value="<?= htmlspecialchars($oneMinSettings['model'] ?? '') ?>" placeholder="<?= \App\Models\OneMinAiSettings::DEFAULT_MODEL ?>">
+                <small style="color:var(--text-muted)">Un modèle supportant l'appel d'outils (function calling), ex. gpt-4o-mini, gpt-4o.</small>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+                <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                <?php if ($oneMinSettings): ?>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testOneMinAi()">🔌 Tester la connexion</button>
+                <?php endif; ?>
+            </div>
+            <div id="onemin-test-result" style="margin-top:.75rem"></div>
         </form>
 
         <h2 style="margin-top:2rem">Alias e-mail famille (Mailcow)</h2>

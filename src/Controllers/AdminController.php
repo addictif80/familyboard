@@ -192,6 +192,8 @@ class AdminController extends BaseController
         $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
         $vaultwardenSettings = VaultwardenSettings::get();
         $ollamaSettings = \App\Models\OllamaSettings::get();
+        $oneMinSettings = \App\Models\OneMinAiSettings::get();
+        $aiProvider = \App\Core\AiProvider::get();
         $mailcowSettings = MailcowSettings::get();
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
@@ -678,6 +680,33 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $this->json(fn() => \App\Core\Ollama::testConnection());
+    }
+
+    public function updateAiProvider(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Core\AiProvider::set(trim($_POST['provider'] ?? ''));
+        $this->redirect('/admin?tab=notifications&msg=ollama_saved');
+    }
+
+    public function updateOneMinSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $apiKey = trim($_POST['api_key'] ?? '');
+        $model = trim($_POST['model'] ?? '');
+        if ($apiKey) {
+            \App\Models\OneMinAiSettings::save($apiKey, $model);
+        } else {
+            AppSetting::set('onemin_api_key', '');
+            AppSetting::set('onemin_model', '');
+        }
+        $this->redirect('/admin?tab=notifications&msg=ollama_saved');
+    }
+
+    public function testOneMinConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\OneMinAi::testConnection());
     }
 
     // ── Mailcow (alias e-mail <slug-famille>@domaine, redirigé vers les membres) ────
