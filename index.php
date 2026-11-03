@@ -65,6 +65,7 @@ use App\Controllers\EmploymentController;
 use App\Controllers\NannyController;
 use App\Controllers\DealController;
 use App\Controllers\HealthController;
+use App\Controllers\HealthShareController;
 use App\Controllers\VehicleController;
 use App\Controllers\PetController;
 use App\Controllers\MeterController;
@@ -365,6 +366,9 @@ $router->post('/api/health/growth/:id/delete', [HealthController::class, 'delete
 $router->post('/api/health/doctors', [HealthController::class, 'addDoctor']);
 $router->post('/api/health/doctors/:id', [HealthController::class, 'updateDoctor']);
 $router->post('/api/health/doctors/:id/delete', [HealthController::class, 'deleteDoctor']);
+$router->post('/api/health/share-links', [HealthController::class, 'createShareLink']);
+$router->post('/api/health/share-links/:id/revoke', [HealthController::class, 'revokeShareLink']);
+$router->get('/health-share/:token', [HealthShareController::class, 'view']);
 
 // ── Véhicules ─────────────────────────────────────────────────
 $router->get('/vehicles', [VehicleController::class, 'index']);

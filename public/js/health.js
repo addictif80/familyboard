@@ -165,3 +165,44 @@ async function deleteDoctor(id) {
     if (r.success) window.location.reload();
     else Dialog.toast(r.error || 'Erreur.', 'error');
 }
+
+// ---- Partage ponctuel avec un médecin ----
+
+function openHealthShareModal() {
+    document.getElementById('health-share-result').style.display = 'none';
+    document.getElementById('health-share-url').value = '';
+    openModal('health-share-modal');
+}
+
+async function createHealthShareLink() {
+    const [subjectType, subjectId] = document.getElementById('health-share-subject').value.split(':');
+    const durationDays = document.getElementById('health-share-duration').value;
+    const btn = document.getElementById('health-share-generate-btn');
+    btn.disabled = true;
+    const r = await apiFetch(`${BASE_URL}/api/health/share-links`, {
+        method: 'POST',
+        body: JSON.stringify({ subject_type: subjectType, subject_id: subjectId, duration_days: durationDays }),
+    });
+    btn.disabled = false;
+    if (r.success) {
+        document.getElementById('health-share-url').value = r.url;
+        document.getElementById('health-share-result').style.display = '';
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}
+
+function copyHealthShareLink() {
+    const input = document.getElementById('health-share-url');
+    input.select();
+    navigator.clipboard?.writeText(input.value);
+    Dialog.toast('Lien copié.', 'success');
+}
+
+async function revokeHealthShareLink(id) {
+    const ok = await Dialog.confirm('Révoquer ce lien ? Il ne sera plus accessible.');
+    if (!ok) return;
+    const r = await apiFetch(`${BASE_URL}/api/health/share-links/${id}/revoke`, { method: 'POST' });
+    if (r.success) window.location.reload();
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
