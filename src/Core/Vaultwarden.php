@@ -20,12 +20,17 @@ use App\Models\VaultwardenSettings;
 class Vaultwarden
 {
     private const TIMEOUT = 15;
+    // /admin/invite fait envoyer un e-mail par Vaultwarden lui-même (SMTP synchrone côté serveur)
+    // avant de répondre — un relais SMTP lent/injoignable peut dépasser le délai habituel sans
+    // que la connexion à l'instance elle-même soit en cause.
+    private const INVITE_TIMEOUT = 30;
 
     /**
-     * Authentifie le jeton admin et retourne le cookie de session à réutiliser, ou null si le
-     * jeton est invalide / l'instance est injoignable.
+     * Authentifie le jeton admin et retourne le cookie de session à réutiliser, ou une erreur
+     * explicite — distingue une instance injoignable (réseau/DNS/TLS) d'un jeton invalide, pour
+     * éviter de pointer l'administrateur vers la mauvaise cause.
      */
-    private static function login(string $baseUrl, string $token): ?string
+    private static function login(string $baseUrl, string $token): array
     {
         $ch = curl_init($baseUrl . '/admin');
         curl_setopt_array($ch, [
@@ -40,14 +45,21 @@ class Vaultwarden
         ]);
         $response = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
-        if ($response === false) return null;
+        if ($response === false) {
+            return ['cookie' => null, 'error' => "Instance Vaultwarden injoignable : " . ($curlError ?: 'erreur réseau inconnue')];
+        }
         // Connexion réussie : redirection (302) vers /admin avec un cookie de session posé.
         // Un jeton invalide renvoie 200 (la page de login elle-même), sans cookie.
-        if ($status !== 302 && $status !== 200) return null;
-        if (!preg_match('/Set-Cookie:\s*(VW_ADMIN=[^;]+)/i', $response, $m)) return null;
-        return $m[1];
+        if ($status !== 302 && $status !== 200) {
+            return ['cookie' => null, 'error' => "Réponse inattendue de l'instance Vaultwarden (HTTP $status)."];
+        }
+        if (!preg_match('/Set-Cookie:\s*(VW_ADMIN=[^;]+)/i', $response, $m)) {
+            return ['cookie' => null, 'error' => "Jeton admin Vaultwarden invalide."];
+        }
+        return ['cookie' => $m[1], 'error' => ''];
     }
 
     /**
@@ -62,15 +74,16 @@ class Vaultwarden
             return ['ok' => false, 'error' => 'Vaultwarden non configuré (URL/jeton admin manquants).'];
         }
 
-        $cookie = self::login($settings['url'], $settings['token']);
-        if (!$cookie) {
-            return ['ok' => false, 'error' => 'Connexion au panneau admin Vaultwarden refusée — vérifiez l\'URL et le jeton.'];
+        $login = self::login($settings['url'], $settings['token']);
+        if (!$login['cookie']) {
+            return ['ok' => false, 'error' => $login['error']];
         }
+        $cookie = $login['cookie'];
 
         $ch = curl_init($settings['url'] . '/admin/invite');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => self::TIMEOUT,
+            CURLOPT_TIMEOUT        => self::INVITE_TIMEOUT,
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode(['email' => $email]),
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Cookie: ' . $cookie],
@@ -78,10 +91,14 @@ class Vaultwarden
         ]);
         $body = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
         if ($status >= 200 && $status < 300) {
             return ['ok' => true, 'error' => ''];
+        }
+        if ($body === false) {
+            return ['ok' => false, 'error' => "Instance Vaultwarden injoignable pour l'invitation : " . ($curlError ?: 'erreur réseau inconnue')];
         }
         return ['ok' => false, 'error' => "Échec de l'invitation Vaultwarden (HTTP $status)" . ($body ? " : " . mb_strimwidth(strip_tags((string)$body), 0, 200, '…') : '')];
     }
@@ -93,9 +110,9 @@ class Vaultwarden
         if (!$settings) {
             return ['ok' => false, 'error' => 'URL et jeton admin requis.'];
         }
-        $cookie = self::login($settings['url'], $settings['token']);
-        if (!$cookie) {
-            return ['ok' => false, 'error' => 'Connexion refusée — vérifiez l\'URL et le jeton admin.'];
+        $login = self::login($settings['url'], $settings['token']);
+        if (!$login['cookie']) {
+            return ['ok' => false, 'error' => $login['error']];
         }
         return ['ok' => true, 'error' => ''];
     }
