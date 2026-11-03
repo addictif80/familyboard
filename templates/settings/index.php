@@ -438,12 +438,13 @@ ob_start();
                     <option value="A" <?= $currentZone === 'A' ? 'selected' : '' ?>>Zone A</option>
                     <option value="B" <?= $currentZone === 'B' ? 'selected' : '' ?>>Zone B</option>
                     <option value="C" <?= $currentZone === 'C' ? 'selected' : '' ?>>Zone C</option>
+                    <option value="Corse" <?= $currentZone === 'Corse' ? 'selected' : '' ?>>Corse</option>
                 </select>
                 <small style="color:var(--text-muted)">
                     <?php if ($suggestedZone): ?>
-                        Zone détectée d'après votre ville : <strong>Zone <?= htmlspecialchars($suggestedZone) ?></strong>.
+                        Zone détectée d'après votre ville : <strong><?= $suggestedZone === 'Corse' ? 'Corse' : 'Zone ' . htmlspecialchars($suggestedZone) ?></strong>.
                     <?php endif; ?>
-                    Zone A : Lyon, Bordeaux, Grenoble… · Zone B : Marseille, Nantes, Lille… · Zone C : Paris, Toulouse, Montpellier…
+                    Zone A : Lyon, Bordeaux, Grenoble… · Zone B : Marseille, Nantes, Lille… · Zone C : Paris, Toulouse, Montpellier… · Corse : Ajaccio, Bastia…
                 </small>
             </div>
             <div class="form-group">

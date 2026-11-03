@@ -5,9 +5,13 @@ use App\Core\Database;
 
 class SchoolHoliday
 {
+    /** Zones gérées — l'académie de Corse a son propre calendrier, distinct des zones A/B/C. */
+    private const ZONES = ['A', 'B', 'C', 'Corse'];
+
     /** Map common French city keywords (lowercase, accent-stripped) → zone */
     private const ZONE_MAP = [
-        // Zone C must be checked first (Paris, Toulouse, Montpellier, Versailles, Créteil)
+        // Corse et Zone C doivent être vérifiées avant A/B (Ajaccio/Bastia, Paris/Toulouse...)
+        'Corse' => ['ajaccio','bastia','corte','porto-vecchio','calvi','sartene'],
         'C' => ['paris','versailles','creteil','montpellier','toulouse','nimes','perpignan',
                 'beziers','sete','albi','castres','rodez','bobigny','argenteuil','evry',
                 'massy','melun','chartres','dreux','palaiseau','corbeil','montrouge'],
@@ -58,6 +62,18 @@ class SchoolHoliday
             ["Vacances d'hiver",          '2026-02-21', '2026-03-08'],
             ['Vacances de printemps',     '2026-04-18', '2026-05-03'],
         ],
+        // Académie de Corse : mêmes périodes de Noël et un rythme propre pour hiver/printemps,
+        // calé historiquement sur la zone B avec quelques jours de décalage.
+        'Corse' => [
+            ['Vacances de la Toussaint',  '2024-10-19', '2024-11-03'],
+            ['Vacances de Noël',          '2024-12-21', '2025-01-05'],
+            ["Vacances d'hiver",          '2025-02-15', '2025-03-02'],
+            ['Vacances de printemps',     '2025-04-12', '2025-04-27'],
+            ['Vacances de la Toussaint',  '2025-10-18', '2025-11-02'],
+            ['Vacances de Noël',          '2025-12-20', '2026-01-04'],
+            ["Vacances d'hiver",          '2026-02-21', '2026-03-08'],
+            ['Vacances de printemps',     '2026-04-18', '2026-05-03'],
+        ],
     ];
 
     /** Attempt to detect school zone from a free-form city name. */
@@ -79,7 +95,7 @@ class SchoolHoliday
      */
     public static function getByZone(string $zone, string $start, string $end): array
     {
-        if (!in_array($zone, ['A', 'B', 'C'], true)) return [];
+        if (!in_array($zone, self::ZONES, true)) return [];
 
         try {
             if (self::isCacheStale($zone)) {
@@ -102,19 +118,32 @@ class SchoolHoliday
         }
     }
 
-    /** Force-refresh the cache from the government API. */
+    /**
+     * Force-refresh the cache from l'API officielle data.education.gouv.fr (jeu de données
+     * "fr-en-calendrier-scolaire"). Chaque académie d'une même zone a sa propre ligne mais les
+     * mêmes dates : on dédoublonne par (description, start_date, end_date).
+     *
+     * NB historique : la version précédente interrogeait l'ancienne API /explore/v2.1 en
+     * filtrant sur le champ `location` (qui contient en réalité le nom de l'académie, ex.
+     * "Bordeaux") avec la valeur "Zone X" — un filtre qui ne correspondait donc jamais à rien,
+     * si bien que le cache restait vide et l'app retombait silencieusement sur les dates
+     * codées en dur ci-dessus (FALLBACK) à chaque appel. Le bon champ est `zones`
+     * (ex. "Zone A", ou simplement "Corse" pour l'académie de Corse), sur l'API v1.0 toujours
+     * active.
+     */
     public static function refreshCache(string $zone): void
     {
         try {
-            $url = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets'
-                 . '/fr-en-calendrier-scolaire/records'
-                 . '?where=location%3D%22Zone%20' . urlencode($zone) . '%22'
-                 . '&limit=200&order_by=start_date';
+            $zoneLabel = $zone === 'Corse' ? 'Corse' : ('Zone ' . $zone);
+            $url = 'https://data.education.gouv.fr/api/records/1.0/search/'
+                 . '?dataset=fr-en-calendrier-scolaire'
+                 . '&q=' . rawurlencode('zones:"' . $zoneLabel . '"')
+                 . '&rows=200&sort=start_date';
 
             $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 8,
+                CURLOPT_TIMEOUT        => 10,
                 CURLOPT_SSL_VERIFYPEER => true,
             ]);
             $json = curl_exec($ch);
@@ -123,15 +152,26 @@ class SchoolHoliday
 
             if ($err || !$json) return;
             $data = json_decode($json, true);
-            if (empty($data['results'])) return;
+            if (empty($data['records'])) return;
+
+            $seen = [];
+            $rows = [];
+            foreach ($data['records'] as $rec) {
+                $f = $rec['fields'] ?? [];
+                $startDate   = substr($f['start_date'] ?? '', 0, 10);
+                $endDate     = substr($f['end_date']   ?? '', 0, 10);
+                $description = $f['description'] ?? 'Vacances scolaires';
+                if (!$startDate || !$endDate) continue;
+                $key = $description . '|' . $startDate . '|' . $endDate;
+                if (isset($seen[$key])) continue;
+                $seen[$key] = true;
+                $rows[] = [$description, $startDate, $endDate];
+            }
+            if (empty($rows)) return;
 
             Database::execute('DELETE FROM school_holidays WHERE zone = ?', [$zone]);
             $now = date('Y-m-d H:i:s');
-            foreach ($data['results'] as $r) {
-                $startDate   = substr($r['start_date'] ?? '', 0, 10);
-                $endDate     = substr($r['end_date']   ?? '', 0, 10);
-                $description = $r['description'] ?? 'Vacances scolaires';
-                if (!$startDate || !$endDate) continue;
+            foreach ($rows as [$description, $startDate, $endDate]) {
                 Database::execute(
                     'INSERT INTO school_holidays (zone, description, start_date, end_date, synced_at) VALUES (?,?,?,?,?)',
                     [$zone, $description, $startDate, $endDate, $now]
