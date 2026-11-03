@@ -72,6 +72,48 @@
             <?php endforeach; ?>
         </div>
 
+        <?php if (($ticket['source'] ?? 'user') === 'auto'): ?>
+        <div class="card" style="max-width:900px;margin-bottom:1.5rem">
+            <div class="card-header"><h3>🤖 Correction assistée par IA</h3></div>
+            <div style="padding:1rem" id="ai-fix-panel">
+                <?php if (empty($ticket['error_file'])): ?>
+                    <p class="empty-state">Aucun fichier identifié pour cette erreur — correction automatique impossible.</p>
+
+                <?php elseif ($ticket['ai_fix_status'] === 'none'): ?>
+                    <p style="color:var(--text-muted);font-size:.85rem">
+                        Fichier en cause : <code><?= htmlspecialchars($ticket['error_file']) ?></code><?= $ticket['error_line'] ? ' (ligne ' . (int)$ticket['error_line'] . ')' : '' ?>
+                    </p>
+                    <button class="btn btn-primary btn-sm" onclick="aiAnalyzeTicket(<?= $ticket['id'] ?>)" id="ai-analyze-btn">🤖 Analyser avec l'IA</button>
+
+                <?php elseif ($ticket['ai_fix_status'] === 'error'): ?>
+                    <p style="color:var(--danger)">❌ <?= htmlspecialchars($ticket['ai_fix_error'] ?? 'Erreur inconnue.') ?></p>
+                    <button class="btn btn-secondary btn-sm" onclick="aiAnalyzeTicket(<?= $ticket['id'] ?>)">Réessayer</button>
+
+                <?php elseif ($ticket['ai_fix_status'] === 'proposed'): ?>
+                    <div style="background:color-mix(in srgb, var(--accent) 10%, transparent);border-left:3px solid var(--accent);border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem">
+                        <strong>Diagnostic de l'IA :</strong>
+                        <p style="margin:.3rem 0 0"><?= nl2br(htmlspecialchars($ticket['ai_fix_diagnosis'])) ?></p>
+                    </div>
+                    <p style="font-size:.85rem;color:var(--text-muted)">Fichier : <code><?= htmlspecialchars($ticket['error_file']) ?></code></p>
+                    <?= \App\Core\TextDiff::renderHtml($ticket['ai_fix_original_content'], $ticket['ai_fix_proposed_content']) ?>
+                    <div style="display:flex;gap:.5rem;margin-top:1rem">
+                        <button class="btn btn-primary btn-sm" onclick="aiPublishFix(<?= $ticket['id'] ?>)">✅ Valider et publier sur GitHub</button>
+                        <button class="btn btn-secondary btn-sm" onclick="aiRejectFix(<?= $ticket['id'] ?>)">❌ Rejeter</button>
+                    </div>
+                    <p style="font-size:.78rem;color:var(--text-muted);margin-top:.5rem">
+                        La validation ouvre une Pull Request sur GitHub — aucun fichier n'est modifié directement sur ce serveur. Fusionner la Pull Request reste une action séparée, sur GitHub.
+                    </p>
+
+                <?php elseif ($ticket['ai_fix_status'] === 'pr_open'): ?>
+                    <p style="color:var(--success)">✅ Correctif publié : <a href="<?= htmlspecialchars($ticket['ai_fix_pr_url']) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($ticket['ai_fix_pr_url']) ?></a></p>
+                    <p style="font-size:.85rem;color:var(--text-muted)">Fusionner la Pull Request se fait sur GitHub.</p>
+                <?php endif; ?>
+
+                <div id="ai-fix-error" style="color:var(--danger);margin-top:.5rem"></div>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <div class="card" style="max-width:700px">
             <div class="card-header"><h3>Répondre</h3></div>
             <form method="POST" action="<?= BASE_URL ?>/admin/tickets/<?= $ticket['id'] ?>/reply" style="padding:1rem"><?= \App\Core\Csrf::field() ?>
@@ -83,5 +125,37 @@
         </div>
     </main>
 </div>
+<script>
+const AI_FIX_BASE_URL = <?= json_encode(BASE_URL) ?>;
+
+async function aiFixCall(path) {
+    const res = await fetch(`${AI_FIX_BASE_URL}${path}`, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    return res.json();
+}
+
+async function aiAnalyzeTicket(id) {
+    const btn = document.getElementById('ai-analyze-btn');
+    const errBox = document.getElementById('ai-fix-error');
+    errBox.textContent = '';
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse en cours…'; }
+    const r = await aiFixCall(`/admin/tickets/${id}/ai-analyze`);
+    if (r.success) { window.location.reload(); return; }
+    errBox.textContent = r.error || 'Erreur lors de l\'analyse.';
+    if (btn) { btn.disabled = false; btn.textContent = "🤖 Analyser avec l'IA"; }
+}
+
+async function aiPublishFix(id) {
+    const errBox = document.getElementById('ai-fix-error');
+    errBox.textContent = '';
+    const r = await aiFixCall(`/admin/tickets/${id}/ai-publish`);
+    if (r.success) { window.location.reload(); return; }
+    errBox.textContent = r.error || 'Erreur lors de la publication.';
+}
+
+async function aiRejectFix(id) {
+    const r = await aiFixCall(`/admin/tickets/${id}/ai-reject`);
+    if (r.success) window.location.reload();
+}
+</script>
 </body>
 </html>

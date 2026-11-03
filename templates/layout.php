@@ -488,8 +488,8 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             </li>
             <?php endif; ?>
             <?php if ($_vaultwarden): ?>
-            <li class="nav-item" data-section="suivi-securite">
-                <a href="<?= htmlspecialchars($_vaultwarden['url']) ?>" class="nav-link" target="_blank" rel="noopener">
+            <li class="nav-item <?= str_contains($currentPath, '/vault-passwords') ? 'active' : '' ?>" data-section="suivi-securite">
+                <a href="<?= BASE_URL ?>/vault-passwords" class="nav-link">
                     <span class="nav-icon">🔐</span>
                     <span class="nav-label">Coffre-fort</span>
                 </a>

@@ -101,6 +101,52 @@ class SupportTicket
         Database::execute('UPDATE support_tickets SET source=?, error_hash=? WHERE id=?', [$source, $hash, $id]);
     }
 
+    // ── Correction assistée par IA (voir App\Core\AiCodeFixer / GitHubPublisher) ──────
+
+    public static function setErrorLocation(int $id, string $file, ?int $line): void
+    {
+        Database::execute('UPDATE support_tickets SET error_file=?, error_line=? WHERE id=?', [$file, $line, $id]);
+    }
+
+    public static function saveAiFixProposal(int $id, string $diagnosis, string $relativePath, string $originalContent, string $proposedContent): void
+    {
+        Database::execute(
+            "UPDATE support_tickets SET ai_fix_status='proposed', ai_fix_diagnosis=?, ai_fix_relative_path=?, ai_fix_original_content=?,
+             ai_fix_proposed_content=?, ai_fix_pr_url=NULL, ai_fix_error=NULL, ai_fix_updated_at=NOW() WHERE id=?",
+            [$diagnosis, $relativePath, $originalContent, $proposedContent, $id]
+        );
+    }
+
+    public static function saveAiFixError(int $id, string $error): void
+    {
+        Database::execute(
+            "UPDATE support_tickets SET ai_fix_status='error', ai_fix_error=?, ai_fix_updated_at=NOW() WHERE id=?",
+            [$error, $id]
+        );
+    }
+
+    public static function saveAiFixPrUrl(int $id, string $prUrl): void
+    {
+        Database::execute(
+            "UPDATE support_tickets SET ai_fix_status='pr_open', ai_fix_pr_url=?, ai_fix_updated_at=NOW() WHERE id=?",
+            [$prUrl, $id]
+        );
+    }
+
+    /** « Rejeter » la proposition en cours (ex. correctif jugé incorrect) — remet le ticket en
+     *  état « non analysé » plutôt que de garder une proposition écartée, pour permettre une
+     *  nouvelle tentative immédiate. Refusé si une Pull Request a déjà été ouverte (il faut alors
+     *  la fermer/traiter directement sur GitHub, pas depuis FamilyBoard). */
+    public static function clearAiFixProposal(int $id): void
+    {
+        Database::execute(
+            "UPDATE support_tickets SET ai_fix_status='none', ai_fix_diagnosis=NULL, ai_fix_original_content=NULL,
+             ai_fix_proposed_content=NULL, ai_fix_error=NULL, ai_fix_updated_at=NOW()
+             WHERE id=? AND ai_fix_status!='pr_open'",
+            [$id]
+        );
+    }
+
     // ── Messages ────────────────────────────────────────────────
 
     public static function getMessages(int $ticketId): array

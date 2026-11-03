@@ -906,6 +906,30 @@
             <div id="onemin-test-result" style="margin-top:.75rem"></div>
         </form>
 
+        <h2 style="margin-top:2rem">Correction de bugs par l'IA (GitHub)</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Permet, depuis un ticket d'erreur technique, de demander à l'IA un correctif pour le
+            fichier en cause. Rien n'est jamais appliqué automatiquement : un correctif validé est
+            publié comme une <strong>Pull Request</strong> sur
+            <code><?= htmlspecialchars(GITHUB_FIX_REPO_OWNER . '/' . GITHUB_FIX_REPO_NAME) ?></code>
+            (branche <code><?= htmlspecialchars(GITHUB_FIX_BASE_BRANCH) ?></code>) — jamais un push direct.
+            Fusionner la Pull Request reste une action volontaire, sur GitHub.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/github" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>Jeton d'accès personnel GitHub (portée <code>repo</code>)</label>
+                <input type="password" name="github_pat" placeholder="<?= $githubConfigured ? '••••••••••••••••' : 'ghp_...' ?>" autocomplete="off">
+                <small style="color:var(--text-muted)">Laisser vide pour ne pas changer<?= $githubConfigured ? ' (un jeton est déjà enregistré)' : '' ?>.</small>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+                <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                <?php if ($githubConfigured): ?>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testGithub()">🔌 Tester la connexion</button>
+                <?php endif; ?>
+            </div>
+            <div id="github-test-result" style="margin-top:.75rem"></div>
+        </form>
+
         <h2 style="margin-top:2rem">Alias e-mail famille (Mailcow)</h2>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Crée automatiquement, pour chaque famille, un alias <code>&lt;nom-de-famille&gt;@<?= htmlspecialchars($mailcowSettings['domain'] ?? 'votre-domaine.fr') ?></code>

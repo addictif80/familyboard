@@ -29,31 +29,6 @@ async function confirmLogoutAllDevices() {
     window.location.href = BASE_URL + '/logout';
 }
 
-// ---- Coffre-fort de mots de passe (Vaultwarden) ----
-async function requestVaultInvite() {
-    const btn = document.getElementById('vault-invite-btn');
-    const msg = document.getElementById('vault-invite-message');
-    btn.disabled = true;
-    btn.textContent = 'Envoi en cours…';
-    const r = await apiFetch(BASE_URL + '/settings/vault/invite', { method: 'POST' });
-    if (r.success) {
-        if (r.already_existed) {
-            // Pas une vraie invitation : le compte existait déjà sur l'instance (créé avant
-            // FamilyBoard, ou invitation précédente déjà acceptée) — laisser le temps de lire
-            // avant que le rechargement ne remplace ce message par la carte habituelle.
-            Dialog.toast('Vous avez déjà un coffre sur cette instance — vous pouvez le gérer ci-dessous.', 'success');
-            setTimeout(() => window.location.reload(), 1800);
-            return;
-        }
-        window.location.reload();
-        return;
-    }
-    msg.style.color = 'var(--danger)';
-    msg.textContent = r.error || 'Erreur lors de l\'envoi de l\'invitation.';
-    btn.disabled = false;
-    btn.textContent = 'Créer mon coffre-fort';
-}
-
 // ---- Double authentification (2FA) ----
 function tfaShowStatus(mode) {
     ['none', 'totp', 'email'].forEach(m => {
