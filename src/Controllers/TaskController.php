@@ -121,6 +121,26 @@ class TaskController extends BaseController
         });
     }
 
+    /** POST /api/tasks/lists/:id/bulk-import — ajoute plusieurs titres d'un coup (un par ligne),
+     *  pour reconstituer vite une liste collée depuis une autre app (voir /migration). */
+    public function bulkImport(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $listId = (int)$params['id'];
+            $list = TaskList::getById($listId);
+            if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
+
+            $data = $this->jsonInput();
+            $lines = preg_split('/\r\n|\n|\r/', (string)($data['text'] ?? ''));
+            $count = TaskList::bulkCreateTasks($listId, (int)$user['id'], $lines);
+            return $count > 0
+                ? ['success' => true, 'count' => $count]
+                : ['success' => false, 'error' => 'Aucune ligne exploitable.'];
+        });
+    }
+
     public function toggleTask(array $params): void
     {
         $this->requireAuth();

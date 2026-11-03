@@ -78,6 +78,7 @@ use App\Controllers\BirthListController;
 use App\Controllers\BirthListAccessController;
 use App\Controllers\AiAssistantController;
 use App\Controllers\AnnualRecapController;
+use App\Controllers\MigrationController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -442,6 +443,7 @@ $router->get('/api/ai-assistant/messages', [AiAssistantController::class, 'getMe
 $router->post('/api/ai-assistant/message', [AiAssistantController::class, 'sendMessage']);
 $router->get('/annual-recap', [AnnualRecapController::class, 'index']);
 $router->get('/api/annual-recap/data', [AnnualRecapController::class, 'data']);
+$router->get('/migration', [MigrationController::class, 'index']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
@@ -497,6 +499,7 @@ $router->post('/tasks/list/:id/delete', [TaskController::class, 'deleteList']);
 $router->post('/api/tasks/list/:id/link-event', [TaskController::class, 'linkEvent']);
 $router->post('/api/tasks/list/:id/unlink-event', [TaskController::class, 'unlinkEvent']);
 $router->post('/api/tasks/list/:id/task', [TaskController::class, 'createTask']);
+$router->post('/api/tasks/list/:id/bulk-import', [TaskController::class, 'bulkImport']);
 $router->post('/api/tasks/task/:id/toggle', [TaskController::class, 'toggleTask']);
 $router->post('/api/tasks/task/:id/update', [TaskController::class, 'updateTask']);
 $router->post('/api/tasks/task/:id/delete', [TaskController::class, 'deleteTask']);
@@ -697,6 +700,7 @@ $router->post('/api/contacts', [ContactController::class, 'create']);
 $router->post('/api/contacts/:id', [ContactController::class, 'update']);
 $router->post('/api/contacts/:id/delete', [ContactController::class, 'delete']);
 $router->post('/api/contacts/:id/avatar', [ContactController::class, 'uploadAvatar']);
+$router->post('/api/contacts/import-vcf', [ContactController::class, 'importVcf']);
 
 // Liste de cadeaux
 $router->get('/wishlist', [WishlistController::class, 'index']);

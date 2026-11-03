@@ -121,4 +121,28 @@ class ContactController extends BaseController
             echo Contact::toVcard($c);
         }
     }
+
+    /** POST /api/contacts/import-vcf — import groupé depuis un fichier .vcf (export standard de
+     *  Google Contacts, iCloud, Outlook ou du répertoire du téléphone — voir /migration). */
+    public function importVcf(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            if (empty($_FILES['file']['tmp_name']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+                return ['success' => false, 'error' => 'Fichier manquant ou invalide.'];
+            }
+            if ($_FILES['file']['size'] > 2 * 1024 * 1024) {
+                return ['success' => false, 'error' => 'Fichier trop volumineux (max 2 Mo).'];
+            }
+            $content = file_get_contents($_FILES['file']['tmp_name']);
+            if ($content === false || !str_contains($content, 'BEGIN:VCARD')) {
+                return ['success' => false, 'error' => "Ce fichier ne semble pas être un fichier .vcf valide."];
+            }
+            $count = Contact::importVcf((int)$user['family_id'], (int)$user['id'], $content);
+            return $count > 0
+                ? ['success' => true, 'count' => $count]
+                : ['success' => false, 'error' => 'Aucun contact exploitable trouvé dans ce fichier.'];
+        });
+    }
 }
