@@ -35,6 +35,7 @@ use App\Controllers\CustodyController;
 use App\Controllers\ProjectController;
 use App\Controllers\SettingsController;
 use App\Controllers\VaultwardenProxyController;
+use App\Controllers\VaultPasswordsController;
 use App\Controllers\FamilyChildController;
 use App\Controllers\OnboardingController;
 use App\Controllers\InvitationController;
@@ -739,6 +740,7 @@ $router->post('/settings/2fa/email/enable', [SettingsController::class, 'enableT
 $router->post('/settings/2fa/disable', [SettingsController::class, 'disableTwoFactor']);
 $router->post('/settings/logout-all-devices', [SettingsController::class, 'logoutAllDevices']);
 $router->post('/settings/vault/invite', [SettingsController::class, 'requestVaultInvite']);
+$router->get('/vault-passwords', [VaultPasswordsController::class, 'index']);
 $router->post('/api/vaultwarden/prelogin', [VaultwardenProxyController::class, 'prelogin']);
 $router->post('/api/vaultwarden/token', [VaultwardenProxyController::class, 'token']);
 $router->get('/api/vaultwarden/sync', [VaultwardenProxyController::class, 'sync']);
