@@ -502,29 +502,49 @@ function sendRecurringAlerts(int $familyId, string $appUrl): void
         $alertDay = (int)$item['alert_days_before'];
         if ($alertDay <= 0) continue;
 
-        // The day we should send the alert
-        $triggerDay = (int)$item['day_of_month'] - $alertDay;
-        // Handle month wrap (e.g. day=1 with 3 days alert → trigger on last days of prev month)
-        if ($triggerDay < 1) {
-            // Calculate the trigger date properly
-            $dueDate  = new \DateTime(date('Y-m') . '-' . str_pad((string)$item['day_of_month'], 2, '0', STR_PAD_LEFT));
-            $trigDate = clone $dueDate;
-            $trigDate->modify("-{$alertDay} days");
+        $isYearly = ($item['frequency'] ?? 'monthly') === 'yearly';
+        $day = (int)$item['day_of_month'];
+
+        if ($isYearly) {
+            // Un abonnement annuel (assurance, cotisation...) ne tombe qu'une fois par an, au
+            // mois renewal_month — on calcule la date d'échéance de CETTE année (ou de l'année
+            // suivante si elle est déjà passée) plutôt que de supposer le mois courant.
+            $month = (int)($item['renewal_month'] ?? 0) ?: 1;
+            $year = (int)date('Y');
+            $dueDate = new \DateTime(sprintf('%04d-%02d-%02d', $year, $month, min($day, 28)));
+            if ($dueDate < new \DateTime($todayStr)) {
+                $dueDate = new \DateTime(sprintf('%04d-%02d-%02d', $year + 1, $month, min($day, 28)));
+            }
+            $trigDate = (clone $dueDate)->modify("-{$alertDay} days");
             if ($trigDate->format('Y-m-d') !== $todayStr) continue;
         } else {
-            if ($today !== $triggerDay) continue;
+            // The day we should send the alert
+            $triggerDay = $day - $alertDay;
+            // Handle month wrap (e.g. day=1 with 3 days alert → trigger on last days of prev month)
+            if ($triggerDay < 1) {
+                // Calculate the trigger date properly
+                $dueDate  = new \DateTime(date('Y-m') . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT));
+                $trigDate = clone $dueDate;
+                $trigDate->modify("-{$alertDay} days");
+                if ($trigDate->format('Y-m-d') !== $todayStr) continue;
+            } else {
+                if ($today !== $triggerDay) continue;
+                $dueDate = new \DateTime(date('Y-m') . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT));
+            }
         }
 
-        // Deduplication: already sent this month?
+        // Déduplication : déjà envoyée pour cette échéance ? (année pour un abonnement annuel,
+        // mois pour une opération mensuelle)
         if (!empty($item['last_alert_sent'])) {
             $lastSent = new \DateTime($item['last_alert_sent']);
             $now      = new \DateTime($todayStr);
-            if ($lastSent->format('Y-m') === $now->format('Y-m')) continue;
+            $samePeriod = $isYearly ? ($lastSent->format('Y') === $now->format('Y')) : ($lastSent->format('Y-m') === $now->format('Y-m'));
+            if ($samePeriod) continue;
         }
 
         $typeLabel = $item['type'] === 'income' ? 'virement' : 'prélèvement';
         $amountFmt = number_format((float)$item['amount'], 2, ',', ' ') . ' €';
-        $dueStr    = DateHelper::format(date('Y-m') . '-' . str_pad((string)$item['day_of_month'], 2, '0', STR_PAD_LEFT), 'j F Y');
+        $dueStr    = DateHelper::format($dueDate->format('Y-m-d'), 'j F Y');
 
         $rendered = EmailContent::render('budget_recurring', [
             'user_name'  => $item['user_name'],

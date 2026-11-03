@@ -57,7 +57,7 @@ ob_start();
                         <th>Montant</th>
                         <th>Catégorie</th>
                         <th>Membre</th>
-                        <th>Jour</th>
+                        <th>Échéance</th>
                         <th>Alerte</th>
                         <th></th>
                     </tr>
@@ -71,6 +71,9 @@ ob_start();
                             </span>
                         </td>
                         <td><strong><?= htmlspecialchars($r['title']) ?></strong>
+                            <?php if (!empty($r['provider'])): ?>
+                                <br><small style="color:var(--text-muted)"><?= htmlspecialchars($r['provider']) ?></small>
+                            <?php endif; ?>
                             <?php if ($r['notes']): ?>
                                 <br><small style="color:var(--text-muted)"><?= htmlspecialchars(mb_substr($r['notes'],0,40)) ?></small>
                             <?php endif; ?>
@@ -85,7 +88,14 @@ ob_start();
                                 <?= htmlspecialchars($r['user_name']) ?>
                             </div>
                         </td>
-                        <td>le <strong><?= $r['day_of_month'] ?></strong></td>
+                        <td>
+                            <?php if (($r['frequency'] ?? 'monthly') === 'yearly'): ?>
+                                <span class="badge" style="font-size:.7rem">annuel</span>
+                                le <strong><?= \App\Core\DateHelper::format(sprintf('2000-%02d-%02d', $r['renewal_month'] ?: 1, min((int)$r['day_of_month'], 28)), 'j F') ?></strong>
+                            <?php else: ?>
+                                le <strong><?= $r['day_of_month'] ?></strong>
+                            <?php endif; ?>
+                        </td>
                         <td><?= $r['alert_days_before'] > 0 ? $r['alert_days_before'] . 'j avant' : '—' ?></td>
                         <td>
                             <button class="btn-icon-sm" onclick="openEditRecurringModal(<?= htmlspecialchars(json_encode($r)) ?>)" title="Modifier">✏️</button>
@@ -246,13 +256,34 @@ ob_start();
                 <label class="radio-option"><input type="radio" name="rec-type-r" id="rec-type-expense" value="expense" checked> 💸 Prélèvement</label>
                 <label class="radio-option"><input type="radio" name="rec-type-r" id="rec-type-income"  value="income">  💵 Virement</label>
             </div>
-            <div class="form-group"><label>Titre</label><input type="text" id="rec-title" placeholder="Loyer, salaire, abonnement…"></div>
+            <div class="form-row">
+                <div class="form-group" style="flex:2"><label>Titre</label><input type="text" id="rec-title" placeholder="Loyer, salaire, abonnement…"></div>
+                <div class="form-group"><label>Fournisseur / service</label><input type="text" id="rec-provider" placeholder="Netflix, MAIF… (optionnel)"></div>
+            </div>
             <div class="form-row">
                 <div class="form-group"><label>Montant (€)</label><input type="number" id="rec-amount" step="0.01" min="0"></div>
                 <div class="form-group">
-                    <label>Jour du mois</label>
+                    <label>Fréquence</label>
+                    <select id="rec-frequency" onchange="toggleRecurringFrequency()">
+                        <option value="monthly">Mensuelle</option>
+                        <option value="yearly">Annuelle</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Jour <span id="rec-day-label-suffix">du mois</span></label>
                     <input type="number" id="rec-day" min="1" max="28" value="1">
                     <small style="color:var(--text-muted)">Entre 1 et 28</small>
+                </div>
+                <div class="form-group" id="rec-month-group" style="display:none">
+                    <label>Mois de renouvellement</label>
+                    <select id="rec-month">
+                        <option value="1">Janvier</option><option value="2">Février</option><option value="3">Mars</option>
+                        <option value="4">Avril</option><option value="5">Mai</option><option value="6">Juin</option>
+                        <option value="7">Juillet</option><option value="8">Août</option><option value="9">Septembre</option>
+                        <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+                    </select>
                 </div>
             </div>
             <div class="form-row">
