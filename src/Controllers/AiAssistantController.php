@@ -1,12 +1,11 @@
 <?php
 namespace App\Controllers;
 
-use App\Core\Ollama;
+use App\Core\AiProvider;
 use App\Core\Session;
 use App\Models\AiAssistant;
 use App\Models\AiAssistantAction;
 use App\Models\AiAssistantMessage;
-use App\Models\OllamaSettings;
 
 class AiAssistantController extends BaseController
 {
@@ -23,7 +22,7 @@ TXT;
     {
         $this->requireAuth();
         $this->requireModule('ai_assistant');
-        if (!OllamaSettings::get()) {
+        if (!AiProvider::isConfigured()) {
             Session::flash('error', "L'assistant IA n'est pas encore configuré par l'administrateur système.");
             header('Location: ' . BASE_URL . '/');
             exit;
@@ -76,7 +75,7 @@ TXT;
                 array_map(fn($m) => ['role' => $m['role'], 'content' => $m['content']], $history)
             );
 
-            $result = Ollama::chat($messages, AiAssistant::TOOLS);
+            $result = AiProvider::chat($messages, AiAssistant::TOOLS);
             if (!$result['ok']) {
                 return ['success' => false, 'error' => $result['error']];
             }
