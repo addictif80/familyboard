@@ -241,10 +241,29 @@ ob_start();
     </div>
 </div>
 
+<!-- Digest hebdomadaire IA -->
+<?php if ($weeklyDigest): ?>
+<div class="modal-overlay" id="weekly-digest-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>✨ Le point de la semaine</h3>
+            <button class="modal-close" onclick="Dashboard.dismissWeeklyDigest()">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="white-space:pre-wrap;line-height:1.5"><?= nl2br(htmlspecialchars($weeklyDigest['content'])) ?></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="Dashboard.dismissWeeklyDigest()">Compris, merci !</button>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
 var _weatherCity = <?= json_encode($family['weather_city'] ?? '') ?>;
 var _widgetConfig = <?= json_encode($widgetConfig) ?>;
 var _baseUrl = <?= json_encode(BASE_URL) ?>;
+var _hasWeeklyDigest = <?= $weeklyDigest ? 'true' : 'false' ?>;
 </script>
 <script src="<?= ASSETS_URL ?>/js/dashboard.js?v=<?= APP_VERSION ?>"></script>
 <?php

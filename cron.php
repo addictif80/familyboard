@@ -24,6 +24,7 @@ use App\Core\Mail;
 use App\Core\DateHelper;
 use App\Models\Family;
 use App\Models\Health;
+use App\Models\AiWeeklyDigest;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\TaskList;
@@ -114,6 +115,12 @@ foreach ($families as $family) {
     sendRecurringAlerts($familyId, $appUrl);
     sendWeeklyDigest($familyId, $family, $membersExcludingCoparent, $appUrl);
     sendExpiryReminders($familyId, $membersExcludingCoparent, $appUrl);
+
+    try {
+        generateAiWeeklyDigest($familyId);
+    } catch (\Throwable $e) {
+        error_log('generateAiWeeklyDigest error: ' . $e->getMessage());
+    }
 
     try {
         checkTimerAlerts($familyId, $membersExcludingCoparent);
@@ -766,6 +773,22 @@ function sendWeeklyDigest(int $familyId, array $family, array $members, string $
         Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'weekly_digest');
 
         echo "  → Weekly digest sent to {$member['email']}" . PHP_EOL;
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Digest hebdomadaire généré par l'IA (popup au prochain login/lancement de la PWA) : distinct du
+// résumé email sendWeeklyDigest() ci-dessus. Même créneau (dimanche en fin d'après-midi/soirée),
+// pour que le digest soit prêt dès le lundi matin — la contrainte UNIQUE (family_id, week_start)
+// de AiWeeklyDigest::generate() rend l'appel idempotent si le cron tourne plusieurs fois après ce
+// créneau le même dimanche.
+// ──────────────────────────────────────────────────────────────────────────
+function generateAiWeeklyDigest(int $familyId): void
+{
+    if ((int)date('N') !== 7 || (int)date('G') < 18) return;
+    if (AiWeeklyDigest::getForWeek($familyId, AiWeeklyDigest::currentWeekStart())) return;
+    if (AiWeeklyDigest::generate($familyId)) {
+        echo "  → AI weekly digest generated for family {$familyId}" . PHP_EOL;
     }
 }
 

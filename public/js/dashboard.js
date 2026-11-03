@@ -171,11 +171,22 @@ var Dashboard = (() => {
         return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
+    // ── Digest hebdomadaire IA ───────────────────────────────────
+    function dismissWeeklyDigest() {
+        const modal = document.getElementById('weekly-digest-modal');
+        if (modal) modal.style.display = 'none';
+        apiFetch(`${_baseUrl}/api/dashboard/weekly-digest/dismiss`, { method: 'POST' }).catch(() => {});
+    }
+
     // ── Init ─────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
         initDrag();
         loadWeather();
+        if (typeof _hasWeeklyDigest !== 'undefined' && _hasWeeklyDigest) {
+            const modal = document.getElementById('weekly-digest-modal');
+            if (modal) modal.style.display = 'flex';
+        }
     });
 
-    return { toggleWidget, openWidgetManager, closeWidgetManager, saveWidgets };
+    return { toggleWidget, openWidgetManager, closeWidgetManager, saveWidgets, dismissWeeklyDigest };
 })();

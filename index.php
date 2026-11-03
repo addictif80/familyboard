@@ -242,6 +242,7 @@ $router->get('/api/search', [SearchController::class, 'search']);
 // Dashboard
 $router->get('/', [DashboardController::class, 'index']);
 $router->post('/api/dashboard/widgets', [DashboardController::class, 'saveWidgets']);
+$router->post('/api/dashboard/weekly-digest/dismiss', [DashboardController::class, 'dismissWeeklyDigest']);
 
 // Calendar
 $router->get('/calendar', [CalendarController::class, 'index']);

@@ -10,6 +10,7 @@ use App\Models\Baby;
 use App\Models\Birthday;
 use App\Models\Family;
 use App\Models\NameDay;
+use App\Models\AiWeeklyDigest;
 use App\Core\Session;
 
 class DashboardController extends \App\Controllers\BaseController
@@ -53,6 +54,12 @@ class DashboardController extends \App\Controllers\BaseController
         $widgetConfig    = $this->getUserWidgets($user, $disabledModules);
         $todayNameDay    = NameDay::today();
 
+        try {
+            $weeklyDigest = AiWeeklyDigest::getUnseenForUser((int)$familyId, (int)$user['id']);
+        } catch (\Throwable) {
+            $weeklyDigest = null;
+        }
+
         // Fetch data for each enabled widget
         $widgetData = [];
         foreach ($widgetConfig as $w) {
@@ -61,6 +68,18 @@ class DashboardController extends \App\Controllers\BaseController
         }
 
         require BASE_PATH . '/templates/dashboard.php';
+    }
+
+    /** Appelé quand la popup du digest hebdomadaire IA est fermée — pour ne pas la réafficher
+     *  tant qu'un nouveau digest n'a pas été généré la semaine suivante. */
+    public function dismissWeeklyDigest(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            AiWeeklyDigest::markSeen((int)$user['id'], AiWeeklyDigest::currentWeekStart());
+            return ['success' => true];
+        });
     }
 
     public function saveWidgets(array $params): void
