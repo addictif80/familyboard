@@ -177,7 +177,7 @@ class SettingsController extends BaseController
                 return ['success' => false, 'error' => $result['error']];
             }
             \App\Core\Database::execute('UPDATE users SET vault_invited_at=NOW() WHERE id=?', [$user['id']]);
-            return ['success' => true];
+            return ['success' => true, 'already_existed' => $result['already_existed'] ?? false];
         });
     }
 

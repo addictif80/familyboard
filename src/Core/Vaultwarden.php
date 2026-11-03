@@ -95,10 +95,16 @@ class Vaultwarden
         curl_close($ch);
 
         if ($status >= 200 && $status < 300) {
-            return ['ok' => true, 'error' => ''];
+            return ['ok' => true, 'already_existed' => false, 'error' => ''];
         }
         if ($body === false) {
             return ['ok' => false, 'error' => "Instance Vaultwarden injoignable pour l'invitation : " . ($curlError ?: 'erreur réseau inconnue')];
+        }
+        // L'utilisateur a déjà un compte sur l'instance (créé avant FamilyBoard, ou via une
+        // invitation précédente déjà acceptée) — ce n'est pas un échec du point de vue de
+        // l'utilisateur : son coffre existe, FamilyBoard doit juste le considérer comme "créé".
+        if ($status === 409 && stripos((string)$body, 'already exists') !== false) {
+            return ['ok' => true, 'already_existed' => true, 'error' => ''];
         }
         return ['ok' => false, 'error' => "Échec de l'invitation Vaultwarden (HTTP $status)" . ($body ? " : " . mb_strimwidth(strip_tags((string)$body), 0, 200, '…') : '')];
     }
