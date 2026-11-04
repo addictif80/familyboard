@@ -12,9 +12,19 @@ use App\Models\SchoolHoliday;
 use App\Models\Notification;
 use App\Models\FamilyFriend;
 use App\Models\EventShare;
+use App\Core\DateHelper;
 
 class CalendarController extends BaseController
 {
+    /** Date/heure formatées pour le texte de la notification — un événement sans heure
+     *  (journée entière) n'affiche que la date. */
+    private function eventDateLabel(?array $event): string
+    {
+        if (!$event) return '';
+        $isAllDay = !empty($event['is_all_day']);
+        return DateHelper::format($event['start_datetime'], $isAllDay ? 'j F Y' : 'j F Y à H\hi');
+    }
+
     public function index(array $params): void
     {
         $this->requireAuth();
@@ -268,7 +278,9 @@ class CalendarController extends BaseController
             foreach ($data['custody_schedule_ids'] as $scheduleId) {
                 CustodyActivityLog::record($scheduleId, $user['id'], 'event_created', $data['title'] ?? null);
             }
-            Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Nouvel événement', $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/calendar');
+            Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Nouvel événement',
+                $user['name'] . ' a ajouté : ' . $data['title'] . ' — ' . $this->eventDateLabel($event),
+                BASE_URL . '/calendar', null, 'event', $id);
 
             // Le partage inter-familles ne doit jamais faire échouer la création d'un événement
             // "normal" — tolère l'absence des tables si la migration n'est pas encore appliquée.
@@ -308,7 +320,8 @@ class CalendarController extends BaseController
                 CustodyActivityLog::record($scheduleId, $user['id'], 'event_updated', $data['title'] ?? $event['title']);
             }
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement modifié',
-                $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']), BASE_URL . '/calendar');
+                $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']) . ' — ' . $this->eventDateLabel(Event::getById($id)),
+                BASE_URL . '/calendar', null, 'event', $id);
 
             // Jamais répercuté automatiquement chez les familles participantes : ça crée une
             // alerte à résoudre individuellement, voir EventShare::propagateUpdate(). Ne doit
@@ -343,7 +356,10 @@ class CalendarController extends BaseController
             }
             Event::delete($id);
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement supprimé',
-                $user['name'] . ' a supprimé : ' . $event['title'], BASE_URL . '/calendar');
+                $user['name'] . ' a supprimé : ' . $event['title'] . ' — ' . $this->eventDateLabel($event), BASE_URL . '/calendar');
+            // Pas d'entity_type/entity_id ici : l'événement vient d'être supprimé, un clic sur
+            // cette notification doit afficher son propre texte (déjà complet), pas tenter une
+            // prévisualisation d'un enregistrement qui n'existe plus.
             return ['success' => true];
         });
     }

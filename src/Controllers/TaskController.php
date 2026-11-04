@@ -115,7 +115,10 @@ class TaskController extends BaseController
             }
             $taskId = TaskList::createTask($listId, $user['id'], $data);
             if (!empty($data['assigned_to']) && (int)$data['assigned_to'] !== $user['id']) {
-                Notification::create((int)$data['assigned_to'], 'task', 'Tâche assignée', $user['name'] . ' vous a assigné : ' . $data['title'], BASE_URL . '/tasks?list=' . $listId);
+                $dueLabel = !empty($data['due_date']) ? ' — échéance ' . \App\Core\DateHelper::format($data['due_date'], 'j F Y') : '';
+                Notification::create((int)$data['assigned_to'], 'task', 'Tâche assignée',
+                    $user['name'] . ' vous a assigné : ' . $data['title'] . $dueLabel,
+                    BASE_URL . '/tasks?list=' . $listId, 'task', $taskId);
             }
             return ['success' => true, 'task' => TaskList::getTask($taskId)];
         });
@@ -197,7 +200,8 @@ class TaskController extends BaseController
             if ($newAssignee && $newAssignee !== $user['id']) {
                 Notification::create($newAssignee, 'task',
                     (int)$task['assigned_to'] === $newAssignee ? 'Tâche modifiée' : 'Tâche assignée',
-                    $user['name'] . ' a modifié : ' . $data['title'], BASE_URL . '/tasks?list=' . $task['list_id']);
+                    $user['name'] . ' a modifié : ' . $data['title'], BASE_URL . '/tasks?list=' . $task['list_id'],
+                    'task', $taskId);
             }
 
             return ['success' => true, 'task' => TaskList::getTask($taskId)];

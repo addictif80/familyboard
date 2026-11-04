@@ -169,7 +169,7 @@ class CoparentController extends BaseController
                 (int)$schedule['family_id'], $user['id'], 'custody',
                 'Proposition de garde reçue',
                 $user['name'] . ' a proposé des jours de garde pour ' . $schedule['child_name'] . '.',
-                BASE_URL . '/custody', $scheduleId
+                BASE_URL . '/custody', $scheduleId, 'custody_schedule', $scheduleId
             );
 
             return ['success' => true, 'created' => $created];
@@ -226,7 +226,7 @@ class CoparentController extends BaseController
 
             Notification::notifyFamily((int)$schedule['family_id'], $user['id'], 'comm_log',
                 'Journal parental', $user['name'] . ' a ajouté ' . ($audioPath ? 'un message vocal' : 'un message') . ' au sujet de ' . $schedule['child_name'] . '.',
-                BASE_URL . '/comm-log', $scheduleId);
+                BASE_URL . '/comm-log', $scheduleId, 'comm_log', $id);
 
             return [
                 'success' => true,
@@ -481,7 +481,7 @@ class CoparentController extends BaseController
             Notification::notifyFamily(
                 (int)$album['family_id'], $user['id'], 'albums', 'Nouvelle photo',
                 $user['name'] . ' a ajouté une photo à l\'album "' . $album['title'] . '".',
-                BASE_URL . '/albums/' . $album['id']
+                BASE_URL . '/albums/' . $album['id'], null, 'album_photo', $photoId
             );
 
             return ['success' => true, 'id' => $photoId, 'image_path' => $imagePath, 'user_name' => $user['name'], 'user_color' => $user['color']];

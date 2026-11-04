@@ -5,11 +5,17 @@ use App\Core\Database;
 
 class Notification
 {
-    public static function create(int $userId, string $type, string $title, string $message, ?string $link = null): int
-    {
+    /** $entityType/$entityId : l'enregistrement précis concerné (ex. 'event'/12), pour que le
+     *  clic sur la notification ouvre sa prévisualisation lecture seule (voir
+     *  NotificationController::preview()) au lieu de simplement renvoyer vers le module via
+     *  $link — qui reste affiché comme lien "page complète" de secours dans cette modal. */
+    public static function create(
+        int $userId, string $type, string $title, string $message, ?string $link = null,
+        ?string $entityType = null, ?int $entityId = null
+    ): int {
         $id = Database::insert(
-            'INSERT INTO notifications (user_id, type, title, message, link) VALUES (?,?,?,?,?)',
-            [$userId, $type, $title, $message, $link]
+            'INSERT INTO notifications (user_id, type, title, message, link, entity_type, entity_id) VALUES (?,?,?,?,?,?,?)',
+            [$userId, $type, $title, $message, $link, $entityType, $entityId]
         );
         try {
             \App\Core\Push::sendToUser($userId, $title, $message, $link);
@@ -17,6 +23,11 @@ class Notification
             error_log('Push notification error: ' . $e->getMessage());
         }
         return $id;
+    }
+
+    public static function getById(int $id): ?array
+    {
+        return Database::fetch('SELECT * FROM notifications WHERE id=?', [$id]);
     }
 
     public static function getByUser(int $userId, int $limit = 20): array
@@ -50,8 +61,10 @@ class Notification
      * ne doivent jamais être notifiés d'un évènement familial générique (mur, chat, document,
      * calendrier...) sans rapport avec la garde.
      */
-    public static function notifyFamily(int $familyId, int $excludeUserId, string $type, string $title, string $message, ?string $link = null, ?int $custodyScheduleId = null): void
-    {
+    public static function notifyFamily(
+        int $familyId, int $excludeUserId, string $type, string $title, string $message, ?string $link = null,
+        ?int $custodyScheduleId = null, ?string $entityType = null, ?int $entityId = null
+    ): void {
         $users = User::getByFamily($familyId);
         foreach ($users as $user) {
             if ($user['id'] === $excludeUserId) continue;
@@ -60,7 +73,7 @@ class Notification
                     continue;
                 }
             }
-            self::create((int)$user['id'], $type, $title, $message, $link);
+            self::create((int)$user['id'], $type, $title, $message, $link, $entityType, $entityId);
         }
     }
 
@@ -69,13 +82,15 @@ class Notification
      * du mur social) — réutilise notifyFamily() pour ma propre famille (mêmes règles co-parent),
      * puis notifie tous les membres non co-parent de chaque famille amie.
      */
-    public static function notifyNetwork(int $familyId, int $excludeUserId, string $type, string $title, string $message, ?string $link = null): void
-    {
-        self::notifyFamily($familyId, $excludeUserId, $type, $title, $message, $link);
+    public static function notifyNetwork(
+        int $familyId, int $excludeUserId, string $type, string $title, string $message, ?string $link = null,
+        ?string $entityType = null, ?int $entityId = null
+    ): void {
+        self::notifyFamily($familyId, $excludeUserId, $type, $title, $message, $link, null, $entityType, $entityId);
         foreach (\App\Models\FamilyFriend::getAcceptedFor($familyId) as $friendFamily) {
             foreach (User::getByFamily((int)$friendFamily['family_id']) as $member) {
                 if ($member['role'] === 'coparent') continue;
-                self::create((int)$member['id'], $type, $title, $message, $link);
+                self::create((int)$member['id'], $type, $title, $message, $link, $entityType, $entityId);
             }
         }
     }
@@ -116,7 +131,7 @@ class Notification
         $link  = BASE_URL . '/notifications/' . $sysId;
 
         foreach ($userIds as $id) {
-            self::create($id, 'system', $title, $shortText, $link);
+            self::create($id, 'system', $title, $shortText, $link, 'system', $sysId);
         }
         return count($userIds);
     }

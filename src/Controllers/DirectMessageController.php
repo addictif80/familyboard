@@ -58,7 +58,7 @@ class DirectMessageController extends BaseController
             $id = DirectMessage::send($threadId, (int)$user['id'], $content);
 
             Notification::create($otherId, 'wall', 'Nouveau message de ' . $user['name'],
-                mb_strimwidth($content, 0, 80, '…'), BASE_URL . '/messages/' . $user['id']);
+                mb_strimwidth($content, 0, 80, '…'), BASE_URL . '/messages/' . $user['id'], 'dm', $id);
 
             return ['success' => true, 'message' => [
                 'id' => $id,

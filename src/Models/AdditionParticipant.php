@@ -38,7 +38,7 @@ class AdditionParticipant
             $userId, 'addition',
             'Invitation à une addition',
             'Vous êtes invité(e) à participer à « ' . ($addition['title'] ?? '') . ' ».',
-            BASE_URL . '/additions'
+            BASE_URL . '/additions', 'addition', $additionId
         );
         return $id;
     }

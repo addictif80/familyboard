@@ -746,6 +746,7 @@ $router->post('/settings/delete-account', [SettingsController::class, 'deleteAcc
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
 $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
+$router->get('/api/notifications/:id/preview', [NotificationController::class, 'preview']);
 $router->post('/settings/notify', [SettingsController::class, 'sendNotification']);
 $router->post('/settings/2fa/totp/start', [SettingsController::class, 'startTwoFactorTotp']);
 $router->post('/settings/2fa/totp/confirm', [SettingsController::class, 'confirmTwoFactorTotp']);

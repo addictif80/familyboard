@@ -222,7 +222,7 @@ class CustodyController extends BaseController
             $parentUserId = $this->resolveCustodyParent($data['parent_user_id'] ?? null, $user, (int)$data['schedule_id']);
             $id = Custody::createEvent($data['schedule_id'], $parentUserId, $data);
             CustodyActivityLog::record((int)$data['schedule_id'], $user['id'], 'custody_event_created', $data['notes'] ?? null);
-            Notification::notifyFamily($user['family_id'], $user['id'], 'custody', 'Garde mise à jour', 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.', BASE_URL . '/custody', (int)$data['schedule_id']);
+            Notification::notifyFamily($user['family_id'], $user['id'], 'custody', 'Garde mise à jour', 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.', BASE_URL . '/custody', (int)$data['schedule_id'], 'custody_event', $id);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -313,7 +313,7 @@ class CustodyController extends BaseController
                 $user['family_id'], $user['id'], 'custody',
                 'Proposition de garde appliquée',
                 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.',
-                BASE_URL . '/custody', $scheduleId
+                BASE_URL . '/custody', $scheduleId, 'custody_schedule', $scheduleId
             );
 
             return ['success' => true, 'created' => $created];

@@ -86,7 +86,7 @@ class DocumentController extends BaseController
             }
 
             Notification::notifyFamily($user['family_id'], $user['id'], 'documents', 'Nouveau document',
-                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/documents');
+                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/documents', null, 'document', $id);
             return ['success' => true, 'id' => $id];
         });
     }

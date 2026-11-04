@@ -665,6 +665,26 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             <div id="notif-list"></div>
         </div>
 
+        <!-- Prévisualisation lecture seule d'une notification — voir readNotif() dans app.js.
+             Volontairement sans aucune action : seul un lien "Ouvrir la page complète" permet
+             d'agir, pour que cette modal reste un simple raccourci de consultation. -->
+        <div class="modal-overlay" id="notif-preview-modal" style="display:none">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="notif-preview-title"></h3>
+                    <button onclick="closeModal('notif-preview-modal')">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p id="notif-preview-time" style="color:var(--text-muted);font-size:.8rem;margin-top:0"></p>
+                    <div id="notif-preview-fields"></div>
+                </div>
+                <div class="modal-footer">
+                    <a href="#" id="notif-preview-link" class="btn btn-primary">Ouvrir la page complète</a>
+                    <button class="btn btn-secondary" onclick="closeModal('notif-preview-modal')">Fermer</button>
+                </div>
+            </div>
+        </div>
+
         <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
         <!-- Assistant IA : bulle superposée, pas une page (voir toggleAiAssistantPanel()) -->
         <div class="ai-assistant-panel" id="ai-assistant-panel">

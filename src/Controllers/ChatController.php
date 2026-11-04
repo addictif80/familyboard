@@ -51,7 +51,7 @@ class ChatController extends BaseController
             }
 
             Notification::notifyFamily($user['family_id'], $user['id'], 'chat',
-                $user['name'], $notifText, BASE_URL . '/chat');
+                $user['name'], $notifText, BASE_URL . '/chat', null, 'chat_message', $id);
 
             return [
                 'success' => true,
