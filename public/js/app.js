@@ -164,6 +164,13 @@ function toggleSidebar() {
     document.getElementById('sidebar-backdrop')?.classList.toggle('open', isOpen);
 }
 
+// Tiroir d'applications façon smartphone : uniquement pour la PWA installée (pas le navigateur
+// classique en onglet) — au-delà de 768px le sidebar reste la liste permanente habituelle (voir
+// la media query dans app.css), cette classe n'a donc d'effet que sur le tiroir mobile.
+if (typeof isStandalonePWA === 'function' && isStandalonePWA()) {
+    document.getElementById('sidebar')?.classList.add('pwa-app-drawer');
+}
+
 // ---- Sections repliables de la sidebar (état mémorisé par appareil) ----
 (function initNavSections() {
     const STORAGE_KEY = 'fb-nav-collapsed';

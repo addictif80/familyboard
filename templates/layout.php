@@ -158,13 +158,9 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
 
         <div class="sidebar-search">
             <span class="sidebar-search-icon">🔎</span>
-            <input type="text" id="sidebar-search-input" placeholder="Rechercher un module…" autocomplete="off">
+            <input type="text" id="sidebar-search-input" placeholder="Rechercher un module ou un enregistrement…" autocomplete="off">
         </div>
         <p class="sidebar-search-empty" id="sidebar-search-empty" style="display:none">Aucun résultat.</p>
-        <!-- Le contenu trouvé (tâches, contacts...) passe avant la liste des modules : sinon,
-             une recherche qui ne correspond à aucun module pousse ce qu'on cherche vraiment
-             tout en bas d'une liste de pages non pertinentes. -->
-        <div class="sidebar-content-results" id="sidebar-content-results"></div>
 
         <ul class="nav-menu">
             <li class="nav-item <?= $currentPath === BASE_URL . '/' || $currentPath === BASE_URL ? 'active' : '' ?>">
@@ -526,6 +522,10 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             </li>
             <?php endif; ?>
         </ul>
+
+        <!-- Le contenu trouvé (tâches, contacts...) vient APRÈS la liste des modules — un module
+             qui correspond à la recherche doit toujours apparaître en premier. -->
+        <div class="sidebar-content-results" id="sidebar-content-results"></div>
 
         <div class="sidebar-footer">
             <div class="user-menu" id="user-menu">
