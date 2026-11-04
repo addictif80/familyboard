@@ -362,6 +362,43 @@ ob_start();
         <p id="push-status" class="push-status" style="font-size:.8rem;margin-top:.5rem"></p>
     </div>
 
+    <!-- Synchronisation du calendrier avec le téléphone -->
+    <div class="card settings-section" id="calendar-sync-section">
+        <h3>📅 Synchroniser le calendrier avec mon mobile</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Abonnez l'application Calendrier de votre téléphone (Google Agenda, Calendrier iPhone,
+            Outlook...) au calendrier global FamilyBoard : événements, garde alternée, congés et
+            calendriers externes déjà synchronisés. Votre téléphone se tient à jour tout seul,
+            sans rien faire de plus ici.
+            <?php if (($user['role'] ?? '') === 'coparent'): ?>
+                Vous ne verrez que les événements de garde des plannings auxquels vous avez accès.
+            <?php endif; ?>
+        </p>
+        <button type="button" class="btn btn-primary" id="calendar-sync-btn" onclick="showCalendarSync()">
+            📱 Synchroniser le calendrier avec mon mobile
+        </button>
+        <div id="calendar-sync-result" style="display:none;margin-top:1rem">
+            <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start">
+                <div id="calendar-sync-qr" style="background:#fff;padding:.5rem;border-radius:8px"></div>
+                <div style="flex:1;min-width:220px">
+                    <label>Lien d'abonnement</label>
+                    <div style="display:flex;gap:.4rem">
+                        <input type="text" id="calendar-sync-url" readonly style="flex:1">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="copyCalendarSyncUrl()">Copier</button>
+                    </div>
+                    <small class="form-hint">
+                        Sur iPhone : Réglages → Calendrier → Comptes → Ajouter un compte → Autre →
+                        Calendrier à abonnement, puis collez ce lien. Sur Android/Google Agenda :
+                        sur ordinateur, agenda Google → Autres agendas → À partir de l'URL.
+                    </small>
+                    <button type="button" class="btn-text" style="margin-top:.5rem;color:var(--danger)" onclick="regenerateCalendarSync()">
+                        🔄 Régénérer le lien (téléphone perdu/revendu)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     </div>
     <!-- ═══ /Onglet : Application ═══ -->
     <?php endif; ?>

@@ -79,6 +79,7 @@ use App\Controllers\BirthListAccessController;
 use App\Controllers\AiAssistantController;
 use App\Controllers\AnnualRecapController;
 use App\Controllers\MigrationController;
+use App\Controllers\CalendarFeedController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -444,6 +445,9 @@ $router->post('/api/ai-assistant/message', [AiAssistantController::class, 'sendM
 $router->get('/annual-recap', [AnnualRecapController::class, 'index']);
 $router->get('/api/annual-recap/data', [AnnualRecapController::class, 'data']);
 $router->get('/migration', [MigrationController::class, 'index']);
+$router->get('/calendar-feed/:token', [CalendarFeedController::class, 'ics']);
+$router->post('/api/calendar-feed/token', [CalendarFeedController::class, 'getToken']);
+$router->post('/api/calendar-feed/regenerate', [CalendarFeedController::class, 'regenerate']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
