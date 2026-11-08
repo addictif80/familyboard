@@ -245,6 +245,14 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('stock')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/stock') ? 'active' : '' ?>" data-section="vie-de-famille">
+                <a href="<?= BASE_URL ?>/stock" class="nav-link">
+                    <span class="nav-icon">🧊</span>
+                    <span class="nav-label">Stock frigo/congélo</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('wishlist')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/wishlist') ? 'active' : '' ?>" data-section="vie-de-famille">
                 <a href="<?= BASE_URL ?>/wishlist" class="nav-link">
@@ -723,7 +731,7 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             // sous-pages (fiche d'un projet, d'un album…), pour éviter la lassitude.
             $_moduleHomePaths = ['/wall','/albums','/calendar','/custody','/comm-log','/tasks',
                 '/projects','/budget','/documents','/warranties','/baby','/location','/emergency',
-                '/wishlist','/polls','/links','/contacts','/meals','/chat'];
+                '/wishlist','/polls','/links','/contacts','/meals','/chat','/stock'];
             if (in_array(rtrim(substr($currentPath, strlen(BASE_URL)), '/'), $_moduleHomePaths, true)) {
                 $placement = 'module_pages';
                 require BASE_PATH . '/templates/partials/abhd_spotlight.php';

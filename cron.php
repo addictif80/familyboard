@@ -25,6 +25,7 @@ use App\Core\DateHelper;
 use App\Models\Family;
 use App\Models\Health;
 use App\Models\AiWeeklyDigest;
+use App\Models\StockItem;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\TaskList;
@@ -115,6 +116,7 @@ foreach ($families as $family) {
     sendRecurringAlerts($familyId, $appUrl);
     sendWeeklyDigest($familyId, $family, $membersExcludingCoparent, $appUrl);
     sendExpiryReminders($familyId, $membersExcludingCoparent, $appUrl);
+    sendStockExpiryReminders($familyId, $membersExcludingCoparent, $appUrl);
 
     try {
         generateAiWeeklyDigest($familyId);
@@ -331,6 +333,49 @@ function sendExpiryReminders(int $familyId, array $members, string $appUrl): voi
             Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'expiry_reminder');
 
             echo "  → Expiry reminder sent to {$member['email']} for {$item['label']} (J-{$daysRemaining})" . PHP_EOL;
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Péremption du stock frigo/congélo : rappel à J-3 et le jour même (jamais J-30/J-7 comme
+// sendExpiryReminders() ci-dessus — un produit alimentaire se périme en jours, pas en mois).
+// ──────────────────────────────────────────────────────────────────────────
+function sendStockExpiryReminders(int $familyId, array $members, string $appUrl): void
+{
+    $today = new \DateTime('today');
+
+    foreach (StockItem::getExpiringSoon($familyId, 3) as $item) {
+        $end = new \DateTime($item['expiry_date']);
+        $daysRemaining = (int)$today->diff($end)->days * ($end >= $today ? 1 : -1);
+        if (!in_array($daysRemaining, [3, 0], true)) continue;
+
+        foreach ($members as $member) {
+            if (empty($member['email'])) continue;
+
+            $key = 'stock_' . $item['id'] . '_' . $daysRemaining . '_' . date('Y-m-d');
+            $alreadySent = Database::fetch(
+                "SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ? AND status='sent'
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 8 DAY)",
+                [$familyId, 'expiry_reminder', $member['email'], '%' . $key . '%']
+            );
+            if ($alreadySent) continue;
+
+            $rendered = EmailContent::render('expiry_reminder', [
+                'user_name'      => $member['name'],
+                'item_label'     => $item['name'],
+                'item_kind'      => 'Le produit',
+                'expiry_date'    => date('d/m/Y', strtotime($item['expiry_date'])),
+                'days_remaining' => (string)$daysRemaining,
+            ]);
+            $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+                'label' => 'Voir le stock',
+                'url'   => $appUrl . '/stock',
+            ]) . "<!-- {$key} -->";
+
+            Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'expiry_reminder');
+
+            echo "  → Stock expiry reminder sent to {$member['email']} for {$item['name']} (J-{$daysRemaining})" . PHP_EOL;
         }
     }
 }
