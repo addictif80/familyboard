@@ -103,40 +103,40 @@ class WallController extends BaseController
         $postId = Post::create($user['family_id'], (int)$user['id'], $content, $imagePath, $postType, $status);
 
         if ($status === 'pending') {
-            $this->notifyAdminsPending($user);
+            $this->notifyAdminsPending($user, $postId);
             Session::flash('success', 'Publication envoyée à l\'administrateur pour validation.');
             header('Location: ' . BASE_URL . '/wall');
             exit;
         }
 
-        $this->notifyNewPost($user, $postType, $content);
+        $this->notifyNewPost($user, $postType, $content, $postId);
 
         header('Location: ' . BASE_URL . '/wall');
         exit;
     }
 
     /** Prévient les admins de la famille de $user qu'une publication "famille" attend leur validation. */
-    private function notifyAdminsPending(array $user): void
+    private function notifyAdminsPending(array $user, int $postId): void
     {
         foreach (User::getByFamily($user['family_id']) as $admin) {
             if ($admin['role'] !== 'admin') continue;
             Notification::create((int)$admin['id'], 'wall',
                 'Publication à valider',
                 $user['name'] . ' propose une publication au nom de la famille.',
-                BASE_URL . '/wall');
+                BASE_URL . '/wall', 'post', $postId);
         }
     }
 
     /** Notifie (cloche + e-mail) les personnes concernées par une publication qui vient d'être
      *  publiée : toute la famille si "famille", ma famille + toutes mes familles amies si
      *  "familles amies", seulement les abonnés acceptés (même famille ou famille amie) sinon. */
-    private function notifyNewPost(array $user, string $postType, string $content): void
+    private function notifyNewPost(array $user, string $postType, string $content, int $postId): void
     {
         if ($postType === 'family') {
-            Notification::notifyFamily((int)$user['family_id'], (int)$user['id'], 'wall', 'Nouveau post', $user['name'] . ' a publié sur le mur familial.', BASE_URL . '/wall');
+            Notification::notifyFamily((int)$user['family_id'], (int)$user['id'], 'wall', 'Nouveau post', $user['name'] . ' a publié sur le mur familial.', BASE_URL . '/wall', null, 'post', $postId);
             $recipients = array_values(array_filter(User::getByFamily($user['family_id']), fn($m) => (int)$m['id'] !== (int)$user['id']));
         } elseif ($postType === 'network') {
-            Notification::notifyNetwork((int)$user['family_id'], (int)$user['id'], 'wall', 'Nouveau post', $user['name'] . ' a publié pour les familles amies.', BASE_URL . '/wall');
+            Notification::notifyNetwork((int)$user['family_id'], (int)$user['id'], 'wall', 'Nouveau post', $user['name'] . ' a publié pour les familles amies.', BASE_URL . '/wall', 'post', $postId);
             $recipients = array_values(array_filter(User::getByFamily($user['family_id']), fn($m) => (int)$m['id'] !== (int)$user['id']));
             foreach (FamilyFriend::getAcceptedFor((int)$user['family_id']) as $ff) {
                 foreach (User::getByFamily((int)$ff['family_id']) as $m) {
@@ -146,7 +146,7 @@ class WallController extends BaseController
         } else {
             $recipients = [];
             foreach (Follow::getFollowers((int)$user['id']) as $follower) {
-                Notification::create((int)$follower['follower_id'], 'wall', 'Nouveau post', $user['name'] . ' a publié.', BASE_URL . '/wall');
+                Notification::create((int)$follower['follower_id'], 'wall', 'Nouveau post', $user['name'] . ' a publié.', BASE_URL . '/wall', 'post', $postId);
                 $u = User::findById((int)$follower['follower_id']);
                 if ($u) $recipients[] = $u;
             }
@@ -174,8 +174,8 @@ class WallController extends BaseController
         if ($post && $post['family_id'] === $user['family_id'] && $post['status'] === 'pending') {
             Post::approve((int)$post['id'], (int)$user['id']);
             Notification::create((int)$post['user_id'], 'wall', 'Publication validée',
-                'Votre publication au nom de la famille a été publiée.', BASE_URL . '/wall');
-            $this->notifyNewPost(User::findById((int)$post['user_id']), 'family', $post['content']);
+                'Votre publication au nom de la famille a été publiée.', BASE_URL . '/wall', 'post', (int)$post['id']);
+            $this->notifyNewPost(User::findById((int)$post['user_id']), 'family', $post['content'], (int)$post['id']);
         }
         header('Location: ' . BASE_URL . '/wall');
         exit;
@@ -189,7 +189,7 @@ class WallController extends BaseController
         if ($post && $post['family_id'] === $user['family_id'] && $post['status'] === 'pending') {
             Post::reject((int)$post['id'], (int)$user['id']);
             Notification::create((int)$post['user_id'], 'wall', 'Publication refusée',
-                'Votre publication proposée au nom de la famille n\'a pas été retenue.', BASE_URL . '/wall');
+                'Votre publication proposée au nom de la famille n\'a pas été retenue.', BASE_URL . '/wall', 'post', (int)$post['id']);
         }
         header('Location: ' . BASE_URL . '/wall');
         exit;
@@ -258,7 +258,7 @@ class WallController extends BaseController
             if ((int)$post['user_id'] !== $user['id']) {
                 Notification::create($post['user_id'], 'wall', 'Nouveau commentaire',
                     $user['name'] . ' a commenté votre post : ' . mb_strimwidth($content, 0, 80, '…'),
-                    BASE_URL . '/wall');
+                    BASE_URL . '/wall', 'post', $postId);
             }
 
             return ['success' => true, 'comment' => [
@@ -287,7 +287,7 @@ class WallController extends BaseController
 
             if ($action === 'added' && (int)$post['user_id'] !== $user['id']) {
                 Notification::create($post['user_id'], 'wall', 'Nouvelle réaction',
-                    $user['name'] . ' a réagi ❤️ à votre post.', BASE_URL . '/wall');
+                    $user['name'] . ' a réagi ❤️ à votre post.', BASE_URL . '/wall', 'post', $postId);
             }
 
             return ['success' => true, 'action' => $action, 'count' => $count];

@@ -28,7 +28,7 @@ class WarrantyController extends BaseController
             $file     = $_FILES['file'] ?? null;
             $id = Warranty::create($user['family_id'], $user['id'], $data, $file);
             Notification::notifyFamily($user['family_id'], $user['id'], 'warranties', 'Nouvelle garantie',
-                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/warranties');
+                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/warranties', null, 'warranty', $id);
             return ['success' => true, 'id' => $id];
         });
     }

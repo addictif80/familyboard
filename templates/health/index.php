@@ -32,7 +32,7 @@ $subjectLabel = function ($type, $id) use ($subjects) {
             <div class="form-row">
                 <div class="form-group">
                     <label>Concerne</label>
-                    <select id="entry-subject">
+                    <select id="entry-subject" onchange="updateVaccineScheduleVisibility()">
                         <?php foreach ($subjects as $s): ?>
                             <option value="<?= $s['type'] ?>:<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
                         <?php endforeach; ?>
@@ -40,7 +40,7 @@ $subjectLabel = function ($type, $id) use ($subjects) {
                 </div>
                 <div class="form-group">
                     <label>Type</label>
-                    <select id="entry-type">
+                    <select id="entry-type" onchange="updateVaccineScheduleVisibility()">
                         <?php foreach (Health::ENTRY_TYPES as $slug => $t): ?>
                             <option value="<?= $slug ?>"><?= $t['icon'] ?> <?= htmlspecialchars($t['label']) ?></option>
                         <?php endforeach; ?>
@@ -50,6 +50,13 @@ $subjectLabel = function ($type, $id) use ($subjects) {
                     <label>Date</label>
                     <input type="date" id="entry-date">
                 </div>
+            </div>
+            <div class="form-group" id="vaccine-schedule-wrap" style="display:none">
+                <label>💉 Calendrier vaccinal (France) — suggestion pour cet enfant</label>
+                <select id="vaccine-schedule-select" onchange="applyVaccineSuggestion()">
+                    <option value="">— Choisir un âge pour pré-remplir le titre, la date et le rappel —</option>
+                </select>
+                <small class="form-hint">Calcule la date à partir de la date de naissance de l'enfant. Vérifiez toujours avec votre médecin : ce calendrier peut évoluer.</small>
             </div>
             <div class="form-row">
                 <div class="form-group flex-2">
@@ -67,6 +74,23 @@ $subjectLabel = function ($type, $id) use ($subjects) {
             </div>
             <button class="btn btn-primary btn-sm" onclick="addHealthEntry()">+ Ajouter</button>
             <hr>
+            <div style="margin-bottom:1rem">
+                <button class="btn btn-secondary btn-sm" onclick="openHealthShareModal()">🔗 Partager avec un médecin</button>
+                <?php $activeLinkSubjects = array_filter($shareLinksBySubject ?? [], fn($links) => !empty($links)); ?>
+                <?php if (!empty($activeLinkSubjects)): ?>
+                <div style="margin-top:.6rem;display:flex;flex-direction:column;gap:.3rem" id="health-share-links-list">
+                    <?php foreach ($shareLinksBySubject as $key => $links): ?>
+                        <?php [$subType, $subId] = explode(':', $key); $s = $subjectLabel($subType, $subId); ?>
+                        <?php foreach ($links as $l): ?>
+                        <div style="font-size:.82rem;display:flex;align-items:center;gap:.5rem;color:var(--text-muted)">
+                            🔗 <?= htmlspecialchars($s['name'] ?? '?') ?> — expire le <?= (new DateTime($l['expires_at']))->format('d/m/Y à H:i') ?>
+                            <button class="btn-icon" title="Révoquer" onclick="revokeHealthShareLink(<?= (int)$l['id'] ?>)">✕</button>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+            </div>
             <table class="admin-table">
                 <thead><tr><th>Date</th><th>Concerne</th><th>Type</th><th>Titre</th><th>Rappel</th><th></th></tr></thead>
                 <tbody>
@@ -236,6 +260,51 @@ $subjectLabel = function ($type, $id) use ($subjects) {
         </div>
     </div>
 </div>
+<!-- Partager avec un médecin -->
+<div class="modal-overlay" id="health-share-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>🔗 Partager avec un médecin</h3>
+            <button onclick="closeModal('health-share-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:.85rem;color:var(--text-muted)">Génère un lien public et temporaire vers le carnet de santé d'un seul membre — à transmettre par SMS ou email. Ce lien expirera automatiquement.</p>
+            <div class="form-group">
+                <label>Concerne</label>
+                <select id="health-share-subject">
+                    <?php foreach ($subjects as $s): ?>
+                        <option value="<?= $s['type'] ?>:<?= $s['id'] ?>"><?= htmlspecialchars($s['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Durée de validité</label>
+                <select id="health-share-duration">
+                    <option value="7">7 jours</option>
+                    <option value="14">14 jours</option>
+                    <option value="30">30 jours</option>
+                </select>
+            </div>
+            <div id="health-share-result" style="display:none;margin-top:1rem">
+                <label>Lien généré</label>
+                <div style="display:flex;gap:.4rem">
+                    <input type="text" id="health-share-url" readonly style="flex:1">
+                    <button class="btn btn-secondary btn-sm" onclick="copyHealthShareLink()">Copier</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('health-share-modal')">Fermer</button>
+            <button class="btn btn-primary" id="health-share-generate-btn" onclick="createHealthShareLink()">Générer le lien</button>
+        </div>
+    </div>
+</div>
+<script>
+// Date de naissance des sujets "enfant" (null pour les membres adultes) — alimente la
+// suggestion du calendrier vaccinal (voir updateVaccineScheduleVisibility() dans health.js).
+const HEALTH_SUBJECT_BIRTHDATES = <?= json_encode(array_column(array_filter($subjects, fn($s) => $s['type'] === 'child'), 'birth_date', 'id')) ?>;
+document.addEventListener('DOMContentLoaded', () => { if (document.getElementById('entry-subject')) updateVaccineScheduleVisibility(); });
+</script>
 
 <?php
 $content = ob_get_clean();

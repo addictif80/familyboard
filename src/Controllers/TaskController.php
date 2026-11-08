@@ -115,9 +115,32 @@ class TaskController extends BaseController
             }
             $taskId = TaskList::createTask($listId, $user['id'], $data);
             if (!empty($data['assigned_to']) && (int)$data['assigned_to'] !== $user['id']) {
-                Notification::create((int)$data['assigned_to'], 'task', 'Tâche assignée', $user['name'] . ' vous a assigné : ' . $data['title'], BASE_URL . '/tasks?list=' . $listId);
+                $dueLabel = !empty($data['due_date']) ? ' — échéance ' . \App\Core\DateHelper::format($data['due_date'], 'j F Y') : '';
+                Notification::create((int)$data['assigned_to'], 'task', 'Tâche assignée',
+                    $user['name'] . ' vous a assigné : ' . $data['title'] . $dueLabel,
+                    BASE_URL . '/tasks?list=' . $listId, 'task', $taskId);
             }
             return ['success' => true, 'task' => TaskList::getTask($taskId)];
+        });
+    }
+
+    /** POST /api/tasks/lists/:id/bulk-import — ajoute plusieurs titres d'un coup (un par ligne),
+     *  pour reconstituer vite une liste collée depuis une autre app (voir /migration). */
+    public function bulkImport(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $listId = (int)$params['id'];
+            $list = TaskList::getById($listId);
+            if (!$list || $list['family_id'] !== $user['family_id']) return ['success' => false];
+
+            $data = $this->jsonInput();
+            $lines = preg_split('/\r\n|\n|\r/', (string)($data['text'] ?? ''));
+            $count = TaskList::bulkCreateTasks($listId, (int)$user['id'], $lines);
+            return $count > 0
+                ? ['success' => true, 'count' => $count]
+                : ['success' => false, 'error' => 'Aucune ligne exploitable.'];
         });
     }
 
@@ -177,7 +200,8 @@ class TaskController extends BaseController
             if ($newAssignee && $newAssignee !== $user['id']) {
                 Notification::create($newAssignee, 'task',
                     (int)$task['assigned_to'] === $newAssignee ? 'Tâche modifiée' : 'Tâche assignée',
-                    $user['name'] . ' a modifié : ' . $data['title'], BASE_URL . '/tasks?list=' . $task['list_id']);
+                    $user['name'] . ' a modifié : ' . $data['title'], BASE_URL . '/tasks?list=' . $task['list_id'],
+                    'task', $taskId);
             }
 
             return ['success' => true, 'task' => TaskList::getTask($taskId)];

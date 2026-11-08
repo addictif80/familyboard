@@ -374,6 +374,40 @@ async function deleteFamilyChild(id) {
     else Dialog.toast(r.error || 'Erreur.', 'error');
 }
 
+// ---- Synchronisation du calendrier avec le téléphone ----
+
+function renderCalendarSync(url) {
+    document.getElementById('calendar-sync-url').value = url;
+    const qrEl = document.getElementById('calendar-sync-qr');
+    qrEl.innerHTML = '';
+    const qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    qrEl.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2 });
+    document.getElementById('calendar-sync-result').style.display = '';
+}
+
+async function showCalendarSync() {
+    const r = await apiFetch(BASE_URL + '/api/calendar-feed/token', { method: 'POST' });
+    if (r.success) renderCalendarSync(r.url);
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+async function regenerateCalendarSync() {
+    const ok = await Dialog.confirm("Régénérer le lien ? L'ancien arrêtera immédiatement de se mettre à jour sur tout appareil déjà abonné.");
+    if (!ok) return;
+    const r = await apiFetch(BASE_URL + '/api/calendar-feed/regenerate', { method: 'POST' });
+    if (r.success) { renderCalendarSync(r.url); Dialog.toast('Nouveau lien généré.', 'success'); }
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+function copyCalendarSyncUrl() {
+    const input = document.getElementById('calendar-sync-url');
+    input.select();
+    navigator.clipboard?.writeText(input.value);
+    Dialog.toast('Lien copié.', 'success');
+}
+
 async function submitTestimonial() {
     const content = document.getElementById('testimonial-content').value.trim();
     if (!content) { Dialog.toast('Un témoignage est requis.', 'error'); return; }

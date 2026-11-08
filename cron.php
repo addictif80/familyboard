@@ -23,6 +23,9 @@ use App\Core\Database;
 use App\Core\Mail;
 use App\Core\DateHelper;
 use App\Models\Family;
+use App\Models\Health;
+use App\Models\AiWeeklyDigest;
+use App\Models\StockItem;
 use App\Models\User;
 use App\Models\Event;
 use App\Models\TaskList;
@@ -113,6 +116,13 @@ foreach ($families as $family) {
     sendRecurringAlerts($familyId, $appUrl);
     sendWeeklyDigest($familyId, $family, $membersExcludingCoparent, $appUrl);
     sendExpiryReminders($familyId, $membersExcludingCoparent, $appUrl);
+    sendStockExpiryReminders($familyId, $membersExcludingCoparent, $appUrl);
+
+    try {
+        generateAiWeeklyDigest($familyId);
+    } catch (\Throwable $e) {
+        error_log('generateAiWeeklyDigest error: ' . $e->getMessage());
+    }
 
     try {
         checkTimerAlerts($familyId, $membersExcludingCoparent);
@@ -278,6 +288,16 @@ function sendExpiryReminders(int $familyId, array $members, string $appUrl): voi
     foreach (Database::fetchAll('SELECT id, title, deadline_date FROM admin_procedures WHERE family_id=? AND done=0', [$familyId]) as $p) {
         $items[] = ['kind' => 'La démarche', 'ref' => 'admin_procedure_' . $p['id'], 'label' => $p['title'], 'date' => $p['deadline_date'], 'url' => '/admin-procedures'];
     }
+    // Rappels de vaccination (et autres rappels du carnet de santé) : health_entries.reminder_date
+    // n'avait jamais été relié à ce mécanisme — restait saisi sans jamais rien rappeler à personne.
+    foreach (Database::fetchAll(
+        'SELECT id, title, reminder_date, entry_type, subject_type, subject_id FROM health_entries
+         WHERE family_id=? AND reminder_date IS NOT NULL', [$familyId]
+    ) as $h) {
+        $subject = Health::subjectLabel($familyId, $h['subject_type'], (int)$h['subject_id']);
+        $kind = $h['entry_type'] === 'vaccination' ? 'Le rappel de vaccination de' : 'Le rappel santé de';
+        $items[] = ['kind' => $kind, 'ref' => 'health_' . $h['id'], 'label' => ($subject['name'] ?? '?') . ' — ' . $h['title'], 'date' => $h['reminder_date'], 'url' => '/health'];
+    }
 
     foreach ($items as $item) {
         $end = new \DateTime($item['date']);
@@ -313,6 +333,49 @@ function sendExpiryReminders(int $familyId, array $members, string $appUrl): voi
             Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'expiry_reminder');
 
             echo "  → Expiry reminder sent to {$member['email']} for {$item['label']} (J-{$daysRemaining})" . PHP_EOL;
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Péremption du stock frigo/congélo : rappel à J-3 et le jour même (jamais J-30/J-7 comme
+// sendExpiryReminders() ci-dessus — un produit alimentaire se périme en jours, pas en mois).
+// ──────────────────────────────────────────────────────────────────────────
+function sendStockExpiryReminders(int $familyId, array $members, string $appUrl): void
+{
+    $today = new \DateTime('today');
+
+    foreach (StockItem::getExpiringSoon($familyId, 3) as $item) {
+        $end = new \DateTime($item['expiry_date']);
+        $daysRemaining = (int)$today->diff($end)->days * ($end >= $today ? 1 : -1);
+        if (!in_array($daysRemaining, [3, 0], true)) continue;
+
+        foreach ($members as $member) {
+            if (empty($member['email'])) continue;
+
+            $key = 'stock_' . $item['id'] . '_' . $daysRemaining . '_' . date('Y-m-d');
+            $alreadySent = Database::fetch(
+                "SELECT id FROM email_logs WHERE family_id=? AND type=? AND to_email=? AND body LIKE ? AND status='sent'
+                 AND created_at > DATE_SUB(NOW(), INTERVAL 8 DAY)",
+                [$familyId, 'expiry_reminder', $member['email'], '%' . $key . '%']
+            );
+            if ($alreadySent) continue;
+
+            $rendered = EmailContent::render('expiry_reminder', [
+                'user_name'      => $member['name'],
+                'item_label'     => $item['name'],
+                'item_kind'      => 'Le produit',
+                'expiry_date'    => date('d/m/Y', strtotime($item['expiry_date'])),
+                'days_remaining' => (string)$daysRemaining,
+            ]);
+            $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+                'label' => 'Voir le stock',
+                'url'   => $appUrl . '/stock',
+            ]) . "<!-- {$key} -->";
+
+            Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'expiry_reminder');
+
+            echo "  → Stock expiry reminder sent to {$member['email']} for {$item['name']} (J-{$daysRemaining})" . PHP_EOL;
         }
     }
 }
@@ -502,29 +565,49 @@ function sendRecurringAlerts(int $familyId, string $appUrl): void
         $alertDay = (int)$item['alert_days_before'];
         if ($alertDay <= 0) continue;
 
-        // The day we should send the alert
-        $triggerDay = (int)$item['day_of_month'] - $alertDay;
-        // Handle month wrap (e.g. day=1 with 3 days alert → trigger on last days of prev month)
-        if ($triggerDay < 1) {
-            // Calculate the trigger date properly
-            $dueDate  = new \DateTime(date('Y-m') . '-' . str_pad((string)$item['day_of_month'], 2, '0', STR_PAD_LEFT));
-            $trigDate = clone $dueDate;
-            $trigDate->modify("-{$alertDay} days");
+        $isYearly = ($item['frequency'] ?? 'monthly') === 'yearly';
+        $day = (int)$item['day_of_month'];
+
+        if ($isYearly) {
+            // Un abonnement annuel (assurance, cotisation...) ne tombe qu'une fois par an, au
+            // mois renewal_month — on calcule la date d'échéance de CETTE année (ou de l'année
+            // suivante si elle est déjà passée) plutôt que de supposer le mois courant.
+            $month = (int)($item['renewal_month'] ?? 0) ?: 1;
+            $year = (int)date('Y');
+            $dueDate = new \DateTime(sprintf('%04d-%02d-%02d', $year, $month, min($day, 28)));
+            if ($dueDate < new \DateTime($todayStr)) {
+                $dueDate = new \DateTime(sprintf('%04d-%02d-%02d', $year + 1, $month, min($day, 28)));
+            }
+            $trigDate = (clone $dueDate)->modify("-{$alertDay} days");
             if ($trigDate->format('Y-m-d') !== $todayStr) continue;
         } else {
-            if ($today !== $triggerDay) continue;
+            // The day we should send the alert
+            $triggerDay = $day - $alertDay;
+            // Handle month wrap (e.g. day=1 with 3 days alert → trigger on last days of prev month)
+            if ($triggerDay < 1) {
+                // Calculate the trigger date properly
+                $dueDate  = new \DateTime(date('Y-m') . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT));
+                $trigDate = clone $dueDate;
+                $trigDate->modify("-{$alertDay} days");
+                if ($trigDate->format('Y-m-d') !== $todayStr) continue;
+            } else {
+                if ($today !== $triggerDay) continue;
+                $dueDate = new \DateTime(date('Y-m') . '-' . str_pad((string)$day, 2, '0', STR_PAD_LEFT));
+            }
         }
 
-        // Deduplication: already sent this month?
+        // Déduplication : déjà envoyée pour cette échéance ? (année pour un abonnement annuel,
+        // mois pour une opération mensuelle)
         if (!empty($item['last_alert_sent'])) {
             $lastSent = new \DateTime($item['last_alert_sent']);
             $now      = new \DateTime($todayStr);
-            if ($lastSent->format('Y-m') === $now->format('Y-m')) continue;
+            $samePeriod = $isYearly ? ($lastSent->format('Y') === $now->format('Y')) : ($lastSent->format('Y-m') === $now->format('Y-m'));
+            if ($samePeriod) continue;
         }
 
         $typeLabel = $item['type'] === 'income' ? 'virement' : 'prélèvement';
         $amountFmt = number_format((float)$item['amount'], 2, ',', ' ') . ' €';
-        $dueStr    = DateHelper::format(date('Y-m') . '-' . str_pad((string)$item['day_of_month'], 2, '0', STR_PAD_LEFT), 'j F Y');
+        $dueStr    = DateHelper::format($dueDate->format('Y-m-d'), 'j F Y');
 
         $rendered = EmailContent::render('budget_recurring', [
             'user_name'  => $item['user_name'],
@@ -735,6 +818,22 @@ function sendWeeklyDigest(int $familyId, array $family, array $members, string $
         Mail::send($familyId, $member['email'], $member['name'], $rendered['subject'], $html, 'weekly_digest');
 
         echo "  → Weekly digest sent to {$member['email']}" . PHP_EOL;
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Digest hebdomadaire généré par l'IA (popup au prochain login/lancement de la PWA) : distinct du
+// résumé email sendWeeklyDigest() ci-dessus. Même créneau (dimanche en fin d'après-midi/soirée),
+// pour que le digest soit prêt dès le lundi matin — la contrainte UNIQUE (family_id, week_start)
+// de AiWeeklyDigest::generate() rend l'appel idempotent si le cron tourne plusieurs fois après ce
+// créneau le même dimanche.
+// ──────────────────────────────────────────────────────────────────────────
+function generateAiWeeklyDigest(int $familyId): void
+{
+    if ((int)date('N') !== 7 || (int)date('G') < 18) return;
+    if (AiWeeklyDigest::getForWeek($familyId, AiWeeklyDigest::currentWeekStart())) return;
+    if (AiWeeklyDigest::generate($familyId)) {
+        echo "  → AI weekly digest generated for family {$familyId}" . PHP_EOL;
     }
 }
 

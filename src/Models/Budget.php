@@ -147,25 +147,36 @@ class Budget
 
     public static function createRecurring(int $familyId, int $userId, array $data): int
     {
+        [$frequency, $renewalMonth] = self::normalizeFrequency($data);
         return Database::insert(
-            'INSERT INTO budget_recurring (family_id, user_id, title, amount, type, category_id, day_of_month, alert_days_before, is_active, notes)
-             VALUES (?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO budget_recurring (family_id, user_id, title, amount, type, category_id, day_of_month, alert_days_before, is_active, notes, frequency, renewal_month, provider)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [$familyId, $userId, $data['title'], $data['amount'], $data['type'],
              $data['category_id'] ?? null, (int)$data['day_of_month'], (int)($data['alert_days_before'] ?? 3),
              isset($data['is_active']) ? (int)$data['is_active'] : 1,
-             $data['notes'] ?? null]
+             $data['notes'] ?? null, $frequency, $renewalMonth, trim((string)($data['provider'] ?? '')) ?: null]
         );
     }
 
     public static function updateRecurring(int $id, array $data): void
     {
+        [$frequency, $renewalMonth] = self::normalizeFrequency($data);
         Database::execute(
-            'UPDATE budget_recurring SET title=?, amount=?, type=?, category_id=?, day_of_month=?, alert_days_before=?, user_id=?, is_active=?, notes=? WHERE id=?',
+            'UPDATE budget_recurring SET title=?, amount=?, type=?, category_id=?, day_of_month=?, alert_days_before=?, user_id=?, is_active=?, notes=?, frequency=?, renewal_month=?, provider=? WHERE id=?',
             [$data['title'], $data['amount'], $data['type'], $data['category_id'] ?? null,
              (int)$data['day_of_month'], (int)($data['alert_days_before'] ?? 3), (int)$data['user_id'],
              isset($data['is_active']) ? (int)$data['is_active'] : 1,
-             $data['notes'] ?? null, $id]
+             $data['notes'] ?? null, $frequency, $renewalMonth, trim((string)($data['provider'] ?? '')) ?: null, $id]
         );
+    }
+
+    /** @return array{0:string,1:?int} [frequency, renewal_month] */
+    private static function normalizeFrequency(array $data): array
+    {
+        $frequency = ($data['frequency'] ?? 'monthly') === 'yearly' ? 'yearly' : 'monthly';
+        if ($frequency !== 'yearly') return ['monthly', null];
+        $month = (int)($data['renewal_month'] ?? 0);
+        return ['yearly', $month >= 1 && $month <= 12 ? $month : (int)date('n')];
     }
 
     public static function deleteRecurring(int $id): void

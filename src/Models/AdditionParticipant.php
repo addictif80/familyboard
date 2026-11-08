@@ -38,7 +38,7 @@ class AdditionParticipant
             $userId, 'addition',
             'Invitation à une addition',
             'Vous êtes invité(e) à participer à « ' . ($addition['title'] ?? '') . ' ».',
-            BASE_URL . '/additions'
+            BASE_URL . '/additions', 'addition', $additionId
         );
         return $id;
     }
@@ -87,11 +87,24 @@ class AdditionParticipant
         return true;
     }
 
+    public static function findById(int $id): ?array
+    {
+        return Database::fetch('SELECT * FROM addition_participants WHERE id=?', [$id]);
+    }
+
+    /** Suivi de règlement d'une addition classique (hors cagnotte, qui a son propre registre de
+     *  perceptions) — déclaratif, comme le reste de l'app : personne ne vérifie qu'un virement a
+     *  réellement eu lieu, c'est juste une case à cocher partagée entre les deux parties. */
+    public static function setPaid(int $id, bool $paid): void
+    {
+        Database::execute('UPDATE addition_participants SET paid_at=? WHERE id=?', [$paid ? date('Y-m-d H:i:s') : null, $id]);
+    }
+
     /** Toutes les additions (acceptées ou en attente) où cette personne est participante. */
     public static function getForUser(int $userId): array
     {
         return Database::fetchAll(
-            "SELECT ap.*, a.title, a.total_amount, a.split_mode, a.is_cagnotte, f.name as family_name
+            "SELECT ap.*, a.family_id, a.title, a.total_amount, a.split_mode, a.is_cagnotte, f.name as family_name
              FROM addition_participants ap
              JOIN additions a ON a.id = ap.addition_id
              JOIN families f ON f.id = a.family_id

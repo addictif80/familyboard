@@ -164,6 +164,13 @@ function toggleSidebar() {
     document.getElementById('sidebar-backdrop')?.classList.toggle('open', isOpen);
 }
 
+// Tiroir d'applications façon smartphone : uniquement pour la PWA installée (pas le navigateur
+// classique en onglet) — au-delà de 768px le sidebar reste la liste permanente habituelle (voir
+// la media query dans app.css), cette classe n'a donc d'effet que sur le tiroir mobile.
+if (typeof isStandalonePWA === 'function' && isStandalonePWA()) {
+    document.getElementById('sidebar')?.classList.add('pwa-app-drawer');
+}
+
 // ---- Sections repliables de la sidebar (état mémorisé par appareil) ----
 (function initNavSections() {
     const STORAGE_KEY = 'fb-nav-collapsed';
@@ -441,10 +448,54 @@ function loadNotifications() {
         });
 }
 
-function readNotif(id, link) {
+async function readNotif(id, link) {
     apiFetch(BASE_URL + '/api/notifications/' + id + '/read', { method: 'POST' });
-    if (link && link !== '#') window.location.href = link;
     toggleNotifications();
+    openNotifPreview(id, link);
+}
+
+async function openNotifPreview(id, fallbackLink) {
+    const titleEl = document.getElementById('notif-preview-title');
+    const timeEl = document.getElementById('notif-preview-time');
+    const fieldsEl = document.getElementById('notif-preview-fields');
+    const linkEl = document.getElementById('notif-preview-link');
+
+    titleEl.textContent = 'Chargement…';
+    timeEl.textContent = '';
+    fieldsEl.innerHTML = '';
+    linkEl.style.display = 'none';
+    openModal('notif-preview-modal');
+
+    const r = await apiFetch(BASE_URL + '/api/notifications/' + id + '/preview');
+    if (!r.success) {
+        titleEl.textContent = 'Notification';
+        fieldsEl.innerHTML = '<p style="color:var(--text-muted)">Impossible de charger le détail.</p>';
+        if (fallbackLink && fallbackLink !== '#') {
+            linkEl.href = fallbackLink;
+            linkEl.style.display = '';
+        }
+        return;
+    }
+
+    titleEl.textContent = (r.icon ? r.icon + ' ' : '') + r.title;
+    timeEl.textContent = formatTime(r.created_at);
+
+    const hasFields = Array.isArray(r.fields) && r.fields.length > 0;
+    fieldsEl.innerHTML = hasFields
+        ? r.fields.map(f => `
+            <div style="margin-bottom:.6rem">
+                <div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em">${escapeHtml(f.label)}</div>
+                <div style="white-space:pre-wrap">${escapeHtml(f.value)}</div>
+            </div>
+        `).join('')
+        : `<p style="white-space:pre-wrap">${escapeHtml(r.message || '')}</p>`;
+
+    if (r.link) {
+        linkEl.href = r.link;
+        linkEl.style.display = '';
+    } else {
+        linkEl.style.display = 'none';
+    }
 }
 
 function markAllRead() {

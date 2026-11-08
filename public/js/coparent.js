@@ -49,15 +49,32 @@ async function cpLoadAdditions() {
     list.innerHTML = additions.map(a => {
         const statusLabel = { pending: 'En attente de votre réponse', accepted: 'Acceptée', declined: 'Refusée' }[a.status] || a.status;
         const amount = a.is_cagnotte ? '' : (' — votre part : ' + a.share_value + (a.split_mode === 'percentage' ? ' %' : ' €'));
-        const actions = a.status === 'pending'
-            ? '<button class="btn btn-primary btn-sm" onclick="cpRespondAddition(' + a.id + `, 'accept')">Accepter</button>` +
-              '<button class="btn btn-secondary btn-sm" onclick="cpRespondAddition(' + a.id + `, 'decline')">Refuser</button>`
-            : '<span class="badge">' + statusLabel + '</span>';
+        let actions;
+        if (a.status === 'pending') {
+            actions = '<button class="btn btn-primary btn-sm" onclick="cpRespondAddition(' + a.id + `, 'accept')">Accepter</button>` +
+              '<button class="btn btn-secondary btn-sm" onclick="cpRespondAddition(' + a.id + `, 'decline')">Refuser</button>`;
+        } else if (a.status === 'accepted' && !a.is_cagnotte) {
+            // Déclaratif, comme côté famille (additions.js) : pas de vérification, juste une
+            // case partagée pour suivre qui a réglé sa part.
+            actions = a.paid_at
+                ? '<span class="badge" style="background:var(--success)">✅ Payé</span> ' +
+                  '<button class="btn btn-secondary btn-sm" onclick="cpTogglePaid(' + a.id + ', false)">↺ Annuler</button>'
+                : '<button class="btn btn-primary btn-sm" onclick="cpTogglePaid(' + a.id + ', true)">Marquer ma part payée</button>';
+        } else {
+            actions = '<span class="badge">' + statusLabel + '</span>';
+        }
         return '<div class="card" style="padding:1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">' +
             '<div style="flex:1"><strong>' + (a.is_cagnotte ? '🪙 ' : '') + escapeHtml(a.title) + '</strong>' +
             '<div style="color:var(--text-muted);font-size:.82rem">' + escapeHtml(a.family_name) + amount + '</div></div>' +
             actions + '</div>';
     }).join('');
+}
+
+async function cpTogglePaid(participantId, paid) {
+    const r = await apiFetch(BASE_URL + '/api/additions/participants/' + participantId + '/paid', {
+        method: 'POST', body: JSON.stringify({ paid }),
+    });
+    if (r.success) cpLoadAdditions();
 }
 
 async function cpRespondAddition(participantId, decision) {

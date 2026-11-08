@@ -17,6 +17,39 @@ ob_start();
     juste un registre de perceptions saisi à la main.
 </p>
 
+<?php $otherFamilyParticipations = array_filter($myParticipations, fn($p) => (int)$p['family_id'] !== (int)$user['family_id']); ?>
+<?php if (!empty($otherFamilyParticipations)): ?>
+<div class="card settings-section" style="margin-bottom:1.25rem">
+    <h3 style="margin-top:0">Additions partagées avec vous par une autre famille</h3>
+    <div style="display:flex;flex-direction:column;gap:.5rem">
+        <?php foreach ($otherFamilyParticipations as $p): ?>
+        <div class="card" style="padding:.85rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+            <div style="flex:1">
+                <strong><?= $p['is_cagnotte'] ? '🪙 ' : '' ?><?= htmlspecialchars($p['title']) ?></strong>
+                <div style="color:var(--text-muted);font-size:.82rem">
+                    <?= htmlspecialchars($p['family_name']) ?>
+                    <?php if (!$p['is_cagnotte']): ?> — votre part : <?= number_format((float)$p['share_value'], 2, ',', ' ') ?><?= $p['split_mode'] === 'percentage' ? ' %' : ' €' ?><?php endif; ?>
+                </div>
+            </div>
+            <?php if ($p['status'] === 'pending'): ?>
+                <button class="btn btn-primary btn-sm" onclick="respondParticipant(<?= (int)$p['id'] ?>, 'accept')">Accepter</button>
+                <button class="btn btn-secondary btn-sm" onclick="respondParticipant(<?= (int)$p['id'] ?>, 'decline')">Refuser</button>
+            <?php elseif ($p['status'] === 'accepted' && !$p['is_cagnotte']): ?>
+                <?php if (!empty($p['paid_at'])): ?>
+                    <span class="badge-custom" style="background:var(--success)">✅ Payé</span>
+                    <button class="btn-icon-sm" title="Marquer comme non payé" onclick="toggleParticipantPaid(<?= (int)$p['id'] ?>, false)">↺</button>
+                <?php else: ?>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleParticipantPaid(<?= (int)$p['id'] ?>, true)">Marquer ma part payée</button>
+                <?php endif; ?>
+            <?php else: ?>
+                <span class="badge-custom"><?= ['pending' => 'En attente', 'accepted' => 'Accepté', 'declined' => 'Refusé'][$p['status']] ?? $p['status'] ?></span>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
+
 <?php if (empty($additions)): ?>
     <p class="empty-state">Aucune addition pour l'instant.</p>
 <?php else: ?>
@@ -69,7 +102,21 @@ ob_start();
                     <?php if (!$a['is_cagnotte']): ?>
                     <span><?= number_format((float)$p['share_value'], 2, ',', ' ') ?><?= $a['split_mode'] === 'percentage' ? ' %' : ' €' ?></span>
                     <?php endif; ?>
-                    <span class="badge-custom"><?= ['pending' => 'En attente', 'accepted' => 'Accepté', 'declined' => 'Refusé'][$p['status']] ?? $p['status'] ?></span>
+                    <?php if ($p['status'] === 'pending' && (int)($p['user_id'] ?? 0) === (int)$user['id']): ?>
+                        <button class="btn btn-primary btn-sm" onclick="respondParticipant(<?= (int)$p['id'] ?>, 'accept')">Accepter</button>
+                        <button class="btn btn-secondary btn-sm" onclick="respondParticipant(<?= (int)$p['id'] ?>, 'decline')">Refuser</button>
+                    <?php else: ?>
+                        <span class="badge-custom"><?= ['pending' => 'En attente', 'accepted' => 'Accepté', 'declined' => 'Refusé'][$p['status']] ?? $p['status'] ?></span>
+                    <?php endif; ?>
+                    <?php if (!$a['is_cagnotte'] && $p['status'] === 'accepted'): ?>
+                        <?php $canTogglePaid = (int)($p['user_id'] ?? 0) === (int)$user['id'] || (int)($a['created_by'] ?? 0) === (int)$user['id']; ?>
+                        <?php if (!empty($p['paid_at'])): ?>
+                            <span class="badge-custom" style="background:var(--success)">✅ Payé</span>
+                            <?php if ($canTogglePaid): ?><button class="btn-icon-sm" title="Marquer comme non payé" onclick="toggleParticipantPaid(<?= (int)$p['id'] ?>, false)">↺</button><?php endif; ?>
+                        <?php elseif ($canTogglePaid): ?>
+                            <button class="btn btn-secondary btn-sm" onclick="toggleParticipantPaid(<?= (int)$p['id'] ?>, true)">Marquer payé</button>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </li>
                 <?php endforeach; ?>
             </ul>

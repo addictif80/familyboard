@@ -85,6 +85,7 @@ async function bwUnlock() {
         document.getElementById('bw-locked-panel').style.display = 'none';
         document.getElementById('bw-unlocked-panel').style.display = '';
         await bwSync();
+        document.getElementById('bw-search')?.focus();
     } catch (e) {
         errEl.textContent = 'Erreur inattendue — réessayez.';
         console.error(e);
@@ -106,6 +107,8 @@ function bwLock() {
     document.getElementById('bw-locked-panel').style.display = '';
     document.getElementById('bw-unlocked-panel').style.display = 'none';
     document.getElementById('bw-items-list').innerHTML = '';
+    const search = document.getElementById('bw-search');
+    if (search) search.value = '';
 }
 
 async function bwSync() {
@@ -133,20 +136,62 @@ async function bwSync() {
     }
     items.sort((a, b) => a.name.localeCompare(b.name));
     _bwState.items = items;
-    bwRenderItems();
+    // Conserve la recherche en cours après un ajout/modification/suppression (bwSync() est aussi
+    // appelé depuis ces actions) plutôt que de revenir silencieusement à la liste complète.
+    bwRenderItems(document.getElementById('bw-search')?.value || '');
 }
 
-function bwRenderItems() {
+/** Minuscules + sans accents, pour qu'une recherche "impots" trouve "impôts.gouv.fr" — le contenu
+ *  n'existant qu'en mémoire du navigateur (jamais indexé côté serveur, voir plus bas), ce filtrage
+ *  est aussi la seule recherche possible sur ce contenu : la recherche globale de FamilyBoard
+ *  (barre du haut) ne peut pas et ne pourra jamais porter sur le coffre, par construction —
+ *  l'inclure impliquerait d'envoyer le contenu déchiffré au serveur. */
+function bwNormalize(s) {
+    return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+function bwHighlight(text, query) {
+    const safe = escapeHtml(text || '');
+    if (!query) return safe;
+    const normText = bwNormalize(text || '');
+    const normQuery = bwNormalize(query);
+    const idx = normText.indexOf(normQuery);
+    if (idx === -1) return safe;
+    // Les indices sont calculés sur la version normalisée mais découpent le texte ORIGINAL — valide
+    // ici car les diacritiques retirés par normalize('NFD') ne changent pas la longueur en code units
+    // pour le français (lettres accentuées latines, pas d'émoji/combinants multi-unités dans ces champs).
+    return escapeHtml(text.slice(0, idx)) + '<mark>' + escapeHtml(text.slice(idx, idx + query.length)) + '</mark>' + escapeHtml(text.slice(idx + query.length));
+}
+
+function bwFilterItems() {
+    bwRenderItems(document.getElementById('bw-search').value);
+}
+
+function bwRenderItems(query = '') {
     const list = document.getElementById('bw-items-list');
+    const searchBox = document.getElementById('bw-search-wrap');
+    if (searchBox) searchBox.style.display = _bwState.items.length ? '' : 'none';
+
     if (!_bwState.items.length) {
         list.innerHTML = '<p class="empty-state">Aucun identifiant enregistré.</p>';
         return;
     }
-    list.innerHTML = _bwState.items.map((it, idx) => `
+
+    const normQuery = bwNormalize(query);
+    const matches = _bwState.items
+        .map((it, idx) => ({ it, idx }))
+        .filter(({ it }) => !normQuery || bwNormalize(it.name).includes(normQuery) || bwNormalize(it.username).includes(normQuery));
+
+    if (!matches.length) {
+        list.innerHTML = `<p class="empty-state">Aucun identifiant ne correspond à « ${escapeHtml(query)} ».</p>`;
+        return;
+    }
+
+    list.innerHTML = matches.map(({ it, idx }) => `
         <div class="card" style="padding:.75rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
             <div style="flex:1;min-width:160px">
-                <strong>${escapeHtml(it.name || '(sans nom)')}</strong>
-                ${it.username ? `<div style="font-size:.82rem;color:var(--text-muted)">${escapeHtml(it.username)}</div>` : ''}
+                <strong>${bwHighlight(it.name || '(sans nom)', query)}</strong>
+                ${it.username ? `<div style="font-size:.82rem;color:var(--text-muted)">${bwHighlight(it.username, query)}</div>` : ''}
             </div>
             <div style="display:flex;align-items:center;gap:.4rem">
                 <input type="password" readonly value="${escapeHtml(it.password)}" id="bw-pw-${idx}" style="width:160px;font-family:monospace" onclick="this.select()">

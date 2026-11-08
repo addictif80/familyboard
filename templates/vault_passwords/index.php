@@ -38,12 +38,17 @@ ob_start();
             <button type="button" class="btn btn-secondary" onclick="bwOpenUnlockModal()">🔓 Gérer mes identifiants dans FamilyBoard</button>
         </div>
         <div id="bw-unlocked-panel" style="display:none">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
                 <strong>Mes identifiants</strong>
                 <div style="display:flex;gap:.5rem">
                     <button type="button" class="btn btn-primary btn-sm" onclick="bwOpenNewItemModal()">+ Ajouter</button>
                     <button type="button" class="btn btn-secondary btn-sm" onclick="bwLock()">🔒 Verrouiller</button>
                 </div>
+            </div>
+            <div id="bw-search-wrap" style="display:none;margin-bottom:.75rem;position:relative">
+                <input type="search" id="bw-search" placeholder="🔍 Rechercher un identifiant (nom, identifiant…)"
+                       oninput="bwFilterItems()" onkeydown="if(event.key==='Escape'){this.value='';bwFilterItems();}"
+                       style="width:100%;padding:.55rem .75rem">
             </div>
             <div id="bw-items-list"></div>
         </div>

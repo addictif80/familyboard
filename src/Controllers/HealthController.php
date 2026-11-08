@@ -4,6 +4,7 @@ namespace App\Controllers;
 use App\Core\Session;
 use App\Models\FamilyChild;
 use App\Models\Health;
+use App\Models\HealthShareLink;
 
 class HealthController extends BaseController
 {
@@ -21,7 +22,50 @@ class HealthController extends BaseController
         $selectedChildId = (int)($_GET['child_id'] ?? 0) ?: ($children[0]['id'] ?? null);
         $growth = $selectedChildId ? Health::getGrowth($familyId, (int)$selectedChildId) : [];
 
+        // Liens de partage actifs, regroupés par sujet ("type:id") — pour l'afficher sous chaque
+        // sujet du carnet plutôt que de refaire une requête par sujet dans le template.
+        $shareLinksBySubject = [];
+        foreach ($subjects as $s) {
+            $links = HealthShareLink::getActiveForSubject($familyId, $s['type'], (int)$s['id']);
+            if ($links) $shareLinksBySubject[$s['type'] . ':' . $s['id']] = $links;
+        }
+
         require BASE_PATH . '/templates/health/index.php';
+    }
+
+    /** Génère un lien de partage ponctuel du carnet d'un sujet, à transmettre à un médecin. */
+    public function createShareLink(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $familyId = (int)$user['family_id'];
+            $data = $this->jsonInput();
+            $subjectType = ($data['subject_type'] ?? '') === 'user' ? 'user' : 'child';
+            $subjectId = (int)($data['subject_id'] ?? 0);
+            if (!Health::subjectLabel($familyId, $subjectType, $subjectId)) {
+                return ['success' => false, 'error' => 'Sujet introuvable.'];
+            }
+            $duration = (int)($data['duration_days'] ?? 7);
+            $link = HealthShareLink::create($familyId, (int)$user['id'], $subjectType, $subjectId, $duration);
+            return ['success' => true, 'url' => rtrim($this->originUrl(), '/') . BASE_URL . '/health-share/' . $link['token'], 'expires_at' => $link['expires_at']];
+        });
+    }
+
+    public function revokeShareLink(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            HealthShareLink::revoke((int)$params['id'], (int)$user['family_id']);
+            return ['success' => true];
+        });
+    }
+
+    private function originUrl(): string
+    {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        return $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
     }
 
     // ── Carnet de santé ──────────────────────────────────────────

@@ -158,13 +158,9 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
 
         <div class="sidebar-search">
             <span class="sidebar-search-icon">🔎</span>
-            <input type="text" id="sidebar-search-input" placeholder="Rechercher un module…" autocomplete="off">
+            <input type="text" id="sidebar-search-input" placeholder="Rechercher un module ou un enregistrement…" autocomplete="off">
         </div>
         <p class="sidebar-search-empty" id="sidebar-search-empty" style="display:none">Aucun résultat.</p>
-        <!-- Le contenu trouvé (tâches, contacts...) passe avant la liste des modules : sinon,
-             une recherche qui ne correspond à aucun module pousse ce qu'on cherche vraiment
-             tout en bas d'une liste de pages non pertinentes. -->
-        <div class="sidebar-content-results" id="sidebar-content-results"></div>
 
         <ul class="nav-menu">
             <li class="nav-item <?= $currentPath === BASE_URL . '/' || $currentPath === BASE_URL ? 'active' : '' ?>">
@@ -210,6 +206,12 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                     <span class="nav-label">Albums photo</span>
                 </a>
             </li>
+            <li class="nav-item <?= str_contains($currentPath, '/annual-recap') ? 'active' : '' ?>" data-section="vie-de-famille">
+                <a href="<?= BASE_URL ?>/annual-recap" class="nav-link">
+                    <span class="nav-icon">🎞️</span>
+                    <span class="nav-label">Récap annuel</span>
+                </a>
+            </li>
             <?php endif; ?>
             <?php if ($_navEnabled('chat')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>" data-section="vie-de-famille">
@@ -240,6 +242,14 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                 <a href="<?= BASE_URL ?>/meals" class="nav-link">
                     <span class="nav-icon">🍽️</span>
                     <span class="nav-label">Repas</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('stock')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/stock') ? 'active' : '' ?>" data-section="vie-de-famille">
+                <a href="<?= BASE_URL ?>/stock" class="nav-link">
+                    <span class="nav-icon">🧊</span>
+                    <span class="nav-label">Stock frigo/congélo</span>
                 </a>
             </li>
             <?php endif; ?>
@@ -521,6 +531,10 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             <?php endif; ?>
         </ul>
 
+        <!-- Le contenu trouvé (tâches, contacts...) vient APRÈS la liste des modules — un module
+             qui correspond à la recherche doit toujours apparaître en premier. -->
+        <div class="sidebar-content-results" id="sidebar-content-results"></div>
+
         <div class="sidebar-footer">
             <div class="user-menu" id="user-menu">
                 <button type="button" class="user-menu-trigger" id="user-menu-trigger" onclick="toggleUserMenu()">
@@ -550,6 +564,9 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                     <button type="button" id="pwa-install-btn" onclick="installPWA()" class="user-menu-item" style="display:none">
                         <span class="user-menu-item-icon">📲</span> Installer l'app
                     </button>
+                    <a href="<?= BASE_URL ?>/migration" class="user-menu-item">
+                        <span class="user-menu-item-icon">🚚</span> Vous venez d'une autre app ?
+                    </a>
                     <a href="<?= BASE_URL ?>/aide" class="user-menu-item">
                         <span class="user-menu-item-icon">🧭</span> Guide d'utilisation
                     </a>
@@ -656,6 +673,26 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             <div id="notif-list"></div>
         </div>
 
+        <!-- Prévisualisation lecture seule d'une notification — voir readNotif() dans app.js.
+             Volontairement sans aucune action : seul un lien "Ouvrir la page complète" permet
+             d'agir, pour que cette modal reste un simple raccourci de consultation. -->
+        <div class="modal-overlay" id="notif-preview-modal" style="display:none">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="notif-preview-title"></h3>
+                    <button onclick="closeModal('notif-preview-modal')">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p id="notif-preview-time" style="color:var(--text-muted);font-size:.8rem;margin-top:0"></p>
+                    <div id="notif-preview-fields"></div>
+                </div>
+                <div class="modal-footer">
+                    <a href="#" id="notif-preview-link" class="btn btn-primary">Ouvrir la page complète</a>
+                    <button class="btn btn-secondary" onclick="closeModal('notif-preview-modal')">Fermer</button>
+                </div>
+            </div>
+        </div>
+
         <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
         <!-- Assistant IA : bulle superposée, pas une page (voir toggleAiAssistantPanel()) -->
         <div class="ai-assistant-panel" id="ai-assistant-panel">
@@ -694,7 +731,7 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             // sous-pages (fiche d'un projet, d'un album…), pour éviter la lassitude.
             $_moduleHomePaths = ['/wall','/albums','/calendar','/custody','/comm-log','/tasks',
                 '/projects','/budget','/documents','/warranties','/baby','/location','/emergency',
-                '/wishlist','/polls','/links','/contacts','/meals','/chat'];
+                '/wishlist','/polls','/links','/contacts','/meals','/chat','/stock'];
             if (in_array(rtrim(substr($currentPath, strlen(BASE_URL)), '/'), $_moduleHomePaths, true)) {
                 $placement = 'module_pages';
                 require BASE_PATH . '/templates/partials/abhd_spotlight.php';

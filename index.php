@@ -65,6 +65,7 @@ use App\Controllers\EmploymentController;
 use App\Controllers\NannyController;
 use App\Controllers\DealController;
 use App\Controllers\HealthController;
+use App\Controllers\HealthShareController;
 use App\Controllers\VehicleController;
 use App\Controllers\PetController;
 use App\Controllers\MeterController;
@@ -76,6 +77,10 @@ use App\Controllers\VaultAccessController;
 use App\Controllers\BirthListController;
 use App\Controllers\BirthListAccessController;
 use App\Controllers\AiAssistantController;
+use App\Controllers\AnnualRecapController;
+use App\Controllers\MigrationController;
+use App\Controllers\CalendarFeedController;
+use App\Controllers\StockController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -241,6 +246,7 @@ $router->get('/api/search', [SearchController::class, 'search']);
 // Dashboard
 $router->get('/', [DashboardController::class, 'index']);
 $router->post('/api/dashboard/widgets', [DashboardController::class, 'saveWidgets']);
+$router->post('/api/dashboard/weekly-digest/dismiss', [DashboardController::class, 'dismissWeeklyDigest']);
 
 // Calendar
 $router->get('/calendar', [CalendarController::class, 'index']);
@@ -272,6 +278,7 @@ $router->post('/api/additions', [AdditionController::class, 'create']);
 $router->post('/api/additions/:id/delete', [AdditionController::class, 'delete']);
 $router->post('/api/additions/:id/participants', [AdditionController::class, 'inviteParticipant']);
 $router->post('/api/additions/participants/:id/respond', [AdditionController::class, 'respond']);
+$router->post('/api/additions/participants/:id/paid', [AdditionController::class, 'markParticipantPaid']);
 $router->get('/letters', [LetterController::class, 'index']);
 $router->post('/api/letters', [LetterController::class, 'create']);
 $router->post('/api/letters/:id', [LetterController::class, 'update']);
@@ -364,6 +371,9 @@ $router->post('/api/health/growth/:id/delete', [HealthController::class, 'delete
 $router->post('/api/health/doctors', [HealthController::class, 'addDoctor']);
 $router->post('/api/health/doctors/:id', [HealthController::class, 'updateDoctor']);
 $router->post('/api/health/doctors/:id/delete', [HealthController::class, 'deleteDoctor']);
+$router->post('/api/health/share-links', [HealthController::class, 'createShareLink']);
+$router->post('/api/health/share-links/:id/revoke', [HealthController::class, 'revokeShareLink']);
+$router->get('/health-share/:token', [HealthShareController::class, 'view']);
 
 // ── Véhicules ─────────────────────────────────────────────────
 $router->get('/vehicles', [VehicleController::class, 'index']);
@@ -433,6 +443,17 @@ $router->post('/liste-naissance/:token/items/:itemId/unreserve', [BirthListAcces
 $router->get('/ai-assistant', [AiAssistantController::class, 'index']);
 $router->get('/api/ai-assistant/messages', [AiAssistantController::class, 'getMessages']);
 $router->post('/api/ai-assistant/message', [AiAssistantController::class, 'sendMessage']);
+$router->get('/annual-recap', [AnnualRecapController::class, 'index']);
+$router->get('/api/annual-recap/data', [AnnualRecapController::class, 'data']);
+$router->get('/migration', [MigrationController::class, 'index']);
+$router->get('/calendar-feed/:token', [CalendarFeedController::class, 'ics']);
+$router->post('/api/calendar-feed/token', [CalendarFeedController::class, 'getToken']);
+$router->post('/api/calendar-feed/regenerate', [CalendarFeedController::class, 'regenerate']);
+$router->get('/stock', [StockController::class, 'index']);
+$router->post('/api/stock/items', [StockController::class, 'create']);
+$router->post('/api/stock/items/:id', [StockController::class, 'update']);
+$router->post('/api/stock/items/:id/delete', [StockController::class, 'delete']);
+$router->post('/api/stock/items/:id/adjust', [StockController::class, 'adjust']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
@@ -488,6 +509,7 @@ $router->post('/tasks/list/:id/delete', [TaskController::class, 'deleteList']);
 $router->post('/api/tasks/list/:id/link-event', [TaskController::class, 'linkEvent']);
 $router->post('/api/tasks/list/:id/unlink-event', [TaskController::class, 'unlinkEvent']);
 $router->post('/api/tasks/list/:id/task', [TaskController::class, 'createTask']);
+$router->post('/api/tasks/list/:id/bulk-import', [TaskController::class, 'bulkImport']);
 $router->post('/api/tasks/task/:id/toggle', [TaskController::class, 'toggleTask']);
 $router->post('/api/tasks/task/:id/update', [TaskController::class, 'updateTask']);
 $router->post('/api/tasks/task/:id/delete', [TaskController::class, 'deleteTask']);
@@ -688,6 +710,7 @@ $router->post('/api/contacts', [ContactController::class, 'create']);
 $router->post('/api/contacts/:id', [ContactController::class, 'update']);
 $router->post('/api/contacts/:id/delete', [ContactController::class, 'delete']);
 $router->post('/api/contacts/:id/avatar', [ContactController::class, 'uploadAvatar']);
+$router->post('/api/contacts/import-vcf', [ContactController::class, 'importVcf']);
 
 // Liste de cadeaux
 $router->get('/wishlist', [WishlistController::class, 'index']);
@@ -733,6 +756,7 @@ $router->post('/settings/delete-account', [SettingsController::class, 'deleteAcc
 $router->get('/api/notifications', [SettingsController::class, 'getNotifications']);
 $router->post('/api/notifications/:id/read', [SettingsController::class, 'markNotificationRead']);
 $router->post('/api/notifications/read-all', [SettingsController::class, 'markAllNotificationsRead']);
+$router->get('/api/notifications/:id/preview', [NotificationController::class, 'preview']);
 $router->post('/settings/notify', [SettingsController::class, 'sendNotification']);
 $router->post('/settings/2fa/totp/start', [SettingsController::class, 'startTwoFactorTotp']);
 $router->post('/settings/2fa/totp/confirm', [SettingsController::class, 'confirmTwoFactorTotp']);

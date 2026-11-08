@@ -2,6 +2,20 @@
 // Module Additions (partage de frais + cagnotte)
 // ============================================
 
+// Raccourci "Partager une dépense" depuis la page Garde alternée (lien
+// /additions?share_with=<user_id>&share_label=<texte>) : ouvre directement la création
+// d'une addition, puis invite automatiquement ce co-parent à 50 % une fois créée.
+let _pendingShareWith = null;
+document.addEventListener('DOMContentLoaded', () => {
+    const qs = new URLSearchParams(window.location.search);
+    const shareWith = qs.get('share_with');
+    if (!shareWith) return;
+    _pendingShareWith = parseInt(shareWith, 10);
+    openAdditionModal(false);
+    const label = qs.get('share_label') || '';
+    if (label) document.getElementById('addition-title').value = 'Frais partagés — ' + label;
+});
+
 function openAdditionModal(isCagnotte) {
     document.getElementById('addition-modal-title').textContent = isCagnotte ? 'Nouvelle cagnotte' : 'Nouvelle addition';
     document.getElementById('addition-is-cagnotte').value = isCagnotte ? '1' : '0';
@@ -42,12 +56,24 @@ async function saveAddition() {
     }
 
     const r = await apiFetch(BASE_URL + '/api/additions', { method: 'POST', body: JSON.stringify(data) });
-    if (r.success) {
-        closeModal('addition-modal');
-        location.reload();
-    } else {
-        Dialog.toast(r.error || 'Erreur.', 'error');
+    if (!r.success) { Dialog.toast(r.error || 'Erreur.', 'error'); return; }
+
+    if (_pendingShareWith && !isCagnotte) {
+        const shareWith = _pendingShareWith;
+        _pendingShareWith = null;
+        const inviteR = await apiFetch(BASE_URL + '/api/additions/' + r.id + '/participants', {
+            method: 'POST', body: JSON.stringify({ user_id: shareWith, share_value: 50 }),
+        });
+        if (!inviteR.success) {
+            // L'addition existe déjà : on ne bloque pas sur l'échec de l'invitation, l'utilisateur
+            // pourra réessayer manuellement via "+ Inviter un participant" après le rechargement.
+            Dialog.toast(inviteR.error || 'Addition créée, mais l\'invitation du co-parent a échoué — invitez-le manuellement.', 'error');
+            setTimeout(() => { closeModal('addition-modal'); location.reload(); }, 2500);
+            return;
+        }
     }
+    closeModal('addition-modal');
+    location.reload();
 }
 
 async function deleteAddition(id) {
@@ -55,6 +81,22 @@ async function deleteAddition(id) {
     const r = await apiFetch(BASE_URL + '/api/additions/' + id + '/delete', { method: 'POST' });
     if (r.success) location.reload();
     else Dialog.toast('Erreur.', 'error');
+}
+
+async function respondParticipant(participantId, decision) {
+    const r = await apiFetch(BASE_URL + '/api/additions/participants/' + participantId + '/respond', {
+        method: 'POST', body: JSON.stringify({ decision }),
+    });
+    if (r.success) location.reload();
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+async function toggleParticipantPaid(participantId, paid) {
+    const r = await apiFetch(BASE_URL + '/api/additions/participants/' + participantId + '/paid', {
+        method: 'POST', body: JSON.stringify({ paid }),
+    });
+    if (r.success) location.reload();
+    else Dialog.toast(r.error || 'Erreur.', 'error');
 }
 
 function openInviteModal(additionId) {

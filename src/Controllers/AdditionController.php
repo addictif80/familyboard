@@ -6,6 +6,7 @@ use App\Models\Addition;
 use App\Models\AdditionParticipant;
 use App\Models\AdditionPayment;
 use App\Models\AdditionGuest;
+use App\Models\Custody;
 use App\Models\FamilyFriend;
 use App\Models\User;
 
@@ -19,15 +20,25 @@ class AdditionController extends BaseController
         $familyId = (int)$user['family_id'];
         $additions = Addition::getByFamily($familyId);
 
-        // Personnes invitables : membres de ma famille (hors moi), et membres des familles
-        // amies acceptées — un co-parent est éligible dans les deux cas, comme n'importe quel
-        // autre membre.
+        // Personnes invitables : membres de ma famille (hors moi), membres des familles amies
+        // acceptées, et co-parents ayant accès à un planning de garde de cette famille (même
+        // sans lien "famille amie" — voir Custody::userHasAccessToAnyScheduleOfFamily()). Un
+        // compte co-parent à accès restreint appartient déjà à cette famille (donc listé par la
+        // première requête) ; seul un co-parent membre à part entière d'une AUTRE famille a
+        // besoin d'être ajouté explicitement ici.
         $invitableUsers = array_values(array_filter(User::getByFamily($familyId), fn($u) => (int)$u['id'] !== (int)$user['id']));
+        $invitableIds = array_column($invitableUsers, 'id');
         foreach (FamilyFriend::getAcceptedFor($familyId) as $ff) {
             foreach (User::getByFamily((int)$ff['family_id']) as $u) {
                 $u['friend_family_name'] = $ff['family_name'];
                 $invitableUsers[] = $u;
+                $invitableIds[] = $u['id'];
             }
+        }
+        foreach (Custody::getCoparentUsersForFamily($familyId) as $cp) {
+            if (in_array($cp['id'], $invitableIds, true)) continue;
+            $invitableUsers[] = ['id' => $cp['id'], 'name' => $cp['name'], 'role' => 'coparent', 'friend_family_name' => null];
+            $invitableIds[] = $cp['id'];
         }
 
         $myParticipations = AdditionParticipant::getForUser((int)$user['id']);
@@ -91,8 +102,12 @@ class AdditionController extends BaseController
                 if (!$target) return ['success' => false, 'error' => 'Membre introuvable.'];
                 $sameFamily = (int)$target['family_id'] === (int)$user['family_id'];
                 $friendFamily = FamilyFriend::areFriends((int)$user['family_id'], (int)$target['family_id']);
-                if (!$sameFamily && !$friendFamily) {
-                    return ['success' => false, 'error' => 'Ce membre n\'est ni de votre famille, ni d\'une famille amie.'];
+                // Un co-parent (accès à un planning de garde de cette famille via custody_access)
+                // est un participant légitime même sans lien "famille amie" — c'est justement le
+                // cas d'usage visé (partage de frais liés à la garde), voir Custody::.
+                $coparentAccess = Custody::userHasAccessToAnyScheduleOfFamily($targetId, (int)$user['family_id']);
+                if (!$sameFamily && !$friendFamily && !$coparentAccess) {
+                    return ['success' => false, 'error' => 'Ce membre n\'est ni de votre famille, ni d\'une famille amie, ni un co-parent ayant accès à un de vos plannings de garde.'];
                 }
                 $pid = AdditionParticipant::inviteUser((int)$params['id'], $targetId, $shareValue, (int)$user['id']);
             } elseif (!empty($data['email'])) {
@@ -119,6 +134,27 @@ class AdditionController extends BaseController
             $decision = ($data['decision'] ?? '') === 'accept' ? 'accept' : 'decline';
             $ok = AdditionParticipant::respond((int)$params['id'], $decision, (int)$user['id']);
             return ['success' => $ok];
+        });
+    }
+
+    /** Marque la part d'un participant comme payée/non payée (addition classique, hors
+     *  cagnotte) — autorisé pour le participant lui-même (il règle son dû et le déclare) ou pour
+     *  la personne qui a créé l'addition (elle a reçu le paiement, hors ligne). */
+    public function markParticipantPaid(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $participant = AdditionParticipant::findById((int)$params['id']);
+            if (!$participant) return ['success' => false, 'error' => 'Participant introuvable.'];
+            $addition = Addition::getById((int)$participant['addition_id']);
+            if (!$addition || $addition['is_cagnotte']) return ['success' => false, 'error' => 'Non autorisé.'];
+            $isSelf = (int)($participant['user_id'] ?? 0) === (int)$user['id'];
+            $isCreator = (int)($addition['created_by'] ?? 0) === (int)$user['id'];
+            if (!$isSelf && !$isCreator) return ['success' => false, 'error' => 'Non autorisé.'];
+            $paid = !empty($this->jsonInput()['paid']);
+            AdditionParticipant::setPaid((int)$params['id'], $paid);
+            return ['success' => true];
         });
     }
 

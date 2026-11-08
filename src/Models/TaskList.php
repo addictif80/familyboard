@@ -110,6 +110,21 @@ class TaskList
         );
     }
 
+    /** Ajoute plusieurs tâches/articles d'un coup (un titre par ligne collée) — voir /migration
+     *  pour reconstituer rapidement une liste de courses/tâches venant d'une autre app, qui
+     *  n'offre en général aucun export automatisable pour ce type de liste. */
+    public static function bulkCreateTasks(int $listId, int $userId, array $titles): int
+    {
+        $count = 0;
+        foreach ($titles as $title) {
+            $title = trim($title);
+            if ($title === '') continue;
+            self::createTask($listId, $userId, ['title' => $title]);
+            $count++;
+        }
+        return $count;
+    }
+
     public static function updateTask(int $id, array $data): void
     {
         Database::execute(

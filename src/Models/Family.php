@@ -24,6 +24,7 @@ class Family
         'emergency'   => ['label' => 'Fiches urgence',    'icon' => '🚑'],
         'comm_log'    => ['label' => 'Journal parental',  'icon' => '📝'],
         'meals'       => ['label' => 'Repas',              'icon' => '🍽️'],
+        'stock'       => ['label' => 'Stock frigo/congélo', 'icon' => '🧊'],
         'sitter'      => ['label' => 'Accès baby-sitter',  'icon' => '👶'],
         'kiosk'       => ['label' => 'Écran mural (kiosque)', 'icon' => '🖥️'],
         'wishlist'    => ['label' => 'Liste de cadeaux',   'icon' => '🎁'],
@@ -65,7 +66,7 @@ class Family
         'contacts' => '/contacts', 'warranties' => '/warranties', 'documents' => '/documents',
         'family-wall' => '/family-wall', 'baby' => '/baby', 'location' => '/location',
         'emergency' => '/emergency', 'comm_log' => '/comm-log', 'meals' => '/meals',
-        'wishlist' => '/wishlist', 'polls' => '/polls', 'links' => '/links',
+        'wishlist' => '/wishlist', 'polls' => '/polls', 'links' => '/links', 'stock' => '/stock',
         'additions' => '/additions', 'letters' => '/letters', 'disputes' => '/disputes',
         'school' => '/school', 'employment' => '/employment', 'nanny' => '/nanny', 'deals' => '/deals', 'health' => '/health', 'vehicles' => '/vehicles', 'pets' => '/pets', 'meters' => '/meters', 'admin_procedures' => '/admin-procedures', 'leave' => '/leave', 'travels' => '/travels', 'vault' => '/vault', 'ai_assistant' => '/ai-assistant',
     ];

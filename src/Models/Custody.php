@@ -159,6 +159,18 @@ class Custody
         return (bool)Database::fetch('SELECT 1 FROM custody_access WHERE user_id=? AND schedule_id=?', [$userId, $scheduleId]);
     }
 
+    /** Vrai si $userId est le co-parent (accès via custody_access) d'au moins un planning de
+     *  $familyId — utilisé pour autoriser l'invitation d'un co-parent à une addition même sans
+     *  relation "famille amie" (voir AdditionController::inviteParticipant()). */
+    public static function userHasAccessToAnyScheduleOfFamily(int $userId, int $familyId): bool
+    {
+        return (bool)Database::fetch(
+            'SELECT 1 FROM custody_access ca JOIN custody_schedules cs ON cs.id = ca.schedule_id
+             WHERE ca.user_id = ? AND cs.family_id = ?',
+            [$userId, $familyId]
+        );
+    }
+
     public static function grantAccess(int $userId, int $scheduleId): void
     {
         Database::execute(

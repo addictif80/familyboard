@@ -156,7 +156,7 @@ class EmailContent
             'weekly_digest'         => 'Résumé hebdomadaire (dimanche soir)',
             'weekly_digest_coparent'=> 'Résumé hebdomadaire — accès co-parent',
             'password_reset'        => 'Réinitialisation de mot de passe',
-            'expiry_reminder'       => 'Rappel d\'échéance (garantie/document, J-30 et J-7)',
+            'expiry_reminder'       => 'Rappel d\'échéance (garantie/document J-30 et J-7, ou stock frigo/congélo J-3 et jour même)',
             'account_deleted'       => 'Compte supprimé (motif et attribution renvoyés par l\'admin système ou en libre-service)',
             'subscription_downgraded'         => 'Abonnement — bascule immédiate en offre Gratuite',
             'subscription_retention_reminder' => 'Abonnement — rappel à mi-parcours du délai de rétention',

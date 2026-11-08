@@ -5,6 +5,7 @@ use App\Core\Session;
 use App\Models\Custody;
 use App\Models\CustodyActivityLog;
 use App\Models\CustodyChecklist;
+use App\Models\Family;
 use App\Models\FamilyChild;
 use App\Models\User;
 use App\Models\Notification;
@@ -20,6 +21,14 @@ class CustodyController extends BaseController
         $user = Session::user();
         $schedules = Custody::getSchedules($user['family_id']);
         $familyChildren = FamilyChild::getByFamily($user['family_id']);
+        // Pour le raccourci "Partager une dépense" (voir Additions) — regroupé par schedule_id
+        // plutôt que par utilisateur, l'inverse de Custody::getCoparentUsersForFamily().
+        $coparentsBySchedule = [];
+        foreach (Custody::getCoparentUsersForFamily($user['family_id']) as $cp) {
+            foreach ($cp['schedule_ids'] as $sid) $coparentsBySchedule[$sid][] = $cp;
+        }
+        $family = Family::findById((int)$user['family_id']);
+        $additionsEnabled = $family && !in_array('additions', Family::getDisabledModules($family), true);
         $members = User::getByFamily($user['family_id']);
         $checklistItems = CustodyChecklist::getItemsForFamily($user['family_id']);
 
@@ -213,7 +222,7 @@ class CustodyController extends BaseController
             $parentUserId = $this->resolveCustodyParent($data['parent_user_id'] ?? null, $user, (int)$data['schedule_id']);
             $id = Custody::createEvent($data['schedule_id'], $parentUserId, $data);
             CustodyActivityLog::record((int)$data['schedule_id'], $user['id'], 'custody_event_created', $data['notes'] ?? null);
-            Notification::notifyFamily($user['family_id'], $user['id'], 'custody', 'Garde mise à jour', 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.', BASE_URL . '/custody', (int)$data['schedule_id']);
+            Notification::notifyFamily($user['family_id'], $user['id'], 'custody', 'Garde mise à jour', 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.', BASE_URL . '/custody', (int)$data['schedule_id'], 'custody_event', $id);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -304,7 +313,7 @@ class CustodyController extends BaseController
                 $user['family_id'], $user['id'], 'custody',
                 'Proposition de garde appliquée',
                 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.',
-                BASE_URL . '/custody', $scheduleId
+                BASE_URL . '/custody', $scheduleId, 'custody_schedule', $scheduleId
             );
 
             return ['success' => true, 'created' => $created];

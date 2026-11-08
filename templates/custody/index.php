@@ -17,6 +17,11 @@ ob_start();
                     <?php if ($user['role'] === 'admin'): ?>
                     <button onclick="openInviteCoparentModal(<?= (int)$schedule['id'] ?>)" class="btn-chip" title="Inviter un co-parent">🔒</button>
                     <?php endif; ?>
+                    <?php if ($additionsEnabled && !empty($coparentsBySchedule[$schedule['id']])): ?>
+                        <?php $cp = $coparentsBySchedule[$schedule['id']][0]; ?>
+                        <a class="btn-chip" title="Partager une dépense avec <?= htmlspecialchars($cp['name']) ?>"
+                           href="<?= BASE_URL ?>/additions?share_with=<?= (int)$cp['id'] ?>&share_label=<?= urlencode($schedule['child_name']) ?>">💰</a>
+                    <?php endif; ?>
                     <button onclick="openActivityLogModal(<?= (int)$schedule['id'] ?>, <?= htmlspecialchars(json_encode($schedule['child_name'])) ?>)" class="btn-chip" title="Journal d'activité">📜</button>
                     <button onclick="deleteSchedule(<?= $schedule['id'] ?>)" class="btn-chip">✕</button>
                 </span>

@@ -56,7 +56,7 @@ class CommLogController extends BaseController
             }
 
             Notification::notifyFamily($user['family_id'], $user['id'], 'comm_log',
-                'Journal parental', $user['name'] . ' a ajouté ' . ($audioPath ? 'un message vocal' : 'un message') . '.', BASE_URL . '/comm-log');
+                'Journal parental', $user['name'] . ' a ajouté ' . ($audioPath ? 'un message vocal' : 'un message') . '.', BASE_URL . '/comm-log', null, 'comm_log', $id);
 
             return [
                 'success' => true,
