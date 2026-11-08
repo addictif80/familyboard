@@ -81,6 +81,7 @@ use App\Controllers\AnnualRecapController;
 use App\Controllers\MigrationController;
 use App\Controllers\CalendarFeedController;
 use App\Controllers\StockController;
+use App\Controllers\RecordController;
 use App\Controllers\SubscriptionController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
@@ -454,6 +455,7 @@ $router->post('/api/stock/items', [StockController::class, 'create']);
 $router->post('/api/stock/items/:id', [StockController::class, 'update']);
 $router->post('/api/stock/items/:id/delete', [StockController::class, 'delete']);
 $router->post('/api/stock/items/:id/adjust', [StockController::class, 'adjust']);
+$router->get('/api/records/:type/:id/preview', [RecordController::class, 'preview']);
 
 $router->post('/api/additions/:id/payments', [AdditionController::class, 'recordPayment']);
 $router->post('/api/additions/:addition_id/payments/:id/delete', [AdditionController::class, 'deletePayment']);
