@@ -9,6 +9,7 @@ use App\Models\Contact;
 use App\Models\Custody;
 use App\Models\Document;
 use App\Models\Event;
+use App\Models\Health;
 use App\Models\Post;
 use App\Models\Project;
 use App\Models\StockItem;
@@ -43,6 +44,7 @@ class RecordPreview
             'album_photo'      => self::albumPhotoEntity($id, $familyId),
             'addition'         => self::additionEntity($id, $familyId),
             'stock_item'       => self::stockItemEntity($id, $familyId),
+            'health_entry'     => self::healthEntryEntity($id, $familyId),
             'user'             => self::userEntity($id, $familyId),
             'baby'             => self::babyEntity($id, $familyId),
             'contact'          => self::contactEntity($id, $familyId),
@@ -166,6 +168,8 @@ class RecordPreview
         if (!empty($w['purchase_date'])) $fields[] = ['label' => "Date d'achat", 'value' => DateHelper::format($w['purchase_date'], 'j F Y')];
         if (!empty($w['warranty_end_date'])) $fields[] = ['label' => 'Fin de garantie', 'value' => DateHelper::format($w['warranty_end_date'], 'j F Y')];
         if (!empty($w['store'])) $fields[] = ['label' => 'Revendeur', 'value' => $w['store']];
+        if (!empty($w['notes'])) $fields[] = ['label' => 'Notes', 'value' => $w['notes']];
+        if (!empty($w['file_path'])) $fields[] = ['label' => 'Pièce jointe', 'value' => $w['file_original'] ?: 'Fichier joint'];
         return ['icon' => '🧾', 'fields' => $fields];
     }
 
@@ -217,6 +221,23 @@ class RecordPreview
         if (!empty($it['expiry_date'])) $fields[] = ['label' => 'Péremption', 'value' => DateHelper::format($it['expiry_date'], 'j F Y')];
         if (!empty($it['notes'])) $fields[] = ['label' => 'Notes', 'value' => $it['notes']];
         return ['icon' => '🧊', 'fields' => $fields];
+    }
+
+    private static function healthEntryEntity(int $id, int $familyId): ?array
+    {
+        $e = Health::getEntryById($id);
+        if (!$e || (int)$e['family_id'] !== $familyId) return null;
+        $subject = Health::subjectLabel($familyId, $e['subject_type'], (int)$e['subject_id']);
+        $type = Health::ENTRY_TYPES[$e['entry_type']] ?? ['icon' => '🏥', 'label' => $e['entry_type']];
+        $fields = [
+            ['label' => 'Titre', 'value' => $e['title']],
+            ['label' => 'Concerne', 'value' => $subject['name'] ?? '—'],
+            ['label' => 'Type', 'value' => $type['icon'] . ' ' . $type['label']],
+        ];
+        if (!empty($e['entry_date'])) $fields[] = ['label' => 'Date', 'value' => DateHelper::format($e['entry_date'], 'j F Y')];
+        if (!empty($e['reminder_date'])) $fields[] = ['label' => 'Rappel', 'value' => DateHelper::format($e['reminder_date'], 'j F Y')];
+        if (!empty($e['description'])) $fields[] = ['label' => 'Détails', 'value' => $e['description']];
+        return ['icon' => '🏥', 'fields' => $fields];
     }
 
     private static function userEntity(int $id, int $familyId): ?array

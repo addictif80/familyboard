@@ -18,6 +18,7 @@ class RecordController extends BaseController
     private const ALLOWED_TYPES = [
         'event', 'task', 'custody_event', 'custody_schedule', 'comm_log', 'post', 'document',
         'warranty', 'project', 'album_photo', 'addition', 'stock_item', 'user', 'baby', 'contact',
+        'health_entry',
     ];
 
     public function preview(array $params): void

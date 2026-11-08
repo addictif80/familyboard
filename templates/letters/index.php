@@ -30,7 +30,7 @@ use App\Core\DateHelper;
             <p class="letters-empty">Aucun courrier généré pour l'instant.</p>
         <?php endif; ?>
         <?php foreach ($letters as $l): ?>
-        <div class="letter-item" data-letter-id="<?= $l['id'] ?>" data-search="<?= htmlspecialchars(mb_strtolower($l['recipient_display_name'] . ' ' . $l['subject'])) ?>">
+        <div class="letter-item" data-letter-id="<?= $l['id'] ?>" data-search="<?= htmlspecialchars(mb_strtolower($l['recipient_display_name'] . ' ' . $l['subject'])) ?>" style="cursor:pointer" onclick="showLetterDetail(<?= $l['id'] ?>)">
             <div class="letter-item-main">
                 <div class="letter-item-date"><?= DateHelper::format($l['letter_date'], 'd/m/Y') ?></div>
                 <div class="letter-item-info">
@@ -39,7 +39,7 @@ use App\Core\DateHelper;
                 </div>
                 <div class="letter-item-author">par <?= htmlspecialchars($l['author_name']) ?></div>
             </div>
-            <div class="letter-item-actions">
+            <div class="letter-item-actions" onclick="event.stopPropagation()">
                 <button class="btn-chip" title="Voir" onclick="showLetterDetail(<?= $l['id'] ?>)">👁️</button>
                 <button class="btn-chip" title="Modifier" onclick="openLetterModal(<?= $l['id'] ?>)">✏️</button>
                 <button class="btn-chip" title="Imprimer" onclick="printLetter(<?= $l['id'] ?>)">🖨️</button>

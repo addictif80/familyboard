@@ -45,11 +45,12 @@ $statusLabel = [
         <?php else: ?>
         <?php foreach ($warranties as $w): ?>
         <?php $st = $statusLabel[$w['status']] ?? $statusLabel['none']; ?>
-        <div class="warranty-card <?= $st['cls'] ?>" data-id="<?= $w['id'] ?>"
-             data-search="<?= htmlspecialchars(strtolower($w['title'] . ' ' . $w['brand'] . ' ' . $w['model'] . ' ' . $w['serial_number'] . ' ' . $w['store'])) ?>">
+        <div class="warranty-card <?= $st['cls'] ?>" data-id="<?= $w['id'] ?>" style="cursor:pointer"
+             data-search="<?= htmlspecialchars(strtolower($w['title'] . ' ' . $w['brand'] . ' ' . $w['model'] . ' ' . $w['serial_number'] . ' ' . $w['store'])) ?>"
+             onclick="openRecordPreview('warranty', <?= (int)$w['id'] ?>)">
             <div class="wc-header">
                 <span class="wc-status-badge <?= $st['cls'] ?>"><?= $st['label'] ?></span>
-                <div class="wc-actions">
+                <div class="wc-actions" onclick="event.stopPropagation()">
                     <button class="btn-icon-sm" onclick="openEditWarrantyModal(<?= htmlspecialchars(json_encode($w)) ?>)" title="Modifier">✏️</button>
                     <button class="btn-icon-sm" onclick="deleteWarranty(<?= $w['id'] ?>)" title="Supprimer">🗑</button>
                 </div>

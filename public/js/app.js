@@ -505,7 +505,7 @@ const RECORD_TYPE_LABELS = {
     event: 'Événement', task: 'Tâche', custody_event: 'Garde', custody_schedule: 'Garde',
     comm_log: 'Journal parental', post: 'Publication', document: 'Document', warranty: 'Garantie',
     project: 'Projet', album_photo: 'Photo', addition: 'Addition', stock_item: 'Article',
-    user: 'Anniversaire', baby: 'Bébé', contact: 'Contact',
+    user: 'Anniversaire', baby: 'Bébé', contact: 'Contact', health_entry: 'Carnet de santé',
 };
 
 /** Ouvre la même modal de prévisualisation que les notifications (readNotif()), mais pour un

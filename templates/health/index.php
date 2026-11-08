@@ -96,13 +96,13 @@ $subjectLabel = function ($type, $id) use ($subjects) {
                 <tbody>
                 <?php foreach ($entries as $e): ?>
                     <?php $s = $subjectLabel($e['subject_type'], $e['subject_id']); $t = Health::ENTRY_TYPES[$e['entry_type']]; ?>
-                    <tr>
+                    <tr style="cursor:pointer" onclick="openRecordPreview('health_entry', <?= $e['id'] ?>)">
                         <td><?= $e['entry_date'] ? (new DateTime($e['entry_date']))->format('d/m/Y') : '—' ?></td>
                         <td><?= htmlspecialchars($s['name'] ?? '—') ?></td>
                         <td><?= $t['icon'] ?> <?= htmlspecialchars($t['label']) ?></td>
                         <td><?= htmlspecialchars($e['title']) ?></td>
                         <td><?= $e['reminder_date'] ? (new DateTime($e['reminder_date']))->format('d/m/Y') : '—' ?></td>
-                        <td><button class="btn-icon" title="Supprimer" onclick="deleteHealthEntry(<?= $e['id'] ?>)">🗑</button></td>
+                        <td onclick="event.stopPropagation()"><button class="btn-icon" title="Supprimer" onclick="deleteHealthEntry(<?= $e['id'] ?>)">🗑</button></td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($entries)): ?>
