@@ -238,7 +238,11 @@ async function saveWarranty() {
 
     const url = id ? `${BASE_URL}/api/warranties/${id}` : `${BASE_URL}/api/warranties`;
     try {
-        const res = await fetch(url, { method: 'POST', body: fd });
+        // Sans ce header, le serveur ne reconnaît pas cette requête comme un appel AJAX (voir
+        // BaseController::isAjax()) et exige alors un jeton CSRF — absent d'un FormData construit
+        // en JS — d'où un 403 texte brut que res.json() ne peut pas parser (remonte comme une
+        // "Erreur réseau" trompeuse, qui n'a rien à voir avec le réseau).
+        const res = await fetch(url, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         const data = await res.json();
         if (data.success) {
             closeModal('warranty-modal');

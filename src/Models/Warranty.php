@@ -85,7 +85,8 @@ class Warranty
             [$filePath, $fileOrig, $fileMime] = self::saveFile($familyId, $file);
         }
 
-        $endDate = self::computeEndDate($data['purchase_date'] ?? null, (int)($data['warranty_months'] ?? 24));
+        $purchaseDate = $data['purchase_date'] ?? null;
+        $endDate = self::computeEndDate($purchaseDate, (int)($data['warranty_months'] ?? 24));
 
         return Database::insert(
             'INSERT INTO warranties
@@ -100,7 +101,7 @@ class Warranty
                 $data['model']         ?? null,
                 $data['serial_number'] ?? null,
                 $data['store']         ?? null,
-                $data['purchase_date'] ?? null,
+                $purchaseDate ?: null,
                 (int)($data['warranty_months'] ?? 24),
                 $endDate,
                 $data['price']   ? (float)$data['price'] : null,
@@ -126,7 +127,8 @@ class Warranty
             [$filePath, $fileOrig, $fileMime] = self::saveFile($familyId, $file);
         }
 
-        $endDate = self::computeEndDate($data['purchase_date'] ?? null, (int)($data['warranty_months'] ?? 24));
+        $purchaseDate = $data['purchase_date'] ?? null;
+        $endDate = self::computeEndDate($purchaseDate, (int)($data['warranty_months'] ?? 24));
 
         Database::execute(
             'UPDATE warranties SET
@@ -141,7 +143,7 @@ class Warranty
                 $data['model']         ?? null,
                 $data['serial_number'] ?? null,
                 $data['store']         ?? null,
-                $data['purchase_date'] ?? null,
+                $purchaseDate ?: null,
                 (int)($data['warranty_months'] ?? 24),
                 $endDate,
                 $data['price']   ? (float)$data['price'] : null,

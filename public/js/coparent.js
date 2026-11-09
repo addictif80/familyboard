@@ -222,7 +222,7 @@ async function cpUploadAlbumPhoto() {
     const fd = new FormData();
     fd.append('image', file);
 
-    const res = await fetch(`${BASE_URL}/api/coparent/albums/${cpCurrentAlbumId}/photos`, { method: 'POST', body: fd });
+    const res = await fetch(`${BASE_URL}/api/coparent/albums/${cpCurrentAlbumId}/photos`, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const result = await res.json();
     input.value = '';
 
@@ -409,7 +409,7 @@ async function cpSendVoiceJournal({ blob, mimeType, durationSec }) {
     fd.append('content', content);
     fd.append('duration', durationSec);
 
-    const res = await fetch(`${BASE_URL}/api/coparent/journal`, { method: 'POST', body: fd });
+    const res = await fetch(`${BASE_URL}/api/coparent/journal`, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const result = await res.json();
     if (result.success) {
         cpAppendJournalMessage(result.message);
@@ -466,7 +466,7 @@ async function cpUploadDocument() {
     fd.append('schedule_id', cpCurrentScheduleId);
     if (file) fd.append('file', file);
 
-    const res = await fetch(`${BASE_URL}/api/coparent/documents`, { method: 'POST', body: fd });
+    const res = await fetch(`${BASE_URL}/api/coparent/documents`, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const result = await res.json();
     if (result.success) {
         document.getElementById('cp-doc-title').value = '';
