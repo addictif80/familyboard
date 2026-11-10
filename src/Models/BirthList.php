@@ -63,7 +63,7 @@ class BirthList
     {
         $imagePath = $d['image_path'] ?? null;
         if ($file && $file['error'] === UPLOAD_ERR_OK) {
-            [$uploadedPath] = OcrHelper::saveUploadedFile($file, 'birth-list', $familyId);
+            [$uploadedPath] = \App\Core\FileStore::save('birth-list', $familyId, $userId, $file);
             $imagePath = $uploadedPath;
         }
         return Database::insert(
@@ -72,19 +72,19 @@ class BirthList
         );
     }
 
-    public static function updateItem(int $id, int $birthListId, int $familyId, array $d, ?array $file = null): void
+    public static function updateItem(int $id, int $birthListId, int $familyId, array $d, ?array $file = null, ?int $userId = null): void
     {
         $existing = self::getItemById($id);
         $imagePath = $existing['image_path'] ?? null;
 
         if (!empty($d['remove_image'])) {
-            if ($imagePath) @unlink(BASE_PATH . $imagePath);
+            if ($imagePath) \App\Core\FileStore::deleteByPath($imagePath);
             $imagePath = null;
         }
         if (!empty($d['image_path'])) $imagePath = $d['image_path'];
         if ($file && $file['error'] === UPLOAD_ERR_OK) {
-            if ($imagePath) @unlink(BASE_PATH . $imagePath);
-            [$imagePath] = OcrHelper::saveUploadedFile($file, 'birth-list', $familyId);
+            if ($imagePath) \App\Core\FileStore::deleteByPath($imagePath);
+            [$imagePath] = \App\Core\FileStore::save('birth-list', $familyId, $userId, $file);
         }
 
         Database::execute(
@@ -97,7 +97,7 @@ class BirthList
     {
         $item = self::getItemById($id);
         if ($item && (int)$item['birth_list_id'] === $birthListId && $item['image_path']) {
-            @unlink(BASE_PATH . $item['image_path']);
+            \App\Core\FileStore::deleteByPath($item['image_path']);
         }
         Database::execute('DELETE FROM birth_list_items WHERE id=? AND birth_list_id=?', [$id, $birthListId]);
     }

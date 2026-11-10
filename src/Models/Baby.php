@@ -46,11 +46,15 @@ class Baby
 
     public static function updateAvatar(int $id, string $path): void
     {
+        $existing = Database::fetch('SELECT avatar FROM babies WHERE id=?', [$id]);
+        if ($existing && $existing['avatar']) \App\Core\FileStore::deleteByRoute($existing['avatar']);
         Database::execute('UPDATE babies SET avatar=? WHERE id=?', [$path, $id]);
     }
 
     public static function delete(int $id): void
     {
+        $existing = Database::fetch('SELECT avatar FROM babies WHERE id=?', [$id]);
+        if ($existing && $existing['avatar']) \App\Core\FileStore::deleteByRoute($existing['avatar']);
         Database::execute('DELETE FROM babies WHERE id=?', [$id]);
     }
 

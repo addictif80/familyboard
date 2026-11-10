@@ -38,7 +38,7 @@ class DealController extends BaseController
             $d = $this->validated($data);
             if (!$d) return ['success' => false, 'error' => 'Le titre est requis.'];
             $d['remove_file'] = !empty($data['remove_file']);
-            Deal::update((int)$params['id'], (int)$user['family_id'], $d, $_FILES['file'] ?? null);
+            Deal::update((int)$params['id'], (int)$user['family_id'], $d, $_FILES['file'] ?? null, (int)$user['id']);
             return ['success' => true];
         });
     }

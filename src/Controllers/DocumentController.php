@@ -122,7 +122,7 @@ class DocumentController extends BaseController
                 ));
             }
             $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), $user['family_id']);
-            Document::update((int)$params['id'], $user['family_id'], $data, $file);
+            Document::update((int)$params['id'], $user['family_id'], $data, $file, (int)$user['id']);
             foreach ($data['custody_schedule_ids'] as $scheduleId) {
                 CustodyActivityLog::record($scheduleId, $user['id'], 'document_updated', $data['title'] ?? null);
             }

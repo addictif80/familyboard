@@ -61,8 +61,7 @@ class ContactController extends BaseController
             if ($contact['is_system']) return ['success' => false, 'error' => 'Ce contact système ne peut pas être supprimé.'];
             // Delete avatar file if any
             if ($contact['avatar']) {
-                $path = BASE_PATH . $contact['avatar'];
-                if (file_exists($path)) @unlink($path);
+                \App\Core\FileStore::deleteByRoute($contact['avatar']);
             }
             Contact::delete($id);
             return ['success' => true];
@@ -78,13 +77,12 @@ class ContactController extends BaseController
             $contact = Contact::getById($id);
             if (!$contact || $contact['family_id'] !== $user['family_id']) return ['success' => false, 'error' => 'Non autorisé'];
 
-            $path = $this->uploadImage('avatar');
-            if (!$path) return ['success' => false, 'error' => 'Fichier invalide ou trop volumineux'];
+            $path = $this->uploadFamilyImage('avatar', 'avatar');
+            if (!$path) return ['success' => false, 'error' => $this->lastUploadError ?: 'Fichier invalide ou trop volumineux'];
 
             // Delete old avatar
             if ($contact['avatar']) {
-                $old = BASE_PATH . $contact['avatar'];
-                if (file_exists($old)) @unlink($old);
+                \App\Core\FileStore::deleteByRoute($contact['avatar']);
             }
             Contact::updateAvatar($id, $path);
             return ['success' => true, 'avatar' => $path];

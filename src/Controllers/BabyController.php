@@ -64,8 +64,8 @@ class BabyController extends BaseController
             $id = (int)$params['id'];
             $baby = Baby::findById($id);
             if (!$baby || $baby['family_id'] !== $user['family_id']) return ['success' => false];
-            $path = $this->uploadImage('avatar');
-            if (!$path) return ['success' => false, 'error' => 'Upload échoué'];
+            $path = $this->uploadFamilyImage('avatar', 'avatar');
+            if (!$path) return ['success' => false, 'error' => $this->lastUploadError ?: 'Upload échoué'];
             Baby::updateAvatar($id, $path);
             return ['success' => true, 'path' => $path];
         });
@@ -151,7 +151,7 @@ class BabyController extends BaseController
                 for ($i = 0; $i < 10; $i++) {
                     $field = 'image_' . $i;
                     if (!isset($_FILES[$field])) break;
-                    $path = $this->uploadImage($field);
+                    $path = $this->uploadFamilyImage($field, 'baby');
                     if ($path) {
                         Baby::addPregnancyImage($id, $user['family_id'], $path, $_FILES[$field]['name']);
                     }
@@ -184,8 +184,7 @@ class BabyController extends BaseController
             $id = (int)$params['id'];
             $img = Baby::getPregnancyImageById($id);
             if (!$img || $img['family_id'] !== $user['family_id']) return ['success' => false];
-            $fullPath = BASE_PATH . $img['file_path'];
-            if (file_exists($fullPath)) @unlink($fullPath);
+            \App\Core\FileStore::deleteByRoute($img['file_path']);
             Baby::deletePregnancyImage($id);
             return ['success' => true];
         });

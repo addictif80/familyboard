@@ -75,7 +75,7 @@ class WishlistController extends BaseController
             // Une image jointe manuellement prend le pas sur celle récupérée automatiquement du
             // lien — utile quand le site bloque la récupération automatique (Cloudflare etc.).
             if (!empty($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-                [$data['image_path']] = \App\Core\OcrHelper::saveUploadedFile($_FILES['image'], 'wishlist', (int)$user['family_id']);
+                [$data['image_path']] = \App\Core\FileStore::save('wishlist', (int)$user['family_id'], (int)$user['id'], $_FILES['image']);
             }
 
             $userId = $familyChildId ? null : (int)$user['id'];
@@ -102,7 +102,7 @@ class WishlistController extends BaseController
                 return ['success' => false, 'error' => 'Titre requis.'];
             }
             if (!empty($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-                [$data['image_path']] = \App\Core\OcrHelper::saveUploadedFile($_FILES['image'], 'wishlist', (int)$user['family_id']);
+                [$data['image_path']] = \App\Core\FileStore::save('wishlist', (int)$user['family_id'], (int)$user['id'], $_FILES['image']);
             }
             WishlistItem::update($item['id'], $data);
             $updated = WishlistItem::getById($item['id']);

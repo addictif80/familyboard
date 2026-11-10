@@ -80,7 +80,7 @@ class WallController extends BaseController
         $user = Session::user();
         $content = $this->sanitizeHtml(trim($_POST['content'] ?? ''));
         $imageAttempted = !empty($_FILES['image']['name']);
-        $imagePath = $this->uploadImage('image');
+        $imagePath = $this->uploadFamilyImage('image', 'wall');
 
         if ($imageAttempted && !$imagePath) {
             Session::flash('error', 'L\'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement).');
@@ -202,11 +202,8 @@ class WallController extends BaseController
         $id = (int)$params['id'];
         $post = Post::getById($id);
         if ($post && ($post['user_id'] === $user['id'] || $user['role'] === 'admin') && $post['family_id'] === $user['family_id']) {
-            // image_path est déjà préfixé par "/public" (voir uploadImage()/sharePhoto()) : ne
-            // pas reconcaténer "/public" ici, sous peine de chercher /public/public/... (bug
-            // préexistant qui empêchait silencieusement la suppression du fichier).
-            if ($post['image_path'] && file_exists(BASE_PATH . $post['image_path'])) {
-                unlink(BASE_PATH . $post['image_path']);
+            if ($post['image_path']) {
+                \App\Core\FileStore::deleteByRoute($post['image_path']);
             }
             Post::delete($id);
         }
@@ -343,22 +340,11 @@ class WallController extends BaseController
             if (!$photo || (int)$photo['user_id'] !== (int)$user['id'] || $photo['family_id'] !== $user['family_id']) {
                 return ['success' => false, 'error' => 'Vous ne pouvez partager que vos propres photos.'];
             }
-            // Copie physique du fichier plutôt que réutiliser le même chemin : la suppression de
-            // la photo dans l'album (qui efface le fichier disque) ne doit jamais casser
+            // Copie physique du fichier (nouvelle ligne stored_files) plutôt que réutiliser la
+            // même référence : la suppression de la photo dans l'album ne doit jamais casser
             // l'image d'une publication déjà partagée sur le mur — les deux doivent pouvoir
             // vivre et être supprimées indépendamment l'une de l'autre.
-            // image_path (ex. "/public/uploads/xxx.jpg") est déjà préfixé par "/public" — ne pas
-            // reconcaténer "/public" ici (bug préexistant qui rendait la copie introuvable et
-            // cassait silencieusement tout le partage photo→mur).
-            $sourcePath = BASE_PATH . $photo['image_path'];
-            $ext = pathinfo($photo['image_path'], PATHINFO_EXTENSION) ?: 'jpg';
-            $newRelativePath = null;
-            if (is_file($sourcePath)) {
-                $newFilename = bin2hex(random_bytes(16)) . '.' . $ext;
-                if (copy($sourcePath, UPLOAD_DIR . $newFilename)) {
-                    $newRelativePath = '/public/uploads/' . $newFilename;
-                }
-            }
+            $newRelativePath = \App\Core\FileStore::copyRoute($photo['image_path'], 'wall', (int)$user['family_id'], (int)$user['id']);
             if (!$newRelativePath) {
                 return ['success' => false, 'error' => 'Photo introuvable sur le serveur.'];
             }

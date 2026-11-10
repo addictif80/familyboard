@@ -616,6 +616,7 @@
         <div class="settings-tabs">
             <button type="button" class="settings-tab-btn active" data-tab="storage-reglages" onclick="switchAdminSubTab('storage-reglages')">⚙️ Réglages</button>
             <button type="button" class="settings-tab-btn" data-tab="storage-produits" onclick="switchAdminSubTab('storage-produits')">📦 Paliers</button>
+            <button type="button" class="settings-tab-btn" data-tab="storage-consommation" onclick="switchAdminSubTab('storage-consommation')">📊 Consommation</button>
             <button type="button" class="settings-tab-btn" data-tab="storage-infra" onclick="switchAdminSubTab('storage-infra')">🖥️ LDAP / Synology</button>
         </div>
         <script>
@@ -660,19 +661,51 @@
                     <input type="number" name="storage_capacity_alert_threshold_pct" min="1" max="100" value="<?= $storageCapacityThresholdPct ?>">
                 </div>
             </div>
+            <div class="form-group">
+                <label>Modules exclus du quota familial (cosmétique/avatars)</label>
+                <input type="text" name="storage_quota_excluded_modules" value="<?= htmlspecialchars($storageExcludedModules) ?>" placeholder="avatar">
+                <small style="color:var(--text-muted)">Liste de slugs de module séparés par des virgules (ex. <code>avatar</code>). Ces fichiers restent comptés dans le détail par module mais jamais dans le quota.</small>
+            </div>
             <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
         </form>
+        </div>
+
+        <div class="settings-tab-panel" data-admin-subtab-panel="storage-consommation">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Consommation du quota familial partagé (<?= $storageFamilyQuotaGb ?> Go), modules exclus non comptés dans le total ni le %, mais listés dans le détail. Seules les familles utilisant au moins un fichier enregistré apparaissent — avant le script de rattrapage (<code>scripts/backfill_stored_files.php</code>), les fichiers déjà existants n'y figurent pas encore.
+        </p>
+        <table class="admin-table">
+            <thead><tr><th>Famille</th><th>Utilisé</th><th>% du quota</th><th>Détail par module</th></tr></thead>
+            <tbody>
+            <?php foreach ($familyStorageUsage as $fu): ?>
+                <tr>
+                    <td><?= htmlspecialchars($fu['family_name']) ?></td>
+                    <td><?= number_format($fu['used_bytes'] / 1024 / 1024 / 1024, 2, ',', ' ') ?> Go</td>
+                    <td style="<?= $fu['pct'] >= $storageCapacityThresholdPct ? 'color:var(--danger);font-weight:600' : '' ?>"><?= $fu['pct'] ?>%</td>
+                    <td style="font-size:.8rem;color:var(--text-muted)">
+                        <?php foreach ($fu['breakdown'] as $b): ?>
+                            <?= htmlspecialchars($b['module']) ?> (<?= number_format($b['total_bytes'] / 1024 / 1024, 1, ',', ' ') ?> Mo)<?= in_array($b['module'], \App\Core\FileStore::excludedModules(), true) ? ' <em>hors quota</em>' : '' ?><br>
+                        <?php endforeach; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($familyStorageUsage)): ?>
+                <tr><td colspan="4" style="color:var(--text-muted)">Aucune famille avec des fichiers enregistrés pour le moment.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
         </div>
 
         <div class="settings-tab-panel" data-admin-subtab-panel="storage-produits">
         <?php $storageStripeLinked = (bool)($stripePublishableKey || $stripeSecretKey); ?>
         <table class="admin-table" style="margin-bottom:1rem">
-            <thead><tr><th>Code</th><th>Nom</th><th>Volume</th><th>Prix / mois</th><?php if ($storageStripeLinked): ?><th>Prix Stripe</th><?php endif; ?><th>Actif</th><th></th></tr></thead>
+            <thead><tr><th>Code</th><th>Nom</th><th>Portée</th><th>Volume</th><th>Prix / mois</th><?php if ($storageStripeLinked): ?><th>Prix Stripe</th><?php endif; ?><th>Actif</th><th></th></tr></thead>
             <tbody>
             <?php foreach ($storageProducts as $sp): ?>
                 <tr>
                     <td><?= htmlspecialchars($sp['code']) ?></td>
                     <td><?= htmlspecialchars($sp['name']) ?></td>
+                    <td><?= $sp['scope'] === 'family' ? '👪 Famille' : '👤 Membre' ?></td>
                     <td><?= $sp['quota_gb'] >= 1024 ? number_format($sp['quota_gb'] / 1024, 1, ',', ' ') . ' To' : $sp['quota_gb'] . ' Go' ?></td>
                     <td><?= number_format($sp['price_monthly_cents'] / 100, 2, ',', ' ') ?> €</td>
                     <?php if ($storageStripeLinked): ?>
@@ -711,6 +744,13 @@
                     <label>Volume (Go)</label>
                     <input type="number" name="quota_gb" id="storage-product-quota" min="1" value="100">
                 </div>
+                <div class="form-group">
+                    <label>Portée</label>
+                    <select name="scope" id="storage-product-scope">
+                        <option value="member">👤 Stockage perso (membre)</option>
+                        <option value="family">👪 Stockage familial partagé</option>
+                    </select>
+                </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -737,6 +777,7 @@
             document.getElementById('storage-product-code').disabled = false;
             document.getElementById('storage-product-name').value = '+100 Go';
             document.getElementById('storage-product-quota').value = '100';
+            document.getElementById('storage-product-scope').value = 'member';
             document.getElementById('storage-product-price').value = '';
             document.getElementById('storage-product-sort-order').value = '0';
             document.getElementById('storage-product-active').checked = true;
@@ -747,6 +788,7 @@
             document.getElementById('storage-product-code').disabled = true;
             document.getElementById('storage-product-name').value = p.name;
             document.getElementById('storage-product-quota').value = p.quota_gb;
+            document.getElementById('storage-product-scope').value = p.scope || 'member';
             document.getElementById('storage-product-price').value = (p.price_monthly_cents / 100).toFixed(2);
             document.getElementById('storage-product-sort-order').value = p.sort_order;
             document.getElementById('storage-product-active').checked = !!(p.active * 1);

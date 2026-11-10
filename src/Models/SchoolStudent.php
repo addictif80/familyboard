@@ -80,8 +80,7 @@ class SchoolStudent
         $docs = self::getDocuments($id);
         Database::execute('DELETE FROM school_students WHERE id=? AND family_id=?', [$id, $familyId]);
         foreach ($docs as $doc) {
-            $abs = BASE_PATH . $doc['file_path'];
-            if (is_file($abs)) @unlink($abs);
+            \App\Core\FileStore::deleteByPath($doc['file_path']);
         }
     }
 
@@ -250,7 +249,7 @@ class SchoolStudent
 
     public static function addDocument(int $studentId, int $familyId, int $userId, string $title, string $docType, array $file): int
     {
-        [$path, $original, $mime] = OcrHelper::saveUploadedFile($file, 'school', $familyId, OcrHelper::DISPUTE_DOC_MIMES);
+        [$path, $original, $mime] = \App\Core\FileStore::save('school', $familyId, $userId, $file, OcrHelper::DISPUTE_DOC_MIMES);
         return Database::insert(
             'INSERT INTO school_documents (student_id, uploaded_by, title, doc_type, file_path, file_original, file_mime) VALUES (?,?,?,?,?,?,?)',
             [$studentId, $userId, $title, $docType, $path, $original, $mime]
@@ -262,7 +261,6 @@ class SchoolStudent
         $doc = self::getDocumentById($id, $studentId);
         if (!$doc) return;
         Database::execute('DELETE FROM school_documents WHERE id=? AND student_id=?', [$id, $studentId]);
-        $abs = BASE_PATH . $doc['file_path'];
-        if (is_file($abs)) @unlink($abs);
+        \App\Core\FileStore::deleteByPath($doc['file_path']);
     }
 }

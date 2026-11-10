@@ -73,7 +73,7 @@ class BirthListController extends BaseController
             $d = $this->validated($data);
             if (!$d || !$d['title']) return ['success' => false, 'error' => 'Le titre est requis.'];
             $d['remove_image'] = !empty($data['remove_image']);
-            BirthList::updateItem((int)$params['id'], (int)$item['birth_list_id'], (int)$user['family_id'], $d, $_FILES['image'] ?? null);
+            BirthList::updateItem((int)$params['id'], (int)$item['birth_list_id'], (int)$user['family_id'], $d, $_FILES['image'] ?? null, (int)$user['id']);
             return ['success' => true];
         });
     }

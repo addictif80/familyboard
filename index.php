@@ -90,6 +90,7 @@ use App\Controllers\AlertController;
 use App\Controllers\ErrorReportController;
 use App\Controllers\FriendController;
 use App\Controllers\AdditionController;
+use App\Controllers\FileController;
 
 Session::start();
 
@@ -688,6 +689,7 @@ $router->post('/admin/storage/settings', [AdminController::class, 'updateStorage
 $router->post('/admin/storage/infra', [AdminController::class, 'updateStorageInfraSettings']);
 $router->post('/admin/storage/products', [AdminController::class, 'saveStorageProduct']);
 $router->post('/admin/storage/products/:id/deactivate', [AdminController::class, 'deactivateStorageProduct']);
+$router->get('/files/:id', [FileController::class, 'serve']);
 $router->get('/admin/premium-purges/:id/export', [AdminController::class, 'viewPremiumPurgeExport']);
 $router->post('/admin/highlights', [AdminController::class, 'createHighlight']);
 $router->post('/admin/highlights/:id', [AdminController::class, 'updateHighlight']);

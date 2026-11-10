@@ -6,13 +6,6 @@ use App\Core\OcrHelper;
 
 class Warranty
 {
-    private static function storageDir(int $familyId): string
-    {
-        $dir = BASE_PATH . '/storage/warranties/' . $familyId;
-        if (!is_dir($dir)) mkdir($dir, 0755, true);
-        return $dir;
-    }
-
     public static function getAll(int $familyId, string $search = ''): array
     {
         if ($search !== '') {
@@ -82,7 +75,7 @@ class Warranty
         $fileMime = null;
 
         if ($file && $file['error'] === UPLOAD_ERR_OK) {
-            [$filePath, $fileOrig, $fileMime] = self::saveFile($familyId, $file);
+            [$filePath, $fileOrig, $fileMime] = \App\Core\FileStore::save('warranties', $familyId, $userId, $file, ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']);
         }
 
         $purchaseDate = $data['purchase_date'] ?? null;
@@ -112,7 +105,7 @@ class Warranty
         );
     }
 
-    public static function update(int $id, int $familyId, array $data, ?array $file = null): void
+    public static function update(int $id, int $familyId, array $data, ?array $file = null, ?int $userId = null): void
     {
         $existing = self::findById($id, $familyId);
         if (!$existing) return;
@@ -123,8 +116,8 @@ class Warranty
 
         if ($file && $file['error'] === UPLOAD_ERR_OK) {
             // Delete old file
-            if ($filePath) @unlink(BASE_PATH . $filePath);
-            [$filePath, $fileOrig, $fileMime] = self::saveFile($familyId, $file);
+            if ($filePath) \App\Core\FileStore::deleteByPath($filePath);
+            [$filePath, $fileOrig, $fileMime] = \App\Core\FileStore::save('warranties', $familyId, $userId, $file, ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']);
         }
 
         $purchaseDate = $data['purchase_date'] ?? null;
@@ -159,7 +152,7 @@ class Warranty
     {
         $row = Database::fetch('SELECT file_path FROM warranties WHERE id=? AND family_id=?', [$id, $familyId]);
         if ($row && $row['file_path']) {
-            @unlink(BASE_PATH . $row['file_path']);
+            \App\Core\FileStore::deleteByPath($row['file_path']);
         }
         Database::execute('DELETE FROM warranties WHERE id=? AND family_id=?', [$id, $familyId]);
     }
@@ -176,36 +169,6 @@ class Warranty
         return OcrHelper::info();
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
-
-    private static function saveFile(int $familyId, array $file): array
-    {
-        $extByMime = [
-            'image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif',
-            'application/pdf' => 'pdf',
-        ];
-        if ($file['size'] > 20 * 1024 * 1024) {
-            throw new \RuntimeException('Fichier trop volumineux (max 20 Mo).');
-        }
-        // Le Content-Type et le nom envoyés par le client sont falsifiables : on
-        // inspecte le contenu réel du fichier avant de choisir l'extension stockée.
-        $realType = @mime_content_type($file['tmp_name']) ?: '';
-        if (!isset($extByMime[$realType])) {
-            throw new \RuntimeException('Type de fichier non autorisé.');
-        }
-
-        $filename = bin2hex(random_bytes(16)) . '.' . $extByMime[$realType];
-        $dir      = self::storageDir($familyId);
-        $dest     = $dir . '/' . $filename;
-
-        if (!move_uploaded_file($file['tmp_name'], $dest)) {
-            throw new \RuntimeException('Erreur lors de l\'enregistrement du fichier.');
-        }
-
-        // Relative path from BASE_PATH for storage
-        $rel = '/storage/warranties/' . $familyId . '/' . $filename;
-        return [$rel, $file['name'], $realType];
-    }
 
     private static function computeEndDate(?string $purchaseDate, int $months): ?string
     {

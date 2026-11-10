@@ -50,7 +50,7 @@ class VaultController extends BaseController
             $d = $this->validatedEntry($data);
             if (!$d) return ['success' => false, 'error' => 'Le titre est requis.'];
             $d['remove_file'] = !empty($data['remove_file']);
-            Vault::updateEntry((int)$params['id'], (int)$user['family_id'], $d, $_FILES['file'] ?? null, $sourceDocument);
+            Vault::updateEntry((int)$params['id'], (int)$user['family_id'], $d, $_FILES['file'] ?? null, $sourceDocument, (int)$user['id']);
             return ['success' => true];
         });
     }

@@ -261,14 +261,17 @@ class SettingsController extends BaseController
         $user = Session::user();
         $name = trim($_POST['name'] ?? '');
         $color = $this->safeColor($_POST['color'] ?? null);
-        $avatar = $this->uploadImage('avatar');
+        $avatar = $this->uploadFamilyImage('avatar', 'avatar');
         // Un envoi d'avatar rejeté (format non supporté, fichier trop lourd…) ne doit pas passer
         // pour une mise à jour réussie — sans quoi rien ne prévient l'utilisateur que sa photo
         // n'a en réalité pas changé.
         $avatarError = $this->lastUploadError;
 
         $data = ['name' => $name ?: $user['name'], 'color' => $color];
-        if ($avatar) $data['avatar'] = $avatar;
+        if ($avatar) {
+            if ($user['avatar']) \App\Core\FileStore::deleteByRoute($user['avatar']);
+            $data['avatar'] = $avatar;
+        }
         $trackingEnabled = !empty($_POST['location_tracking_enabled']) ? 1 : 0;
         $data['location_tracking_enabled'] = $trackingEnabled;
         // User::update() ignore un champ valant null (isset() sur $data) : une chaîne vide plutôt

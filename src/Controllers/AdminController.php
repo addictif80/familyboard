@@ -239,6 +239,27 @@ class AdminController extends BaseController
         $storageCapacityThresholdPct = \App\Core\StorageQuota::capacityAlertThresholdPct();
         $storageProducts = \App\Models\StorageProduct::getAll();
         $storageSettings = \App\Models\StorageSettings::get();
+        $storageExcludedModules = implode(', ', \App\Core\FileStore::excludedModules());
+
+        // Coûteux (agrégat sur toutes les familles) : calculé uniquement pour l'onglet Stockage.
+        $familyStorageUsage = [];
+        if ($tab === 'storage') {
+            $excluded = \App\Core\FileStore::excludedModules();
+            $quotaBytes = $storageFamilyQuotaGb * 1024 * 1024 * 1024;
+            foreach (Database::fetchAll('SELECT id, name FROM families ORDER BY name') as $fam) {
+                $usedBytes = \App\Models\StoredFile::totalBytesForFamily((int)$fam['id'], $excluded);
+                if ($usedBytes <= 0) continue;
+                $breakdown = \App\Models\StoredFile::breakdownByModuleForFamily((int)$fam['id']);
+                $familyStorageUsage[] = [
+                    'family_id'   => $fam['id'],
+                    'family_name' => $fam['name'],
+                    'used_bytes'  => $usedBytes,
+                    'pct'         => $quotaBytes > 0 ? min(999, round($usedBytes / $quotaBytes * 100)) : 0,
+                    'breakdown'   => $breakdown,
+                ];
+            }
+            usort($familyStorageUsage, fn($a, $b) => $b['used_bytes'] <=> $a['used_bytes']);
+        }
 
         // Coûteux (SUM sur information_schema, appel `du`) : calculé uniquement quand l'onglet
         // est effectivement consulté, pas à chaque chargement du panneau admin.
@@ -1021,6 +1042,8 @@ class AdminController extends BaseController
         AppSetting::set('storage_member_addon_cap_gb', (string)max(0, (int)($_POST['storage_member_addon_cap_gb'] ?? 1024)));
         AppSetting::set('storage_grace_days', (string)max(0, (int)($_POST['storage_grace_days'] ?? 30)));
         AppSetting::set('storage_capacity_alert_threshold_pct', (string)max(1, min(100, (int)($_POST['storage_capacity_alert_threshold_pct'] ?? 70))));
+        $excludedModules = array_values(array_filter(array_map('trim', explode(',', $_POST['storage_quota_excluded_modules'] ?? 'avatar'))));
+        AppSetting::set('storage_quota_excluded_modules', implode(',', $excludedModules ?: ['avatar']));
         $this->redirect('/admin?tab=storage&msg=storage_settings_saved');
     }
 
