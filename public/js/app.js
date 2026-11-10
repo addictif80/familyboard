@@ -498,6 +498,47 @@ async function openNotifPreview(id, fallbackLink) {
     }
 }
 
+// Libellé générique par type, pour l'en-tête de la modal quand on clique directement sur un
+// enregistrement (tableau de bord, page de module) — pas de "titre" fourni dans ce cas-là,
+// contrairement au flux notification, qui a son propre titre déjà écrit par l'action d'origine.
+const RECORD_TYPE_LABELS = {
+    event: 'Événement', task: 'Tâche', custody_event: 'Garde', custody_schedule: 'Garde',
+    comm_log: 'Journal parental', post: 'Publication', document: 'Document', warranty: 'Garantie',
+    project: 'Projet', album_photo: 'Photo', addition: 'Addition', stock_item: 'Article',
+    user: 'Anniversaire', baby: 'Bébé', contact: 'Contact', health_entry: 'Carnet de santé',
+};
+
+/** Ouvre la même modal de prévisualisation que les notifications (readNotif()), mais pour un
+ *  clic direct sur une ligne (widget du tableau de bord, liste d'un module) — jamais de
+ *  navigation, toujours une lecture seule. Voir App\Core\RecordPreview côté serveur. */
+async function openRecordPreview(type, id) {
+    const titleEl = document.getElementById('notif-preview-title');
+    const timeEl = document.getElementById('notif-preview-time');
+    const fieldsEl = document.getElementById('notif-preview-fields');
+    const linkEl = document.getElementById('notif-preview-link');
+
+    titleEl.textContent = 'Chargement…';
+    timeEl.textContent = '';
+    fieldsEl.innerHTML = '';
+    linkEl.style.display = 'none';
+    openModal('notif-preview-modal');
+
+    const r = await apiFetch(BASE_URL + '/api/records/' + encodeURIComponent(type) + '/' + id + '/preview');
+    if (!r.success) {
+        titleEl.textContent = RECORD_TYPE_LABELS[type] || 'Détail';
+        fieldsEl.innerHTML = `<p style="color:var(--text-muted)">${escapeHtml(r.error || 'Impossible de charger le détail.')}</p>`;
+        return;
+    }
+
+    titleEl.textContent = (r.icon ? r.icon + ' ' : '') + (RECORD_TYPE_LABELS[type] || 'Détail');
+    fieldsEl.innerHTML = r.fields.map(f => `
+        <div style="margin-bottom:.6rem">
+            <div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em">${escapeHtml(f.label)}</div>
+            <div style="white-space:pre-wrap">${escapeHtml(f.value)}</div>
+        </div>
+    `).join('');
+}
+
 function markAllRead() {
     apiFetch(BASE_URL + '/api/notifications/read-all', { method: 'POST' })
         .then(() => loadNotifications());

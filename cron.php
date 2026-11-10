@@ -162,6 +162,15 @@ try {
     error_log('URSSAF report error: ' . $e->getMessage());
 }
 
+// Provisioning stockage perso (compte LDAP + quota Synology, voir
+// App\Core\StorageProvisioningRunner) — sans effet tant qu'aucun backend n'est activé par
+// l'admin (storage_provisioner_backend). Déclenchable aussi à la demande depuis /admin.
+try {
+    \App\Core\StorageProvisioningRunner::processOutstanding();
+} catch (\Throwable $e) {
+    error_log('Storage provisioning error: ' . $e->getMessage());
+}
+
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;
 
 // ──────────────────────────────────────────────────────────────────────────

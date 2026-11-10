@@ -21,10 +21,22 @@ class User
 
     public static function create(int $familyId, string $name, string $email, string $password, string $role = 'member', string $color = '#4A90D9'): int
     {
-        return Database::insert(
+        $id = Database::insert(
             'INSERT INTO users (family_id, name, email, password, role, color) VALUES (?, ?, ?, ?, ?, ?)',
             [$familyId, $name, self::normalizeEmail($email), password_hash($password, PASSWORD_DEFAULT), $role, $color]
         );
+        self::enqueueLdapProvisioning($id, $password);
+        return $id;
+    }
+
+    /** Enfile le provisioning LDAP/Synology du compte (voir App\Core\StorageProvisioner) — sans
+     *  effet tant qu'aucun backend n'est activé par l'admin (storage_provisioner_backend). Le
+     *  mot de passe n'est connu en clair qu'ici et à updatePassword() : jamais stocké tel quel,
+     *  toujours chiffré via App\Core\Crypto avant d'entrer dans la file. */
+    private static function enqueueLdapProvisioning(int $userId, string $plainPassword): void
+    {
+        if (!\App\Core\StorageProvisionerFactory::active()) return;
+        \App\Models\ProvisioningJob::enqueue($userId, 'provision_ldap', ['password' => \App\Core\Crypto::encrypt($plainPassword)]);
     }
 
     public static function normalizeEmail(string $email): string
@@ -46,6 +58,25 @@ class User
     public static function belongsToFamily(int $userId, int $familyId): bool
     {
         return (bool)Database::fetch('SELECT 1 FROM users WHERE id = ? AND family_id = ?', [$userId, $familyId]);
+    }
+
+    /** Plafond d'add-ons de stockage perso propre à un membre (NULL = plafond admin global) —
+     *  réservé à l'admin système, distinct de User::update() pour ne pas laisser un membre se
+     *  l'auto-attribuer via le formulaire de profil. */
+    public static function setStorageAddonCap(int $id, ?int $capGb): void
+    {
+        Database::execute('UPDATE users SET storage_addon_cap_gb = ? WHERE id = ?', [$capGb, $id]);
+    }
+
+    public static function setStripeCustomerId(int $id, string $stripeCustomerId): void
+    {
+        Database::execute('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [$stripeCustomerId, $id]);
+    }
+
+    /** uid du compte LDAP provisionné pour le stockage perso (voir App\Core\LdapService). */
+    public static function setLdapUsername(int $id, string $ldapUsername): void
+    {
+        Database::execute('UPDATE users SET ldap_username = ? WHERE id = ?', [$ldapUsername, $id]);
     }
 
     public static function update(int $id, array $data): void
@@ -76,6 +107,7 @@ class User
     public static function updatePassword(int $id, string $password): void
     {
         Database::execute('UPDATE users SET password = ? WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $id]);
+        self::enqueueLdapProvisioning($id, $password);
     }
 
     public static function verify(string $email, string $password): ?array

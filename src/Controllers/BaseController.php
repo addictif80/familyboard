@@ -394,4 +394,22 @@ class BaseController
         $this->lastUploadError = 'Échec de l\'enregistrement du fichier sur le serveur.';
         return null;
     }
+
+    /**
+     * Variante de uploadImage() pour les images appartenant à une famille (avatars, photo de
+     * couverture co-parent, image de post du mur, photo d'album, bébé, contact) — écrit hors
+     * webroot via App\Core\FileStore::saveImage() et retourne une route "/files/{id}" au lieu
+     * d'un chemin public/uploads/ servi directement par le serveur web sans contrôle d'accès.
+     * Même convention $lastUploadError que uploadImage(). uploadImage() reste inchangée pour les
+     * images de contenu admin/CMS (hors périmètre famille, pas de quota, pas de contrôle d'accès
+     * nécessaire).
+     */
+    protected function uploadFamilyImage(string $field, string $module): ?string
+    {
+        $this->lastUploadError = null;
+        $user = \App\Core\Session::user();
+        if (!$user) return null;
+        $result = \App\Core\FileStore::saveImage($field, $module, (int)$user['family_id'], (int)$user['id'], $this->lastUploadError);
+        return $result['route'] ?? null;
+    }
 }

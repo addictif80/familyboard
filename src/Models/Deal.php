@@ -35,7 +35,7 @@ class Deal
     {
         $filePath = $fileOriginal = $fileMime = null;
         if ($file && $file['error'] === UPLOAD_ERR_OK) {
-            [$filePath, $fileOriginal, $fileMime] = OcrHelper::saveUploadedFile($file, 'deals', $familyId);
+            [$filePath, $fileOriginal, $fileMime] = \App\Core\FileStore::save('deals', $familyId, $userId, $file);
         }
         return Database::insert(
             'INSERT INTO deals (family_id, title, description, url, promo_code, discount, category, expires_at, file_path, file_original, file_mime, created_by)
@@ -45,7 +45,7 @@ class Deal
         );
     }
 
-    public static function update(int $id, int $familyId, array $d, ?array $file = null): void
+    public static function update(int $id, int $familyId, array $d, ?array $file = null, ?int $userId = null): void
     {
         $existing = self::getById($id);
         $filePath = $existing['file_path'] ?? null;
@@ -53,12 +53,12 @@ class Deal
         $fileMime = $existing['file_mime'] ?? null;
 
         if (!empty($d['remove_file'])) {
-            if ($filePath) @unlink(BASE_PATH . $filePath);
+            if ($filePath) \App\Core\FileStore::deleteByPath($filePath);
             $filePath = $fileOriginal = $fileMime = null;
         }
         if ($file && $file['error'] === UPLOAD_ERR_OK) {
-            if ($filePath) @unlink(BASE_PATH . $filePath);
-            [$filePath, $fileOriginal, $fileMime] = OcrHelper::saveUploadedFile($file, 'deals', $familyId);
+            if ($filePath) \App\Core\FileStore::deleteByPath($filePath);
+            [$filePath, $fileOriginal, $fileMime] = \App\Core\FileStore::save('deals', $familyId, $userId, $file);
         }
 
         Database::execute(
@@ -72,7 +72,7 @@ class Deal
     {
         $deal = self::getById($id);
         if ($deal && (int)$deal['family_id'] === $familyId && $deal['file_path']) {
-            @unlink(BASE_PATH . $deal['file_path']);
+            \App\Core\FileStore::deleteByPath($deal['file_path']);
         }
         Database::execute('DELETE FROM deals WHERE id=? AND family_id=?', [$id, $familyId]);
     }

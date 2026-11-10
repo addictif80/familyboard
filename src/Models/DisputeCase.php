@@ -53,8 +53,7 @@ class DisputeCase
         $docs = self::getDocuments($id);
         Database::execute('DELETE FROM dispute_cases WHERE id=? AND family_id=?', [$id, $familyId]);
         foreach ($docs as $doc) {
-            $abs = BASE_PATH . $doc['file_path'];
-            if (is_file($abs)) @unlink($abs);
+            \App\Core\FileStore::deleteByPath($doc['file_path']);
         }
     }
 
@@ -76,7 +75,7 @@ class DisputeCase
 
     public static function addDocument(int $disputeId, int $familyId, int $userId, array $file): int
     {
-        [$path, $original, $mime] = OcrHelper::saveUploadedFile($file, 'disputes', $familyId, OcrHelper::DISPUTE_DOC_MIMES);
+        [$path, $original, $mime] = \App\Core\FileStore::save('disputes', $familyId, $userId, $file, OcrHelper::DISPUTE_DOC_MIMES);
         return Database::insert(
             'INSERT INTO dispute_documents (dispute_id, uploaded_by, file_path, file_original, file_mime) VALUES (?,?,?,?,?)',
             [$disputeId, $userId, $path, $original, $mime]
@@ -88,8 +87,7 @@ class DisputeCase
         $doc = self::getDocumentById($id, $disputeId);
         if (!$doc) return;
         Database::execute('DELETE FROM dispute_documents WHERE id=? AND dispute_id=?', [$id, $disputeId]);
-        $abs = BASE_PATH . $doc['file_path'];
-        if (is_file($abs)) @unlink($abs);
+        \App\Core\FileStore::deleteByPath($doc['file_path']);
     }
 
     // ── Traçabilité des échanges ─────────────────────────────────

@@ -66,7 +66,7 @@ class WishlistItem
         $existing = self::getById($id);
         $imagePath = $existing['image_path'] ?? null;
         if (!empty($data['remove_image'])) {
-            if ($imagePath) @unlink(BASE_PATH . $imagePath);
+            if ($imagePath) \App\Core\FileStore::deleteByPath($imagePath);
             $imagePath = null;
         }
         if (!empty($data['image_path'])) $imagePath = $data['image_path'];
@@ -98,7 +98,7 @@ class WishlistItem
     public static function delete(int $id): void
     {
         $item = self::getById($id);
-        if ($item && $item['image_path']) @unlink(BASE_PATH . $item['image_path']);
+        if ($item && $item['image_path']) \App\Core\FileStore::deleteByPath($item['image_path']);
         Database::execute('DELETE FROM wishlist_items WHERE id=?', [$id]);
     }
 

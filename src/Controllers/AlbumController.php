@@ -143,9 +143,9 @@ class AlbumController extends BaseController
             exit;
         }
 
-        $imagePath = $this->uploadImage('image');
+        $imagePath = $this->uploadFamilyImage('image', 'album');
         if (!$imagePath) {
-            Session::flash('error', "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement).");
+            Session::flash('error', $this->lastUploadError ?: "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement).");
             header('Location: ' . BASE_URL . '/albums/' . $album['id']);
             exit;
         }
@@ -252,9 +252,13 @@ class AlbumController extends BaseController
             $album = Album::getById((int)$link['album_id']);
             if (!$album) return ['success' => false, 'error' => 'Album introuvable.'];
 
-            $imagePath = $this->uploadImage('image');
+            // Lien d'invité public, sans session (voir AlbumShareLink) : pas de Session::user()
+            // disponible, on passe donc la famille de l'album directement à FileStore.
+            $lastUploadError = null;
+            $result = \App\Core\FileStore::saveImage('image', 'album', (int)$album['family_id'], null, $lastUploadError);
+            $imagePath = $result['route'] ?? null;
             if (!$imagePath) {
-                return ['success' => false, 'error' => "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement)."];
+                return ['success' => false, 'error' => $lastUploadError ?: "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement)."];
             }
 
             $uploaderName = trim($_POST['uploader_name'] ?? '') ?: null;
@@ -270,9 +274,7 @@ class AlbumController extends BaseController
 
     private function deletePhotoFile(?string $path): void
     {
-        if ($path && file_exists(BASE_PATH . $path)) {
-            @unlink(BASE_PATH . $path);
-        }
+        \App\Core\FileStore::deleteByRoute($path);
     }
 
     private function originUrl(): string

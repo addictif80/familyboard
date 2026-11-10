@@ -54,7 +54,7 @@ async function sendCommLogVoiceMessage({ blob, mimeType, durationSec }) {
     fd.append('content', content);
     fd.append('duration', durationSec);
 
-    const res = await fetch(BASE_URL + '/api/comm-log/send', { method: 'POST', body: fd });
+    const res = await fetch(BASE_URL + '/api/comm-log/send', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
     if (data.success) {
         appendCommLogMessage(data.message, true);

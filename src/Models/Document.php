@@ -98,7 +98,7 @@ class Document
 
     public static function create(int $familyId, int $creatorId, array $data, ?array $file = null): int
     {
-        [$filePath, $fileOrig, $fileMime, $ocrText] = self::processFile($file, $familyId, $data['ocr_text'] ?? '');
+        [$filePath, $fileOrig, $fileMime, $ocrText] = self::processFile($file, $familyId, $creatorId, $data['ocr_text'] ?? '');
 
         $memberIds     = self::extractMemberIds($data, $creatorId);
         $primaryUserId = $memberIds[0];
@@ -132,13 +132,13 @@ class Document
         return $docId;
     }
 
-    public static function update(int $id, int $familyId, array $data, ?array $file = null): void
+    public static function update(int $id, int $familyId, array $data, ?array $file = null, ?int $userId = null): void
     {
         $existing = self::findById($id, $familyId);
         if (!$existing) return;
 
         [$filePath, $fileOrig, $fileMime, $newOcr] = self::processFile(
-            $file, $familyId, $data['ocr_text'] ?? '',
+            $file, $familyId, $userId, $data['ocr_text'] ?? '',
             $existing['file_path']
         );
 
@@ -262,7 +262,7 @@ class Document
     public static function delete(int $id, int $familyId): void
     {
         $row = Database::fetch('SELECT file_path FROM documents WHERE id=? AND family_id=?', [$id, $familyId]);
-        if ($row && $row['file_path']) @unlink(BASE_PATH . $row['file_path']);
+        if ($row && $row['file_path']) \App\Core\FileStore::deleteByPath($row['file_path']);
         // document_members deleted via ON DELETE CASCADE
         Database::execute('DELETE FROM documents WHERE id=? AND family_id=?', [$id, $familyId]);
     }
@@ -339,7 +339,7 @@ class Document
         }
     }
 
-    private static function processFile(?array $file, int $familyId, string $providedOcr, ?string $existingPath = null): array
+    private static function processFile(?array $file, int $familyId, ?int $userId, string $providedOcr, ?string $existingPath = null): array
     {
         $filePath = $existingPath;
         $fileOrig = null;
@@ -347,8 +347,8 @@ class Document
         $ocrText  = $providedOcr;
 
         if ($file && $file['error'] === UPLOAD_ERR_OK) {
-            if ($existingPath) @unlink(BASE_PATH . $existingPath);
-            [$filePath, $fileOrig, $fileMime] = OcrHelper::saveUploadedFile($file, 'documents', $familyId);
+            if ($existingPath) \App\Core\FileStore::deleteByPath($existingPath);
+            [$filePath, $fileOrig, $fileMime] = \App\Core\FileStore::save('documents', $familyId, $userId, $file);
             if ($ocrText === '') {
                 $ocrText = OcrHelper::run(BASE_PATH . $filePath, $fileMime);
             }

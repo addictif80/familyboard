@@ -59,7 +59,7 @@ ob_start();
                 <?php else: ?>
                     <ul class="event-list">
                         <?php foreach ($events as $event): ?>
-                            <li class="event-item">
+                            <li class="event-item" style="cursor:pointer" onclick="openRecordPreview('event', <?= (int)$event['id'] ?>)">
                                 <span class="event-dot" style="background:<?= htmlspecialchars($event['color']) ?>"></span>
                                 <div class="event-info">
                                     <strong><?= htmlspecialchars($event['title']) ?></strong>
@@ -88,7 +88,7 @@ ob_start();
                 <?php else: ?>
                     <ul class="post-preview-list">
                         <?php foreach ($posts as $post): ?>
-                            <li class="post-preview-item">
+                            <li class="post-preview-item" style="cursor:pointer" onclick="openRecordPreview('post', <?= (int)$post['id'] ?>)">
                                 <?= \App\Core\Avatar::html($post['user_avatar'] ?? null, $post['user_color'], $post['user_name'], 'user-avatar-sm') ?>
                                 <div style="flex:1;min-width:0">
                                     <strong><?= htmlspecialchars($post['user_name']) ?></strong>
@@ -100,7 +100,7 @@ ob_start();
                                     <?php endif; ?>
                                     <small><?= \App\Core\DateHelper::fromUtc($post['created_at'], 'd/m \à H:i') ?></small>
                                 </div>
-                                <a href="<?= BASE_URL ?>/wall#post-<?= $post['id'] ?>" class="btn-text" style="flex-shrink:0;align-self:center">Lire</a>
+                                <a href="<?= BASE_URL ?>/wall#post-<?= $post['id'] ?>" class="btn-text" style="flex-shrink:0;align-self:center" onclick="event.stopPropagation()">Lire</a>
                             </li>
                         <?php endforeach; ?>
                     </ul>
@@ -117,9 +117,9 @@ ob_start();
                 <?php else: ?>
                     <ul class="task-widget-list">
                         <?php foreach ($tasks as $t): ?>
-                            <li class="task-widget-item">
-                                <span class="task-widget-check">○</span>
-                                <span class="task-widget-name"><?= htmlspecialchars($t['title']) ?></span>
+                            <li class="task-widget-item" data-task-id="<?= (int)$t['id'] ?>">
+                                <input type="checkbox" class="task-widget-check" onclick="widgetToggleTask(event, <?= (int)$t['id'] ?>)">
+                                <span class="task-widget-name" style="cursor:pointer" onclick="openRecordPreview('task', <?= (int)$t['id'] ?>)"><?= htmlspecialchars($t['title']) ?></span>
                                 <span class="task-widget-list-name"><?= htmlspecialchars($t['list_name']) ?></span>
                             </li>
                         <?php endforeach; ?>
@@ -137,7 +137,8 @@ ob_start();
                 <?php else: ?>
                     <ul class="custody-list">
                         <?php foreach ($custody as $c): ?>
-                            <li class="custody-item">
+                            <?php $clickable = is_numeric($c['id']); ?>
+                            <li class="custody-item" <?= $clickable ? 'style="cursor:pointer" onclick="openRecordPreview(\'custody_event\', ' . (int)$c['id'] . ')"' : '' ?>>
                                 <span class="custody-dot" style="background:<?= htmlspecialchars($c['schedule_color']) ?>"></span>
                                 <strong><?= htmlspecialchars($c['child_name']) ?></strong> chez <?= htmlspecialchars($c['parent_name']) ?>
                                 <?php if ($c['arrival_time']): ?>
@@ -177,7 +178,7 @@ ob_start();
                 <?php else: ?>
                     <ul class="event-list">
                         <?php foreach (array_slice($birthdays, 0, 6) as $b): ?>
-                            <li class="event-item">
+                            <li class="event-item" style="cursor:pointer" onclick="openRecordPreview('<?= htmlspecialchars($b['type']) ?>', <?= (int)$b['id'] ?>)">
                                 <span class="event-dot" style="background:<?= htmlspecialchars($b['color']) ?>"></span>
                                 <div class="event-info">
                                     <strong><?= htmlspecialchars($b['name']) ?></strong>

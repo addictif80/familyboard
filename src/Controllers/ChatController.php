@@ -32,7 +32,7 @@ class ChatController extends BaseController
                 if (mb_strlen($content) > 2000) return ['success' => false, 'error' => 'Message trop long'];
                 try {
                     [$audioPath, $audioOriginal, $audioMime] =
-                        OcrHelper::saveUploadedFile($audioFile, 'voice', $user['family_id'], OcrHelper::VOICE_MIMES, self::MAX_VOICE_SIZE);
+                        \App\Core\FileStore::save('voice', $user['family_id'], (int)$user['id'], $audioFile, OcrHelper::VOICE_MIMES, self::MAX_VOICE_SIZE);
                 } catch (\RuntimeException $e) {
                     return ['success' => false, 'error' => $e->getMessage()];
                 }

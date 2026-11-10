@@ -102,4 +102,23 @@ class StripeGateway
             'stripe_price_id_yearly' => self::syncRecurringPrice($productId, $yearlyCents, 'year', $priceIdYearly, $previousYearlyCents),
         ];
     }
+
+    /** Variante mensuel-seul pour un palier de stockage additionnel (voir
+     *  AdminController::saveStorageProduct) — même logique que syncPlanPrices sans le tarif annuel.
+     *
+     * @return array{stripe_product_id: string, stripe_price_id_monthly: ?string}
+     */
+    public static function syncSingleProduct(
+        string $name,
+        int $monthlyCents,
+        ?string $productId,
+        ?string $priceIdMonthly,
+        ?int $previousMonthlyCents
+    ): array {
+        $productId = self::syncProduct($name, $productId);
+        return [
+            'stripe_product_id' => $productId,
+            'stripe_price_id_monthly' => self::syncRecurringPrice($productId, $monthlyCents, 'month', $priceIdMonthly, $previousMonthlyCents),
+        ];
+    }
 }

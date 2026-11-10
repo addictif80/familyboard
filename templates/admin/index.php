@@ -32,7 +32,7 @@
             $adminNavGroups = [
                 'Vue d\'ensemble' => ['dashboard' => '📊 Tableau de bord', 'health' => '🩺 Santé plateforme'],
                 'Comptes' => ['families' => '🏠 Familles', 'users' => '👥 Utilisateurs', 'deleted-accounts' => '🗑️ Comptes supprimés'],
-                'Facturation' => ['subscriptions' => '💳 Abonnements', 'referrals' => '🤝 Parrainage'],
+                'Facturation' => ['subscriptions' => '💳 Abonnements', 'storage' => '💾 Stockage perso', 'referrals' => '🤝 Parrainage'],
                 'Support & sécurité' => ['tickets' => '🎫 Tickets support', 'impersonation' => '🕵️ Impersonation', 'ips' => '🚫 IPs bloquées'],
                 'Communication' => ['notifications' => '📣 Notifications & intégrations', 'smtp' => '✉️ SMTP', 'email' => '📧 Emails'],
                 'Contenu' => ['announcements' => '📣 Annonces', 'testimonials' => '💬 Témoignages', 'namedays' => '🎉 Fêtes des prénoms', 'highlights' => '🏢 Mises en avant ABHD', 'links' => '🔗 Liens certifiés', 'legal' => '📜 Contenu légal', 'roadmap' => '🗺️ Roadmap'],
@@ -609,6 +609,372 @@
             <form method="POST" action="<?= BASE_URL ?>/admin/subscriptions/urssaf/send-now" onsubmit="return confirmSubmit(this, 'Générer et envoyer maintenant le rapport du mois précédent ?')"><?= \App\Core\Csrf::field() ?>
                 <button type="submit" class="btn btn-secondary btn-sm">📧 Envoyer maintenant (mois précédent)</button>
             </form>
+        </div>
+        </div>
+
+        <?php elseif ($tab === 'storage'): ?>
+        <div class="settings-tabs">
+            <button type="button" class="settings-tab-btn active" data-tab="storage-reglages" onclick="switchAdminSubTab('storage-reglages')">⚙️ Réglages</button>
+            <button type="button" class="settings-tab-btn" data-tab="storage-produits" onclick="switchAdminSubTab('storage-produits')">📦 Paliers</button>
+            <button type="button" class="settings-tab-btn" data-tab="storage-consommation" onclick="switchAdminSubTab('storage-consommation')">📊 Consommation</button>
+            <button type="button" class="settings-tab-btn" data-tab="storage-rattrapage" onclick="switchAdminSubTab('storage-rattrapage')">🔄 Rattrapage fichiers</button>
+            <button type="button" class="settings-tab-btn" data-tab="storage-infra" onclick="switchAdminSubTab('storage-infra')">🖥️ LDAP / Synology</button>
+        </div>
+        <script>
+        function switchAdminSubTab(tab) {
+            document.querySelectorAll('[data-admin-subtab-panel]').forEach(p => p.classList.toggle('active', p.dataset.adminSubtabPanel === tab));
+            document.querySelectorAll('.settings-tab-btn[data-tab^="storage-"]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+        }
+        </script>
+
+        <div class="settings-tab-panel active" data-admin-subtab-panel="storage-reglages">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Tant que la facturation du stockage est désactivée, aucun quota n'est restreint —
+            activer ce réglage ne verrouille jamais rétroactivement un membre déjà en place sans
+            action explicite ici. L'espace perso payant est séparé de l'espace familial partagé
+            ci-dessous et vit sur le compte Stripe du payeur, jamais sur la famille.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/storage/settings" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label><input type="checkbox" name="storage_billing_enabled" value="1" <?= $storageBillingEnabled ? 'checked' : '' ?>> Activer la facturation du stockage perso</label>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Quota gratuit par membre (Go)</label>
+                    <input type="number" name="storage_free_quota_gb" min="0" value="<?= $storageFreeQuotaGb ?>">
+                </div>
+                <div class="form-group">
+                    <label>Quota familial partagé (Go)</label>
+                    <input type="number" name="storage_family_quota_gb" min="0" value="<?= $storageFamilyQuotaGb ?>">
+                </div>
+                <div class="form-group">
+                    <label>Plafond d'add-ons par membre (Go)</label>
+                    <input type="number" name="storage_member_addon_cap_gb" min="0" value="<?= $storageMemberAddonCapGb ?>">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Délai de grâce après impayé (jours)</label>
+                    <input type="number" name="storage_grace_days" min="0" max="180" value="<?= $storageGraceDays ?>">
+                </div>
+                <div class="form-group">
+                    <label>Seuil d'alerte capacité vendue/disponible (%)</label>
+                    <input type="number" name="storage_capacity_alert_threshold_pct" min="1" max="100" value="<?= $storageCapacityThresholdPct ?>">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Modules exclus du quota familial (cosmétique/avatars)</label>
+                <input type="text" name="storage_quota_excluded_modules" value="<?= htmlspecialchars($storageExcludedModules) ?>" placeholder="avatar">
+                <small style="color:var(--text-muted)">Liste de slugs de module séparés par des virgules (ex. <code>avatar</code>). Ces fichiers restent comptés dans le détail par module mais jamais dans le quota.</small>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+        </form>
+        </div>
+
+        <div class="settings-tab-panel" data-admin-subtab-panel="storage-consommation">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Consommation du quota familial partagé (<?= $storageFamilyQuotaGb ?> Go), modules exclus non comptés dans le total ni le %, mais listés dans le détail. Seules les familles utilisant au moins un fichier enregistré apparaissent — avant le script de rattrapage (<code>scripts/backfill_stored_files.php</code>), les fichiers déjà existants n'y figurent pas encore.
+        </p>
+        <table class="admin-table">
+            <thead><tr><th>Famille</th><th>Utilisé</th><th>% du quota</th><th>Détail par module</th></tr></thead>
+            <tbody>
+            <?php foreach ($familyStorageUsage as $fu): ?>
+                <tr>
+                    <td><?= htmlspecialchars($fu['family_name']) ?></td>
+                    <td><?= number_format($fu['used_bytes'] / 1024 / 1024 / 1024, 2, ',', ' ') ?> Go</td>
+                    <td style="<?= $fu['pct'] >= $storageCapacityThresholdPct ? 'color:var(--danger);font-weight:600' : '' ?>"><?= $fu['pct'] ?>%</td>
+                    <td style="font-size:.8rem;color:var(--text-muted)">
+                        <?php foreach ($fu['breakdown'] as $b): ?>
+                            <?= htmlspecialchars($b['module']) ?> (<?= number_format($b['total_bytes'] / 1024 / 1024, 1, ',', ' ') ?> Mo)<?= in_array($b['module'], \App\Core\FileStore::excludedModules(), true) ? ' <em>hors quota</em>' : '' ?><br>
+                        <?php endforeach; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if (empty($familyStorageUsage)): ?>
+                <tr><td colspan="4" style="color:var(--text-muted)">Aucune famille avec des fichiers enregistrés pour le moment.</td></tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+        </div>
+
+        <div class="settings-tab-panel" data-admin-subtab-panel="storage-rattrapage">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Enregistre dans stored_files tous les fichiers déjà sur disque avant l'introduction du
+            quota (documents, garanties, avatars, photos...) — sans effet destructif, sans jamais
+            bloquer rétroactivement une famille déjà au-delà du quota (seulement signalée ici).
+            Lancez d'abord la simulation pour voir le rapport avant d'appliquer.
+        </p>
+        <div style="display:flex;gap:.6rem;margin-bottom:1.25rem">
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/backfill"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">▶️ Lancer en simulation</button>
+            </form>
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/backfill" onsubmit="return confirm('Appliquer le rattrapage ? Les fichiers legacy (avatars, photos) seront déplacés hors de public/uploads/ et les colonnes correspondantes mises à jour. Action idempotente, sans suppression de données.');"><?= \App\Core\Csrf::field() ?>
+                <input type="hidden" name="apply" value="1">
+                <button type="submit" class="btn btn-primary btn-sm">✅ Appliquer</button>
+            </form>
+        </div>
+
+        <?php if ($storageBackfillReport): ?>
+        <div class="card" style="padding:1.25rem">
+            <h4 style="margin-top:0"><?= $storageBackfillReport['apply'] ? 'Rapport — appliqué' : 'Rapport — simulation' ?></h4>
+            <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
+                <li>Fichiers enregistrés : <?= $storageBackfillReport['stats']['registered'] ?></li>
+                <li>Déjà enregistrés (ignorés) : <?= $storageBackfillReport['stats']['skipped_existing'] ?></li>
+                <li>Fichiers manquants sur disque (ignorés) : <?= $storageBackfillReport['stats']['skipped_missing_file'] ?></li>
+                <li>Fichiers déplacés hors webroot : <?= $storageBackfillReport['stats']['moved'] ?></li>
+                <li>Volume total : <?= number_format($storageBackfillReport['stats']['bytes'] / 1024 / 1024, 1, ',', ' ') ?> Mo</li>
+            </ul>
+
+            <?php if (!empty($storageBackfillReport['per_module'])): ?>
+            <p style="font-weight:600;margin-bottom:.3rem">Par module :</p>
+            <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
+                <?php foreach ($storageBackfillReport['per_module'] as $module => $bytes): ?>
+                    <li><?= htmlspecialchars($module) ?> : <?= number_format($bytes / 1024 / 1024, 1, ',', ' ') ?> Mo</li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+
+            <p style="font-weight:600;margin-bottom:.3rem">Familles dépassant le quota (non bloquées, grandfathering) :</p>
+            <?php if (empty($storageBackfillReport['over_quota'])): ?>
+                <p style="color:var(--text-muted);font-size:.9rem">Aucune.</p>
+            <?php else: ?>
+                <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
+                    <?php foreach ($storageBackfillReport['over_quota'] as $fam): ?>
+                        <li style="color:var(--danger)">Famille #<?= $fam['family_id'] ?> : <?= number_format($fam['bytes'] / 1024 / 1024 / 1024, 2, ',', ' ') ?> Go</li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+
+            <details>
+                <summary style="cursor:pointer;color:var(--text-muted);font-size:.85rem">Journal détaillé</summary>
+                <pre style="font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:var(--bg-secondary);padding:.75rem;border-radius:6px;margin-top:.5rem"><?= htmlspecialchars(implode("\n", $storageBackfillReport['log'])) ?></pre>
+            </details>
+        </div>
+        <script>switchAdminSubTab('storage-rattrapage');</script>
+        <?php endif; ?>
+        </div>
+
+        <div class="settings-tab-panel" data-admin-subtab-panel="storage-produits">
+        <?php $storageStripeLinked = (bool)($stripePublishableKey || $stripeSecretKey); ?>
+        <table class="admin-table" style="margin-bottom:1rem">
+            <thead><tr><th>Code</th><th>Nom</th><th>Portée</th><th>Volume</th><th>Prix / mois</th><?php if ($storageStripeLinked): ?><th>Prix Stripe</th><?php endif; ?><th>Actif</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($storageProducts as $sp): ?>
+                <tr>
+                    <td><?= htmlspecialchars($sp['code']) ?></td>
+                    <td><?= htmlspecialchars($sp['name']) ?></td>
+                    <td><?= $sp['scope'] === 'family' ? '👪 Famille' : '👤 Membre' ?></td>
+                    <td><?= $sp['quota_gb'] >= 1024 ? number_format($sp['quota_gb'] / 1024, 1, ',', ' ') . ' To' : $sp['quota_gb'] . ' Go' ?></td>
+                    <td><?= number_format($sp['price_monthly_cents'] / 100, 2, ',', ' ') ?> €</td>
+                    <?php if ($storageStripeLinked): ?>
+                    <td style="font-size:.75rem;color:var(--text-muted)"><?= htmlspecialchars($sp['stripe_price_id_monthly'] ?? '—') ?></td>
+                    <?php endif; ?>
+                    <td><?= $sp['active'] ? '✅' : '⛔' ?></td>
+                    <td style="display:flex;gap:.3rem">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="editStorageProduct(<?= htmlspecialchars(json_encode($sp), ENT_QUOTES) ?>)">Modifier</button>
+                        <?php if ($sp['active']): ?>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/storage/products/<?= $sp['id'] ?>/deactivate" onsubmit="return confirm('Désactiver ce palier ? Il ne sera plus proposé aux nouvelles souscriptions.');"><?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-danger btn-sm">Désactiver</button>
+                        </form>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php if (!$storageStripeLinked): ?>
+        <p style="color:var(--text-muted);font-size:.8rem;margin:-.5rem 0 1rem">La colonne de prix Stripe apparaîtra une fois une clé renseignée dans l'onglet « Abonnements → Clés Stripe ».</p>
+        <?php endif; ?>
+        <button type="button" class="btn btn-primary btn-sm" style="align-self:flex-start" onclick="newStorageProduct()">+ Nouveau palier</button>
+
+        <form method="POST" action="<?= BASE_URL ?>/admin/storage/products" id="storage-product-form" class="card" style="padding:1.25rem;max-width:640px;margin-top:1rem"><?= \App\Core\Csrf::field() ?>
+            <input type="hidden" name="id" id="storage-product-id">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Code (identifiant technique)</label>
+                    <input type="text" name="code" id="storage-product-code" placeholder="storage_100gb">
+                </div>
+                <div class="form-group">
+                    <label>Nom affiché</label>
+                    <input type="text" name="name" id="storage-product-name" value="+100 Go">
+                </div>
+                <div class="form-group">
+                    <label>Volume (Go)</label>
+                    <input type="number" name="quota_gb" id="storage-product-quota" min="1" value="100">
+                </div>
+                <div class="form-group">
+                    <label>Portée</label>
+                    <select name="scope" id="storage-product-scope">
+                        <option value="member">👤 Stockage perso (membre)</option>
+                        <option value="family">👪 Stockage familial partagé</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Prix mensuel (€)</label>
+                    <input type="text" name="price_monthly" id="storage-product-price" placeholder="1.99">
+                </div>
+                <div class="form-group">
+                    <label>Ordre d'affichage</label>
+                    <input type="number" name="sort_order" id="storage-product-sort-order" value="0">
+                </div>
+            </div>
+            <?php if ($storageStripeLinked): ?>
+            <p style="color:var(--text-muted);font-size:.8rem">Le Produit et le Prix Stripe sont créés/mis à jour automatiquement à l'enregistrement — rien à faire côté Stripe.</p>
+            <?php endif; ?>
+            <div class="form-group">
+                <label><input type="checkbox" name="active" id="storage-product-active" value="1" checked> Actif (proposé aux membres)</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer le palier</button>
+        </form>
+        <script>
+        function newStorageProduct() {
+            document.getElementById('storage-product-id').value = '';
+            document.getElementById('storage-product-code').value = '';
+            document.getElementById('storage-product-code').disabled = false;
+            document.getElementById('storage-product-name').value = '+100 Go';
+            document.getElementById('storage-product-quota').value = '100';
+            document.getElementById('storage-product-scope').value = 'member';
+            document.getElementById('storage-product-price').value = '';
+            document.getElementById('storage-product-sort-order').value = '0';
+            document.getElementById('storage-product-active').checked = true;
+        }
+        function editStorageProduct(p) {
+            document.getElementById('storage-product-id').value = p.id;
+            document.getElementById('storage-product-code').value = p.code;
+            document.getElementById('storage-product-code').disabled = true;
+            document.getElementById('storage-product-name').value = p.name;
+            document.getElementById('storage-product-quota').value = p.quota_gb;
+            document.getElementById('storage-product-scope').value = p.scope || 'member';
+            document.getElementById('storage-product-price').value = (p.price_monthly_cents / 100).toFixed(2);
+            document.getElementById('storage-product-sort-order').value = p.sort_order;
+            document.getElementById('storage-product-active').checked = !!(p.active * 1);
+            document.getElementById('storage-product-form').scrollIntoView({ behavior: 'smooth' });
+        }
+        </script>
+        </div>
+
+        <div class="settings-tab-panel" data-admin-subtab-panel="storage-infra">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Identifiants de l'annuaire LDAP (comptes posixAccount, ex. le paquet « Serveur LDAP »
+            de Synology DSM) et de l'instance Synology (quotas par dossier partagé) utilisés pour
+            provisionner le stockage perso. Mots de passe chiffrés en base, jamais journalisés en
+            clair. Tant que le backend est « Aucun », rien n'est provisionné : la comptabilité
+            applicative (quota, consommation) continue de fonctionner indépendamment.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/storage/infra" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>Backend de provisioning</label>
+                <select name="storage_provisioner_backend">
+                    <option value="none" <?= $storageProvisionerBackend === 'none' ? 'selected' : '' ?>>Aucun (comptabilité applicative seulement)</option>
+                    <option value="synology" <?= $storageProvisionerBackend === 'synology' ? 'selected' : '' ?>>Synology (compte LDAP + quota DSM par membre)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Groupe LDAP (posixGroup) des membres FamilyBoard</label>
+                <input type="text" name="storage_ldap_group" value="<?= htmlspecialchars($storageLdapGroup) ?>" placeholder="familyboard">
+            </div>
+
+            <h4 style="margin-top:0">LDAP</h4>
+            <div class="form-group">
+                <label>Hôte (ex. ldaps://ldap.example.com:636)</label>
+                <input type="text" name="ldap_host" value="<?= htmlspecialchars($storageSettings['ldap_host'] ?? '') ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>DN de connexion (bind DN)</label>
+                <input type="text" name="ldap_bind_dn" value="<?= htmlspecialchars($storageSettings['ldap_bind_dn'] ?? '') ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <?php if (!empty($storageSettings['ldap_bind_password'])): ?>
+                    <input type="text" value="•••••••••••••• (enregistré)" disabled>
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer le mot de passe</summary>
+                        <input type="password" name="ldap_bind_password" placeholder="Nouveau mot de passe" autocomplete="new-password" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="password" name="ldap_bind_password" autocomplete="new-password">
+                <?php endif; ?>
+            </div>
+            <div class="form-group">
+                <label>DN de base</label>
+                <input type="text" name="ldap_base_dn" value="<?= htmlspecialchars($storageSettings['ldap_base_dn'] ?? '') ?>" autocomplete="off" placeholder="dc=example,dc=com">
+            </div>
+            <?php if (!empty($storageSettings['ldap_host'])): ?>
+            <div style="margin-bottom:1rem">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageConnection('ldap')">🔌 Tester la connexion LDAP</button>
+                <div id="storage-ldap-test-result" style="margin-top:.5rem"></div>
+            </div>
+            <?php endif; ?>
+
+            <h4>Synology (quotas)</h4>
+            <div class="form-group">
+                <label>URL du DSM (ex. https://nas.example.com:5001)</label>
+                <input type="text" name="synology_url" value="<?= htmlspecialchars($storageSettings['synology_url'] ?? '') ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Nom d'utilisateur</label>
+                <input type="text" name="synology_username" value="<?= htmlspecialchars($storageSettings['synology_username'] ?? '') ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <?php if (!empty($storageSettings['synology_password'])): ?>
+                    <input type="text" value="•••••••••••••• (enregistré)" disabled>
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer le mot de passe</summary>
+                        <input type="password" name="synology_password" placeholder="Nouveau mot de passe" autocomplete="new-password" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="password" name="synology_password" autocomplete="new-password">
+                <?php endif; ?>
+            </div>
+            <div class="form-group">
+                <label>Dossier partagé (quotas par membre)</label>
+                <input type="text" name="synology_shared_folder" value="<?= htmlspecialchars($storageSettings['synology_shared_folder'] ?? '') ?>" autocomplete="off">
+            </div>
+            <?php if (!empty($storageSettings['synology_url'])): ?>
+            <div style="margin-bottom:1rem">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageConnection('synology')">🔌 Tester la connexion Synology</button>
+                <div id="storage-synology-test-result" style="margin-top:.5rem"></div>
+            </div>
+            <?php endif; ?>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+        </form>
+
+        <div class="card" style="padding:1.25rem;max-width:640px;margin-top:1rem">
+            <h4 style="margin-top:0">File de provisioning</h4>
+            <p style="color:var(--text-muted);font-size:.85rem">
+                Traitée automatiquement par le cron toutes les minutes. Backend actif : <strong><?= htmlspecialchars(\App\Core\StorageProvisionerFactory::backendLabel()) ?></strong>.
+            </p>
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/provisioning/run"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">▶️ Traiter la file maintenant</button>
+            </form>
+            <?php if ($storageProvisioningReport): ?>
+            <p style="margin-top:.75rem;font-size:.9rem">
+                <?= $storageProvisioningReport['skipped_no_backend']
+                    ? 'Aucun backend actif — rien à traiter.'
+                    : $storageProvisioningReport['processed'] . ' job(s) traité(s), ' . $storageProvisioningReport['succeeded'] . ' réussi(s), ' . $storageProvisioningReport['failed'] . ' échoué(s).' ?>
+            </p>
+            <?php endif; ?>
+
+            <table class="admin-table" style="margin-top:1rem">
+                <thead><tr><th>Membre</th><th>Type</th><th>Statut</th><th>Tentatives</th><th>Dernière erreur</th></tr></thead>
+                <tbody>
+                <?php foreach ($storageOutstandingJobs as $job): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($job['user_name']) ?></td>
+                        <td><?= htmlspecialchars($job['job_type']) ?></td>
+                        <td><?= htmlspecialchars($job['status']) ?></td>
+                        <td><?= $job['attempts'] ?></td>
+                        <td style="font-size:.8rem;color:var(--danger)"><?= htmlspecialchars($job['last_error'] ?? '') ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (empty($storageOutstandingJobs)): ?>
+                    <tr><td colspan="5" style="color:var(--text-muted)">Aucun job en attente ou en échec.</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
         </div>
         </div>
 

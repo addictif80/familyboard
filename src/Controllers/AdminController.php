@@ -26,6 +26,8 @@ use App\Core\StripeGateway;
 use App\Models\MailcowSettings;
 use App\Models\Plan;
 use App\Models\FamilySubscription;
+use App\Models\StorageProduct;
+use App\Models\StorageSettings;
 
 class AdminController extends BaseController
 {
@@ -228,6 +230,45 @@ class AdminController extends BaseController
         $editingAnnouncement = ($tab === 'announcements' && !empty($_GET['edit']))
             ? \App\Models\Announcement::getById((int)$_GET['edit']) : null;
         $testimonials = \App\Models\Testimonial::getAll();
+
+        $storageBillingEnabled = \App\Core\StorageQuota::billingEnabled();
+        $storageFreeQuotaGb = \App\Core\StorageQuota::freeQuotaGb();
+        $storageFamilyQuotaGb = \App\Core\StorageQuota::familyQuotaGb();
+        $storageMemberAddonCapGb = (int)(AppSetting::get('storage_member_addon_cap_gb') ?? '1024');
+        $storageGraceDays = \App\Core\StorageQuota::gracePeriodDays();
+        $storageCapacityThresholdPct = \App\Core\StorageQuota::capacityAlertThresholdPct();
+        $storageProducts = \App\Models\StorageProduct::getAll();
+        $storageSettings = \App\Models\StorageSettings::get();
+        $storageExcludedModules = implode(', ', \App\Core\FileStore::excludedModules());
+        // Rapport du dernier rattrapage lancé depuis ce panneau (voir runStorageBackfill) —
+        // affiché une seule fois, consommé à la lecture comme un flash.
+        $storageBackfillReport = \App\Core\Session::get('admin_storage_backfill_report');
+        \App\Core\Session::delete('admin_storage_backfill_report');
+        $storageProvisioningReport = \App\Core\Session::get('admin_storage_provisioning_report');
+        \App\Core\Session::delete('admin_storage_provisioning_report');
+        $storageProvisionerBackend = AppSetting::get('storage_provisioner_backend', 'none');
+        $storageLdapGroup = AppSetting::get('storage_ldap_group', 'familyboard');
+        $storageOutstandingJobs = $tab === 'storage' ? \App\Models\ProvisioningJob::getOutstanding(100) : [];
+
+        // Coûteux (agrégat sur toutes les familles) : calculé uniquement pour l'onglet Stockage.
+        $familyStorageUsage = [];
+        if ($tab === 'storage') {
+            $excluded = \App\Core\FileStore::excludedModules();
+            $quotaBytes = $storageFamilyQuotaGb * 1024 * 1024 * 1024;
+            foreach (Database::fetchAll('SELECT id, name FROM families ORDER BY name') as $fam) {
+                $usedBytes = \App\Models\StoredFile::totalBytesForFamily((int)$fam['id'], $excluded);
+                if ($usedBytes <= 0) continue;
+                $breakdown = \App\Models\StoredFile::breakdownByModuleForFamily((int)$fam['id']);
+                $familyStorageUsage[] = [
+                    'family_id'   => $fam['id'],
+                    'family_name' => $fam['name'],
+                    'used_bytes'  => $usedBytes,
+                    'pct'         => $quotaBytes > 0 ? min(999, round($usedBytes / $quotaBytes * 100)) : 0,
+                    'breakdown'   => $breakdown,
+                ];
+            }
+            usort($familyStorageUsage, fn($a, $b) => $b['used_bytes'] <=> $a['used_bytes']);
+        }
 
         // Coûteux (SUM sur information_schema, appel `du`) : calculé uniquement quand l'onglet
         // est effectivement consulté, pas à chaque chargement du panneau admin.
@@ -997,6 +1038,128 @@ class AdminController extends BaseController
         $this->requireSuperAdmin();
         \App\Models\Announcement::delete((int)$params['id']);
         $this->redirect('/admin?tab=announcements&msg=announcement_deleted');
+    }
+
+    // ── Stockage perso payant (voir add_storage_billing.sql) ──────
+
+    public function updateStorageSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('storage_billing_enabled', !empty($_POST['storage_billing_enabled']) ? '1' : '0');
+        AppSetting::set('storage_free_quota_gb', (string)max(0, (int)($_POST['storage_free_quota_gb'] ?? 5)));
+        AppSetting::set('storage_family_quota_gb', (string)max(0, (int)($_POST['storage_family_quota_gb'] ?? 50)));
+        AppSetting::set('storage_member_addon_cap_gb', (string)max(0, (int)($_POST['storage_member_addon_cap_gb'] ?? 1024)));
+        AppSetting::set('storage_grace_days', (string)max(0, (int)($_POST['storage_grace_days'] ?? 30)));
+        AppSetting::set('storage_capacity_alert_threshold_pct', (string)max(1, min(100, (int)($_POST['storage_capacity_alert_threshold_pct'] ?? 70))));
+        $excludedModules = array_values(array_filter(array_map('trim', explode(',', $_POST['storage_quota_excluded_modules'] ?? 'avatar'))));
+        AppSetting::set('storage_quota_excluded_modules', implode(',', $excludedModules ?: ['avatar']));
+        $this->redirect('/admin?tab=storage&msg=storage_settings_saved');
+    }
+
+    /** Identifiants LDAP/Synology pour le provisioning (Phase 4) — mots de passe chiffrés via
+     *  App\Core\Crypto (StorageSettings::save), jamais en clair en base. Champ mot de passe vide
+     *  = non modifié (même convention que Vaultwarden/Mailcow : panneau non rouvert). */
+    public function updateStorageInfraSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        StorageSettings::save([
+            'ldap_host' => $_POST['ldap_host'] ?? '',
+            'ldap_bind_dn' => $_POST['ldap_bind_dn'] ?? '',
+            'ldap_base_dn' => $_POST['ldap_base_dn'] ?? '',
+            'ldap_bind_password' => $_POST['ldap_bind_password'] ?? '',
+            'synology_url' => $_POST['synology_url'] ?? '',
+            'synology_username' => $_POST['synology_username'] ?? '',
+            'synology_password' => $_POST['synology_password'] ?? '',
+            'synology_shared_folder' => $_POST['synology_shared_folder'] ?? '',
+        ]);
+        AppSetting::set('storage_ldap_group', trim($_POST['storage_ldap_group'] ?? '') ?: 'familyboard');
+        $backend = in_array($_POST['storage_provisioner_backend'] ?? 'none', ['none', 'synology'], true)
+            ? $_POST['storage_provisioner_backend'] : 'none';
+        AppSetting::set('storage_provisioner_backend', $backend);
+        $this->redirect('/admin?tab=storage&msg=storage_infra_saved');
+    }
+
+    public function testStorageLdapConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\LdapService::testConnection());
+    }
+
+    public function testStorageSynologyConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\SynologyService::testConnection());
+    }
+
+    /** Traite immédiatement la file provisioning_jobs (voir App\Core\StorageProvisioningRunner)
+     *  — aucun accès SSH requis, utile pour ne pas attendre le prochain passage du cron après
+     *  avoir activé/corrigé le backend. */
+    public function runStorageProvisioning(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $stats = \App\Core\StorageProvisioningRunner::processOutstanding();
+        \App\Core\Session::set('admin_storage_provisioning_report', $stats);
+        $this->redirect('/admin?tab=storage&msg=storage_provisioning_done');
+    }
+
+    public function saveStorageProduct(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)($_POST['id'] ?? 0);
+        $existing = $id ? StorageProduct::findById($id) : null;
+        $name = trim($_POST['name'] ?? '') ?: '+100 Go';
+        $d = [
+            'id' => $id ?: null,
+            'code' => preg_replace('/[^a-z0-9_]/', '', strtolower(trim($_POST['code'] ?? ''))) ?: ('storage_' . time()),
+            'name' => $name,
+            'quota_gb' => max(1, (int)($_POST['quota_gb'] ?? 100)),
+            'price_monthly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_monthly'] ?? '0')) * 100)),
+            'sort_order' => (int)($_POST['sort_order'] ?? 0),
+            'active' => !empty($_POST['active']),
+        ];
+        $id = StorageProduct::save($d);
+
+        $msg = 'storage_product_saved';
+        if (StripeGateway::isConfigured()) {
+            try {
+                $stripe = StripeGateway::syncSingleProduct(
+                    $name,
+                    $d['price_monthly_cents'],
+                    $existing['stripe_product_id'] ?? null,
+                    $existing['stripe_price_id_monthly'] ?? null,
+                    $existing['price_monthly_cents'] ?? null
+                );
+                StorageProduct::setStripeIds($id, $stripe['stripe_product_id'], $stripe['stripe_price_id_monthly']);
+            } catch (\RuntimeException $e) {
+                $msg = 'storage_product_saved_stripe_error';
+            }
+        }
+        $this->redirect('/admin?tab=storage&msg=' . $msg);
+    }
+
+    public function deactivateStorageProduct(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $product = StorageProduct::findById((int)$params['id']);
+        if ($product) {
+            $product['active'] = 0;
+            StorageProduct::save($product);
+        }
+        $this->redirect('/admin?tab=storage&msg=storage_product_deactivated');
+    }
+
+    /** Rattrapage stored_files (voir App\Core\StorageBackfill) directement depuis le panneau
+     *  admin — aucun accès SSH requis. Exécuté de façon synchrone (pas de file d'attente dans
+     *  cette appli) : le temps max d'exécution est relevé en conséquence, et le rapport est
+     *  affiché une seule fois (Session, consommé à la lecture) sur l'onglet Stockage perso. */
+    public function runStorageBackfill(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+        $apply = !empty($_POST['apply']);
+        $result = (new \App\Core\StorageBackfill($apply))->run();
+        \App\Core\Session::set('admin_storage_backfill_report', $result);
+        $this->redirect('/admin?tab=storage&msg=storage_backfill_done');
     }
 
     // ── Programme de parrainage ───────────────────────────────────

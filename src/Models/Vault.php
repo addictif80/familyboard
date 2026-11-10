@@ -31,9 +31,9 @@ class Vault
     {
         $filePath = $fileOriginal = $fileMime = null;
         if ($sourceDocument) {
-            [$filePath, $fileOriginal, $fileMime] = self::copyFromDocument($sourceDocument, $familyId);
+            [$filePath, $fileOriginal, $fileMime] = self::copyFromDocument($sourceDocument, $familyId, $userId);
         } elseif ($file && $file['error'] === UPLOAD_ERR_OK) {
-            [$filePath, $fileOriginal, $fileMime] = OcrHelper::saveUploadedFile($file, 'vault', $familyId);
+            [$filePath, $fileOriginal, $fileMime] = \App\Core\FileStore::save('vault', $familyId, $userId, $file);
         }
         return Database::insert(
             'INSERT INTO vault_entries (family_id, category, title, content, file_path, file_original, file_mime, created_by) VALUES (?,?,?,?,?,?,?,?)',
@@ -41,7 +41,7 @@ class Vault
         );
     }
 
-    public static function updateEntry(int $id, int $familyId, array $d, ?array $file = null, ?array $sourceDocument = null): void
+    public static function updateEntry(int $id, int $familyId, array $d, ?array $file = null, ?array $sourceDocument = null, ?int $userId = null): void
     {
         $existing = self::getEntryById($id);
         $filePath = $existing['file_path'] ?? null;
@@ -49,15 +49,15 @@ class Vault
         $fileMime = $existing['file_mime'] ?? null;
 
         if (!empty($d['remove_file'])) {
-            if ($filePath) @unlink(BASE_PATH . $filePath);
+            if ($filePath) \App\Core\FileStore::deleteByPath($filePath);
             $filePath = $fileOriginal = $fileMime = null;
         }
         if ($sourceDocument) {
-            if ($filePath) @unlink(BASE_PATH . $filePath);
-            [$filePath, $fileOriginal, $fileMime] = self::copyFromDocument($sourceDocument, $familyId);
+            if ($filePath) \App\Core\FileStore::deleteByPath($filePath);
+            [$filePath, $fileOriginal, $fileMime] = self::copyFromDocument($sourceDocument, $familyId, $userId);
         } elseif ($file && $file['error'] === UPLOAD_ERR_OK) {
-            if ($filePath) @unlink(BASE_PATH . $filePath);
-            [$filePath, $fileOriginal, $fileMime] = OcrHelper::saveUploadedFile($file, 'vault', $familyId);
+            if ($filePath) \App\Core\FileStore::deleteByPath($filePath);
+            [$filePath, $fileOriginal, $fileMime] = \App\Core\FileStore::save('vault', $familyId, $userId, $file);
         }
 
         Database::execute(
@@ -70,12 +70,13 @@ class Vault
      *  le coffre-fort et le module Documents suppriment chacun leurs fichiers sans savoir si une
      *  autre table les référence (voir Document::delete(), PremiumDataPurge) — partager le même
      *  chemin ferait disparaître le fichier d'un module quand l'autre le supprime. */
-    private static function copyFromDocument(array $document, int $familyId): array
+    private static function copyFromDocument(array $document, int $familyId, ?int $userId = null): array
     {
         $srcPath = BASE_PATH . $document['file_path'];
         if (!is_file($srcPath)) {
             throw new \RuntimeException('Le fichier du document source est introuvable.');
         }
+        \App\Core\FileStore::enforceQuota($familyId, 'vault', (int)@filesize($srcPath));
         $ext = pathinfo($document['file_path'], PATHINFO_EXTENSION);
         $destDir = BASE_PATH . '/storage/vault/' . $familyId;
         if (!is_dir($destDir)) mkdir($destDir, 0755, true);
@@ -83,14 +84,17 @@ class Vault
         if (!@copy($srcPath, $destDir . '/' . $filename)) {
             throw new \RuntimeException('Impossible de copier le document dans le coffre-fort.');
         }
-        return ['/storage/vault/' . $familyId . '/' . $filename, $document['file_original'], $document['file_mime']];
+        $relPath = '/storage/vault/' . $familyId . '/' . $filename;
+        $sizeBytes = @filesize($destDir . '/' . $filename) ?: 0;
+        \App\Models\StoredFile::create($familyId, $userId, 'vault', $relPath, $document['file_original'], $document['file_mime'], $sizeBytes);
+        return [$relPath, $document['file_original'], $document['file_mime']];
     }
 
     public static function deleteEntry(int $id, int $familyId): void
     {
         $entry = self::getEntryById($id);
         if ($entry && (int)$entry['family_id'] === $familyId && $entry['file_path']) {
-            @unlink(BASE_PATH . $entry['file_path']);
+            \App\Core\FileStore::deleteByPath($entry['file_path']);
         }
         Database::execute('DELETE FROM vault_entries WHERE id=? AND family_id=?', [$id, $familyId]);
     }

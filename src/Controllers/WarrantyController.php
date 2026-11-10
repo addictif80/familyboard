@@ -40,7 +40,7 @@ class WarrantyController extends BaseController
             $user     = Session::user();
             $data     = $_POST ?: $this->jsonInput();
             $file     = $_FILES['file'] ?? null;
-            Warranty::update((int)$params['id'], $user['family_id'], $data, $file);
+            Warranty::update((int)$params['id'], $user['family_id'], $data, $file, (int)$user['id']);
             return ['success' => true];
         });
     }

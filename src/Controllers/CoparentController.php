@@ -214,7 +214,7 @@ class CoparentController extends BaseController
             if ($audioFile) {
                 try {
                     [$audioPath, $audioOriginal, $audioMime] =
-                        OcrHelper::saveUploadedFile($audioFile, 'voice', (int)$schedule['family_id'], OcrHelper::VOICE_MIMES, self::MAX_VOICE_SIZE);
+                        \App\Core\FileStore::save('voice', (int)$schedule['family_id'], (int)$user['id'], $audioFile, OcrHelper::VOICE_MIMES, self::MAX_VOICE_SIZE);
                 } catch (\RuntimeException $e) {
                     return ['success' => false, 'error' => $e->getMessage()];
                 }
@@ -472,9 +472,9 @@ class CoparentController extends BaseController
             $album = Album::getForSchedulesById((int)$params['id'], $scheduleIds);
             if (!$album) return ['success' => false, 'error' => 'Accès non autorisé'];
 
-            $imagePath = $this->uploadImage('image');
+            $imagePath = $this->uploadFamilyImage('image', 'album');
             if (!$imagePath) {
-                return ['success' => false, 'error' => "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement)."];
+                return ['success' => false, 'error' => $this->lastUploadError ?: "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement)."];
             }
 
             $photoId = AlbumPhoto::create($album['id'], $user['id'], $imagePath, trim($_POST['caption'] ?? ''));

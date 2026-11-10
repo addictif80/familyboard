@@ -71,10 +71,24 @@ class AccountDeletion
         Database::execute('UPDATE portal_links SET submitted_by=NULL, former_submitted_by_id=?, former_submitted_by_name=? WHERE submitted_by=?', [$userId, $name, $userId]);
 
         // Avatar personnel : supprimé (ce n'est pas du contenu familial, contrairement au
-        // reste, qui est préservé ci-dessus).
+        // reste, qui est préservé ci-dessus). Stocké comme route "/files/{id}" (voir FileStore).
         if (!empty($user['avatar'])) {
-            $abs = BASE_PATH . $user['avatar'];
-            if (is_file($abs)) @unlink($abs);
+            \App\Core\FileStore::deleteByRoute($user['avatar']);
+        }
+
+        // Désinscription LDAP/Synology — synchrone et best-effort (même convention que
+        // Mailcow::syncFamily()), jamais via la file provisioning_jobs : son user_id est en
+        // ON DELETE CASCADE, le job serait supprimé avant d'avoir pu tourner si le compte est
+        // déjà effacé au moment où le cron le traite.
+        if (!empty($user['ldap_username'])) {
+            $provisioner = \App\Core\StorageProvisionerFactory::active();
+            if ($provisioner) {
+                try {
+                    $provisioner->deprovisionUser($user['ldap_username']);
+                } catch (\Throwable $e) {
+                    error_log('Storage deprovisioning failed for user ' . $userId . ': ' . $e->getMessage());
+                }
+            }
         }
 
         Database::execute('DELETE FROM users WHERE id=?', [$userId]);
@@ -164,17 +178,11 @@ class AccountDeletion
 
         foreach (['documents' => 'file_path', 'comm_log_messages' => 'audio_path'] as $table => $fileCol) {
             foreach (Database::fetchAll("SELECT `$fileCol` as p FROM `$table` WHERE former_user_id=?", [$uid]) as $r) {
-                if (!empty($r['p'])) {
-                    $abs = BASE_PATH . $r['p'];
-                    if (is_file($abs)) @unlink($abs);
-                }
+                \App\Core\FileStore::deleteByPath($r['p'] ?? null);
             }
         }
         foreach (Database::fetchAll('SELECT image_path FROM album_photos WHERE former_user_id=?', [$uid]) as $r) {
-            if (!empty($r['image_path'])) {
-                $abs = BASE_PATH . $r['image_path'];
-                if (is_file($abs)) @unlink($abs);
-            }
+            \App\Core\FileStore::deleteByRoute($r['image_path'] ?? null);
         }
         foreach (Database::fetchAll('SELECT image_path FROM portal_links WHERE former_submitted_by_id=?', [$uid]) as $r) {
             if (!empty($r['image_path'])) {
@@ -214,7 +222,24 @@ class AccountDeletion
     public static function deleteFamily(int $familyId): void
     {
         $filePaths = self::familyFilePaths($familyId);
+        // Tout fichier déjà enregistré dans stored_files (voir App\Core\FileStore) — couvre
+        // aussi, sans jointure à écrire ici, les pièces jointes de modules à table enfant
+        // (litiges, école, coffre, photos de grossesse) dès qu'elles sont passées par FileStore.
+        $storedFilePaths = \App\Models\StoredFile::deleteByFamily($familyId);
         $mailAliasSlug = Database::fetch('SELECT mail_alias_slug FROM families WHERE id=?', [$familyId])['mail_alias_slug'] ?? null;
+
+        // Désinscription LDAP/Synology de tous les membres — avant la cascade users.family_id
+        // ON DELETE CASCADE ci-dessous, qui efface ces comptes sans jamais appeler deleteUser().
+        $provisioner = \App\Core\StorageProvisionerFactory::active();
+        if ($provisioner) {
+            foreach (Database::fetchAll('SELECT ldap_username FROM users WHERE family_id=? AND ldap_username IS NOT NULL', [$familyId]) as $row) {
+                try {
+                    $provisioner->deprovisionUser($row['ldap_username']);
+                } catch (\Throwable $e) {
+                    error_log('Storage deprovisioning failed during family deletion (family ' . $familyId . '): ' . $e->getMessage());
+                }
+            }
+        }
 
         // event_shares / event_share_changes / family_friends n'ont volontairement plus de
         // contrainte de clé étrangère (cf. database/add_family_sharing_no_fk.sql) : nettoyage
@@ -232,31 +257,84 @@ class AccountDeletion
 
         \App\Core\Mailcow::deleteFamilyAlias($mailAliasSlug);
 
-        self::deleteFiles($filePaths);
+        self::deleteFiles(array_merge($filePaths, $storedFilePaths));
         self::removeDirRecursive(BASE_PATH . '/storage/documents/' . $familyId);
         self::removeDirRecursive(BASE_PATH . '/storage/warranties/' . $familyId);
         self::removeDirRecursive(BASE_PATH . '/storage/voice/' . $familyId);
+        self::removeDirRecursive(BASE_PATH . '/storage/vault/' . $familyId);
+        self::removeDirRecursive(BASE_PATH . '/storage/deals/' . $familyId);
+        self::removeDirRecursive(BASE_PATH . '/storage/disputes/' . $familyId);
+        self::removeDirRecursive(BASE_PATH . '/storage/school/' . $familyId);
+        self::removeDirRecursive(BASE_PATH . '/storage/wishlist/' . $familyId);
+        self::removeDirRecursive(BASE_PATH . '/storage/birth-list/' . $familyId);
     }
 
+    /** Tables à une seule colonne de fichier, directement liées à family_id — couvre la
+     *  purge RGPD des modules dont les fichiers ne sont pas encore passés par FileStore (avant
+     *  le script de rattrapage, voir scripts/backfill_stored_files.php). album_photos/
+     *  wishlist_items/birth_list_items contiennent une route "/files/{id}" OU un chemin
+     *  historique selon l'ancienneté de la ligne : voir FileStore::deleteByValue(). */
+    /** Toujours un chemin relatif (jamais une route "/files/{id}") : écrit via
+     *  App\Core\FileStore::save(), jamais saveImage(). */
     private const OWNED_FILE_TABLES = [
         'documents'         => 'file_path',
         'warranties'        => 'file_path',
-        'posts'             => 'image_path',
         'messages'          => 'audio_path',
         'comm_log_messages' => 'audio_path',
+        'deals'             => 'file_path',
+        'vault_entries'     => 'file_path',
+        'wishlist_items'    => 'image_path',
+        'birth_list_items'  => 'image_path',
+    ];
+
+    /** Écrit via App\Core\FileStore::saveImage() : route "/files/{id}" pour une ligne créée
+     *  après la migration, chemin historique public/uploads/ pour une ligne plus ancienne non
+     *  encore rattrapée (voir scripts/backfill_stored_files.php) — les deux formats coexistent
+     *  tant que le rattrapage n'a pas tourné sur toute la base. */
+    private const ROUTE_OR_PATH_TABLES = [
+        'babies'            => 'avatar',
+        'contacts'          => 'avatar',
+        'posts'             => 'image_path',
+        'pregnancy_images'  => 'file_path',
     ];
 
     private static function familyFilePaths(int $familyId): array
     {
         $paths = [];
         foreach (Database::fetchAll('SELECT avatar FROM users WHERE family_id=?', [$familyId]) as $row) {
-            if (!empty($row['avatar'])) $paths[] = $row['avatar'];
+            if (!empty($row['avatar'])) \App\Core\FileStore::deleteByValue($row['avatar']);
         }
-        $tables = self::OWNED_FILE_TABLES + ['babies' => 'avatar', 'contacts' => 'avatar'];
-        foreach ($tables as $table => $col) {
+        foreach (self::OWNED_FILE_TABLES as $table => $col) {
             foreach (Database::fetchAll("SELECT `$col` as p FROM `$table` WHERE family_id=?", [$familyId]) as $row) {
                 if (!empty($row['p'])) $paths[] = $row['p'];
             }
+        }
+        foreach (self::ROUTE_OR_PATH_TABLES as $table => $col) {
+            foreach (Database::fetchAll("SELECT `$col` as p FROM `$table` WHERE family_id=?", [$familyId]) as $row) {
+                if (!empty($row['p'])) \App\Core\FileStore::deleteByValue($row['p']);
+            }
+        }
+        // album_photos n'a pas de family_id direct (jointure via albums), comme les tables
+        // enfant de litiges/école ci-dessous.
+        foreach (Database::fetchAll(
+            'SELECT ap.image_path AS p FROM album_photos ap JOIN albums al ON al.id = ap.album_id WHERE al.family_id = ?',
+            [$familyId]
+        ) as $row) {
+            if (!empty($row['p'])) \App\Core\FileStore::deleteByValue($row['p']);
+        }
+        // Tables enfant sans family_id direct (jointure requise) : litiges, pièces de litige
+        // scolaire — coffre-fort/photos de grossesse couverts ci-dessus (family_id direct).
+        foreach (Database::fetchAll(
+            'SELECT dd.file_path AS p FROM dispute_documents dd JOIN dispute_cases dc ON dc.id=dd.dispute_id WHERE dc.family_id=?',
+            [$familyId]
+        ) as $row) {
+            if (!empty($row['p'])) $paths[] = $row['p'];
+        }
+        foreach (Database::fetchAll(
+            'SELECT sd.file_path AS p FROM school_documents sd JOIN school_students ss ON ss.id=sd.student_id WHERE ss.family_id=?',
+            [$familyId]
+        ) as $row) {
+            if (!empty($row['p'])) $paths[] = $row['p'];
         }
         return $paths;
     }
@@ -264,8 +342,7 @@ class AccountDeletion
     private static function deleteFiles(array $paths): void
     {
         foreach (array_unique($paths) as $rel) {
-            $abs = BASE_PATH . $rel;
-            if (is_file($abs)) @unlink($abs);
+            \App\Core\FileStore::deleteByValue($rel);
         }
     }
 

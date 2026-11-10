@@ -171,6 +171,21 @@ var Dashboard = (() => {
         return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
+    // ── Widget tâches : cocher sans quitter le tableau de bord ─────
+    window.widgetToggleTask = async function (e, id) {
+        e.stopPropagation();
+        const li = document.querySelector(`.task-widget-item[data-task-id="${id}"]`);
+        const r = await apiFetch(`${_baseUrl}/api/tasks/task/${id}/toggle`, { method: 'POST' });
+        if (!r.success || !li) return;
+        if (r.completed) {
+            // Le widget ne liste que les tâches en attente : une fois cochée, elle disparaît
+            // après un court délai plutôt que de rester affichée comme "terminée" indéfiniment.
+            li.style.opacity = '.4';
+            li.style.textDecoration = 'line-through';
+            setTimeout(() => li.remove(), 600);
+        }
+    };
+
     // ── Digest hebdomadaire IA ───────────────────────────────────
     function dismissWeeklyDigest() {
         const modal = document.getElementById('weekly-digest-modal');

@@ -38,7 +38,7 @@ async function sendVoiceMessage({ blob, mimeType, durationSec }) {
     fd.append('content', content);
     fd.append('duration', durationSec);
 
-    const res = await fetch(BASE_URL + '/api/chat/send', { method: 'POST', body: fd });
+    const res = await fetch(BASE_URL + '/api/chat/send', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
     if (data.success) {
         appendMessage(data.message, true);
