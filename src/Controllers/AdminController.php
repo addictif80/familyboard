@@ -246,8 +246,9 @@ class AdminController extends BaseController
         \App\Core\Session::delete('admin_storage_backfill_report');
         $storageProvisioningReport = \App\Core\Session::get('admin_storage_provisioning_report');
         \App\Core\Session::delete('admin_storage_provisioning_report');
-        $storageProvisionerBackend = AppSetting::get('storage_provisioner_backend', 'none');
+        $storageLdapEnabled = \App\Core\StorageProvisionerFactory::ldapEnabled();
         $storageLdapGroup = AppSetting::get('storage_ldap_group', 'familyboard');
+        $storageQuotaBackends = array_filter(array_map('trim', explode(',', AppSetting::get('storage_quota_backends', '') ?: '')));
         $storageOutstandingJobs = $tab === 'storage' ? \App\Models\ProvisioningJob::getOutstanding(100) : [];
 
         // Coûteux (agrégat sur toutes les familles) : calculé uniquement pour l'onglet Stockage.
@@ -1071,11 +1072,19 @@ class AdminController extends BaseController
             'synology_username' => $_POST['synology_username'] ?? '',
             'synology_password' => $_POST['synology_password'] ?? '',
             'synology_shared_folder' => $_POST['synology_shared_folder'] ?? '',
+            'nextcloud_url' => $_POST['nextcloud_url'] ?? '',
+            'nextcloud_admin_user' => $_POST['nextcloud_admin_user'] ?? '',
+            'nextcloud_admin_password' => $_POST['nextcloud_admin_password'] ?? '',
         ]);
         AppSetting::set('storage_ldap_group', trim($_POST['storage_ldap_group'] ?? '') ?: 'familyboard');
-        $backend = in_array($_POST['storage_provisioner_backend'] ?? 'none', ['none', 'synology'], true)
-            ? $_POST['storage_provisioner_backend'] : 'none';
-        AppSetting::set('storage_provisioner_backend', $backend);
+        AppSetting::set('storage_ldap_enabled', !empty($_POST['storage_ldap_enabled']) ? '1' : '0');
+        // Les comptes dépendent toujours du Serveur LDAP Synology ; le(s) backend(s) de quota
+        // (Synology et/ou Nextcloud) sont indépendants et peuvent être actifs simultanément.
+        $quotaBackends = array_values(array_intersect(
+            (array)($_POST['storage_quota_backends'] ?? []),
+            ['synology', 'nextcloud']
+        ));
+        AppSetting::set('storage_quota_backends', implode(',', $quotaBackends));
         $this->redirect('/admin?tab=storage&msg=storage_infra_saved');
     }
 
@@ -1083,6 +1092,24 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $this->json(fn() => \App\Core\LdapService::testConnection());
+    }
+
+    /** Diagnostic "tester un compte" : recherche un uid LDAP donné et rapporte s'il existe —
+     *  vérifie bind + recherche + groupe de bout en bout sans dépendre du mot de passe de ce
+     *  compte, comme demandé explicitement pour valider le provisioning avant mise en prod. */
+    public function testStorageLdapAccount(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $username = trim($_POST['username'] ?? '');
+        $this->json(fn() => $username !== ''
+            ? \App\Core\LdapService::lookupUser($username)
+            : ['ok' => false, 'found' => false, 'error' => 'Nom de compte requis.']);
+    }
+
+    public function testStorageNextcloudConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\NextcloudService::testConnection());
     }
 
     public function testStorageSynologyConnection(array $params): void

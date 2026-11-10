@@ -144,6 +144,32 @@ async function testStorageConnection(kind) {
     }
 }
 
+async function testStorageLdapAccount() {
+    const username = document.getElementById('storage-ldap-account-username').value.trim();
+    const box = document.getElementById('storage-ldap-account-test-result');
+    if (!username) { box.innerHTML = '<p style="color:var(--danger)">Nom de compte requis.</p>'; return; }
+    box.innerHTML = '<p style="color:var(--text-muted)">⏳ Recherche en cours…</p>';
+    try {
+        const res = await fetch(BASE_URL + '/admin/storage/ldap/test-account', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'username=' + encodeURIComponent(username),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+            box.innerHTML = '<p style="color:var(--danger)">❌ ' + escapeHtml(data.error || 'Échec du test.') + '</p>';
+        } else if (!data.found) {
+            box.innerHTML = '<p style="color:var(--text-muted)">Aucun compte LDAP "' + escapeHtml(username) + '" trouvé.</p>';
+        } else {
+            box.innerHTML = '<p style="color:var(--success)">✅ Compte trouvé — uidNumber ' + escapeHtml(String(data.uidNumber)) +
+                ', e-mail ' + escapeHtml(data.mail || '—') +
+                ', membre du groupe : ' + (data.inGroup ? 'oui' : 'non') + '.</p>';
+        }
+    } catch {
+        box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
+    }
+}
+
 async function testSmtp() {
     const box = document.getElementById('smtp-test-result');
     box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';

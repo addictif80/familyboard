@@ -35,7 +35,7 @@ class User
      *  toujours chiffré via App\Core\Crypto avant d'entrer dans la file. */
     private static function enqueueLdapProvisioning(int $userId, string $plainPassword): void
     {
-        if (!\App\Core\StorageProvisionerFactory::active()) return;
+        if (!\App\Core\StorageProvisionerFactory::ldapEnabled()) return;
         \App\Models\ProvisioningJob::enqueue($userId, 'provision_ldap', ['password' => \App\Core\Crypto::encrypt($plainPassword)]);
     }
 

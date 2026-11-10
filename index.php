@@ -691,7 +691,9 @@ $router->post('/admin/storage/products', [AdminController::class, 'saveStoragePr
 $router->post('/admin/storage/products/:id/deactivate', [AdminController::class, 'deactivateStorageProduct']);
 $router->post('/admin/storage/backfill', [AdminController::class, 'runStorageBackfill']);
 $router->post('/admin/storage/ldap/test', [AdminController::class, 'testStorageLdapConnection']);
+$router->post('/admin/storage/ldap/test-account', [AdminController::class, 'testStorageLdapAccount']);
 $router->post('/admin/storage/synology/test', [AdminController::class, 'testStorageSynologyConnection']);
+$router->post('/admin/storage/nextcloud/test', [AdminController::class, 'testStorageNextcloudConnection']);
 $router->post('/admin/storage/provisioning/run', [AdminController::class, 'runStorageProvisioning']);
 $router->get('/files/:id', [FileController::class, 'serve']);
 $router->get('/admin/premium-purges/:id/export', [AdminController::class, 'viewPremiumPurgeExport']);

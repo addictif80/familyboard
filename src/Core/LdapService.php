@@ -69,6 +69,49 @@ class LdapService
         return ['ok' => true, 'error' => ''];
     }
 
+    /**
+     * Diagnostic admin : recherche un uid donné sous le DN de base et rapporte s'il existe, ses
+     * attributs POSIX, et s'il est bien membre du groupe configuré — vérifie bind + recherche +
+     * groupe de bout en bout sans dépendre de connaître le mot de passe de ce compte (voir
+     * AdminController::testStorageLdapAccount, "tester un compte en tapant son nom").
+     */
+    public static function lookupUser(string $username): array
+    {
+        if (!self::isAvailable()) {
+            return ['ok' => false, 'found' => false, 'error' => "L'extension PHP ldap n'est pas installée sur ce serveur."];
+        }
+        $conn = self::connect();
+        if (!$conn) {
+            return ['ok' => false, 'found' => false, 'error' => 'Connexion ou authentification LDAP refusée — vérifiez hôte/DN/mot de passe.'];
+        }
+        try {
+            $dn = self::userDn($username);
+            $search = @ldap_read($conn, $dn, '(objectClass=posixAccount)', ['uid', 'uidNumber', 'gidNumber', 'mail', 'cn']);
+            if (!$search || ldap_count_entries($conn, $search) === 0) {
+                return ['ok' => true, 'found' => false, 'error' => ''];
+            }
+            $entry = ldap_get_entries($conn, $search)[0];
+
+            $groupDn = 'cn=' . ldap_escape(self::groupName(), '', LDAP_ESCAPE_DN) . ',' . self::baseDn();
+            $groupSearch = @ldap_read($conn, $groupDn, '(memberUid=' . ldap_escape($username, '', LDAP_ESCAPE_FILTER) . ')', ['cn']);
+            $inGroup = $groupSearch && ldap_count_entries($conn, $groupSearch) > 0;
+
+            return [
+                'ok'       => true,
+                'found'    => true,
+                'error'    => '',
+                'uid'      => $entry['uid'][0] ?? $username,
+                'cn'       => $entry['cn'][0] ?? '',
+                'mail'     => $entry['mail'][0] ?? '',
+                'uidNumber' => $entry['uidnumber'][0] ?? '',
+                'gidNumber' => $entry['gidnumber'][0] ?? '',
+                'inGroup'  => $inGroup,
+            ];
+        } finally {
+            @ldap_unbind($conn);
+        }
+    }
+
     /** Crée le groupe posixGroup configuré s'il n'existe pas déjà, et retourne son gidNumber. */
     private static function ensureGroup($conn): int
     {

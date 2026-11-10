@@ -857,23 +857,27 @@
 
         <div class="settings-tab-panel" data-admin-subtab-panel="storage-infra">
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Identifiants de l'annuaire LDAP (comptes posixAccount, ex. le paquet « Serveur LDAP »
-            de Synology DSM) et de l'instance Synology (quotas par dossier partagé) utilisés pour
-            provisionner le stockage perso. Mots de passe chiffrés en base, jamais journalisés en
-            clair. Tant que le backend est « Aucun », rien n'est provisionné : la comptabilité
-            applicative (quota, consommation) continue de fonctionner indépendamment.
+            Les comptes des membres dépendent toujours du Serveur LDAP Synology (identité) ;
+            le stockage perso et familial peut ensuite être poussé vers Synology et/ou
+            Nextcloud au choix — les deux peuvent être actifs en même temps (Nextcloud
+            reconnaît le même compte via sa propre configuration LDAP côté NAS, FamilyBoard ne
+            fait que lui pousser le quota en plus). Mots de passe chiffrés en base, jamais
+            journalisés en clair. Tant que rien n'est activé ci-dessous, rien n'est
+            provisionné : la comptabilité applicative (quota, consommation) continue de
+            fonctionner indépendamment.
         </p>
         <form method="POST" action="<?= BASE_URL ?>/admin/storage/infra" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
             <div class="form-group">
-                <label>Backend de provisioning</label>
-                <select name="storage_provisioner_backend">
-                    <option value="none" <?= $storageProvisionerBackend === 'none' ? 'selected' : '' ?>>Aucun (comptabilité applicative seulement)</option>
-                    <option value="synology" <?= $storageProvisionerBackend === 'synology' ? 'selected' : '' ?>>Synology (compte LDAP + quota DSM par membre)</option>
-                </select>
+                <label><input type="checkbox" name="storage_ldap_enabled" value="1" <?= $storageLdapEnabled ? 'checked' : '' ?>> Activer les comptes LDAP (Serveur LDAP Synology)</label>
             </div>
             <div class="form-group">
                 <label>Groupe LDAP (posixGroup) des membres FamilyBoard</label>
                 <input type="text" name="storage_ldap_group" value="<?= htmlspecialchars($storageLdapGroup) ?>" placeholder="familyboard">
+            </div>
+            <div class="form-group">
+                <label>Backend(s) de quota de stockage</label>
+                <label style="font-weight:normal;display:block"><input type="checkbox" name="storage_quota_backends[]" value="synology" <?= in_array('synology', $storageQuotaBackends, true) ? 'checked' : '' ?>> Synology (quota DSM par dossier partagé)</label>
+                <label style="font-weight:normal;display:block"><input type="checkbox" name="storage_quota_backends[]" value="nextcloud" <?= in_array('nextcloud', $storageQuotaBackends, true) ? 'checked' : '' ?>> Nextcloud (quota via l'API OCS)</label>
             </div>
 
             <h4 style="margin-top:0">LDAP</h4>
@@ -905,6 +909,14 @@
             <div style="margin-bottom:1rem">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageConnection('ldap')">🔌 Tester la connexion LDAP</button>
                 <div id="storage-ldap-test-result" style="margin-top:.5rem"></div>
+            </div>
+            <div style="margin-bottom:1rem;padding:.75rem;border:1px solid var(--border);border-radius:6px">
+                <label style="display:block;margin-bottom:.4rem">Tester un compte (recherche un uid existant, sans son mot de passe)</label>
+                <div style="display:flex;gap:.5rem">
+                    <input type="text" id="storage-ldap-account-username" placeholder="ex. camille" style="flex:1">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageLdapAccount()">🔎 Tester</button>
+                </div>
+                <div id="storage-ldap-account-test-result" style="margin-top:.5rem"></div>
             </div>
             <?php endif; ?>
 
@@ -939,13 +951,41 @@
                 <div id="storage-synology-test-result" style="margin-top:.5rem"></div>
             </div>
             <?php endif; ?>
+
+            <h4>Nextcloud (quotas)</h4>
+            <div class="form-group">
+                <label>URL de l'instance (ex. https://cloud.example.com)</label>
+                <input type="text" name="nextcloud_url" value="<?= htmlspecialchars($storageSettings['nextcloud_url'] ?? '') ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Utilisateur administrateur</label>
+                <input type="text" name="nextcloud_admin_user" value="<?= htmlspecialchars($storageSettings['nextcloud_admin_user'] ?? '') ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Mot de passe (de préférence un mot de passe d'application Nextcloud dédié)</label>
+                <?php if (!empty($storageSettings['nextcloud_admin_password'])): ?>
+                    <input type="text" value="•••••••••••••• (enregistré)" disabled>
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer le mot de passe</summary>
+                        <input type="password" name="nextcloud_admin_password" placeholder="Nouveau mot de passe" autocomplete="new-password" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="password" name="nextcloud_admin_password" autocomplete="new-password">
+                <?php endif; ?>
+            </div>
+            <?php if (!empty($storageSettings['nextcloud_url'])): ?>
+            <div style="margin-bottom:1rem">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageConnection('nextcloud')">🔌 Tester la connexion Nextcloud</button>
+                <div id="storage-nextcloud-test-result" style="margin-top:.5rem"></div>
+            </div>
+            <?php endif; ?>
             <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
         </form>
 
         <div class="card" style="padding:1.25rem;max-width:640px;margin-top:1rem">
             <h4 style="margin-top:0">File de provisioning</h4>
             <p style="color:var(--text-muted);font-size:.85rem">
-                Traitée automatiquement par le cron toutes les minutes. Backend actif : <strong><?= htmlspecialchars(\App\Core\StorageProvisionerFactory::backendLabel()) ?></strong>.
+                Traitée automatiquement par le cron toutes les minutes. État : <strong><?= htmlspecialchars(\App\Core\StorageProvisionerFactory::summaryLabel()) ?></strong>.
             </p>
             <form method="POST" action="<?= BASE_URL ?>/admin/storage/provisioning/run"><?= \App\Core\Csrf::field() ?>
                 <button type="submit" class="btn btn-secondary btn-sm">▶️ Traiter la file maintenant</button>
