@@ -240,6 +240,10 @@ class AdminController extends BaseController
         $storageProducts = \App\Models\StorageProduct::getAll();
         $storageSettings = \App\Models\StorageSettings::get();
         $storageExcludedModules = implode(', ', \App\Core\FileStore::excludedModules());
+        // Rapport du dernier rattrapage lancé depuis ce panneau (voir runStorageBackfill) —
+        // affiché une seule fois, consommé à la lecture comme un flash.
+        $storageBackfillReport = \App\Core\Session::get('admin_storage_backfill_report');
+        \App\Core\Session::delete('admin_storage_backfill_report');
 
         // Coûteux (agrégat sur toutes les familles) : calculé uniquement pour l'onglet Stockage.
         $familyStorageUsage = [];
@@ -1110,6 +1114,20 @@ class AdminController extends BaseController
             StorageProduct::save($product);
         }
         $this->redirect('/admin?tab=storage&msg=storage_product_deactivated');
+    }
+
+    /** Rattrapage stored_files (voir App\Core\StorageBackfill) directement depuis le panneau
+     *  admin — aucun accès SSH requis. Exécuté de façon synchrone (pas de file d'attente dans
+     *  cette appli) : le temps max d'exécution est relevé en conséquence, et le rapport est
+     *  affiché une seule fois (Session, consommé à la lecture) sur l'onglet Stockage perso. */
+    public function runStorageBackfill(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+        $apply = !empty($_POST['apply']);
+        $result = (new \App\Core\StorageBackfill($apply))->run();
+        \App\Core\Session::set('admin_storage_backfill_report', $result);
+        $this->redirect('/admin?tab=storage&msg=storage_backfill_done');
     }
 
     // ── Programme de parrainage ───────────────────────────────────

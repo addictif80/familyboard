@@ -617,6 +617,7 @@
             <button type="button" class="settings-tab-btn active" data-tab="storage-reglages" onclick="switchAdminSubTab('storage-reglages')">⚙️ Réglages</button>
             <button type="button" class="settings-tab-btn" data-tab="storage-produits" onclick="switchAdminSubTab('storage-produits')">📦 Paliers</button>
             <button type="button" class="settings-tab-btn" data-tab="storage-consommation" onclick="switchAdminSubTab('storage-consommation')">📊 Consommation</button>
+            <button type="button" class="settings-tab-btn" data-tab="storage-rattrapage" onclick="switchAdminSubTab('storage-rattrapage')">🔄 Rattrapage fichiers</button>
             <button type="button" class="settings-tab-btn" data-tab="storage-infra" onclick="switchAdminSubTab('storage-infra')">🖥️ LDAP / Synology</button>
         </div>
         <script>
@@ -694,6 +695,63 @@
             <?php endif; ?>
             </tbody>
         </table>
+        </div>
+
+        <div class="settings-tab-panel" data-admin-subtab-panel="storage-rattrapage">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Enregistre dans stored_files tous les fichiers déjà sur disque avant l'introduction du
+            quota (documents, garanties, avatars, photos...) — sans effet destructif, sans jamais
+            bloquer rétroactivement une famille déjà au-delà du quota (seulement signalée ici).
+            Lancez d'abord la simulation pour voir le rapport avant d'appliquer.
+        </p>
+        <div style="display:flex;gap:.6rem;margin-bottom:1.25rem">
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/backfill"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">▶️ Lancer en simulation</button>
+            </form>
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/backfill" onsubmit="return confirm('Appliquer le rattrapage ? Les fichiers legacy (avatars, photos) seront déplacés hors de public/uploads/ et les colonnes correspondantes mises à jour. Action idempotente, sans suppression de données.');"><?= \App\Core\Csrf::field() ?>
+                <input type="hidden" name="apply" value="1">
+                <button type="submit" class="btn btn-primary btn-sm">✅ Appliquer</button>
+            </form>
+        </div>
+
+        <?php if ($storageBackfillReport): ?>
+        <div class="card" style="padding:1.25rem">
+            <h4 style="margin-top:0"><?= $storageBackfillReport['apply'] ? 'Rapport — appliqué' : 'Rapport — simulation' ?></h4>
+            <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
+                <li>Fichiers enregistrés : <?= $storageBackfillReport['stats']['registered'] ?></li>
+                <li>Déjà enregistrés (ignorés) : <?= $storageBackfillReport['stats']['skipped_existing'] ?></li>
+                <li>Fichiers manquants sur disque (ignorés) : <?= $storageBackfillReport['stats']['skipped_missing_file'] ?></li>
+                <li>Fichiers déplacés hors webroot : <?= $storageBackfillReport['stats']['moved'] ?></li>
+                <li>Volume total : <?= number_format($storageBackfillReport['stats']['bytes'] / 1024 / 1024, 1, ',', ' ') ?> Mo</li>
+            </ul>
+
+            <?php if (!empty($storageBackfillReport['per_module'])): ?>
+            <p style="font-weight:600;margin-bottom:.3rem">Par module :</p>
+            <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
+                <?php foreach ($storageBackfillReport['per_module'] as $module => $bytes): ?>
+                    <li><?= htmlspecialchars($module) ?> : <?= number_format($bytes / 1024 / 1024, 1, ',', ' ') ?> Mo</li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+
+            <p style="font-weight:600;margin-bottom:.3rem">Familles dépassant le quota (non bloquées, grandfathering) :</p>
+            <?php if (empty($storageBackfillReport['over_quota'])): ?>
+                <p style="color:var(--text-muted);font-size:.9rem">Aucune.</p>
+            <?php else: ?>
+                <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
+                    <?php foreach ($storageBackfillReport['over_quota'] as $fam): ?>
+                        <li style="color:var(--danger)">Famille #<?= $fam['family_id'] ?> : <?= number_format($fam['bytes'] / 1024 / 1024 / 1024, 2, ',', ' ') ?> Go</li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+
+            <details>
+                <summary style="cursor:pointer;color:var(--text-muted);font-size:.85rem">Journal détaillé</summary>
+                <pre style="font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:var(--bg-secondary);padding:.75rem;border-radius:6px;margin-top:.5rem"><?= htmlspecialchars(implode("\n", $storageBackfillReport['log'])) ?></pre>
+            </details>
+        </div>
+        <script>switchAdminSubTab('storage-rattrapage');</script>
+        <?php endif; ?>
         </div>
 
         <div class="settings-tab-panel" data-admin-subtab-panel="storage-produits">
