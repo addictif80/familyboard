@@ -90,7 +90,7 @@ class MemberStorageSubscription
      *  résiliation, passage en grâce...) doit repousser le quota vers le backend de stockage. */
     private static function enqueueQuotaSync(int $beneficiaryId): void
     {
-        if (!\App\Core\StorageProvisionerFactory::active()) return;
+        if (empty(\App\Core\StorageProvisionerFactory::activeQuotaBackends())) return;
         \App\Models\ProvisioningJob::enqueue($beneficiaryId, 'sync_quota');
     }
 
