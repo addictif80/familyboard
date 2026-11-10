@@ -35,6 +35,9 @@ class SynologyService
             CURLOPT_TIMEOUT        => self::TIMEOUT,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_USERAGENT      => 'FamilyBoard/1.0',
+            // Même précaution que NextcloudService : un reverse-proxy devant le DSM peut
+            // renvoyer un en-tête "Upgrade: h2" invalide une fois négocié en HTTP/2 via ALPN.
+            CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
         ]);
         $response = curl_exec($ch);
         $curlError = curl_error($ch);

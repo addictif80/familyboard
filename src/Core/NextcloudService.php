@@ -35,6 +35,11 @@ class NextcloudService
             CURLOPT_USERPWD        => $settings['nextcloud_admin_user'] . ':' . $settings['nextcloud_admin_password'],
             CURLOPT_HTTPHEADER     => ['OCS-APIRequest: true', 'Accept: application/json'],
             CURLOPT_USERAGENT      => 'FamilyBoard/1.0',
+            // Certains reverse-proxies devant Nextcloud renvoient un en-tête "Upgrade: h2"
+            // invalide une fois la connexion négociée en HTTP/2 via ALPN (l'en-tête Upgrade
+            // n'existe qu'en HTTP/1.1) — curl rejette alors la réponse ("Invalid HTTP header
+            // field... name: [upgrade], value: [h2]"). Forcer HTTP/1.1 évite cette négociation.
+            CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
         ];
         if ($method !== 'GET' && !empty($params)) {
             $opts[CURLOPT_POSTFIELDS] = http_build_query($params);
