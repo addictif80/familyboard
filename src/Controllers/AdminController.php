@@ -250,6 +250,8 @@ class AdminController extends BaseController
         $storageLdapGroup = AppSetting::get('storage_ldap_group', 'familyboard');
         $storageQuotaBackends = array_filter(array_map('trim', explode(',', AppSetting::get('storage_quota_backends', '') ?: '')));
         $storageOutstandingJobs = $tab === 'storage' ? \App\Models\ProvisioningJob::getOutstanding(100) : [];
+        $storageLdapMigrationReport = \App\Core\Session::get('admin_storage_ldap_migration_report');
+        \App\Core\Session::delete('admin_storage_ldap_migration_report');
 
         // Coûteux (agrégat sur toutes les familles) : calculé uniquement pour l'onglet Stockage.
         $familyStorageUsage = [];
@@ -1110,6 +1112,43 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $this->json(fn() => \App\Core\NextcloudService::testConnection());
+    }
+
+    /**
+     * Simulation de la migration LDAP des membres créés avant cette intégration : pour chacun
+     * (ldap_username IS NULL), calcule le uid qu'il recevrait et détecte les conflits (uid déjà
+     * pris par un e-mail différent) — n'écrit rien, voir App\Core\LdapService::analyzeExistingAccount().
+     * Le mot de passe LDAP lui-même n'est jamais posé ici : il ne peut l'être qu'à la prochaine
+     * connexion réussie du membre (voir User::enqueueLdapProvisioningOnLoginIfMissing).
+     */
+    public function analyzeStorageLdapMigration(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $report = [];
+        foreach (\App\Models\User::getWithoutLdapUsername() as $user) {
+            $analysis = \App\Core\LdapService::analyzeExistingAccount($user['email']);
+            $report[] = array_merge($user, $analysis, [
+                'needs_decision' => $analysis['exists'] && !$analysis['matches'] && !$user['ldap_resolved_username'],
+            ]);
+        }
+        \App\Core\Session::set('admin_storage_ldap_migration_report', $report);
+        $this->redirect('/admin?tab=storage&msg=storage_ldap_migration_analyzed');
+    }
+
+    /** Décision admin pour un conflit de uid détecté par analyzeStorageLdapMigration() :
+     *  "adopter" le compte LDAP existant (même e-mail suppose déjà fait automatiquement, donc
+     *  ici c'est toujours un choix explicite malgré l'e-mail différent) ou utiliser un uid
+     *  alternatif fourni. Ne touche jamais le mot de passe LDAP — seulement la cible que la
+     *  prochaine connexion du membre utilisera (voir ldap_resolved_username). */
+    public function resolveStorageLdapMigration(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $userId = (int)$params['id'];
+        $username = trim($_POST['adopt_username'] ?? '') ?: trim($_POST['ldap_username'] ?? '');
+        if ($username !== '') {
+            \App\Models\User::setLdapResolvedUsername($userId, $username);
+        }
+        $this->redirect('/admin?tab=storage&msg=storage_ldap_migration_resolved');
     }
 
     public function testStorageSynologyConnection(array $params): void

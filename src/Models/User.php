@@ -39,6 +39,23 @@ class User
         \App\Models\ProvisioningJob::enqueue($userId, 'provision_ldap', ['password' => \App\Core\Crypto::encrypt($plainPassword)]);
     }
 
+    /**
+     * Migration des comptes créés avant l'intégration LDAP : FamilyBoard n'a jamais eu accès au
+     * mot de passe en clair de ces membres (seulement son hash bcrypt), donc la seule occasion
+     * de créer leur compte LDAP avec le bon mot de passe est leur prochaine connexion réussie
+     * (le mot de passe est brièvement en clair côté serveur à ce moment précis, voir
+     * AuthController::login()). N'enfile qu'une seule fois (évite d'empiler un job par
+     * connexion tant qu'il n'a pas encore tourné) et seulement si le compte n'a pas déjà un
+     * ldap_username — un membre déjà migré n'a pas besoin de ce chemin, updatePassword() suffit.
+     */
+    public static function enqueueLdapProvisioningOnLoginIfMissing(array $user, string $plainPassword): void
+    {
+        if (!empty($user['ldap_username'])) return;
+        if (!\App\Core\StorageProvisionerFactory::ldapEnabled()) return;
+        if (\App\Models\ProvisioningJob::hasOutstanding((int)$user['id'], 'provision_ldap')) return;
+        self::enqueueLdapProvisioning((int)$user['id'], $plainPassword);
+    }
+
     public static function normalizeEmail(string $email): string
     {
         return mb_strtolower(trim($email));
@@ -73,10 +90,30 @@ class User
         Database::execute('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [$stripeCustomerId, $id]);
     }
 
-    /** uid du compte LDAP provisionné pour le stockage perso (voir App\Core\LdapService). */
+    /** uid du compte LDAP provisionné pour le stockage perso (voir App\Core\LdapService) — vide
+     *  aussi ldap_resolved_username : la décision de migration (adoption/uid alternatif) n'a
+     *  plus lieu d'être conservée une fois le compte réellement provisionné. */
     public static function setLdapUsername(int $id, string $ldapUsername): void
     {
-        Database::execute('UPDATE users SET ldap_username = ? WHERE id = ?', [$ldapUsername, $id]);
+        Database::execute('UPDATE users SET ldap_username = ?, ldap_resolved_username = NULL WHERE id = ?', [$ldapUsername, $id]);
+    }
+
+    /** Décision admin pour un conflit de uid LDAP détecté lors de la migration (voir
+     *  AdminController::resolveStorageLdapMigration) — appliquée à la prochaine connexion. */
+    public static function setLdapResolvedUsername(int $id, string $ldapUsername): void
+    {
+        Database::execute('UPDATE users SET ldap_resolved_username = ? WHERE id = ?', [$ldapUsername, $id]);
+    }
+
+    /** Membres sans compte LDAP (migration en attente, voir AdminController::analyzeStorageLdapMigration). */
+    public static function getWithoutLdapUsername(): array
+    {
+        return Database::fetchAll(
+            'SELECT u.id, u.name, u.email, u.family_id, u.ldap_resolved_username, f.name AS family_name
+             FROM users u JOIN families f ON f.id = u.family_id
+             WHERE u.ldap_username IS NULL
+             ORDER BY f.name, u.name'
+        );
     }
 
     public static function update(int $id, array $data): void

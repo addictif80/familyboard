@@ -74,6 +74,16 @@ class ProvisioningJob
         );
     }
 
+    /** Évite d'empiler un nouveau job tant qu'un précédent du même type pour ce membre n'a pas
+     *  encore été traité (ex. connexions répétées avant le passage du cron). */
+    public static function hasOutstanding(int $userId, string $jobType): bool
+    {
+        return (bool)Database::fetch(
+            "SELECT 1 FROM provisioning_jobs WHERE user_id=? AND job_type=? AND status != 'done' LIMIT 1",
+            [$userId, $jobType]
+        );
+    }
+
     public static function countOutstanding(): int
     {
         $row = Database::fetch("SELECT COUNT(*) AS c FROM provisioning_jobs WHERE status != 'done'");
