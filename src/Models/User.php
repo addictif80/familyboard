@@ -48,6 +48,19 @@ class User
         return (bool)Database::fetch('SELECT 1 FROM users WHERE id = ? AND family_id = ?', [$userId, $familyId]);
     }
 
+    /** Plafond d'add-ons de stockage perso propre à un membre (NULL = plafond admin global) —
+     *  réservé à l'admin système, distinct de User::update() pour ne pas laisser un membre se
+     *  l'auto-attribuer via le formulaire de profil. */
+    public static function setStorageAddonCap(int $id, ?int $capGb): void
+    {
+        Database::execute('UPDATE users SET storage_addon_cap_gb = ? WHERE id = ?', [$capGb, $id]);
+    }
+
+    public static function setStripeCustomerId(int $id, string $stripeCustomerId): void
+    {
+        Database::execute('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [$stripeCustomerId, $id]);
+    }
+
     public static function update(int $id, array $data): void
     {
         $allowed = ['name', 'email', 'avatar', 'color', 'birthday', 'location_tracking_enabled', 'phone'];

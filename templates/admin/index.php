@@ -32,7 +32,7 @@
             $adminNavGroups = [
                 'Vue d\'ensemble' => ['dashboard' => '📊 Tableau de bord', 'health' => '🩺 Santé plateforme'],
                 'Comptes' => ['families' => '🏠 Familles', 'users' => '👥 Utilisateurs', 'deleted-accounts' => '🗑️ Comptes supprimés'],
-                'Facturation' => ['subscriptions' => '💳 Abonnements', 'referrals' => '🤝 Parrainage'],
+                'Facturation' => ['subscriptions' => '💳 Abonnements', 'storage' => '💾 Stockage perso', 'referrals' => '🤝 Parrainage'],
                 'Support & sécurité' => ['tickets' => '🎫 Tickets support', 'impersonation' => '🕵️ Impersonation', 'ips' => '🚫 IPs bloquées'],
                 'Communication' => ['notifications' => '📣 Notifications & intégrations', 'smtp' => '✉️ SMTP', 'email' => '📧 Emails'],
                 'Contenu' => ['announcements' => '📣 Annonces', 'testimonials' => '💬 Témoignages', 'namedays' => '🎉 Fêtes des prénoms', 'highlights' => '🏢 Mises en avant ABHD', 'links' => '🔗 Liens certifiés', 'legal' => '📜 Contenu légal', 'roadmap' => '🗺️ Roadmap'],
@@ -610,6 +610,211 @@
                 <button type="submit" class="btn btn-secondary btn-sm">📧 Envoyer maintenant (mois précédent)</button>
             </form>
         </div>
+        </div>
+
+        <?php elseif ($tab === 'storage'): ?>
+        <div class="settings-tabs">
+            <button type="button" class="settings-tab-btn active" data-tab="storage-reglages" onclick="switchAdminSubTab('storage-reglages')">⚙️ Réglages</button>
+            <button type="button" class="settings-tab-btn" data-tab="storage-produits" onclick="switchAdminSubTab('storage-produits')">📦 Paliers</button>
+            <button type="button" class="settings-tab-btn" data-tab="storage-infra" onclick="switchAdminSubTab('storage-infra')">🖥️ LDAP / Synology</button>
+        </div>
+        <script>
+        function switchAdminSubTab(tab) {
+            document.querySelectorAll('[data-admin-subtab-panel]').forEach(p => p.classList.toggle('active', p.dataset.adminSubtabPanel === tab));
+            document.querySelectorAll('.settings-tab-btn[data-tab^="storage-"]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+        }
+        </script>
+
+        <div class="settings-tab-panel active" data-admin-subtab-panel="storage-reglages">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Tant que la facturation du stockage est désactivée, aucun quota n'est restreint —
+            activer ce réglage ne verrouille jamais rétroactivement un membre déjà en place sans
+            action explicite ici. L'espace perso payant est séparé de l'espace familial partagé
+            ci-dessous et vit sur le compte Stripe du payeur, jamais sur la famille.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/storage/settings" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label><input type="checkbox" name="storage_billing_enabled" value="1" <?= $storageBillingEnabled ? 'checked' : '' ?>> Activer la facturation du stockage perso</label>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Quota gratuit par membre (Go)</label>
+                    <input type="number" name="storage_free_quota_gb" min="0" value="<?= $storageFreeQuotaGb ?>">
+                </div>
+                <div class="form-group">
+                    <label>Quota familial partagé (Go)</label>
+                    <input type="number" name="storage_family_quota_gb" min="0" value="<?= $storageFamilyQuotaGb ?>">
+                </div>
+                <div class="form-group">
+                    <label>Plafond d'add-ons par membre (Go)</label>
+                    <input type="number" name="storage_member_addon_cap_gb" min="0" value="<?= $storageMemberAddonCapGb ?>">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Délai de grâce après impayé (jours)</label>
+                    <input type="number" name="storage_grace_days" min="0" max="180" value="<?= $storageGraceDays ?>">
+                </div>
+                <div class="form-group">
+                    <label>Seuil d'alerte capacité vendue/disponible (%)</label>
+                    <input type="number" name="storage_capacity_alert_threshold_pct" min="1" max="100" value="<?= $storageCapacityThresholdPct ?>">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+        </form>
+        </div>
+
+        <div class="settings-tab-panel" data-admin-subtab-panel="storage-produits">
+        <?php $storageStripeLinked = (bool)($stripePublishableKey || $stripeSecretKey); ?>
+        <table class="admin-table" style="margin-bottom:1rem">
+            <thead><tr><th>Code</th><th>Nom</th><th>Volume</th><th>Prix / mois</th><?php if ($storageStripeLinked): ?><th>Prix Stripe</th><?php endif; ?><th>Actif</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($storageProducts as $sp): ?>
+                <tr>
+                    <td><?= htmlspecialchars($sp['code']) ?></td>
+                    <td><?= htmlspecialchars($sp['name']) ?></td>
+                    <td><?= $sp['quota_gb'] >= 1024 ? number_format($sp['quota_gb'] / 1024, 1, ',', ' ') . ' To' : $sp['quota_gb'] . ' Go' ?></td>
+                    <td><?= number_format($sp['price_monthly_cents'] / 100, 2, ',', ' ') ?> €</td>
+                    <?php if ($storageStripeLinked): ?>
+                    <td style="font-size:.75rem;color:var(--text-muted)"><?= htmlspecialchars($sp['stripe_price_id_monthly'] ?? '—') ?></td>
+                    <?php endif; ?>
+                    <td><?= $sp['active'] ? '✅' : '⛔' ?></td>
+                    <td style="display:flex;gap:.3rem">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="editStorageProduct(<?= htmlspecialchars(json_encode($sp), ENT_QUOTES) ?>)">Modifier</button>
+                        <?php if ($sp['active']): ?>
+                        <form method="POST" action="<?= BASE_URL ?>/admin/storage/products/<?= $sp['id'] ?>/deactivate" onsubmit="return confirm('Désactiver ce palier ? Il ne sera plus proposé aux nouvelles souscriptions.');"><?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-danger btn-sm">Désactiver</button>
+                        </form>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php if (!$storageStripeLinked): ?>
+        <p style="color:var(--text-muted);font-size:.8rem;margin:-.5rem 0 1rem">La colonne de prix Stripe apparaîtra une fois une clé renseignée dans l'onglet « Abonnements → Clés Stripe ».</p>
+        <?php endif; ?>
+        <button type="button" class="btn btn-primary btn-sm" style="align-self:flex-start" onclick="newStorageProduct()">+ Nouveau palier</button>
+
+        <form method="POST" action="<?= BASE_URL ?>/admin/storage/products" id="storage-product-form" class="card" style="padding:1.25rem;max-width:640px;margin-top:1rem"><?= \App\Core\Csrf::field() ?>
+            <input type="hidden" name="id" id="storage-product-id">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Code (identifiant technique)</label>
+                    <input type="text" name="code" id="storage-product-code" placeholder="storage_100gb">
+                </div>
+                <div class="form-group">
+                    <label>Nom affiché</label>
+                    <input type="text" name="name" id="storage-product-name" value="+100 Go">
+                </div>
+                <div class="form-group">
+                    <label>Volume (Go)</label>
+                    <input type="number" name="quota_gb" id="storage-product-quota" min="1" value="100">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Prix mensuel (€)</label>
+                    <input type="text" name="price_monthly" id="storage-product-price" placeholder="1.99">
+                </div>
+                <div class="form-group">
+                    <label>Ordre d'affichage</label>
+                    <input type="number" name="sort_order" id="storage-product-sort-order" value="0">
+                </div>
+            </div>
+            <?php if ($storageStripeLinked): ?>
+            <p style="color:var(--text-muted);font-size:.8rem">Le Produit et le Prix Stripe sont créés/mis à jour automatiquement à l'enregistrement — rien à faire côté Stripe.</p>
+            <?php endif; ?>
+            <div class="form-group">
+                <label><input type="checkbox" name="active" id="storage-product-active" value="1" checked> Actif (proposé aux membres)</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer le palier</button>
+        </form>
+        <script>
+        function newStorageProduct() {
+            document.getElementById('storage-product-id').value = '';
+            document.getElementById('storage-product-code').value = '';
+            document.getElementById('storage-product-code').disabled = false;
+            document.getElementById('storage-product-name').value = '+100 Go';
+            document.getElementById('storage-product-quota').value = '100';
+            document.getElementById('storage-product-price').value = '';
+            document.getElementById('storage-product-sort-order').value = '0';
+            document.getElementById('storage-product-active').checked = true;
+        }
+        function editStorageProduct(p) {
+            document.getElementById('storage-product-id').value = p.id;
+            document.getElementById('storage-product-code').value = p.code;
+            document.getElementById('storage-product-code').disabled = true;
+            document.getElementById('storage-product-name').value = p.name;
+            document.getElementById('storage-product-quota').value = p.quota_gb;
+            document.getElementById('storage-product-price').value = (p.price_monthly_cents / 100).toFixed(2);
+            document.getElementById('storage-product-sort-order').value = p.sort_order;
+            document.getElementById('storage-product-active').checked = !!(p.active * 1);
+            document.getElementById('storage-product-form').scrollIntoView({ behavior: 'smooth' });
+        }
+        </script>
+        </div>
+
+        <div class="settings-tab-panel" data-admin-subtab-panel="storage-infra">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Identifiants de l'annuaire LDAP (comptes posixAccount) et de l'instance Synology
+            (quotas par dossier partagé) utilisés pour provisionner le stockage perso. Mots de
+            passe chiffrés en base, jamais journalisés en clair.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/storage/infra" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <h4 style="margin-top:0">LDAP</h4>
+            <div class="form-group">
+                <label>Hôte (ex. ldaps://ldap.example.com:636)</label>
+                <input type="text" name="ldap_host" value="<?= htmlspecialchars($storageSettings['ldap_host'] ?? '') ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>DN de connexion (bind DN)</label>
+                <input type="text" name="ldap_bind_dn" value="<?= htmlspecialchars($storageSettings['ldap_bind_dn'] ?? '') ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <?php if (!empty($storageSettings['ldap_bind_password'])): ?>
+                    <input type="text" value="•••••••••••••• (enregistré)" disabled>
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer le mot de passe</summary>
+                        <input type="password" name="ldap_bind_password" placeholder="Nouveau mot de passe" autocomplete="new-password" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="password" name="ldap_bind_password" autocomplete="new-password">
+                <?php endif; ?>
+            </div>
+            <div class="form-group">
+                <label>DN de base</label>
+                <input type="text" name="ldap_base_dn" value="<?= htmlspecialchars($storageSettings['ldap_base_dn'] ?? '') ?>" autocomplete="off" placeholder="dc=example,dc=com">
+            </div>
+
+            <h4>Synology (quotas)</h4>
+            <div class="form-group">
+                <label>URL du DSM (ex. https://nas.example.com:5001)</label>
+                <input type="text" name="synology_url" value="<?= htmlspecialchars($storageSettings['synology_url'] ?? '') ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Nom d'utilisateur</label>
+                <input type="text" name="synology_username" value="<?= htmlspecialchars($storageSettings['synology_username'] ?? '') ?>" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <?php if (!empty($storageSettings['synology_password'])): ?>
+                    <input type="text" value="•••••••••••••• (enregistré)" disabled>
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer le mot de passe</summary>
+                        <input type="password" name="synology_password" placeholder="Nouveau mot de passe" autocomplete="new-password" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="password" name="synology_password" autocomplete="new-password">
+                <?php endif; ?>
+            </div>
+            <div class="form-group">
+                <label>Dossier partagé (quotas par membre)</label>
+                <input type="text" name="synology_shared_folder" value="<?= htmlspecialchars($storageSettings['synology_shared_folder'] ?? '') ?>" autocomplete="off">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+        </form>
         </div>
 
         <?php elseif ($tab === 'referrals'): ?>
