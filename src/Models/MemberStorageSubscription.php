@@ -59,10 +59,12 @@ class MemberStorageSubscription
 
     public static function create(int $beneficiaryId, int $payerId, int $storageProductId, ?string $stripeSubscriptionId = null): int
     {
-        return Database::insert(
+        $id = Database::insert(
             'INSERT INTO member_storage_subscriptions (beneficiary_id, payer_id, storage_product_id, stripe_subscription_id, status) VALUES (?,?,?,?,\'active\')',
             [$beneficiaryId, $payerId, $storageProductId, $stripeSubscriptionId]
         );
+        self::enqueueQuotaSync($beneficiaryId);
+        return $id;
     }
 
     public static function updateStatus(int $id, string $status, ?string $graceEndsAt = null): void
@@ -71,6 +73,7 @@ class MemberStorageSubscription
             'UPDATE member_storage_subscriptions SET status=?, grace_ends_at=? WHERE id=?',
             [$status, $graceEndsAt, $id]
         );
+        self::enqueueQuotaSyncForSubscription($id);
     }
 
     public static function cancel(int $id): void
@@ -79,6 +82,22 @@ class MemberStorageSubscription
             "UPDATE member_storage_subscriptions SET status='canceled', canceled_at=NOW() WHERE id=?",
             [$id]
         );
+        self::enqueueQuotaSyncForSubscription($id);
+    }
+
+    /** Le quota perso dû à un membre dépend de la somme de ses abonnements actifs/en grâce
+     *  (voir totalAddonGbForBeneficiary) : toute transition de statut (nouvel abonnement,
+     *  résiliation, passage en grâce...) doit repousser le quota vers le backend de stockage. */
+    private static function enqueueQuotaSync(int $beneficiaryId): void
+    {
+        if (!\App\Core\StorageProvisionerFactory::active()) return;
+        \App\Models\ProvisioningJob::enqueue($beneficiaryId, 'sync_quota');
+    }
+
+    private static function enqueueQuotaSyncForSubscription(int $subscriptionId): void
+    {
+        $row = Database::fetch('SELECT beneficiary_id FROM member_storage_subscriptions WHERE id=?', [$subscriptionId]);
+        if ($row) self::enqueueQuotaSync((int)$row['beneficiary_id']);
     }
 
     /** Toutes les souscriptions dont un payeur donné règle la facture (pour l'écran « Mon compte → Stockage »). */

@@ -76,6 +76,21 @@ class AccountDeletion
             \App\Core\FileStore::deleteByRoute($user['avatar']);
         }
 
+        // Désinscription LDAP/Synology — synchrone et best-effort (même convention que
+        // Mailcow::syncFamily()), jamais via la file provisioning_jobs : son user_id est en
+        // ON DELETE CASCADE, le job serait supprimé avant d'avoir pu tourner si le compte est
+        // déjà effacé au moment où le cron le traite.
+        if (!empty($user['ldap_username'])) {
+            $provisioner = \App\Core\StorageProvisionerFactory::active();
+            if ($provisioner) {
+                try {
+                    $provisioner->deprovisionUser($user['ldap_username']);
+                } catch (\Throwable $e) {
+                    error_log('Storage deprovisioning failed for user ' . $userId . ': ' . $e->getMessage());
+                }
+            }
+        }
+
         Database::execute('DELETE FROM users WHERE id=?', [$userId]);
 
         \App\Core\Mailcow::syncFamily($familyId);
@@ -212,6 +227,19 @@ class AccountDeletion
         // (litiges, école, coffre, photos de grossesse) dès qu'elles sont passées par FileStore.
         $storedFilePaths = \App\Models\StoredFile::deleteByFamily($familyId);
         $mailAliasSlug = Database::fetch('SELECT mail_alias_slug FROM families WHERE id=?', [$familyId])['mail_alias_slug'] ?? null;
+
+        // Désinscription LDAP/Synology de tous les membres — avant la cascade users.family_id
+        // ON DELETE CASCADE ci-dessous, qui efface ces comptes sans jamais appeler deleteUser().
+        $provisioner = \App\Core\StorageProvisionerFactory::active();
+        if ($provisioner) {
+            foreach (Database::fetchAll('SELECT ldap_username FROM users WHERE family_id=? AND ldap_username IS NOT NULL', [$familyId]) as $row) {
+                try {
+                    $provisioner->deprovisionUser($row['ldap_username']);
+                } catch (\Throwable $e) {
+                    error_log('Storage deprovisioning failed during family deletion (family ' . $familyId . '): ' . $e->getMessage());
+                }
+            }
+        }
 
         // event_shares / event_share_changes / family_friends n'ont volontairement plus de
         // contrainte de clé étrangère (cf. database/add_family_sharing_no_fk.sql) : nettoyage

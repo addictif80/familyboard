@@ -690,6 +690,9 @@ $router->post('/admin/storage/infra', [AdminController::class, 'updateStorageInf
 $router->post('/admin/storage/products', [AdminController::class, 'saveStorageProduct']);
 $router->post('/admin/storage/products/:id/deactivate', [AdminController::class, 'deactivateStorageProduct']);
 $router->post('/admin/storage/backfill', [AdminController::class, 'runStorageBackfill']);
+$router->post('/admin/storage/ldap/test', [AdminController::class, 'testStorageLdapConnection']);
+$router->post('/admin/storage/synology/test', [AdminController::class, 'testStorageSynologyConnection']);
+$router->post('/admin/storage/provisioning/run', [AdminController::class, 'runStorageProvisioning']);
 $router->get('/files/:id', [FileController::class, 'serve']);
 $router->get('/admin/premium-purges/:id/export', [AdminController::class, 'viewPremiumPurgeExport']);
 $router->post('/admin/highlights', [AdminController::class, 'createHighlight']);

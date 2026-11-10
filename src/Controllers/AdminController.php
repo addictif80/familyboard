@@ -244,6 +244,11 @@ class AdminController extends BaseController
         // affiché une seule fois, consommé à la lecture comme un flash.
         $storageBackfillReport = \App\Core\Session::get('admin_storage_backfill_report');
         \App\Core\Session::delete('admin_storage_backfill_report');
+        $storageProvisioningReport = \App\Core\Session::get('admin_storage_provisioning_report');
+        \App\Core\Session::delete('admin_storage_provisioning_report');
+        $storageProvisionerBackend = AppSetting::get('storage_provisioner_backend', 'none');
+        $storageLdapGroup = AppSetting::get('storage_ldap_group', 'familyboard');
+        $storageOutstandingJobs = $tab === 'storage' ? \App\Models\ProvisioningJob::getOutstanding(100) : [];
 
         // Coûteux (agrégat sur toutes les familles) : calculé uniquement pour l'onglet Stockage.
         $familyStorageUsage = [];
@@ -1067,7 +1072,34 @@ class AdminController extends BaseController
             'synology_password' => $_POST['synology_password'] ?? '',
             'synology_shared_folder' => $_POST['synology_shared_folder'] ?? '',
         ]);
+        AppSetting::set('storage_ldap_group', trim($_POST['storage_ldap_group'] ?? '') ?: 'familyboard');
+        $backend = in_array($_POST['storage_provisioner_backend'] ?? 'none', ['none', 'synology'], true)
+            ? $_POST['storage_provisioner_backend'] : 'none';
+        AppSetting::set('storage_provisioner_backend', $backend);
         $this->redirect('/admin?tab=storage&msg=storage_infra_saved');
+    }
+
+    public function testStorageLdapConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\LdapService::testConnection());
+    }
+
+    public function testStorageSynologyConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\SynologyService::testConnection());
+    }
+
+    /** Traite immédiatement la file provisioning_jobs (voir App\Core\StorageProvisioningRunner)
+     *  — aucun accès SSH requis, utile pour ne pas attendre le prochain passage du cron après
+     *  avoir activé/corrigé le backend. */
+    public function runStorageProvisioning(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $stats = \App\Core\StorageProvisioningRunner::processOutstanding();
+        \App\Core\Session::set('admin_storage_provisioning_report', $stats);
+        $this->redirect('/admin?tab=storage&msg=storage_provisioning_done');
     }
 
     public function saveStorageProduct(array $params): void

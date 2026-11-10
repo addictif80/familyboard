@@ -857,11 +857,25 @@
 
         <div class="settings-tab-panel" data-admin-subtab-panel="storage-infra">
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Identifiants de l'annuaire LDAP (comptes posixAccount) et de l'instance Synology
-            (quotas par dossier partagé) utilisés pour provisionner le stockage perso. Mots de
-            passe chiffrés en base, jamais journalisés en clair.
+            Identifiants de l'annuaire LDAP (comptes posixAccount, ex. le paquet « Serveur LDAP »
+            de Synology DSM) et de l'instance Synology (quotas par dossier partagé) utilisés pour
+            provisionner le stockage perso. Mots de passe chiffrés en base, jamais journalisés en
+            clair. Tant que le backend est « Aucun », rien n'est provisionné : la comptabilité
+            applicative (quota, consommation) continue de fonctionner indépendamment.
         </p>
         <form method="POST" action="<?= BASE_URL ?>/admin/storage/infra" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>Backend de provisioning</label>
+                <select name="storage_provisioner_backend">
+                    <option value="none" <?= $storageProvisionerBackend === 'none' ? 'selected' : '' ?>>Aucun (comptabilité applicative seulement)</option>
+                    <option value="synology" <?= $storageProvisionerBackend === 'synology' ? 'selected' : '' ?>>Synology (compte LDAP + quota DSM par membre)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Groupe LDAP (posixGroup) des membres FamilyBoard</label>
+                <input type="text" name="storage_ldap_group" value="<?= htmlspecialchars($storageLdapGroup) ?>" placeholder="familyboard">
+            </div>
+
             <h4 style="margin-top:0">LDAP</h4>
             <div class="form-group">
                 <label>Hôte (ex. ldaps://ldap.example.com:636)</label>
@@ -887,6 +901,12 @@
                 <label>DN de base</label>
                 <input type="text" name="ldap_base_dn" value="<?= htmlspecialchars($storageSettings['ldap_base_dn'] ?? '') ?>" autocomplete="off" placeholder="dc=example,dc=com">
             </div>
+            <?php if (!empty($storageSettings['ldap_host'])): ?>
+            <div style="margin-bottom:1rem">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageConnection('ldap')">🔌 Tester la connexion LDAP</button>
+                <div id="storage-ldap-test-result" style="margin-top:.5rem"></div>
+            </div>
+            <?php endif; ?>
 
             <h4>Synology (quotas)</h4>
             <div class="form-group">
@@ -913,8 +933,49 @@
                 <label>Dossier partagé (quotas par membre)</label>
                 <input type="text" name="synology_shared_folder" value="<?= htmlspecialchars($storageSettings['synology_shared_folder'] ?? '') ?>" autocomplete="off">
             </div>
+            <?php if (!empty($storageSettings['synology_url'])): ?>
+            <div style="margin-bottom:1rem">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageConnection('synology')">🔌 Tester la connexion Synology</button>
+                <div id="storage-synology-test-result" style="margin-top:.5rem"></div>
+            </div>
+            <?php endif; ?>
             <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
         </form>
+
+        <div class="card" style="padding:1.25rem;max-width:640px;margin-top:1rem">
+            <h4 style="margin-top:0">File de provisioning</h4>
+            <p style="color:var(--text-muted);font-size:.85rem">
+                Traitée automatiquement par le cron toutes les minutes. Backend actif : <strong><?= htmlspecialchars(\App\Core\StorageProvisionerFactory::backendLabel()) ?></strong>.
+            </p>
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/provisioning/run"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">▶️ Traiter la file maintenant</button>
+            </form>
+            <?php if ($storageProvisioningReport): ?>
+            <p style="margin-top:.75rem;font-size:.9rem">
+                <?= $storageProvisioningReport['skipped_no_backend']
+                    ? 'Aucun backend actif — rien à traiter.'
+                    : $storageProvisioningReport['processed'] . ' job(s) traité(s), ' . $storageProvisioningReport['succeeded'] . ' réussi(s), ' . $storageProvisioningReport['failed'] . ' échoué(s).' ?>
+            </p>
+            <?php endif; ?>
+
+            <table class="admin-table" style="margin-top:1rem">
+                <thead><tr><th>Membre</th><th>Type</th><th>Statut</th><th>Tentatives</th><th>Dernière erreur</th></tr></thead>
+                <tbody>
+                <?php foreach ($storageOutstandingJobs as $job): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($job['user_name']) ?></td>
+                        <td><?= htmlspecialchars($job['job_type']) ?></td>
+                        <td><?= htmlspecialchars($job['status']) ?></td>
+                        <td><?= $job['attempts'] ?></td>
+                        <td style="font-size:.8rem;color:var(--danger)"><?= htmlspecialchars($job['last_error'] ?? '') ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (empty($storageOutstandingJobs)): ?>
+                    <tr><td colspan="5" style="color:var(--text-muted)">Aucun job en attente ou en échec.</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
         </div>
 
         <?php elseif ($tab === 'referrals'): ?>
