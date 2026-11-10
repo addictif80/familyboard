@@ -694,6 +694,8 @@ $router->post('/admin/storage/ldap/test', [AdminController::class, 'testStorageL
 $router->post('/admin/storage/ldap/test-account', [AdminController::class, 'testStorageLdapAccount']);
 $router->post('/admin/storage/synology/test', [AdminController::class, 'testStorageSynologyConnection']);
 $router->post('/admin/storage/nextcloud/test', [AdminController::class, 'testStorageNextcloudConnection']);
+$router->post('/admin/storage/ldap/migration/analyze', [AdminController::class, 'analyzeStorageLdapMigration']);
+$router->post('/admin/storage/ldap/migration/:id/resolve', [AdminController::class, 'resolveStorageLdapMigration']);
 $router->post('/admin/storage/provisioning/run', [AdminController::class, 'runStorageProvisioning']);
 $router->get('/files/:id', [FileController::class, 'serve']);
 $router->get('/admin/premium-purges/:id/export', [AdminController::class, 'viewPremiumPurgeExport']);

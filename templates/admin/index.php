@@ -1016,6 +1016,62 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="card" style="padding:1.25rem;max-width:720px;margin-top:1rem">
+            <h4 style="margin-top:0">Migration des comptes créés avant l'intégration LDAP</h4>
+            <p style="color:var(--text-muted);font-size:.85rem">
+                FamilyBoard n'a jamais accès au mot de passe en clair des membres existants
+                (seulement son hash) — leur compte LDAP ne peut donc être créé qu'à leur
+                <strong>prochaine connexion réussie</strong> (le mot de passe est brièvement en
+                clair côté serveur à cet instant). Cette simulation ne crée rien : elle détecte à
+                l'avance les conflits de nom (uid déjà pris par un e-mail différent) pour que tu
+                puisses les résoudre avant que le membre ne se reconnecte.
+            </p>
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/ldap/migration/analyze"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">🔎 Analyser les comptes sans LDAP</button>
+            </form>
+
+            <?php if ($storageLdapMigrationReport !== null): ?>
+            <table class="admin-table" style="margin-top:1rem">
+                <thead><tr><th>Membre</th><th>Famille</th><th>uid attendu</th><th>Statut</th><th></th></tr></thead>
+                <tbody>
+                <?php foreach ($storageLdapMigrationReport as $row): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($row['name']) ?><br><small style="color:var(--text-muted)"><?= htmlspecialchars($row['email']) ?></small></td>
+                        <td><?= htmlspecialchars($row['family_name']) ?></td>
+                        <td><code><?= htmlspecialchars($row['ldap_resolved_username'] ?: $row['candidate']) ?></code></td>
+                        <td>
+                            <?php if ($row['ldap_resolved_username']): ?>
+                                <span style="color:var(--success)">Résolu — sera créé/adopté à la prochaine connexion</span>
+                            <?php elseif (!$row['exists']): ?>
+                                <span style="color:var(--text-muted)">Aucun conflit — sera créé à la prochaine connexion</span>
+                            <?php elseif ($row['matches']): ?>
+                                <span style="color:var(--success)">Compte existant, même e-mail — sera associé automatiquement</span>
+                            <?php else: ?>
+                                <span style="color:var(--danger)">⚠️ Conflit — uid pris par <?= htmlspecialchars($row['mail'] ?: '(e-mail inconnu)') ?></span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if ($row['needs_decision']): ?>
+                            <details>
+                                <summary style="cursor:pointer;font-size:.8rem">Résoudre</summary>
+                                <form method="POST" action="<?= BASE_URL ?>/admin/storage/ldap/migration/<?= $row['id'] ?>/resolve" style="margin-top:.4rem;display:flex;gap:.4rem"><?= \App\Core\Csrf::field() ?>
+                                    <button type="submit" name="adopt_username" value="<?= htmlspecialchars($row['candidate']) ?>" class="btn btn-secondary btn-sm" title="Associer ce compte existant, sans toucher à son mot de passe ni ses données — le prochain mot de passe FamilyBoard de ce membre l'écrasera.">Associer le compte existant</button>
+                                    <input type="text" name="ldap_username" placeholder="uid alternatif" style="width:120px">
+                                    <button type="submit" class="btn btn-primary btn-sm">Utiliser cet uid</button>
+                                </form>
+                            </details>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (empty($storageLdapMigrationReport)): ?>
+                    <tr><td colspan="5" style="color:var(--text-muted)">Tous les membres ont déjà un compte LDAP.</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+            <?php endif; ?>
+        </div>
         </div>
 
         <?php elseif ($tab === 'referrals'): ?>

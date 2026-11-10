@@ -15,6 +15,10 @@ use App\Models\StorageSettings;
  * n'est pas installée, comme les autres intégrations externes de cette appli (Mailcow,
  * Vaultwarden...).
  */
+/** uid LDAP attendu déjà pris par un compte d'un e-mail différent — voir
+ *  LdapService::deriveUsername(), résolu uniquement par une décision admin explicite. */
+class LdapUsernameConflictException extends \RuntimeException {}
+
 class LdapService
 {
     public static function isAvailable(): bool
@@ -143,6 +147,31 @@ class LdapService
     }
 
     /**
+     * Diagnostic pour la migration des comptes créés avant cette intégration (voir
+     * AdminController::analyzeStorageLdapMigration) : calcule le uid que recevrait ce membre et
+     * indique s'il existe déjà, et si oui si son e-mail correspond (→ sera adopté
+     * automatiquement à la prochaine connexion) ou diffère (→ conflit nécessitant une décision
+     * admin). N'écrit jamais rien.
+     *
+     * @return array{candidate:string, exists:bool, mail:?string, matches:bool, uidNumber:?string}
+     */
+    public static function analyzeExistingAccount(string $email): array
+    {
+        $candidate = self::baseUsernameFor($email);
+        $lookup = self::lookupUser($candidate);
+        if (!$lookup['ok'] || !$lookup['found']) {
+            return ['candidate' => $candidate, 'exists' => false, 'mail' => null, 'matches' => false, 'uidNumber' => null];
+        }
+        return [
+            'candidate' => $candidate,
+            'exists'    => true,
+            'mail'      => $lookup['mail'] ?? null,
+            'matches'   => strtolower($lookup['mail'] ?? '') === strtolower($email),
+            'uidNumber' => $lookup['uidNumber'] ?? null,
+        ];
+    }
+
+    /**
      * Alloue le prochain uidNumber disponible, protégé par une transaction SQL (SELECT ... FOR
      * UPDATE) : deux provisionnings concurrents ne doivent jamais recevoir le même uidNumber
      * (collision POSIX silencieuse, un utilisateur héritant des accès d'un autre).
@@ -191,7 +220,16 @@ class LdapService
 
         try {
             $gidNumber = self::ensureGroup($conn);
-            $username = $existingLdapUsername ?: self::deriveUsername($conn, $email);
+            try {
+                $username = $existingLdapUsername ?: self::deriveUsername($conn, $email);
+            } catch (LdapUsernameConflictException $e) {
+                // Un compte existe déjà sous le nom attendu, pour un e-mail différent — décision
+                // réservée à l'admin (voir AdminController::analyzeStorageLdapMigration), jamais
+                // résolu automatiquement par un suffixe arbitraire qui créerait un second compte
+                // sans que personne ne le sache.
+                error_log('LdapService: conflit de compte pour ' . $email . ' (' . $e->getMessage() . ')');
+                return null;
+            }
             $dn = self::userDn($username);
 
             $search = @ldap_read($conn, $dn, '(objectClass=posixAccount)', ['uidNumber']);
@@ -200,6 +238,7 @@ class LdapService
             if ($exists) {
                 $ok = @ldap_mod_replace($conn, $dn, ['userPassword' => [self::sshaHash($plainPassword)]]);
                 if (!$ok) throw new \RuntimeException(ldap_error($conn));
+                self::addToGroup($conn, $username); // idempotent — au cas où le compte a été adopté (voir deriveUsername) sans être déjà dans le groupe
             } else {
                 $uidNumber = self::nextUidNumber();
                 $entry = [
@@ -240,22 +279,36 @@ class LdapService
         }
     }
 
-    /** uid LDAP = partie locale de l'e-mail, normalisée, rendue unique en cas de collision
-     *  (deux membres de familles différentes avec la même partie locale d'e-mail). */
+    /** uid LDAP = partie locale de l'e-mail, normalisée — calcul pur, sans accès LDAP (utilisé
+     *  aussi par le diagnostic admin de migration, voir analyzeExistingAccount()). */
+    public static function baseUsernameFor(string $email): string
+    {
+        return preg_replace('/[^a-z0-9._-]/', '', strtolower(explode('@', $email)[0])) ?: 'membre';
+    }
+
+    /**
+     * uid LDAP = partie locale de l'e-mail. Si ce nom existe déjà : adopté tel quel si son
+     * attribut mail correspond exactement à l'e-mail du membre (même personne migrée depuis un
+     * compte créé avant cette intégration — ni mot de passe ni groupe touchés au-delà de ce que
+     * createOrUpdateUser fait normalement), sinon conflit explicite — jamais résolu
+     * silencieusement par un suffixe qui créerait un second compte à l'insu de l'admin.
+     */
     private static function deriveUsername($conn, string $email): string
     {
-        $base = preg_replace('/[^a-z0-9._-]/', '', strtolower(explode('@', $email)[0])) ?: 'membre';
-        $candidate = $base;
-        $i = 1;
-        while (true) {
-            $dn = self::userDn($candidate);
-            $search = @ldap_read($conn, $dn, '(objectClass=posixAccount)', ['uid']);
-            if (!$search || ldap_count_entries($conn, $search) === 0) {
-                return $candidate;
-            }
-            $candidate = $base . $i;
-            $i++;
+        $base = self::baseUsernameFor($email);
+        $dn = self::userDn($base);
+        $search = @ldap_read($conn, $dn, '(objectClass=posixAccount)', ['mail']);
+        if (!$search || ldap_count_entries($conn, $search) === 0) {
+            return $base;
         }
+        $entry = ldap_get_entries($conn, $search)[0];
+        $existingMail = strtolower($entry['mail'][0] ?? '');
+        if ($existingMail === strtolower($email)) {
+            return $base;
+        }
+        throw new LdapUsernameConflictException(
+            "uid \"$base\" déjà utilisé par le compte LDAP $existingMail (différent de $email)"
+        );
     }
 
     /** Supprime le compte LDAP d'un membre (résiliation/suppression de compte) — sans effet si

@@ -61,6 +61,11 @@ class AuthController
         LoginAttempt::clear('user', $ip);
         LoginAttempt::clear('user', $acctKey);
 
+        // Migration des comptes créés avant l'intégration LDAP : $password est encore en clair
+        // à cet instant précis (voir User::enqueueLdapProvisioningOnLoginIfMissing) — c'est la
+        // seule occasion de provisionner leur compte LDAP avec leur vrai mot de passe.
+        User::enqueueLdapProvisioningOnLoginIfMissing($user, $password);
+
         // Check if account is blocked
         if (!empty($user['blocked_at'])) {
             $reason = $user['blocked_reason'] ?? '';
