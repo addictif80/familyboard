@@ -262,6 +262,22 @@
             </p>
             <?php endif; ?>
 
+            <form method="POST" action="<?= BASE_URL ?>/admin/users/resync-ldap-roles" style="margin-top:.75rem">
+                <?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">🔄 Resynchroniser les rôles LDAP</button>
+            </form>
+            <?php if ($ldapRoleResyncReport): ?>
+            <p style="margin-top:.75rem;font-size:.85rem">
+                <strong><?= $ldapRoleResyncReport['count'] ?></strong> compte(s) resynchronisé(s).
+                <?php if ($ldapRoleResyncReport['errors']): ?>
+                <br><span style="color:var(--danger,#c53030)"><?= count($ldapRoleResyncReport['errors']) ?> échec(s) :</span>
+                <ul>
+                    <?php foreach ($ldapRoleResyncReport['errors'] as $e): ?><li><?= htmlspecialchars($e) ?></li><?php endforeach; ?>
+                </ul>
+                <?php endif; ?>
+            </p>
+            <?php endif; ?>
+
             <form method="POST" action="<?= BASE_URL ?>/admin/users/audit-ldap" style="margin-top:.75rem">
                 <?= \App\Core\Csrf::field() ?>
                 <button type="submit" class="btn btn-secondary btn-sm">🔍 Vérifier la cohérence LDAP</button>

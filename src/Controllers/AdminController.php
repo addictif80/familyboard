@@ -244,6 +244,8 @@ class AdminController extends BaseController
         \App\Core\Session::delete('admin_ldap_migration_report');
         $ldapAuditReport = \App\Core\Session::get('admin_ldap_audit_report');
         \App\Core\Session::delete('admin_ldap_audit_report');
+        $ldapRoleResyncReport = \App\Core\Session::get('admin_ldap_role_resync_report');
+        \App\Core\Session::delete('admin_ldap_role_resync_report');
         $legacyLdapUserCount = (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE ldap_username IS NULL AND blocked_at IS NULL")['c'] ?? 0);
         $storageMemberAddonCapGb = (int)(AppSetting::get('storage_member_addon_cap_gb') ?? '1024');
         $storageGraceDays = \App\Core\StorageQuota::gracePeriodDays();
@@ -1372,6 +1374,35 @@ class AdminController extends BaseController
 
         Session::set('admin_ldap_migration_report', ['sent' => $sent, 'failed' => $failed]);
         $this->redirect('/admin?tab=users&msg=ldap_migration_done');
+    }
+
+    /**
+     * Rattrape, pour tout compte déjà provisionné LDAP (ldap_username renseigné) AVANT
+     * l'introduction des groupes family_N_admins/familyboard_admins, son appartenance aux bons
+     * groupes selon son rôle actuel (voir LdapService::syncFamilyRole) — un compte déjà admin
+     * avant cette fonctionnalité ne déclenche sinon ce rattrapage qu'à sa prochaine
+     * promotion/rétrogradation (qui peut ne jamais arriver s'il est admin depuis toujours).
+     * Idempotent, sans effet sur le mot de passe ni aucune autre donnée.
+     */
+    public function resyncLdapRoles(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+
+        $users = Database::fetchAll("SELECT id, ldap_username, family_id, role FROM users WHERE ldap_username IS NOT NULL");
+        $count = 0;
+        $errors = [];
+        foreach ($users as $u) {
+            try {
+                \App\Core\LdapService::syncFamilyRole($u['ldap_username'], (int)$u['family_id'], $u['role'] === 'admin');
+                $count++;
+            } catch (\Throwable $e) {
+                $errors[] = $u['ldap_username'] . ' : ' . $e->getMessage();
+            }
+        }
+
+        Session::set('admin_ldap_role_resync_report', ['count' => $count, 'errors' => $errors]);
+        $this->redirect('/admin?tab=users&msg=ldap_role_resync_done');
     }
 
     /**
