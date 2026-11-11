@@ -20,4 +20,16 @@ class FamilyNextcloudFolder
             [$familyId, $group, $groupFolderId, $mountPoint]
         );
     }
+
+    /** À appeler uniquement après un renommage réussi côté Nextcloud (voir
+     *  NextcloudGroupFolderService::ensureReadableMountPoint) — cette colonne doit toujours
+     *  refléter le mount_point réel côté serveur, utilisé tel quel comme segment d'URL WebDAV
+     *  par NextcloudFileClient. */
+    public static function updateMountPoint(int $familyId, string $mountPoint): void
+    {
+        Database::execute(
+            'UPDATE family_nextcloud_folders SET mount_point = ? WHERE family_id = ?',
+            [$mountPoint, $familyId]
+        );
+    }
 }
