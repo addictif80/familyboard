@@ -28,7 +28,7 @@ class ProvisioningJob
     public static function claimReady(int $limit = 50): array
     {
         return Database::fetchAll(
-            "SELECT pj.*, u.ldap_username, u.family_id FROM provisioning_jobs pj
+            "SELECT pj.*, u.ldap_username, u.nextcloud_username, u.family_id FROM provisioning_jobs pj
              JOIN users u ON u.id = pj.user_id
              WHERE pj.status IN ('pending','failed')
                AND pj.attempts < ?
