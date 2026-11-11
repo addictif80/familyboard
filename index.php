@@ -699,6 +699,7 @@ $router->post('/admin/nextcloud/calendar-sync/run', [AdminController::class, 'ru
 $router->post('/admin/storage/ldap/migration/analyze', [AdminController::class, 'analyzeStorageLdapMigration']);
 $router->post('/admin/storage/ldap/migration/:id/resolve', [AdminController::class, 'resolveStorageLdapMigration']);
 $router->post('/admin/storage/provisioning/run', [AdminController::class, 'runStorageProvisioning']);
+$router->post('/admin/storage/provisioning/:id/retry', [AdminController::class, 'retryStorageProvisioningJob']);
 $router->get('/files/:id', [FileController::class, 'serve']);
 $router->get('/admin/premium-purges/:id/export', [AdminController::class, 'viewPremiumPurgeExport']);
 $router->post('/admin/highlights', [AdminController::class, 'createHighlight']);

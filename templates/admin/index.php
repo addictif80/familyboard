@@ -1043,7 +1043,7 @@
             <?php endif; ?>
 
             <table class="admin-table" style="margin-top:1rem">
-                <thead><tr><th>Membre</th><th>Type</th><th>Statut</th><th>Tentatives</th><th>Dernière erreur</th></tr></thead>
+                <thead><tr><th>Membre</th><th>Type</th><th>Statut</th><th>Tentatives</th><th>Dernière erreur</th><th></th></tr></thead>
                 <tbody>
                 <?php foreach ($storageOutstandingJobs as $job): ?>
                     <tr>
@@ -1052,10 +1052,17 @@
                         <td><?= htmlspecialchars($job['status']) ?></td>
                         <td><?= $job['attempts'] ?></td>
                         <td style="font-size:.8rem;color:var(--danger)"><?= htmlspecialchars($job['last_error'] ?? '') ?></td>
+                        <td>
+                            <?php if ((int)$job['attempts'] >= 3): ?>
+                            <form method="POST" action="<?= BASE_URL ?>/admin/storage/provisioning/<?= $job['id'] ?>/retry"><?= \App\Core\Csrf::field() ?>
+                                <button type="submit" class="btn btn-secondary btn-sm" title="Tentatives épuisées : ce job n'est plus jamais repris par le cron ni par 'Traiter la file maintenant' tant qu'il n'est pas remis à zéro ici.">🔄 Réessayer</button>
+                            </form>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (empty($storageOutstandingJobs)): ?>
-                    <tr><td colspan="5" style="color:var(--text-muted)">Aucun job en attente ou en échec.</td></tr>
+                    <tr><td colspan="6" style="color:var(--text-muted)">Aucun job en attente ou en échec.</td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>
