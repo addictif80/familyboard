@@ -61,6 +61,15 @@ class ProvisioningJob
         );
     }
 
+    /** Remet un job à zéro (tentatives, délai de recul, dernier message d'erreur) pour qu'il
+     *  redevienne éligible à claimReady() — un job ayant épuisé ses tentatives (attempts >= 3)
+     *  n'est sinon plus jamais repris, même par "Traiter la file maintenant", et garde pour
+     *  toujours le message de son tout dernier échec (voir AdminController::retryStorageProvisioningJob). */
+    public static function resetForRetry(int $id): void
+    {
+        Database::execute("UPDATE provisioning_jobs SET status='pending', attempts=0, run_after=NULL, last_error=NULL WHERE id=?", [$id]);
+    }
+
     /** Pour l'écran admin : jobs en attente/échec (pas les 'done', qui n'intéressent personne). */
     public static function getOutstanding(int $limit = 100): array
     {

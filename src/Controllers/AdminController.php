@@ -1193,6 +1193,18 @@ class AdminController extends BaseController
         $this->redirect('/admin?tab=storage&msg=storage_provisioning_done');
     }
 
+    /** Un job ayant épuisé ses 3 tentatives n'est plus jamais repris par "Traiter la file
+     *  maintenant" et garde pour toujours le message de son dernier échec — ce bouton le remet
+     *  à zéro puis relance immédiatement le traitement, sans accès SSH. */
+    public function retryStorageProvisioningJob(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\ProvisioningJob::resetForRetry((int)$params['id']);
+        $stats = \App\Core\StorageProvisioningRunner::processOutstanding();
+        \App\Core\Session::set('admin_storage_provisioning_report', $stats);
+        $this->redirect('/admin?tab=storage&msg=storage_provisioning_retried');
+    }
+
     public function saveStorageProduct(array $params): void
     {
         $this->requireSuperAdmin();
