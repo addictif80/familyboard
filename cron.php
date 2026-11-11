@@ -45,6 +45,7 @@ use App\Models\HomePresence;
 use App\Models\FamilySubscription;
 use App\Core\PremiumDataPurge;
 use App\Core\PlatformHealth;
+use App\Models\MedicalTreatment;
 
 // Le cron tourne chaque minute (pour la synchro CalDAV) mais un run peut dépasser 60s (envois
 // SMTP séquentiels, appels HTTP externes) — un verrou évite que deux exécutions se chevauchent
@@ -128,6 +129,12 @@ foreach ($families as $family) {
         checkTimerAlerts($familyId, $membersExcludingCoparent);
     } catch (\Throwable $e) {
         error_log('checkTimerAlerts error: ' . $e->getMessage());
+    }
+
+    try {
+        sendMedicalTreatmentReminders($familyId);
+    } catch (\Throwable $e) {
+        error_log('sendMedicalTreatmentReminders error: ' . $e->getMessage());
     }
 }
 
@@ -276,6 +283,62 @@ function checkTimerAlerts(int $familyId, array $members): void
             // prochain rafraîchissement (poll de l'écran mural / kiosque).
             Database::execute('UPDATE family_timer_runs SET held_for_return=0 WHERE id=?', [$run['id']]);
         }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Rappels de prise de traitement médical (voir App\Models\MedicalTreatment) — notification push
+// uniquement (desktop & PWA), jamais par e-mail. Un traitement 'user' notifie son propriétaire ;
+// un traitement 'child' notifie tous les admins de la famille (l'enfant n'a pas de compte).
+// L'heure courante est déjà dans le fuseau de la famille (date_default_timezone_set() appliqué
+// par l'appelant, voir la boucle principale) — createur: la fenêtre de tolérance (±7 min autour
+// de l'horaire exact) absorbe le fait que ce cron ne tourne pas forcément à la minute près.
+// ──────────────────────────────────────────────────────────────────────────
+function sendMedicalTreatmentReminders(int $familyId): void
+{
+    $treatments = MedicalTreatment::getActiveForFamily($familyId);
+    if (!$treatments) return;
+
+    $now = new \DateTime();
+    $toleranceMinutes = 7;
+
+    foreach ($treatments as $t) {
+        $dueSlot = null;
+
+        if ($t['schedule_type'] === 'fixed') {
+            $times = json_decode($t['fixed_times'] ?? '[]', true) ?: [];
+            foreach ($times as $hm) {
+                [$h, $m] = array_map('intval', explode(':', $hm));
+                $slot = (clone $now)->setTime($h, $m, 0);
+                $diffMinutes = abs(($now->getTimestamp() - $slot->getTimestamp()) / 60);
+                if ($diffMinutes <= $toleranceMinutes) { $dueSlot = $hm; break; }
+            }
+        } elseif ($t['interval_hours'] && $t['interval_anchor']) {
+            $anchor = new \DateTime($t['interval_anchor']);
+            if ($anchor <= $now) {
+                $hoursSince = ($now->getTimestamp() - $anchor->getTimestamp()) / 3600;
+                $remainder = fmod($hoursSince, (float)$t['interval_hours']);
+                $minutesOff = min($remainder, $t['interval_hours'] - $remainder) * 60;
+                if ($minutesOff <= $toleranceMinutes) $dueSlot = $now->format('H:i');
+            }
+        }
+
+        if (!$dueSlot) continue;
+        if (MedicalTreatment::reminderAlreadySent((int)$t['id'], $dueSlot)) continue;
+
+        $title = '💊 ' . $t['name'];
+        $message = ($t['subject_name'] ? $t['subject_name'] . ' — ' : '') . $t['dosage'];
+
+        if ($t['owner_type'] === 'user') {
+            Notification::create((int)$t['owner_user_id'], 'medication', $title, $message, BASE_URL . '/medication');
+        } else {
+            foreach (Database::fetchAll("SELECT id FROM users WHERE family_id=? AND role='admin'", [$familyId]) as $admin) {
+                Notification::create((int)$admin['id'], 'medication', $title, $message, BASE_URL . '/medication');
+            }
+        }
+
+        MedicalTreatment::markReminderSent((int)$t['id'], $dueSlot);
+        echo "  → Medical treatment reminder sent for treatment #{$t['id']} ({$dueSlot})" . PHP_EOL;
     }
 }
 

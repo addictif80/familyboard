@@ -49,6 +49,7 @@ use App\Controllers\HighlightController;
 use App\Controllers\AdminController;
 use App\Controllers\SupportController;
 use App\Controllers\WarrantyController;
+use App\Controllers\MedicalTreatmentController;
 use App\Controllers\DocumentController;
 use App\Controllers\FamilyWallController;
 use App\Controllers\BabyController;
@@ -831,6 +832,11 @@ $router->get('/api/warranties/search', [WarrantyController::class, 'search']);
 $router->get('/api/warranties/ocr-check', [WarrantyController::class, 'ocrCheck']);
 $router->post('/api/warranties/:id', [WarrantyController::class, 'update']);
 $router->post('/api/warranties/:id/delete', [WarrantyController::class, 'delete']);
+
+$router->get('/medication', [MedicalTreatmentController::class, 'index']);
+$router->post('/api/medication', [MedicalTreatmentController::class, 'create']);
+$router->post('/api/medication/:id', [MedicalTreatmentController::class, 'update']);
+$router->post('/api/medication/:id/delete', [MedicalTreatmentController::class, 'delete']);
 
 // Documents
 $router->get('/documents', [DocumentController::class, 'index']);

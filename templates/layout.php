@@ -353,7 +353,7 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                 </a>
             </li>
             <?php endif; ?>
-            <?php if ($_navEnabled('letters') || $_navEnabled('disputes') || $_navEnabled('school') || $_navEnabled('employment') || $_navEnabled('nanny') || $_navEnabled('health') || $_navEnabled('vehicles') || $_navEnabled('pets') || $_navEnabled('meters')): ?>
+            <?php if ($_navEnabled('letters') || $_navEnabled('disputes') || $_navEnabled('school') || $_navEnabled('employment') || $_navEnabled('nanny') || $_navEnabled('health') || $_navEnabled('vehicles') || $_navEnabled('pets') || $_navEnabled('meters') || $_navEnabled('medication')): ?>
             <li class="nav-section-label" data-section-toggle="famille-suivi" role="button" tabindex="0">
                 <span>Famille & suivi</span><span class="nav-section-chevron">▾</span>
             </li>
@@ -403,6 +403,14 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                 <a href="<?= BASE_URL ?>/health" class="nav-link">
                     <span class="nav-icon">🏥</span>
                     <span class="nav-label">Santé</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('medication')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/medication') ? 'active' : '' ?>" data-section="famille-suivi">
+                <a href="<?= BASE_URL ?>/medication" class="nav-link">
+                    <span class="nav-icon">💊</span>
+                    <span class="nav-label">Traitement médical</span>
                 </a>
             </li>
             <?php endif; ?>
