@@ -97,6 +97,9 @@ class Session
         $_SESSION['family_id'] = $user['family_id'];
         $_SESSION['user'] = self::sanitizeUser($user);
         $_SESSION['login_at'] = time();
+        // Point unique couvrant toutes les voies d'authentification (connexion directe, 2FA,
+        // "se souvenir de moi") — affiché dans la liste des utilisateurs (admin famille).
+        Database::execute('UPDATE users SET last_login_at = NOW() WHERE id = ?', [$user['id']]);
         // Consommé et retiré dès la première page affichée après connexion (voir
         // templates/layout.php) — jamais réaffiché ensuite tant qu'une nouvelle connexion
         // n'a pas eu lieu.

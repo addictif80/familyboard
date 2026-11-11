@@ -238,7 +238,7 @@
         <?php $filterFamily = (int)($_GET['family'] ?? 0); ?>
         <h2>Utilisateurs<?= $filterFamily ? ' · Famille #' . $filterFamily : '' ?></h2>
         <table class="admin-table">
-            <thead><tr><th>#</th><th>Nom</th><th>Email</th><th>Famille</th><th>Rôle</th><th>Statut</th><th>Actions</th></tr></thead>
+            <thead><tr><th>#</th><th>Nom</th><th>Email</th><th>Famille</th><th>Rôle</th><th>Statut</th><th>Dernière connexion</th><th>Actions</th></tr></thead>
             <tbody>
             <?php foreach ($users as $u): ?>
             <?php if ($filterFamily && $u['family_id'] !== $filterFamily) continue; ?>
@@ -257,6 +257,9 @@
                     <?php if ($u['storage_quota_unlimited']): ?>
                         <span class="badge" title="Quota de stockage perso illimité (Go/Synology/Nextcloud)">♾️ Stockage illimité</span>
                     <?php endif; ?>
+                </td>
+                <td style="white-space:nowrap">
+                    <?= $u['last_login_at'] ? date('d/m/Y H:i', strtotime($u['last_login_at'])) : '<span style="color:var(--text-muted)">Jamais</span>' ?>
                 </td>
                 <td style="display:flex;gap:.4rem;flex-wrap:wrap">
                     <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/storage-unlimited">

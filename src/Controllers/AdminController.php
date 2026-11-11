@@ -177,7 +177,7 @@ class AdminController extends BaseController
         // Colonnes explicites (jamais SELECT u.*) : évite qu'un futur ajout de colonne sensible
         // (mot de passe, secret TOTP...) ne se retrouve exposé sans y penser dans ce tableau.
         $users        = Database::fetchAll(
-            'SELECT u.id, u.family_id, u.name, u.email, u.role, u.blocked_at, u.blocked_reason, u.storage_quota_unlimited, u.created_at, f.name as family_name
+            'SELECT u.id, u.family_id, u.name, u.email, u.role, u.blocked_at, u.blocked_reason, u.storage_quota_unlimited, u.created_at, u.last_login_at, f.name as family_name
              FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC'
         );
         $blockedIps   = Database::fetchAll('SELECT * FROM blocked_ips ORDER BY created_at DESC');
