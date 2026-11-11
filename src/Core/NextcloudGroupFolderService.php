@@ -265,17 +265,21 @@ class NextcloudGroupFolderService
         NextcloudService::ensureGroup($adminGroup);
         NextcloudService::ensureGroup($delegationGroup);
 
-        foreach (Database::fetchAll('SELECT ldap_username, role FROM users WHERE family_id = ? AND ldap_username IS NOT NULL', [$familyId]) as $row) {
+        foreach (Database::fetchAll('SELECT ldap_username, nextcloud_username, role FROM users WHERE family_id = ? AND ldap_username IS NOT NULL', [$familyId]) as $row) {
+            // Voir users.nextcloud_username : rare cas de collision d'uid où Nextcloud a dû
+            // renommer en interne son compte (suffixe numérique) — le uid LDAP seul ne
+            // correspondrait alors plus à aucun compte Nextcloud réel.
+            $username = $row['nextcloud_username'] ?: $row['ldap_username'];
             try {
                 if ($row['role'] === 'admin') {
-                    NextcloudService::addUserToGroup($row['ldap_username'], $adminGroup);
-                    NextcloudService::addUserToGroup($row['ldap_username'], $delegationGroup);
+                    NextcloudService::addUserToGroup($username, $adminGroup);
+                    NextcloudService::addUserToGroup($username, $delegationGroup);
                 } else {
-                    NextcloudService::removeUserFromGroup($row['ldap_username'], $adminGroup);
-                    NextcloudService::removeUserFromGroup($row['ldap_username'], $delegationGroup);
+                    NextcloudService::removeUserFromGroup($username, $adminGroup);
+                    NextcloudService::removeUserFromGroup($username, $delegationGroup);
                 }
             } catch (\Throwable $e) {
-                error_log('NextcloudGroupFolderService: ensureAdminDelegationGroups failed for ' . $row['ldap_username'] . ' (family ' . $familyId . '): ' . $e->getMessage());
+                error_log('NextcloudGroupFolderService: ensureAdminDelegationGroups failed for ' . $username . ' (family ' . $familyId . '): ' . $e->getMessage());
             }
         }
     }
@@ -307,22 +311,25 @@ class NextcloudGroupFolderService
      *  LDAP du NAS, par exemple) ne doit jamais bloquer les autres membres ni l'appelant. */
     private static function ensureAllMembersInGroup(int $familyId, string $group): void
     {
-        foreach (Database::fetchAll('SELECT ldap_username FROM users WHERE family_id = ? AND ldap_username IS NOT NULL', [$familyId]) as $row) {
+        foreach (Database::fetchAll('SELECT ldap_username, nextcloud_username FROM users WHERE family_id = ? AND ldap_username IS NOT NULL', [$familyId]) as $row) {
+            $username = $row['nextcloud_username'] ?: $row['ldap_username'];
             try {
-                NextcloudService::addUserToGroup($row['ldap_username'], $group);
+                NextcloudService::addUserToGroup($username, $group);
             } catch (\Throwable $e) {
-                error_log('NextcloudGroupFolderService: addUserToGroup failed for ' . $row['ldap_username'] . ' (family ' . $familyId . '): ' . $e->getMessage());
+                error_log('NextcloudGroupFolderService: addUserToGroup failed for ' . $username . ' (family ' . $familyId . '): ' . $e->getMessage());
             }
         }
     }
 
     /** Ajoute un membre déjà provisionné LDAP au groupe de sa famille (sans quoi il ne verrait
      *  jamais le Group Folder partagé apparaître dans son propre espace Nextcloud). */
-    public static function addMemberToFamilyGroup(int $familyId, string $ldapUsername, ?string &$error = null): bool
+    /** $nextcloudUsername : identifiant Nextcloud réel du membre (voir users.nextcloud_username
+     *  — généralement identique au uid LDAP, sauf rare collision d'uid résolue par Nextcloud). */
+    public static function addMemberToFamilyGroup(int $familyId, string $nextcloudUsername, ?string &$error = null): bool
     {
         $folder = self::ensureFamilyFolder($familyId, $error);
         if (!$folder) return false;
-        return NextcloudService::addUserToGroup($ldapUsername, $folder['nextcloud_group'], $error);
+        return NextcloudService::addUserToGroup($nextcloudUsername, $folder['nextcloud_group'], $error);
     }
 
     /** Applique le quota familial courant (storage_family_quota_gb, ou illimité — voir

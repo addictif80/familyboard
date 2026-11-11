@@ -110,7 +110,11 @@ class StorageProvisioningRunner
         // comptes membres du groupe assigné, vérifié contre une instance réelle).
         if (FileStore::nextcloudFilesEnabled()) {
             $groupError = null;
-            if (!NextcloudGroupFolderService::addMemberToFamilyGroup((int)$user['family_id'], $externalUsername, $groupError)) {
+            // Voir users.nextcloud_username : rare cas de collision d'uid où Nextcloud a dû
+            // renommer en interne son compte (suffixe numérique) — $externalUsername (le vrai
+            // uid LDAP) ne correspond alors plus à aucun compte Nextcloud réel.
+            $nextcloudUsername = $user['nextcloud_username'] ?: $externalUsername;
+            if (!NextcloudGroupFolderService::addMemberToFamilyGroup((int)$user['family_id'], $nextcloudUsername, $groupError)) {
                 $error = $groupError ?: "Ajout au groupe Nextcloud de la famille échoué.";
                 return false;
             }
@@ -137,11 +141,17 @@ class StorageProvisioningRunner
 
         $unlimited = StorageQuota::isMemberUnlimited((int)$job['user_id']);
         $quotaGb = $unlimited ? 0 : StorageQuota::totalQuotaGbForMember((int)$job['user_id']);
+        // Nextcloud peut exiger un identifiant différent du uid LDAP réel dans de rares cas de
+        // collision d'uid (voir users.nextcloud_username, App\Core\NextcloudService) — Synology,
+        // lui, ne connaît que le vrai uid LDAP.
         $allOk = true;
         $backendErrors = [];
         foreach ($backends as $backend) {
             $backendError = null;
-            if (!$backend->syncQuota($job['ldap_username'], $quotaGb, $unlimited, $backendError)) {
+            $username = $backend->slug() === 'nextcloud'
+                ? ($job['nextcloud_username'] ?: $job['ldap_username'])
+                : $job['ldap_username'];
+            if (!$backend->syncQuota($username, $quotaGb, $unlimited, $backendError)) {
                 $allOk = false;
                 $backendErrors[] = $backend->slug() . ' : ' . ($backendError ?? 'erreur inconnue');
             }
