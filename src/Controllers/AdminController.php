@@ -1131,9 +1131,7 @@ class AdminController extends BaseController
         $report = [];
         foreach (\App\Models\User::getWithoutLdapUsername() as $user) {
             $analysis = \App\Core\LdapService::analyzeExistingAccount($user['email']);
-            $report[] = array_merge($user, $analysis, [
-                'needs_decision' => $analysis['exists'] && !$analysis['matches'] && !$user['ldap_resolved_username'],
-            ]);
+            $report[] = array_merge($user, $analysis);
         }
         \App\Core\Session::set('admin_storage_ldap_migration_report', $report);
         $this->redirect('/admin?tab=storage&msg=storage_ldap_migration_analyzed');
