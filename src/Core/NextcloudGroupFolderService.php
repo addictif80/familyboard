@@ -130,16 +130,13 @@ class NextcloudGroupFolderService
         if (!NextcloudService::addUserToGroup($settings['nextcloud_admin_user'], $group, $error)) return null;
 
         $create = self::request('POST', '/folders', ['mountpoint' => $mountPoint]);
-        if (!$create['ok']) {
-            $error = 'Création du Group Folder échouée : ' . ($create['error'] ?? 'erreur inconnue');
-            return null;
-        }
         $folderId = (int)($create['data']['id'] ?? 0);
         if (!$folderId) {
-            // Avant d'abandonner : la création peut avoir réellement abouti côté serveur malgré
-            // une réponse sans id exploitable (vu en conditions de test : des comptes sans droit
-            // suffisant produisent des réponses non standard) — on vérifie directement la liste
-            // des dossiers existants plutôt que de supposer un échec.
+            // Avant d'abandonner (que la création ait échoué — ex. mountpoint déjà pris par une
+            // tentative antérieure dont seule l'étape suivante avait échoué, voir ci-dessous — ou
+            // qu'elle ait réussi sans id exploitable dans la réponse) : le dossier peut déjà
+            // exister réellement côté Nextcloud, on vérifie directement la liste plutôt que de
+            // supposer un échec.
             $list = self::request('GET', '/folders');
             foreach (($list['data'] ?? []) as $existingFolder) {
                 if (($existingFolder['mount_point'] ?? null) === $mountPoint) {
@@ -149,12 +146,12 @@ class NextcloudGroupFolderService
             }
         }
         if (!$folderId) {
-            // Motif précis introuvable en conditions de test (vérifié : la création répond
-            // toujours un id, y compris en cas de mountpoint déjà pris) — diagnostic complet
-            // journalisé pour identifier la cause exacte côté serveur réel.
+            // Ni la création, ni la liste des dossiers existants n'ont permis de trouver ce
+            // mountpoint — diagnostic complet journalisé pour identifier la cause exacte côté
+            // serveur réel.
             $raw = json_encode($create);
-            error_log("NextcloudGroupFolderService: réponse inattendue à la création du Group Folder (famille $familyId, mountpoint $mountPoint) : $raw");
-            $error = 'Création du Group Folder : identifiant introuvable dans la réponse Nextcloud. Détail : ' . mb_substr($raw, 0, 500);
+            error_log("NextcloudGroupFolderService: impossible de créer ou retrouver le Group Folder (famille $familyId, mountpoint $mountPoint) : $raw");
+            $error = 'Création du Group Folder échouée et dossier introuvable dans la liste existante : ' . ($create['error'] ?: mb_substr($raw, 0, 500));
             return null;
         }
 
