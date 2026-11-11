@@ -49,6 +49,12 @@ class NextcloudGroupFolderService
             CURLOPT_HTTPHEADER     => ['OCS-APIRequest: true', 'Accept: application/json'],
             CURLOPT_USERAGENT      => 'FamilyBoard/1.0',
             CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+            // Une connexion persistante réutilisée à travers un reverse-proxy mal configuré peut
+            // désynchroniser requête/réponse (la réponse d'un appel précédent "fuit" dans le
+            // suivant) — observé en conditions réelles (deux familles traitées à la suite dans un
+            // même run recevaient des réponses croisées). Force une connexion neuve à chaque appel.
+            CURLOPT_FORBID_REUSE   => true,
+            CURLOPT_FRESH_CONNECT  => true,
         ];
         if (!empty($params)) $opts[CURLOPT_POSTFIELDS] = http_build_query($params);
         $url .= (str_contains($url, '?') ? '&' : '?') . 'format=json';

@@ -40,6 +40,11 @@ class NextcloudService
             // n'existe qu'en HTTP/1.1) — curl rejette alors la réponse ("Invalid HTTP header
             // field... name: [upgrade], value: [h2]"). Forcer HTTP/1.1 évite cette négociation.
             CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+            // Une connexion persistante réutilisée à travers un reverse-proxy mal configuré peut
+            // désynchroniser requête/réponse (la réponse d'un appel précédent "fuit" dans le
+            // suivant) — observé en conditions réelles. Force une connexion neuve à chaque appel.
+            CURLOPT_FORBID_REUSE   => true,
+            CURLOPT_FRESH_CONNECT  => true,
         ];
         if ($method !== 'GET' && !empty($params)) {
             $opts[CURLOPT_POSTFIELDS] = http_build_query($params);

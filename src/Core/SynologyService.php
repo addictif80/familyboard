@@ -38,6 +38,10 @@ class SynologyService
             // Même précaution que NextcloudService : un reverse-proxy devant le DSM peut
             // renvoyer un en-tête "Upgrade: h2" invalide une fois négocié en HTTP/2 via ALPN.
             CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+            // Voir NextcloudService::request() — même précaution par cohérence (reverse-proxy
+            // potentiellement partagé), même si non observé spécifiquement côté Synology.
+            CURLOPT_FORBID_REUSE   => true,
+            CURLOPT_FRESH_CONNECT  => true,
         ]);
         $response = curl_exec($ch);
         $curlError = curl_error($ch);

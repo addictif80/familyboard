@@ -62,6 +62,12 @@ class NextcloudCalDavClient
             // Même précaution que NextcloudService : évite un "Upgrade: h2" invalide renvoyé
             // par certains reverse-proxies une fois négocié en HTTP/2 via ALPN.
             CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+            // Une connexion persistante réutilisée à travers un reverse-proxy mal configuré peut
+            // désynchroniser requête/réponse (la réponse d'un appel précédent "fuit" dans le
+            // suivant) — observé en conditions réelles (deux familles traitées à la suite dans un
+            // même run recevaient des réponses croisées). Force une connexion neuve à chaque appel.
+            CURLOPT_FORBID_REUSE   => true,
+            CURLOPT_FRESH_CONNECT  => true,
         ]);
         if ($body !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
 

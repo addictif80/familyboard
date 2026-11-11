@@ -49,6 +49,10 @@ class NextcloudFileClient
             CURLOPT_HTTPHEADER     => $extraHeaders,
             CURLOPT_USERAGENT      => 'FamilyBoard/1.0',
             CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
+            // Voir NextcloudService::request() — évite qu'une connexion persistante réutilisée
+            // à travers un reverse-proxy mal configuré ne désynchronise requête/réponse.
+            CURLOPT_FORBID_REUSE   => true,
+            CURLOPT_FRESH_CONNECT  => true,
             CURLOPT_HEADERFUNCTION => function ($ch, $line) use (&$responseHeaders) {
                 $parts = explode(':', $line, 2);
                 if (count($parts) === 2) $responseHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);
