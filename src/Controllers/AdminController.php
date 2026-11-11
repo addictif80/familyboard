@@ -177,7 +177,7 @@ class AdminController extends BaseController
         // Colonnes explicites (jamais SELECT u.*) : évite qu'un futur ajout de colonne sensible
         // (mot de passe, secret TOTP...) ne se retrouve exposé sans y penser dans ce tableau.
         $users        = Database::fetchAll(
-            'SELECT u.id, u.family_id, u.name, u.email, u.role, u.blocked_at, u.blocked_reason, u.created_at, f.name as family_name
+            'SELECT u.id, u.family_id, u.name, u.email, u.role, u.blocked_at, u.blocked_reason, u.storage_quota_unlimited, u.created_at, f.name as family_name
              FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC'
         );
         $blockedIps   = Database::fetchAll('SELECT * FROM blocked_ips ORDER BY created_at DESC');
@@ -234,6 +234,7 @@ class AdminController extends BaseController
         $storageBillingEnabled = \App\Core\StorageQuota::billingEnabled();
         $storageFreeQuotaGb = \App\Core\StorageQuota::freeQuotaGb();
         $storageFamilyQuotaGb = \App\Core\StorageQuota::familyQuotaGb();
+        $storageFamilyQuotaUnlimited = \App\Core\StorageQuota::familyQuotaUnlimited();
         $storageMemberAddonCapGb = (int)(AppSetting::get('storage_member_addon_cap_gb') ?? '1024');
         $storageGraceDays = \App\Core\StorageQuota::gracePeriodDays();
         $storageCapacityThresholdPct = \App\Core\StorageQuota::capacityAlertThresholdPct();
@@ -271,7 +272,7 @@ class AdminController extends BaseController
                     'family_id'   => $fam['id'],
                     'family_name' => $fam['name'],
                     'used_bytes'  => $usedBytes,
-                    'pct'         => $quotaBytes > 0 ? min(999, round($usedBytes / $quotaBytes * 100)) : 0,
+                    'pct'         => (!$storageFamilyQuotaUnlimited && $quotaBytes > 0) ? min(999, round($usedBytes / $quotaBytes * 100)) : 0,
                     'breakdown'   => $breakdown,
                 ];
             }
@@ -419,6 +420,15 @@ class AdminController extends BaseController
         $id = (int)$params['id'];
         Database::execute('UPDATE users SET blocked_at=NULL, blocked_reason=NULL WHERE id=?', [$id]);
         $this->redirect('/admin?tab=users&msg=unblocked');
+    }
+
+    /** Quota de stockage perso illimité (Go/Synology/Nextcloud) pour ce membre — voir
+     *  App\Models\User::setStorageUnlimited, qui repousse aussi le quota aux backends actifs. */
+    public function setUserStorageUnlimited(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\User::setStorageUnlimited((int)$params['id'], !empty($_POST['enabled']));
+        $this->redirect('/admin?tab=users&msg=storage_unlimited_updated');
     }
 
     /**
@@ -1056,6 +1066,7 @@ class AdminController extends BaseController
         AppSetting::set('storage_billing_enabled', !empty($_POST['storage_billing_enabled']) ? '1' : '0');
         AppSetting::set('storage_free_quota_gb', (string)max(0, (int)($_POST['storage_free_quota_gb'] ?? 5)));
         AppSetting::set('storage_family_quota_gb', (string)max(0, (int)($_POST['storage_family_quota_gb'] ?? 50)));
+        AppSetting::set('storage_family_quota_unlimited', !empty($_POST['storage_family_quota_unlimited']) ? '1' : '0');
         AppSetting::set('storage_member_addon_cap_gb', (string)max(0, (int)($_POST['storage_member_addon_cap_gb'] ?? 1024)));
         AppSetting::set('storage_grace_days', (string)max(0, (int)($_POST['storage_grace_days'] ?? 30)));
         AppSetting::set('storage_capacity_alert_threshold_pct', (string)max(1, min(100, (int)($_POST['storage_capacity_alert_threshold_pct'] ?? 70))));

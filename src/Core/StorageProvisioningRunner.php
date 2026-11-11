@@ -123,12 +123,13 @@ class StorageProvisioningRunner
             return false;
         }
 
-        $quotaGb = StorageQuota::totalQuotaGbForMember((int)$job['user_id']);
+        $unlimited = StorageQuota::isMemberUnlimited((int)$job['user_id']);
+        $quotaGb = $unlimited ? 0 : StorageQuota::totalQuotaGbForMember((int)$job['user_id']);
         $allOk = true;
         $backendErrors = [];
         foreach ($backends as $backend) {
             $backendError = null;
-            if (!$backend->syncQuota($job['ldap_username'], $quotaGb, $backendError)) {
+            if (!$backend->syncQuota($job['ldap_username'], $quotaGb, $unlimited, $backendError)) {
                 $allOk = false;
                 $backendErrors[] = $backend->slug() . ' : ' . ($backendError ?? 'erreur inconnue');
             }

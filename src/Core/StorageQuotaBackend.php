@@ -13,11 +13,12 @@ interface StorageQuotaBackend
     /** Identifiant court utilisé dans storage_quota_backends et les rapports admin. */
     public function slug(): string;
 
-    /** Pousse le quota (Go) du membre identifié par son uid LDAP. Retourne false en cas
-     *  d'échec (le job sync_quota sera rejoué) — $error est alors renseigné avec le motif
-     *  exact, pour qu'il remonte jusqu'au panneau admin sans avoir à consulter les journaux
-     *  serveur (voir ProvisioningJob::markFailed). */
-    public function syncQuota(string $ldapUsername, int $quotaGb, ?string &$error = null): bool;
+    /** Pousse le quota (Go) du membre identifié par son uid LDAP — ou aucune limite si
+     *  $unlimited (dans ce cas $quotaGb est ignoré). Retourne false en cas d'échec (le job
+     *  sync_quota sera rejoué) — $error est alors renseigné avec le motif exact, pour qu'il
+     *  remonte jusqu'au panneau admin sans avoir à consulter les journaux serveur (voir
+     *  ProvisioningJob::markFailed). */
+    public function syncQuota(string $ldapUsername, int $quotaGb, bool $unlimited, ?string &$error = null): bool;
 
     /** Retire l'accès/quota d'un membre qui part — best-effort, sans effet si déjà absent. */
     public function deprovisionUser(string $ldapUsername): void;

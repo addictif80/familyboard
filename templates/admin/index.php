@@ -247,8 +247,18 @@
                     <?php else: ?>
                         <span class="badge badge-ok">✅ Actif</span>
                     <?php endif; ?>
+                    <?php if ($u['storage_quota_unlimited']): ?>
+                        <span class="badge" title="Quota de stockage perso illimité (Go/Synology/Nextcloud)">♾️ Stockage illimité</span>
+                    <?php endif; ?>
                 </td>
                 <td style="display:flex;gap:.4rem;flex-wrap:wrap">
+                    <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/storage-unlimited">
+                        <?= \App\Core\Csrf::field() ?>
+                        <input type="hidden" name="enabled" value="<?= $u['storage_quota_unlimited'] ? '0' : '1' ?>">
+                        <button class="btn btn-secondary btn-sm" title="Quota de stockage perso (Go/Synology/Nextcloud)">
+                            <?= $u['storage_quota_unlimited'] ? '♾️ Retirer l\'illimité' : '♾️ Rendre illimité' ?>
+                        </button>
+                    </form>
                     <?php if ($u['blocked_at']): ?>
                         <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/unblock"><?= \App\Core\Csrf::field() ?>
                             <button class="btn btn-secondary btn-sm">Débloquer</button>
@@ -646,6 +656,9 @@
                 <div class="form-group">
                     <label>Quota familial partagé (Go)</label>
                     <input type="number" name="storage_family_quota_gb" min="0" value="<?= $storageFamilyQuotaGb ?>">
+                    <label style="font-size:.78rem;display:flex;align-items:center;gap:.3rem;margin-top:.3rem">
+                        <input type="checkbox" name="storage_family_quota_unlimited" value="1" <?= $storageFamilyQuotaUnlimited ? 'checked' : '' ?>> Illimité (ignore la valeur ci-dessus)
+                    </label>
                 </div>
                 <div class="form-group">
                     <label>Plafond d'add-ons par membre (Go)</label>
@@ -673,7 +686,7 @@
 
         <div class="settings-tab-panel" data-admin-subtab-panel="storage-consommation">
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Consommation du quota familial partagé (<?= $storageFamilyQuotaGb ?> Go), modules exclus non comptés dans le total ni le %, mais listés dans le détail. Seules les familles utilisant au moins un fichier enregistré apparaissent — avant le script de rattrapage (<code>scripts/backfill_stored_files.php</code>), les fichiers déjà existants n'y figurent pas encore.
+            Consommation du quota familial partagé (<?= $storageFamilyQuotaUnlimited ? 'illimité' : $storageFamilyQuotaGb . ' Go' ?>), modules exclus non comptés dans le total ni le %, mais listés dans le détail. Seules les familles utilisant au moins un fichier enregistré apparaissent — avant le script de rattrapage (<code>scripts/backfill_stored_files.php</code>), les fichiers déjà existants n'y figurent pas encore.
         </p>
         <table class="admin-table">
             <thead><tr><th>Famille</th><th>Utilisé</th><th>% du quota</th><th>Détail par module</th></tr></thead>
@@ -682,7 +695,7 @@
                 <tr>
                     <td><?= htmlspecialchars($fu['family_name']) ?></td>
                     <td><?= number_format($fu['used_bytes'] / 1024 / 1024 / 1024, 2, ',', ' ') ?> Go</td>
-                    <td style="<?= $fu['pct'] >= $storageCapacityThresholdPct ? 'color:var(--danger);font-weight:600' : '' ?>"><?= $fu['pct'] ?>%</td>
+                    <td style="<?= (!$storageFamilyQuotaUnlimited && $fu['pct'] >= $storageCapacityThresholdPct) ? 'color:var(--danger);font-weight:600' : '' ?>"><?= $storageFamilyQuotaUnlimited ? 'Illimité' : $fu['pct'] . '%' ?></td>
                     <td style="font-size:.8rem;color:var(--text-muted)">
                         <?php foreach ($fu['breakdown'] as $b): ?>
                             <?= htmlspecialchars($b['module']) ?> (<?= number_format($b['total_bytes'] / 1024 / 1024, 1, ',', ' ') ?> Mo)<?= in_array($b['module'], \App\Core\FileStore::excludedModules(), true) ? ' <em>hors quota</em>' : '' ?><br>

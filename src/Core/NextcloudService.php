@@ -121,9 +121,10 @@ class NextcloudService
         return str_shuffle($password);
     }
 
-    /** $error est renseigné avec le motif exact en cas d'échec, pour remonter jusqu'au panneau
-     *  admin sans consulter les journaux serveur. */
-    public static function setUserQuota(string $username, int $quotaGb, ?string &$error = null): bool
+    /** $unlimited : envoie la valeur spéciale "none" (quota illimité natif Nextcloud) et ignore
+     *  $quotaGb. $error est renseigné avec le motif exact en cas d'échec, pour remonter jusqu'au
+     *  panneau admin sans consulter les journaux serveur. */
+    public static function setUserQuota(string $username, int $quotaGb, bool $unlimited, ?string &$error = null): bool
     {
         if (!self::userExists($username)) {
             // Pré-provisionne le compte (sans mot de passe utilisable, voir docblock de classe)
@@ -144,7 +145,7 @@ class NextcloudService
         // source réel de provisioning_api/UsersController).
         $r = self::request('PUT', '/cloud/users/' . rawurlencode($username), [
             'key'   => 'quota',
-            'value' => $quotaGb . ' GB',
+            'value' => $unlimited ? 'none' : ($quotaGb . ' GB'),
         ]);
         if (!$r['ok']) $error = $r['error'] ?? 'Erreur Nextcloud inconnue.';
         return $r['ok'];
