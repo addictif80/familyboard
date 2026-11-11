@@ -68,8 +68,8 @@ class WarrantyController extends BaseController
             return;
         }
 
-        $path = BASE_PATH . $warranty['file_path'];
-        if (!file_exists($path)) {
+        $path = \App\Core\FileStore::resolveLocalPath($warranty['file_path']);
+        if (!$path) {
             http_response_code(404);
             echo 'Fichier introuvable.';
             return;

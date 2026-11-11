@@ -73,24 +73,8 @@ class OcrHelper
 
     public static function saveUploadedFile(array $file, string $subDir, int $familyId, ?array $allowedMimes = null, int $maxSize = 20 * 1024 * 1024): array
     {
-        $allowedMimes ??= ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
-        // Blobs from MediaRecorder report a type like "audio/webm;codecs=opus" — compare on the base mime only.
-        $mimeBase = strtolower(trim(explode(';', $file['type'])[0]));
-        if (!in_array($mimeBase, $allowedMimes, true)) {
-            throw new \RuntimeException('Type de fichier non autorisé.');
-        }
-        if ($file['size'] > $maxSize) {
-            throw new \RuntimeException('Fichier trop volumineux (max ' . round($maxSize / 1024 / 1024) . ' Mo).');
-        }
-        // Le Content-Type déclaré par le client n'est qu'un en-tête de requête, entièrement
-        // falsifiable — on vérifie le contenu réel du fichier avant de lui faire confiance.
-        if (!self::realMimeMatches($file['tmp_name'], $mimeBase)) {
-            throw new \RuntimeException('Le contenu du fichier ne correspond pas au type annoncé.');
-        }
+        [$mimeBase, $ext] = self::validateUpload($file, $allowedMimes, $maxSize);
 
-        // Le Content-Type et le nom envoyés par le client sont falsifiables : on ne
-        // dérive jamais l'extension stockée du nom de fichier fourni par le client.
-        $ext      = self::extensionForMime($mimeBase);
         $filename = bin2hex(random_bytes(16)) . '.' . $ext;
         $dir      = BASE_PATH . '/storage/' . $subDir . '/' . $familyId;
         if (!is_dir($dir)) mkdir($dir, 0755, true);
@@ -105,6 +89,35 @@ class OcrHelper
             $file['name'],
             $mimeBase,
         ];
+    }
+
+    /**
+     * Valide un $_FILES uploadé (type déclaré autorisé, taille, contenu réel conforme au type
+     * déclaré — jamais de confiance aveugle dans le Content-Type fourni par le client) sans
+     * encore l'écrire nulle part — factorisé hors de saveUploadedFile() pour être réutilisable
+     * par App\Core\FileStore côté backend Nextcloud (écriture WebDAV, pas move_uploaded_file()).
+     * @return array{0:string,1:string} [mime de base, extension à utiliser pour le nom stocké]
+     * @throws \RuntimeException motif exact, affichable directement à l'utilisateur
+     */
+    public static function validateUpload(array $file, ?array $allowedMimes = null, int $maxSize = 20 * 1024 * 1024): array
+    {
+        $allowedMimes ??= ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+        // Blobs from MediaRecorder report a type like "audio/webm;codecs=opus" — compare on the base mime only.
+        $mimeBase = strtolower(trim(explode(';', $file['type'])[0]));
+        if (!in_array($mimeBase, $allowedMimes, true)) {
+            throw new \RuntimeException('Type de fichier non autorisé.');
+        }
+        if ($file['size'] > $maxSize) {
+            throw new \RuntimeException('Fichier trop volumineux (max ' . round($maxSize / 1024 / 1024) . ' Mo).');
+        }
+        // Le Content-Type déclaré par le client n'est qu'un en-tête de requête, entièrement
+        // falsifiable — on vérifie le contenu réel du fichier avant de lui faire confiance.
+        if (!self::realMimeMatches($file['tmp_name'], $mimeBase)) {
+            throw new \RuntimeException('Le contenu du fichier ne correspond pas au type annoncé.');
+        }
+        // Le Content-Type et le nom envoyés par le client sont falsifiables : on ne
+        // dérive jamais l'extension stockée du nom de fichier fourni par le client.
+        return [$mimeBase, self::extensionForMime($mimeBase)];
     }
 
     /**

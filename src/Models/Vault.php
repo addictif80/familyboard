@@ -72,22 +72,11 @@ class Vault
      *  chemin ferait disparaître le fichier d'un module quand l'autre le supprime. */
     private static function copyFromDocument(array $document, int $familyId, ?int $userId = null): array
     {
-        $srcPath = BASE_PATH . $document['file_path'];
-        if (!is_file($srcPath)) {
-            throw new \RuntimeException('Le fichier du document source est introuvable.');
-        }
-        \App\Core\FileStore::enforceQuota($familyId, 'vault', (int)@filesize($srcPath));
-        $ext = pathinfo($document['file_path'], PATHINFO_EXTENSION);
-        $destDir = BASE_PATH . '/storage/vault/' . $familyId;
-        if (!is_dir($destDir)) mkdir($destDir, 0755, true);
-        $filename = bin2hex(random_bytes(16)) . ($ext ? '.' . $ext : '');
-        if (!@copy($srcPath, $destDir . '/' . $filename)) {
+        $copy = \App\Core\FileStore::copyByPath($document['file_path'], 'vault', $familyId, $userId, $document['file_original'], $document['file_mime']);
+        if (!$copy) {
             throw new \RuntimeException('Impossible de copier le document dans le coffre-fort.');
         }
-        $relPath = '/storage/vault/' . $familyId . '/' . $filename;
-        $sizeBytes = @filesize($destDir . '/' . $filename) ?: 0;
-        \App\Models\StoredFile::create($familyId, $userId, 'vault', $relPath, $document['file_original'], $document['file_mime'], $sizeBytes);
-        return [$relPath, $document['file_original'], $document['file_mime']];
+        return $copy;
     }
 
     public static function deleteEntry(int $id, int $familyId): void
@@ -182,8 +171,8 @@ class Vault
             $recap .= "\n";
 
             if ($e['file_path']) {
-                $abs = BASE_PATH . $e['file_path'];
-                if (is_file($abs)) {
+                $abs = \App\Core\FileStore::resolveLocalPath($e['file_path']);
+                if ($abs) {
                     $name = self::sanitizeFilename($e['title']) . '_' . basename($abs);
                     if (isset($used[$name])) $name = uniqid() . '_' . $name;
                     $used[$name] = true;

@@ -280,8 +280,8 @@ class DataExport
 
         $used = [];
         foreach ($filePaths as $relPath) {
-            $abs = BASE_PATH . $relPath;
-            if (!is_file($abs)) continue;
+            $abs = \App\Core\FileStore::resolveLocalPath($relPath);
+            if (!$abs) continue;
             $name = basename($abs);
             // Évite les collisions de noms (fichiers uploadés avec des hash différents mais... par précaution)
             if (isset($used[$name])) $name = uniqid() . '_' . $name;

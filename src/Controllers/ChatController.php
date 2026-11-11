@@ -79,8 +79,8 @@ class ChatController extends BaseController
 
         if (!$msg || !$msg['audio_path']) { http_response_code(404); echo 'Introuvable.'; return; }
 
-        $path = BASE_PATH . $msg['audio_path'];
-        if (!file_exists($path)) { http_response_code(404); echo 'Introuvable.'; return; }
+        $path = \App\Core\FileStore::resolveLocalPath($msg['audio_path']);
+        if (!$path) { http_response_code(404); echo 'Introuvable.'; return; }
 
         header('Content-Type: ' . ($msg['audio_mime'] ?: 'audio/webm'));
         header('Content-Length: ' . filesize($path));

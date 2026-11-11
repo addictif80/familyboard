@@ -350,7 +350,8 @@ class Document
             if ($existingPath) \App\Core\FileStore::deleteByPath($existingPath);
             [$filePath, $fileOrig, $fileMime] = \App\Core\FileStore::save('documents', $familyId, $userId, $file);
             if ($ocrText === '') {
-                $ocrText = OcrHelper::run(BASE_PATH . $filePath, $fileMime);
+                $localPath = \App\Core\FileStore::resolveLocalPath($filePath);
+                if ($localPath) $ocrText = OcrHelper::run($localPath, $fileMime);
             }
         }
 

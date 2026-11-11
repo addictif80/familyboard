@@ -20,11 +20,29 @@ class StoredFile
         return Database::fetch('SELECT * FROM stored_files WHERE path = ?', [$path]);
     }
 
-    public static function create(int $familyId, ?int $userId, string $module, string $path, ?string $originalName, ?string $mime, int $sizeBytes): int
+    public static function create(int $familyId, ?int $userId, string $module, string $path, ?string $originalName, ?string $mime, int $sizeBytes, string $storageBackend = 'local', ?string $nextcloudEtag = null): int
     {
         return Database::insert(
-            'INSERT INTO stored_files (family_id, user_id, module, path, original_name, mime, size_bytes) VALUES (?,?,?,?,?,?,?)',
-            [$familyId, $userId, $module, $path, $originalName, $mime, $sizeBytes]
+            'INSERT INTO stored_files (family_id, user_id, module, path, original_name, mime, size_bytes, storage_backend, nextcloud_etag) VALUES (?,?,?,?,?,?,?,?,?)',
+            [$familyId, $userId, $module, $path, $originalName, $mime, $sizeBytes, $storageBackend, $nextcloudEtag]
+        );
+    }
+
+    /** Met à jour l'ETag Nextcloud connu après une lecture/écriture (voir FileStore, lecture
+     *  conditionnelle If-None-Match pour le cache local disposable). */
+    public static function updateEtag(int $id, ?string $etag): void
+    {
+        Database::execute('UPDATE stored_files SET nextcloud_etag = ? WHERE id = ?', [$etag, $id]);
+    }
+
+    /** Marque une ligne existante comme désormais portée par Nextcloud (voir
+     *  scripts/migrate_files_to_nextcloud.php) — le chemin local historique devient le chemin
+     *  relatif au Group Folder de la famille. */
+    public static function markMigratedToNextcloud(int $id, string $newRemotePath, ?string $etag): void
+    {
+        Database::execute(
+            "UPDATE stored_files SET path = ?, storage_backend = 'nextcloud', nextcloud_etag = ? WHERE id = ?",
+            [$newRemotePath, $etag, $id]
         );
     }
 

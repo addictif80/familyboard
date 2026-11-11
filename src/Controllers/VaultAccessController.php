@@ -43,8 +43,8 @@ class VaultAccessController extends BaseController
             echo 'Introuvable.';
             return;
         }
-        $path = BASE_PATH . $entry['file_path'];
-        if (!file_exists($path)) {
+        $path = \App\Core\FileStore::resolveLocalPath($entry['file_path']);
+        if (!$path) {
             http_response_code(404);
             echo 'Introuvable.';
             return;

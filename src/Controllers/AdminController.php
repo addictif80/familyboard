@@ -235,6 +235,9 @@ class AdminController extends BaseController
         $storageFreeQuotaGb = \App\Core\StorageQuota::freeQuotaGb();
         $storageFamilyQuotaGb = \App\Core\StorageQuota::familyQuotaGb();
         $storageFamilyQuotaUnlimited = \App\Core\StorageQuota::familyQuotaUnlimited();
+        $storageNextcloudFilesEnabled = \App\Core\FileStore::nextcloudFilesEnabled();
+        $nextcloudFileMigrationReport = \App\Core\Session::get('admin_nextcloud_file_migration_report');
+        \App\Core\Session::delete('admin_nextcloud_file_migration_report');
         $storageMemberAddonCapGb = (int)(AppSetting::get('storage_member_addon_cap_gb') ?? '1024');
         $storageGraceDays = \App\Core\StorageQuota::gracePeriodDays();
         $storageCapacityThresholdPct = \App\Core\StorageQuota::capacityAlertThresholdPct();
@@ -1067,6 +1070,7 @@ class AdminController extends BaseController
         AppSetting::set('storage_free_quota_gb', (string)max(0, (int)($_POST['storage_free_quota_gb'] ?? 5)));
         AppSetting::set('storage_family_quota_gb', (string)max(0, (int)($_POST['storage_family_quota_gb'] ?? 50)));
         AppSetting::set('storage_family_quota_unlimited', !empty($_POST['storage_family_quota_unlimited']) ? '1' : '0');
+        AppSetting::set('storage_nextcloud_files_enabled', !empty($_POST['storage_nextcloud_files_enabled']) ? '1' : '0');
         AppSetting::set('storage_member_addon_cap_gb', (string)max(0, (int)($_POST['storage_member_addon_cap_gb'] ?? 1024)));
         AppSetting::set('storage_grace_days', (string)max(0, (int)($_POST['storage_grace_days'] ?? 30)));
         AppSetting::set('storage_capacity_alert_threshold_pct', (string)max(1, min(100, (int)($_POST['storage_capacity_alert_threshold_pct'] ?? 70))));
@@ -1274,6 +1278,19 @@ class AdminController extends BaseController
         $result = (new \App\Core\StorageBackfill($apply))->run();
         \App\Core\Session::set('admin_storage_backfill_report', $result);
         $this->redirect('/admin?tab=storage&msg=storage_backfill_done');
+    }
+
+    /** Migration des fichiers déjà stockés localement vers le Group Folder Nextcloud de leur
+     *  famille (voir App\Core\NextcloudFileMigration) — simulation puis application, même
+     *  convention que runStorageBackfill() ci-dessus. */
+    public function runNextcloudFileMigration(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(600);
+        $apply = !empty($_POST['apply']);
+        $result = (new \App\Core\NextcloudFileMigration($apply))->run();
+        \App\Core\Session::set('admin_nextcloud_file_migration_report', $result);
+        $this->redirect('/admin?tab=storage&msg=nextcloud_file_migration_done');
     }
 
     // ── Programme de parrainage ───────────────────────────────────

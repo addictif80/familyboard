@@ -628,6 +628,7 @@
             <button type="button" class="settings-tab-btn" data-tab="storage-produits" onclick="switchAdminSubTab('storage-produits')">📦 Paliers</button>
             <button type="button" class="settings-tab-btn" data-tab="storage-consommation" onclick="switchAdminSubTab('storage-consommation')">📊 Consommation</button>
             <button type="button" class="settings-tab-btn" data-tab="storage-rattrapage" onclick="switchAdminSubTab('storage-rattrapage')">🔄 Rattrapage fichiers</button>
+            <button type="button" class="settings-tab-btn" data-tab="storage-nextcloud-migration" onclick="switchAdminSubTab('storage-nextcloud-migration')">☁️ Migration Nextcloud</button>
             <button type="button" class="settings-tab-btn" data-tab="storage-infra" onclick="switchAdminSubTab('storage-infra')">🖥️ LDAP / Synology</button>
         </div>
         <script>
@@ -664,6 +665,10 @@
                     <label>Plafond d'add-ons par membre (Go)</label>
                     <input type="number" name="storage_member_addon_cap_gb" min="0" value="<?= $storageMemberAddonCapGb ?>">
                 </div>
+            </div>
+            <div class="form-group">
+                <label><input type="checkbox" name="storage_nextcloud_files_enabled" value="1" <?= $storageNextcloudFilesEnabled ? 'checked' : '' ?>> Stocker les documents des modules sur Nextcloud (espace familial partagé, Group Folders) au lieu du disque FamilyBoard</label>
+                <small style="color:var(--text-muted)">Chaque famille obtient son propre dossier Nextcloud partagé en lecture/écriture à tous ses membres, avec un quota natif indépendant (le réglage « Quota familial partagé » ci-dessus). Nécessite l'app <strong>Group Folders</strong> activée côté serveur Nextcloud. Les documents déjà existants ne sont pas déplacés automatiquement — voir « Migration vers Nextcloud » ci-dessous.</small>
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -764,6 +769,53 @@
             </details>
         </div>
         <script>switchAdminSubTab('storage-rattrapage');</script>
+        <?php endif; ?>
+        </div>
+
+        <div class="settings-tab-panel" data-admin-subtab-panel="storage-nextcloud-migration">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Transfère les documents déjà enregistrés sur le disque FamilyBoard vers le Group
+            Folder Nextcloud de leur famille (créé automatiquement si besoin) — le fichier local
+            n'est supprimé qu'après confirmation que le contenu est bien arrivé intact sur
+            Nextcloud, jamais avant. Rejouable : un fichier déjà migré n'est plus repris par un
+            nouveau passage. Nécessite « Stocker les documents des modules sur Nextcloud » activé
+            dans l'onglet Réglages. Lancez d'abord la simulation.
+        </p>
+        <div style="display:flex;gap:.6rem;margin-bottom:1.25rem">
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/nextcloud-file-migration"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">▶️ Lancer en simulation</button>
+            </form>
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/nextcloud-file-migration" onsubmit="return confirm('Transférer réellement les documents vers Nextcloud ? Chaque fichier local n\'est supprimé qu\'après confirmation du transfert, jamais avant.');"><?= \App\Core\Csrf::field() ?>
+                <input type="hidden" name="apply" value="1">
+                <button type="submit" class="btn btn-primary btn-sm">✅ Appliquer</button>
+            </form>
+        </div>
+
+        <?php if ($nextcloudFileMigrationReport): ?>
+        <div class="card" style="padding:1.25rem">
+            <h4 style="margin-top:0"><?= $nextcloudFileMigrationReport['apply'] ? 'Rapport — appliqué' : 'Rapport — simulation' ?></h4>
+            <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
+                <li>Fichiers migrés : <?= $nextcloudFileMigrationReport['stats']['migrated'] ?></li>
+                <li>Introuvables sur disque (ignorés) : <?= $nextcloudFileMigrationReport['stats']['skipped_missing'] ?></li>
+                <li>Échecs : <?= $nextcloudFileMigrationReport['stats']['failed'] ?></li>
+                <li>Volume total : <?= number_format($nextcloudFileMigrationReport['stats']['bytes'] / 1024 / 1024, 1, ',', ' ') ?> Mo</li>
+            </ul>
+
+            <?php if (!empty($nextcloudFileMigrationReport['failures'])): ?>
+            <p style="font-weight:600;margin-bottom:.3rem;color:var(--danger)">Échecs :</p>
+            <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
+                <?php foreach ($nextcloudFileMigrationReport['failures'] as $f): ?>
+                    <li style="color:var(--danger)"><?= htmlspecialchars($f) ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+
+            <details>
+                <summary style="cursor:pointer;color:var(--text-muted);font-size:.85rem">Journal détaillé</summary>
+                <pre style="font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:var(--bg-secondary);padding:.75rem;border-radius:6px;margin-top:.5rem"><?= htmlspecialchars(implode("\n", $nextcloudFileMigrationReport['log'])) ?></pre>
+            </details>
+        </div>
+        <script>switchAdminSubTab('storage-nextcloud-migration');</script>
         <?php endif; ?>
         </div>
 
