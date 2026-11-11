@@ -11,10 +11,19 @@ use App\Models\StorageSettings;
  * groupe/ces comptes que Synology utilise ensuite pour appliquer un quota par utilisateur sur
  * le dossier partagé (voir App\Core\SynologyService).
  *
+ * Toute recherche d'un compte/groupe existant se fait par une recherche LDAP (scope sous-arbre,
+ * depuis le DN de base) et jamais par une lecture d'un DN reconstruit à la main : un serveur
+ * comme le Serveur LDAP Synology place les comptes/groupes dans un conteneur dédié
+ * (typiquement "cn=users,<DN de base>" / "cn=group,<DN de base>"), pas directement sous le DN
+ * de base — deviner ce chemin ferait échouer silencieusement toute détection d'un compte déjà
+ * existant. Seule la CRÉATION d'un compte/groupe tout neuf a besoin d'un DN cible explicite
+ * (storage_ldap_people_dn / storage_ldap_groups_dn, par défaut le DN de base lui-même).
+ *
  * Utilise l'extension PHP ldap native (ext-ldap) — dégrade proprement (isAvailable()) si elle
  * n'est pas installée, comme les autres intégrations externes de cette appli (Mailcow,
  * Vaultwarden...).
  */
+
 /** uid LDAP attendu déjà pris par un compte d'un e-mail différent — voir
  *  LdapService::deriveUsername(), résolu uniquement par une décision admin explicite. */
 class LdapUsernameConflictException extends \RuntimeException {}
@@ -49,9 +58,49 @@ class LdapService
         return $settings['ldap_base_dn'] ?? null;
     }
 
+    /** DN sous lequel un NOUVEAU compte est créé — configurable (storage_ldap_people_dn) pour
+     *  les serveurs qui exigent un conteneur dédié (ex. "cn=users,<DN de base>" chez Synology),
+     *  retombe sur le DN de base si non renseigné. Sans effet sur la détection d'un compte déjà
+     *  existant, qui cherche toujours dans tout l'arbre (voir docblock de classe). */
+    private static function peopleCreationDn(): ?string
+    {
+        return AppSetting::get('storage_ldap_people_dn') ?: self::baseDn();
+    }
+
+    private static function groupsCreationDn(): ?string
+    {
+        return AppSetting::get('storage_ldap_groups_dn') ?: self::baseDn();
+    }
+
     private static function groupName(): string
     {
         return AppSetting::get('storage_ldap_group', 'familyboard') ?: 'familyboard';
+    }
+
+    /** Recherche sous-arbre depuis le DN de base — trouve un compte/groupe quel que soit le
+     *  conteneur dans lequel le serveur LDAP l'a réellement placé. Retourne ses attributs
+     *  (toujours avec 'dn') ou null si rien ne correspond. */
+    private static function searchOne($conn, string $filter, array $attrs): ?array
+    {
+        $baseDn = self::baseDn();
+        if (!$baseDn) return null;
+        // 'dn' n'est pas demandé explicitement : ldap_get_entries() le renseigne toujours pour
+        // chaque entrée, et certains serveurs rejettent une requête d'attribut "dn" littéral.
+        $search = @ldap_search($conn, $baseDn, $filter, $attrs);
+        if (!$search || ldap_count_entries($conn, $search) === 0) return null;
+        return ldap_get_entries($conn, $search)[0];
+    }
+
+    private static function findAccount($conn, string $username, array $attrs = []): ?array
+    {
+        $filter = '(&(objectClass=posixAccount)(uid=' . ldap_escape($username, '', LDAP_ESCAPE_FILTER) . '))';
+        return self::searchOne($conn, $filter, $attrs);
+    }
+
+    private static function findGroup($conn, string $groupName, array $attrs = []): ?array
+    {
+        $filter = '(&(objectClass=posixGroup)(cn=' . ldap_escape($groupName, '', LDAP_ESCAPE_FILTER) . '))';
+        return self::searchOne($conn, $filter, $attrs);
     }
 
     public static function testConnection(): array
@@ -74,10 +123,10 @@ class LdapService
     }
 
     /**
-     * Diagnostic admin : recherche un uid donné sous le DN de base et rapporte s'il existe, ses
-     * attributs POSIX, et s'il est bien membre du groupe configuré — vérifie bind + recherche +
-     * groupe de bout en bout sans dépendre de connaître le mot de passe de ce compte (voir
-     * AdminController::testStorageLdapAccount, "tester un compte en tapant son nom").
+     * Diagnostic admin : recherche un uid donné dans tout l'arbre sous le DN de base et rapporte
+     * s'il existe, ses attributs POSIX, et s'il est bien membre du groupe configuré — vérifie
+     * bind + recherche + groupe de bout en bout sans dépendre de connaître le mot de passe de ce
+     * compte (voir AdminController::testStorageLdapAccount, "tester un compte en tapant son nom").
      */
     public static function lookupUser(string $username): array
     {
@@ -89,21 +138,28 @@ class LdapService
             return ['ok' => false, 'found' => false, 'error' => 'Connexion ou authentification LDAP refusée — vérifiez hôte/DN/mot de passe.'];
         }
         try {
-            $dn = self::userDn($username);
-            $search = @ldap_read($conn, $dn, '(objectClass=posixAccount)', ['uid', 'uidNumber', 'gidNumber', 'mail', 'cn']);
-            if (!$search || ldap_count_entries($conn, $search) === 0) {
+            $entry = self::findAccount($conn, $username, ['uid', 'uidNumber', 'gidNumber', 'mail', 'cn']);
+            if (!$entry) {
                 return ['ok' => true, 'found' => false, 'error' => ''];
             }
-            $entry = ldap_get_entries($conn, $search)[0];
 
-            $groupDn = 'cn=' . ldap_escape(self::groupName(), '', LDAP_ESCAPE_DN) . ',' . self::baseDn();
-            $groupSearch = @ldap_read($conn, $groupDn, '(memberUid=' . ldap_escape($username, '', LDAP_ESCAPE_FILTER) . ')', ['cn']);
-            $inGroup = $groupSearch && ldap_count_entries($conn, $groupSearch) > 0;
+            $groupEntry = self::findGroup($conn, self::groupName(), ['memberUid']);
+            $inGroup = false;
+            if ($groupEntry && isset($groupEntry['memberuid'])) {
+                $count = (int)($groupEntry['memberuid']['count'] ?? 0);
+                for ($i = 0; $i < $count; $i++) {
+                    if (strtolower($groupEntry['memberuid'][$i]) === strtolower($username)) {
+                        $inGroup = true;
+                        break;
+                    }
+                }
+            }
 
             return [
                 'ok'       => true,
                 'found'    => true,
                 'error'    => '',
+                'dn'       => $entry['dn'] ?? '',
                 'uid'      => $entry['uid'][0] ?? $username,
                 'cn'       => $entry['cn'][0] ?? '',
                 'mail'     => $entry['mail'][0] ?? '',
@@ -116,30 +172,26 @@ class LdapService
         }
     }
 
-    /** Crée le groupe posixGroup configuré s'il n'existe pas déjà, et retourne son gidNumber. */
+    /** Crée le groupe posixGroup configuré s'il n'existe pas déjà (recherché dans tout l'arbre,
+     *  jamais par un DN deviné), et retourne son gidNumber. */
     private static function ensureGroup($conn): int
     {
-        $baseDn = self::baseDn();
         $group = self::groupName();
-        $groupDn = 'cn=' . ldap_escape($group, '', LDAP_ESCAPE_DN) . ',' . $baseDn;
-
-        $search = @ldap_read($conn, $groupDn, '(objectClass=posixGroup)', ['gidNumber']);
-        if ($search) {
-            $entries = ldap_get_entries($conn, $search);
-            if ($entries['count'] > 0) {
-                return (int)$entries[0]['gidnumber'][0];
-            }
+        $entry = self::findGroup($conn, $group, ['gidNumber']);
+        if ($entry) {
+            return (int)$entry['gidnumber'][0];
         }
 
         $cachedGid = AppSetting::get('storage_ldap_group_gid');
         $gidNumber = $cachedGid ? (int)$cachedGid : 2000;
 
-        $entry = [
+        $groupDn = 'cn=' . ldap_escape($group, '', LDAP_ESCAPE_DN) . ',' . self::groupsCreationDn();
+        $newEntry = [
             'objectClass' => ['posixGroup', 'top'],
             'cn'          => $group,
             'gidNumber'   => (string)$gidNumber,
         ];
-        if (!@ldap_add($conn, $groupDn, $entry)) {
+        if (!@ldap_add($conn, $groupDn, $newEntry)) {
             throw new \RuntimeException(ldap_error($conn));
         }
         AppSetting::set('storage_ldap_group_gid', (string)$gidNumber);
@@ -194,11 +246,6 @@ class LdapService
         }
     }
 
-    private static function userDn(string $username): string
-    {
-        return 'uid=' . ldap_escape($username, '', LDAP_ESCAPE_DN) . ',' . self::baseDn();
-    }
-
     /** SSHA — format de hash de mot de passe LDAP le plus largement supporté (userPassword). */
     private static function sshaHash(string $password): string
     {
@@ -230,17 +277,16 @@ class LdapService
                 error_log('LdapService: conflit de compte pour ' . $email . ' (' . $e->getMessage() . ')');
                 return null;
             }
-            $dn = self::userDn($username);
 
-            $search = @ldap_read($conn, $dn, '(objectClass=posixAccount)', ['uidNumber']);
-            $exists = $search && ldap_count_entries($conn, $search) > 0;
+            $existing = self::findAccount($conn, $username);
 
-            if ($exists) {
-                $ok = @ldap_mod_replace($conn, $dn, ['userPassword' => [self::sshaHash($plainPassword)]]);
+            if ($existing) {
+                $ok = @ldap_mod_replace($conn, $existing['dn'], ['userPassword' => [self::sshaHash($plainPassword)]]);
                 if (!$ok) throw new \RuntimeException(ldap_error($conn));
                 self::addToGroup($conn, $username); // idempotent — au cas où le compte a été adopté (voir deriveUsername) sans être déjà dans le groupe
             } else {
                 $uidNumber = self::nextUidNumber();
+                $dn = 'uid=' . ldap_escape($username, '', LDAP_ESCAPE_DN) . ',' . self::peopleCreationDn();
                 $entry = [
                     'objectClass'      => ['posixAccount', 'shadowAccount', 'inetOrgPerson', 'top'],
                     'uid'              => $username,
@@ -267,10 +313,11 @@ class LdapService
 
     private static function addToGroup($conn, string $username): void
     {
-        $groupDn = 'cn=' . ldap_escape(self::groupName(), '', LDAP_ESCAPE_DN) . ',' . self::baseDn();
+        $groupEntry = self::findGroup($conn, self::groupName());
+        if (!$groupEntry) return; // ne devrait pas arriver : ensureGroup() vient d'être appelé par l'appelant
         // memberUid peut déjà contenir d'autres membres : ldap_mod_add ajoute une valeur à
         // l'attribut multi-valué sans toucher aux existantes (contrairement à mod_replace).
-        if (!@ldap_mod_add($conn, $groupDn, ['memberUid' => [$username]])) {
+        if (!@ldap_mod_add($conn, $groupEntry['dn'], ['memberUid' => [$username]])) {
             // "attribute or value exists" (déjà membre) n'est pas une erreur à remonter.
             $err = ldap_errno($conn);
             if ($err !== 20 /* LDAP_TYPE_OR_VALUE_EXISTS */) {
@@ -287,21 +334,20 @@ class LdapService
     }
 
     /**
-     * uid LDAP = partie locale de l'e-mail. Si ce nom existe déjà : adopté tel quel si son
-     * attribut mail correspond exactement à l'e-mail du membre (même personne migrée depuis un
-     * compte créé avant cette intégration — ni mot de passe ni groupe touchés au-delà de ce que
-     * createOrUpdateUser fait normalement), sinon conflit explicite — jamais résolu
-     * silencieusement par un suffixe qui créerait un second compte à l'insu de l'admin.
+     * uid LDAP = partie locale de l'e-mail. Si ce nom existe déjà (recherché dans tout l'arbre,
+     * jamais par un DN deviné) : adopté tel quel si son attribut mail correspond exactement à
+     * l'e-mail du membre (même personne migrée depuis un compte créé avant cette intégration —
+     * ni mot de passe ni groupe touchés au-delà de ce que createOrUpdateUser fait normalement),
+     * sinon conflit explicite — jamais résolu silencieusement par un suffixe qui créerait un
+     * second compte à l'insu de l'admin.
      */
     private static function deriveUsername($conn, string $email): string
     {
         $base = self::baseUsernameFor($email);
-        $dn = self::userDn($base);
-        $search = @ldap_read($conn, $dn, '(objectClass=posixAccount)', ['mail']);
-        if (!$search || ldap_count_entries($conn, $search) === 0) {
+        $entry = self::findAccount($conn, $base, ['mail']);
+        if (!$entry) {
             return $base;
         }
-        $entry = ldap_get_entries($conn, $search)[0];
         $existingMail = strtolower($entry['mail'][0] ?? '');
         if ($existingMail === strtolower($email)) {
             return $base;
@@ -318,9 +364,11 @@ class LdapService
         $conn = self::connect();
         if (!$conn) return;
         try {
-            @ldap_delete($conn, self::userDn($username));
-            $groupDn = 'cn=' . ldap_escape(self::groupName(), '', LDAP_ESCAPE_DN) . ',' . self::baseDn();
-            @ldap_mod_del($conn, $groupDn, ['memberUid' => [$username]]);
+            $entry = self::findAccount($conn, $username);
+            if ($entry) @ldap_delete($conn, $entry['dn']);
+
+            $groupEntry = self::findGroup($conn, self::groupName());
+            if ($groupEntry) @ldap_mod_del($conn, $groupEntry['dn'], ['memberUid' => [$username]]);
         } finally {
             @ldap_unbind($conn);
         }
