@@ -238,6 +238,8 @@ class AdminController extends BaseController
         $storageNextcloudFilesEnabled = \App\Core\FileStore::nextcloudFilesEnabled();
         $nextcloudFileMigrationReport = \App\Core\Session::get('admin_nextcloud_file_migration_report');
         \App\Core\Session::delete('admin_nextcloud_file_migration_report');
+        $nextcloudGroupResyncReport = \App\Core\Session::get('admin_nextcloud_group_resync_report');
+        \App\Core\Session::delete('admin_nextcloud_group_resync_report');
         $storageMemberAddonCapGb = (int)(AppSetting::get('storage_member_addon_cap_gb') ?? '1024');
         $storageGraceDays = \App\Core\StorageQuota::gracePeriodDays();
         $storageCapacityThresholdPct = \App\Core\StorageQuota::capacityAlertThresholdPct();
@@ -1295,6 +1297,29 @@ class AdminController extends BaseController
         $result = (new \App\Core\NextcloudFileMigration($apply))->run();
         \App\Core\Session::set('admin_nextcloud_file_migration_report', $result);
         $this->redirect('/admin?tab=storage&msg=nextcloud_file_migration_done');
+    }
+
+    /** Rattrape immédiatement les membres déjà provisionnés LDAP mais jamais ajoutés au groupe
+     *  Nextcloud de leur famille (ex. provisionnés avant l'activation du backend fichiers, ou
+     *  avant le correctif de NextcloudGroupFolderService::ensureFamilyFolder qui ne revérifiait
+     *  l'appartenance qu'à la toute première création du Group Folder) — sans attendre qu'un
+     *  document soit enregistré, qui aurait fini par déclencher le même rattrapage de lui-même. */
+    public function resyncNextcloudGroups(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+        $errors = [];
+        $count = 0;
+        foreach (Database::fetchAll('SELECT id FROM families') as $fam) {
+            $error = null;
+            if (\App\Core\NextcloudGroupFolderService::ensureFamilyFolder((int)$fam['id'], $error)) {
+                $count++;
+            } elseif ($error) {
+                $errors[] = "famille #{$fam['id']} : $error";
+            }
+        }
+        \App\Core\Session::set('admin_nextcloud_group_resync_report', ['count' => $count, 'errors' => $errors]);
+        $this->redirect('/admin?tab=storage&msg=nextcloud_group_resync_done');
     }
 
     // ── Programme de parrainage ───────────────────────────────────

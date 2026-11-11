@@ -824,6 +824,30 @@
         </div>
         <script>switchAdminSubTab('storage-nextcloud-migration');</script>
         <?php endif; ?>
+
+        <hr style="margin:1.5rem 0;border-color:var(--border)">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Rattrape immédiatement les membres déjà provisionnés LDAP mais jamais ajoutés au
+            groupe Nextcloud de leur famille (ex. provisionnés avant l'activation du backend
+            fichiers) — sans effet destructif, sans attendre qu'un document soit enregistré.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/storage/nextcloud-group-resync"><?= \App\Core\Csrf::field() ?>
+            <button type="submit" class="btn btn-secondary btn-sm">🔄 Resynchroniser les groupes Nextcloud</button>
+        </form>
+        <?php if ($nextcloudGroupResyncReport): ?>
+        <div class="card" style="padding:1.25rem;margin-top:1rem">
+            <p style="margin:0">Familles traitées : <?= $nextcloudGroupResyncReport['count'] ?></p>
+            <?php if (!empty($nextcloudGroupResyncReport['errors'])): ?>
+            <p style="font-weight:600;margin:.75rem 0 .3rem;color:var(--danger)">Échecs :</p>
+            <ul style="margin:0;padding-left:1.2rem;font-size:.9rem">
+                <?php foreach ($nextcloudGroupResyncReport['errors'] as $e): ?>
+                    <li style="color:var(--danger)"><?= htmlspecialchars($e) ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
+        <script>switchAdminSubTab('storage-nextcloud-migration');</script>
+        <?php endif; ?>
         </div>
 
         <div class="settings-tab-panel" data-admin-subtab-panel="storage-produits">

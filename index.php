@@ -700,6 +700,7 @@ $router->post('/admin/storage/products', [AdminController::class, 'saveStoragePr
 $router->post('/admin/storage/products/:id/deactivate', [AdminController::class, 'deactivateStorageProduct']);
 $router->post('/admin/storage/backfill', [AdminController::class, 'runStorageBackfill']);
 $router->post('/admin/storage/nextcloud-file-migration', [AdminController::class, 'runNextcloudFileMigration']);
+$router->post('/admin/storage/nextcloud-group-resync', [AdminController::class, 'resyncNextcloudGroups']);
 $router->post('/admin/storage/ldap/test', [AdminController::class, 'testStorageLdapConnection']);
 $router->post('/admin/storage/ldap/test-account', [AdminController::class, 'testStorageLdapAccount']);
 $router->post('/admin/storage/synology/test', [AdminController::class, 'testStorageSynologyConnection']);

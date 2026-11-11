@@ -93,7 +93,16 @@ class NextcloudGroupFolderService
     public static function ensureFamilyFolder(int $familyId, ?string &$error = null): ?array
     {
         $existing = FamilyNextcloudFolder::findByFamily($familyId);
-        if ($existing) return $existing;
+        if ($existing) {
+            // Un membre provisionné LDAP APRÈS la création du Group Folder (ou avant l'activation
+            // de cette fonctionnalité) n'était sinon jamais ajouté au groupe : ce chemin ne
+            // s'exécutait qu'une fois, à la création — vérifié en situation réelle (deux membres
+            // déjà provisionnés avant l'activation du backend fichiers Nextcloud n'étaient jamais
+            // rattrapés). Désormais revérifié à chaque appel (idempotent côté Nextcloud, sans
+            // effet néfaste si déjà membre).
+            self::ensureAllMembersInGroup($familyId, $existing['nextcloud_group']);
+            return $existing;
+        }
 
         $settings = StorageSettings::get();
         $group = self::groupName($familyId);
@@ -127,8 +136,23 @@ class NextcloudGroupFolderService
 
         FamilyNextcloudFolder::create($familyId, $group, $folderId, $mountPoint);
         self::applyFamilyQuota($familyId, $error);
+        self::ensureAllMembersInGroup($familyId, $group);
 
         return FamilyNextcloudFolder::findByFamily($familyId);
+    }
+
+    /** Ajoute au groupe de la famille tout membre déjà provisionné LDAP (ldap_username non nul)
+     *  — best-effort par membre : un échec isolé (compte Nextcloud pas encore synchronisé côté
+     *  LDAP du NAS, par exemple) ne doit jamais bloquer les autres membres ni l'appelant. */
+    private static function ensureAllMembersInGroup(int $familyId, string $group): void
+    {
+        foreach (Database::fetchAll('SELECT ldap_username FROM users WHERE family_id = ? AND ldap_username IS NOT NULL', [$familyId]) as $row) {
+            try {
+                NextcloudService::addUserToGroup($row['ldap_username'], $group);
+            } catch (\Throwable $e) {
+                error_log('NextcloudGroupFolderService: addUserToGroup failed for ' . $row['ldap_username'] . ' (family ' . $familyId . '): ' . $e->getMessage());
+            }
+        }
     }
 
     /** Ajoute un membre déjà provisionné LDAP au groupe de sa famille (sans quoi il ne verrait
