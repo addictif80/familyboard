@@ -99,6 +99,29 @@ class NextcloudService
         return $r;
     }
 
+    /**
+     * S'assure que le compte technique (admin) affiche "FamilyBoard" plutôt que son nom de
+     * compte brut — vérifié contre une instance réelle : pour un calendrier ou un Group Folder
+     * partagé, Nextcloud affiche toujours "(<nom affiché du propriétaire>)" au destinataire du
+     * partage (comportement natif, non contournable), donc un compte technique sans nom
+     * affiché expose directement son identifiant brut (ex. "admin") à chaque membre de chaque
+     * famille. Idempotent (ne réapplique rien si déjà correct) et appelé en best-effort depuis
+     * NextcloudGroupFolderService::ensureFamilyFolder() — jamais bloquant pour le provisioning.
+     */
+    public static function ensureTechnicalAccountDisplayName(string $displayName = 'FamilyBoard'): void
+    {
+        $settings = StorageSettings::get();
+        if (!$settings['nextcloud_url'] || !$settings['nextcloud_admin_user']) return;
+
+        $current = self::findUser($settings['nextcloud_admin_user']);
+        if (!$current['ok'] || ($current['data']['displayname'] ?? '') === $displayName) return;
+
+        self::request('PUT', '/cloud/users/' . rawurlencode($settings['nextcloud_admin_user']), [
+            'key'   => 'display',
+            'value' => $displayName,
+        ]);
+    }
+
     private static function groupExists(string $groupId): bool
     {
         $r = self::request('GET', '/cloud/groups/' . rawurlencode($groupId));

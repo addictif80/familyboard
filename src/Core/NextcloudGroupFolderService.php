@@ -99,6 +99,12 @@ class NextcloudGroupFolderService
         $group = self::groupName($familyId);
         $mountPoint = self::mountPoint($familyId);
 
+        try {
+            NextcloudService::ensureTechnicalAccountDisplayName();
+        } catch (\Throwable $e) {
+            // Cosmétique uniquement (voir docblock de la méthode) — jamais bloquant.
+        }
+
         if (!NextcloudService::ensureGroup($group, $error)) return null;
         if (!NextcloudService::addUserToGroup($settings['nextcloud_admin_user'], $group, $error)) return null;
 

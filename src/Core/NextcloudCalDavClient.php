@@ -77,19 +77,42 @@ class NextcloudCalDavClient
     }
 
     /** Crée le calendrier dédié de ce membre s'il n'existe pas déjà (idempotent : un calendrier
-     *  déjà présent répond 405, traité comme un succès). */
+     *  déjà présent répond 405, traité comme un succès).
+     *
+     * Le <displayname> fourni dans le corps MKCALENDAR est silencieusement ignoré par Nextcloud
+     * (vérifié contre une instance réelle : le calendrier garde son nom technique "familyboard-
+     * <uid>" même après un MKCALENDAR qui demande "FamilyBoard") — un PROPPATCH séparé après
+     * coup, lui, est bien pris en compte. Sans cette étape, le membre voit un calendrier partagé
+     * nommé "familyboard-<uid> (<compte propriétaire>)", ce qui expose à la fois le détail
+     * technique du nom et le compte technique/admin utilisé en coulisses — peu engageant côté
+     * confiance. Nextcloud ajoute de toute façon toujours "(<propriétaire>)" pour un calendrier
+     * partagé (comportement natif, non contournable par API) ; voir
+     * NextcloudService::ensureTechnicalAccountDisplayName() pour que ce "(<propriétaire>)"
+     * affiche "FamilyBoard" plutôt que le nom brut du compte admin. */
     public static function ensureCalendar(string $memberUsername): bool
     {
         $url = self::calendarUrl($memberUsername);
         if (!$url) return false;
 
+        try {
+            NextcloudService::ensureTechnicalAccountDisplayName();
+        } catch (\Throwable $e) {
+            // Cosmétique uniquement (voir docblock) — jamais bloquant pour la synchro réelle.
+        }
+
         $r = self::request('MKCALENDAR', $url, '<?xml version="1.0" encoding="utf-8" ?>
 <mkcalendar xmlns="urn:ietf:params:xml:ns:caldav">
   <set><prop>
-    <displayname xmlns="DAV:">FamilyBoard</displayname>
+    <displayname xmlns="DAV:">Calendrier familial</displayname>
   </prop></set>
 </mkcalendar>');
-        return $r['ok'] || $r['status'] === 405; // 405 = déjà existant
+        if (!$r['ok'] && $r['status'] !== 405) return false; // 405 = déjà existant
+
+        self::request('PROPPATCH', $url, '<?xml version="1.0" encoding="utf-8" ?>
+<d:propertyupdate xmlns:d="DAV:">
+  <d:set><d:prop><d:displayname>Calendrier familial</d:displayname></d:prop></d:set>
+</d:propertyupdate>');
+        return true;
     }
 
     /** Partage le calendrier dédié de ce membre, en lecture seule, à ce même membre — idempotent
