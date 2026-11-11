@@ -146,6 +146,7 @@ class NextcloudGroupFolderService
             // effet néfaste si déjà membre).
             self::ensureAllMembersInGroup($familyId, $existing['nextcloud_group']);
             self::ensureReadableNaming($familyId, $existing);
+            self::ensureAdminDelegationGroups($familyId, self::adminGroupName($familyId));
             self::ensureManageAcl($familyId, (int)$existing['groupfolder_id']);
             return $existing;
         }
@@ -199,6 +200,7 @@ class NextcloudGroupFolderService
         FamilyNextcloudFolder::create($familyId, $group, $folderId, $mountPoint);
         self::applyFamilyQuota($familyId, $error);
         self::ensureAllMembersInGroup($familyId, $group);
+        self::ensureAdminDelegationGroups($familyId, self::adminGroupName($familyId));
         self::ensureManageAcl($familyId, $folderId);
 
         return FamilyNextcloudFolder::findByFamily($familyId);
@@ -235,6 +237,47 @@ class NextcloudGroupFolderService
         $family = Family::findById($familyId);
         if (!$family) return;
         NextcloudService::setGroupDisplayName($group, $family['name']);
+    }
+
+    /**
+     * Crée/peuple family_N_admins et familyboard_admins comme groupes NATIFS Nextcloud (API OCS,
+     * comme le groupe family_N lui-même) — PAS via la synchronisation LDAP. Observé en
+     * conditions réelles : sur cette instance, Nextcloud ne "découvre" jamais un groupe LDAP qui
+     * n'a aucun équivalent natif déjà connu (contrairement aux comptes, où un uid LDAP sans
+     * collision finit par se résoudre), rendant la délégation (voir ensureManageAcl)
+     * silencieusement inopérante si on ne compte que sur LDAP. Les groupes LDAP de même nom
+     * restent créés par ailleurs (voir LdapService) pour l'annuaire admin et une éventuelle
+     * utilisation future, mais ne sont plus le chemin dont dépend Nextcloud ici.
+     */
+    /** Point d'entrée public — appelé par SettingsController lors d'une promotion/rétrogradation,
+     *  pour que la délégation Nextcloud suive immédiatement le changement de rôle sans attendre
+     *  le prochain passage de "Resynchroniser les groupes Nextcloud". Sans effet si la famille
+     *  n'a pas encore de Group Folder provisionné (rien à déléguer). */
+    public static function syncAdminDelegation(int $familyId): void
+    {
+        if (!FamilyNextcloudFolder::findByFamily($familyId)) return;
+        self::ensureAdminDelegationGroups($familyId, self::adminGroupName($familyId));
+    }
+
+    private static function ensureAdminDelegationGroups(int $familyId, string $adminGroup): void
+    {
+        $delegationGroup = \App\Core\LdapService::nextcloudDelegationGroupNamePublic();
+        NextcloudService::ensureGroup($adminGroup);
+        NextcloudService::ensureGroup($delegationGroup);
+
+        foreach (Database::fetchAll('SELECT ldap_username, role FROM users WHERE family_id = ? AND ldap_username IS NOT NULL', [$familyId]) as $row) {
+            try {
+                if ($row['role'] === 'admin') {
+                    NextcloudService::addUserToGroup($row['ldap_username'], $adminGroup);
+                    NextcloudService::addUserToGroup($row['ldap_username'], $delegationGroup);
+                } else {
+                    NextcloudService::removeUserFromGroup($row['ldap_username'], $adminGroup);
+                    NextcloudService::removeUserFromGroup($row['ldap_username'], $delegationGroup);
+                }
+            } catch (\Throwable $e) {
+                error_log('NextcloudGroupFolderService: ensureAdminDelegationGroups failed for ' . $row['ldap_username'] . ' (family ' . $familyId . '): ' . $e->getMessage());
+            }
+        }
     }
 
     /** Rattrape, pour une famille déjà provisionnée avant l'introduction de noms lisibles, le

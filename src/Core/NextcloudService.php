@@ -180,6 +180,16 @@ class NextcloudService
         return $r['ok'];
     }
 
+    /** Retire un compte d'un groupe — idempotent (retirer un membre déjà absent n'est pas une
+     *  erreur à faire remonter). Utilisé pour retirer un membre des groupes de délégation
+     *  d'administration (family_N_admins / familyboard_admins) lorsqu'il n'est plus admin de sa
+     *  famille — voir NextcloudGroupFolderService::ensureAdminDelegationGroups(). */
+    public static function removeUserFromGroup(string $username, string $groupId): bool
+    {
+        $r = self::request('DELETE', '/cloud/users/' . rawurlencode($username) . '/groups', ['groupid' => $groupId]);
+        return $r['ok'] || $r['status'] === 404;
+    }
+
 
     /** $unlimited : envoie la valeur spéciale "none" (quota illimité natif Nextcloud) et ignore
      *  $quotaGb. $error est renseigné avec le motif exact en cas d'échec, pour remonter jusqu'au
