@@ -39,7 +39,13 @@ class NextcloudGroupFolderService
         if (!$settings['nextcloud_url'] || !$settings['nextcloud_admin_user']) {
             return ['ok' => false, 'status' => 0, 'data' => null, 'error' => 'Nextcloud non configuré.'];
         }
-        $url = rtrim($settings['nextcloud_url'], '/') . '/apps/groupfolders' . $path;
+        // Le préfixe /index.php/ est requis : vérifié en conditions réelles (Nextcloud 34 /
+        // GroupFolders 22), une requête non-GET envoyée sans ce préfixe est mal routée côté
+        // serveur et dispatchée vers le contrôleur GET (liste des dossiers) au lieu du bon
+        // contrôleur (création, attribution de groupe, quota, suppression...), qui échoue donc
+        // silencieusement à chaque fois (seules les requêtes GET, qui tombent "par accident" sur
+        // le bon contrôleur, fonctionnaient).
+        $url = rtrim($settings['nextcloud_url'], '/') . '/index.php/apps/groupfolders' . $path;
         $ch = curl_init();
         $opts = [
             CURLOPT_RETURNTRANSFER => true,
