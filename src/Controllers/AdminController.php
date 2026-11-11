@@ -1237,6 +1237,7 @@ class AdminController extends BaseController
             'code' => preg_replace('/[^a-z0-9_]/', '', strtolower(trim($_POST['code'] ?? ''))) ?: ('storage_' . time()),
             'name' => $name,
             'quota_gb' => max(1, (int)($_POST['quota_gb'] ?? 100)),
+            'scope' => in_array($_POST['scope'] ?? '', ['member', 'family'], true) ? $_POST['scope'] : 'member',
             'price_monthly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_monthly'] ?? '0')) * 100)),
             'sort_order' => (int)($_POST['sort_order'] ?? 0),
             'active' => !empty($_POST['active']),

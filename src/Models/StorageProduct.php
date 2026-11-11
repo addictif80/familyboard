@@ -35,7 +35,8 @@ class StorageProduct
     public static function save(array $data): int
     {
         $id = (int)($data['id'] ?? 0);
-        $scope = in_array($data['scope'] ?? 'member', ['member', 'family'], true) ? $data['scope'] : 'member';
+        $requestedScope = $data['scope'] ?? 'member';
+        $scope = in_array($requestedScope, ['member', 'family'], true) ? $requestedScope : 'member';
         if ($id > 0) {
             Database::execute(
                 'UPDATE storage_products SET code=?, name=?, quota_gb=?, scope=?, price_monthly_cents=?, sort_order=?, active=? WHERE id=?',
