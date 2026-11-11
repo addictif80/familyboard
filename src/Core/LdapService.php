@@ -96,6 +96,21 @@ class LdapService
         return 'family_' . $familyId . '_admins';
     }
 
+    /** Groupe plat (toutes familles confondues) réunissant tous les admins de famille — c'est à
+     *  CE groupe, et uniquement lui, qu'il faut déléguer côté Nextcloud le niveau "Accès API" de
+     *  Group Folders (jamais le niveau "admin délégué", qui donnerait accès à TOUS les Group
+     *  Folders du serveur). Le cloisonnement entre familles vient ensuite du fait que chaque
+     *  Group Folder n'autorise la gestion qu'au groupe family_N_admins de SA famille (voir
+     *  NextcloudGroupFolderService::ensureManageAcl) — ce groupe-ci n'est que la porte d'entrée,
+     *  jamais un accès en lui-même. Volontairement distinct de groupName()
+     *  (storage_ldap_group) : celui-ci sert au provisioning Synology (tous les membres), pas à
+     *  une délégation d'administration Nextcloud.
+     */
+    private static function nextcloudDelegationGroupName(): string
+    {
+        return 'familyboard_admins';
+    }
+
     /** Recherche sous-arbre depuis le DN de base — trouve un compte/groupe quel que soit le
      *  conteneur dans lequel le serveur LDAP l'a réellement placé. Retourne ses attributs
      *  (toujours avec 'dn') ou null si rien ne correspond. */
@@ -314,10 +329,13 @@ class LdapService
 
             self::ensureFamilyAdminGroup($conn, $familyId);
             $adminGroup = self::familyAdminGroupName($familyId);
+            self::ensureNamedGroup($conn, self::nextcloudDelegationGroupName());
             if ($isAdmin) {
                 self::addToNamedGroup($conn, $username, $adminGroup);
+                self::addToNamedGroup($conn, $username, self::nextcloudDelegationGroupName());
             } else {
                 self::removeFromNamedGroup($conn, $username, $adminGroup);
+                self::removeFromNamedGroup($conn, $username, self::nextcloudDelegationGroupName());
             }
         } finally {
             @ldap_unbind($conn);
@@ -447,10 +465,13 @@ class LdapService
 
                 self::ensureFamilyAdminGroup($conn, $familyId);
                 $adminGroup = self::familyAdminGroupName($familyId);
+                self::ensureNamedGroup($conn, self::nextcloudDelegationGroupName());
                 if ($isAdmin) {
                     self::addToNamedGroup($conn, $username, $adminGroup);
+                    self::addToNamedGroup($conn, $username, self::nextcloudDelegationGroupName());
                 } else {
                     self::removeFromNamedGroup($conn, $username, $adminGroup);
+                    self::removeFromNamedGroup($conn, $username, self::nextcloudDelegationGroupName());
                 }
             }
 
@@ -536,17 +557,22 @@ class LdapService
      */
     public static function checkFamilyMembership(string $username, int $familyId): array
     {
+        $empty = ['inFamilyGroup' => false, 'inAdminGroup' => false, 'inDelegationGroup' => false];
         if (!self::isAvailable()) {
-            return ['ok' => false, 'inFamilyGroup' => false, 'inAdminGroup' => false, 'error' => "L'extension PHP ldap n'est pas installée sur ce serveur."];
+            return ['ok' => false, 'error' => "L'extension PHP ldap n'est pas installée sur ce serveur."] + $empty;
         }
         $conn = self::connect();
         if (!$conn) {
-            return ['ok' => false, 'inFamilyGroup' => false, 'inAdminGroup' => false, 'error' => 'Connexion ou authentification LDAP refusée.'];
+            return ['ok' => false, 'error' => 'Connexion ou authentification LDAP refusée.'] + $empty;
         }
         try {
-            $inFamilyGroup = self::isMemberOfNamedGroup($conn, $username, self::familyGroupName($familyId));
-            $inAdminGroup = self::isMemberOfNamedGroup($conn, $username, self::familyAdminGroupName($familyId));
-            return ['ok' => true, 'inFamilyGroup' => $inFamilyGroup, 'inAdminGroup' => $inAdminGroup, 'error' => ''];
+            return [
+                'ok'                => true,
+                'error'             => '',
+                'inFamilyGroup'     => self::isMemberOfNamedGroup($conn, $username, self::familyGroupName($familyId)),
+                'inAdminGroup'      => self::isMemberOfNamedGroup($conn, $username, self::familyAdminGroupName($familyId)),
+                'inDelegationGroup' => self::isMemberOfNamedGroup($conn, $username, self::nextcloudDelegationGroupName()),
+            ];
         } finally {
             @ldap_unbind($conn);
         }

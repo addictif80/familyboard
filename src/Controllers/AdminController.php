@@ -1419,6 +1419,12 @@ class AdminController extends BaseController
             if ($u['role'] !== 'admin' && $membership['inAdminGroup']) {
                 $issues[] = "$label : n'est plus admin mais encore membre du sous-groupe admin LDAP";
             }
+            if ($u['role'] === 'admin' && !$membership['inDelegationGroup']) {
+                $issues[] = "$label : admin de famille mais absent du groupe familyboard_admins (délégation Nextcloud)";
+            }
+            if ($u['role'] !== 'admin' && $membership['inDelegationGroup']) {
+                $issues[] = "$label : n'est plus admin mais encore membre du groupe familyboard_admins (délégation Nextcloud)";
+            }
         }
 
         Session::set('admin_ldap_audit_report', ['checked' => $checked, 'issues' => $issues]);
