@@ -96,7 +96,8 @@ class StorageProvisioningRunner
         // uid alternatif) — sans elle, createOrUpdateUser dériverait le uid depuis l'e-mail.
         $targetUsername = $user['ldap_username'] ?: ($user['ldap_resolved_username'] ?? null);
         $externalUsername = LdapService::createOrUpdateUser(
-            (int)$user['id'], $user['email'], $user['name'], $plainPassword, $targetUsername, $error
+            (int)$user['id'], $user['email'], $user['name'], $plainPassword, $targetUsername, $error,
+            (int)$user['family_id'], $user['role'] === 'admin'
         );
         if (!$externalUsername) return false;
 

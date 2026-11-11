@@ -32,6 +32,14 @@ class NextcloudGroupFolderService
         return 'family_' . $familyId;
     }
 
+    /** Même convention que LdapService::familyAdminGroupName — c'est à ce groupe (synchronisé
+     *  côté LDAP, synchronisé côté Nextcloud via son app LDAP) qu'est déléguée la gestion de
+     *  CE Group Folder précis, voir ensureManageAcl(). */
+    private static function adminGroupName(int $familyId): string
+    {
+        return 'family_' . $familyId . '_admins';
+    }
+
     /** ASCII, minuscules, séparé par des tirets — utilisé à la fois pour le mount_point (qui
      *  tolère des espaces/accents, mais reste plus sûr à transmettre en ASCII pur sur un chemin
      *  WebDAV) et comme base du nom de groupe lisible. */
@@ -138,6 +146,7 @@ class NextcloudGroupFolderService
             // effet néfaste si déjà membre).
             self::ensureAllMembersInGroup($familyId, $existing['nextcloud_group']);
             self::ensureReadableNaming($familyId, $existing);
+            self::ensureManageAcl($familyId, (int)$existing['groupfolder_id']);
             return $existing;
         }
 
@@ -190,8 +199,31 @@ class NextcloudGroupFolderService
         FamilyNextcloudFolder::create($familyId, $group, $folderId, $mountPoint);
         self::applyFamilyQuota($familyId, $error);
         self::ensureAllMembersInGroup($familyId, $group);
+        self::ensureManageAcl($familyId, $folderId);
 
         return FamilyNextcloudFolder::findByFamily($familyId);
+    }
+
+    /**
+     * Délègue la gestion de CE Group Folder précis au groupe family_N_admins de sa famille (voir
+     * App\Core\LdapService::nextcloudDelegationGroupName pour le schéma complet) — un admin de
+     * famille, membre du groupe plat "familyboard_admins" délégué côté Nextcloud au niveau
+     * "Accès API" (jamais "admin délégué"), ne verra/ne pourra gérer QUE les Group Folders où son
+     * propre groupe apparaît dans cette liste (filtrage vérifié dans le code source réel de
+     * l'app Group Folders, OCA\GroupFolders\Service\FoldersFilter::getForApiUser) — jamais les
+     * Group Folders des autres familles. Best-effort, jamais bloquant : sans effet si l'appel
+     * échoue (log seulement), un rattrapage ultérieur (resync) le retentera.
+     */
+    private static function ensureManageAcl(int $familyId, int $folderId): void
+    {
+        $r = self::request('POST', "/folders/$folderId/manageACL", [
+            'mappingType' => 'group',
+            'mappingId'   => self::adminGroupName($familyId),
+            'manageAcl'   => '1',
+        ]);
+        if (!$r['ok']) {
+            error_log("NextcloudGroupFolderService: délégation manageACL échouée (famille $familyId, dossier $folderId) : " . ($r['error'] ?? 'erreur inconnue'));
+        }
     }
 
     /** Affecte au groupe Nextcloud un nom affiché lisible (le nom réel de la famille) sans

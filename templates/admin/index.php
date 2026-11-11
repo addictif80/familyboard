@@ -237,8 +237,52 @@
         <?php elseif ($tab === 'users'): ?>
         <?php $filterFamily = (int)($_GET['family'] ?? 0); ?>
         <h2>Utilisateurs<?= $filterFamily ? ' · Famille #' . $filterFamily : '' ?></h2>
+
+        <div class="card" style="padding:1rem;margin-bottom:1rem">
+            <h3 style="margin-top:0">Migration LDAP</h3>
+            <p style="color:var(--text-muted);font-size:.85rem">
+                <?= $legacyLdapUserCount ?> compte(s) sans identité LDAP (créés avant cette intégration).
+                Leur mot de passe FamilyBoard actuel est irrécupérable (hash) : la migration leur envoie un
+                e-mail de réinitialisation et invalide leurs sessions en cours — la connexion suivante
+                provisionnera leur compte LDAP/Nextcloud avec le nouveau mot de passe choisi.
+            </p>
+            <form method="POST" action="<?= BASE_URL ?>/admin/users/migrate-ldap" onsubmit="return confirm('Envoyer un e-mail de réinitialisation à <?= $legacyLdapUserCount ?> compte(s) et déconnecter leurs sessions en cours ?')">
+                <?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm" <?= $legacyLdapUserCount ? '' : 'disabled' ?>>📧 Migrer les comptes restants vers LDAP</button>
+            </form>
+            <?php if ($ldapMigrationReport): ?>
+            <p style="margin-top:.75rem;font-size:.85rem">
+                <strong><?= count($ldapMigrationReport['sent']) ?></strong> e-mail(s) envoyé(s).
+                <?php if ($ldapMigrationReport['failed']): ?>
+                <br><span style="color:var(--danger,#c53030)"><?= count($ldapMigrationReport['failed']) ?> échec(s) :</span>
+                <ul>
+                    <?php foreach ($ldapMigrationReport['failed'] as $f): ?><li><?= htmlspecialchars($f) ?></li><?php endforeach; ?>
+                </ul>
+                <?php endif; ?>
+            </p>
+            <?php endif; ?>
+
+            <form method="POST" action="<?= BASE_URL ?>/admin/users/audit-ldap" style="margin-top:.75rem">
+                <?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">🔍 Vérifier la cohérence LDAP</button>
+            </form>
+            <?php if ($ldapAuditReport): ?>
+            <p style="margin-top:.75rem;font-size:.85rem">
+                <?= $ldapAuditReport['checked'] ?> compte(s) vérifié(s).
+                <?php if ($ldapAuditReport['issues']): ?>
+                <br><span style="color:var(--danger,#c53030)"><?= count($ldapAuditReport['issues']) ?> écart(s) :</span>
+                <ul>
+                    <?php foreach ($ldapAuditReport['issues'] as $issue): ?><li><?= htmlspecialchars($issue) ?></li><?php endforeach; ?>
+                </ul>
+                <?php else: ?>
+                <br>✅ Aucun écart constaté.
+                <?php endif; ?>
+            </p>
+            <?php endif; ?>
+        </div>
+
         <table class="admin-table">
-            <thead><tr><th>#</th><th>Nom</th><th>Email</th><th>Famille</th><th>Rôle</th><th>Statut</th><th>Actions</th></tr></thead>
+            <thead><tr><th>#</th><th>Nom</th><th>Email</th><th>Famille</th><th>Rôle</th><th>Statut</th><th>Dernière connexion</th><th>Actions</th></tr></thead>
             <tbody>
             <?php foreach ($users as $u): ?>
             <?php if ($filterFamily && $u['family_id'] !== $filterFamily) continue; ?>
@@ -257,6 +301,9 @@
                     <?php if ($u['storage_quota_unlimited']): ?>
                         <span class="badge" title="Quota de stockage perso illimité (Go/Synology/Nextcloud)">♾️ Stockage illimité</span>
                     <?php endif; ?>
+                </td>
+                <td style="white-space:nowrap">
+                    <?= $u['last_login_at'] ? date('d/m/Y H:i', strtotime($u['last_login_at'])) : '<span style="color:var(--text-muted)">Jamais</span>' ?>
                 </td>
                 <td style="display:flex;gap:.4rem;flex-wrap:wrap">
                     <form method="POST" action="<?= BASE_URL ?>/admin/users/<?= $u['id'] ?>/storage-unlimited">
