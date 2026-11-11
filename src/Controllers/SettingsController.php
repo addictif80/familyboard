@@ -481,6 +481,11 @@ class SettingsController extends BaseController
                     } catch (\Throwable $e) {
                         error_log('LdapService::syncFamilyRole failed on promote for user ' . $id . ': ' . $e->getMessage());
                     }
+                    try {
+                        \App\Core\NextcloudGroupFolderService::syncAdminDelegation((int)$member['family_id']);
+                    } catch (\Throwable $e) {
+                        error_log('NextcloudGroupFolderService::syncAdminDelegation failed on promote for user ' . $id . ': ' . $e->getMessage());
+                    }
                 }
                 \App\Models\Notification::create(
                     $id, 'settings', 'Vous êtes maintenant administrateur',
@@ -514,6 +519,11 @@ class SettingsController extends BaseController
                         \App\Core\LdapService::syncFamilyRole($member['ldap_username'], (int)$member['family_id'], false);
                     } catch (\Throwable $e) {
                         error_log('LdapService::syncFamilyRole failed on demote for user ' . $id . ': ' . $e->getMessage());
+                    }
+                    try {
+                        \App\Core\NextcloudGroupFolderService::syncAdminDelegation((int)$member['family_id']);
+                    } catch (\Throwable $e) {
+                        error_log('NextcloudGroupFolderService::syncAdminDelegation failed on demote for user ' . $id . ': ' . $e->getMessage());
                     }
                 }
                 \App\Models\Notification::create(

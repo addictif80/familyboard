@@ -1439,12 +1439,23 @@ class AdminController extends BaseController
         $users = Database::fetchAll("SELECT id, ldap_username, family_id, role FROM users WHERE ldap_username IS NOT NULL");
         $count = 0;
         $errors = [];
+        $syncedFamilies = [];
         foreach ($users as $u) {
             try {
                 \App\Core\LdapService::syncFamilyRole($u['ldap_username'], (int)$u['family_id'], $u['role'] === 'admin');
                 $count++;
             } catch (\Throwable $e) {
                 $errors[] = $u['ldap_username'] . ' : ' . $e->getMessage();
+            }
+            // Un seul passage par famille suffit (parcourt tous ses membres à chaque appel) —
+            // évite de refaire N fois le même travail pour une famille à plusieurs admins.
+            if (!isset($syncedFamilies[$u['family_id']])) {
+                $syncedFamilies[$u['family_id']] = true;
+                try {
+                    \App\Core\NextcloudGroupFolderService::syncAdminDelegation((int)$u['family_id']);
+                } catch (\Throwable $e) {
+                    $errors[] = 'famille #' . $u['family_id'] . ' (délégation Nextcloud) : ' . $e->getMessage();
+                }
             }
         }
 
