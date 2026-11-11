@@ -8,12 +8,16 @@ use App\Models\StorageSettings;
  * compte admin, ou de préférence un mot de passe d'application Nextcloud dédié) — utilisé
  * uniquement pour appliquer un quota par utilisateur, jamais pour gérer des fichiers.
  *
- * Le compte Nextcloud lui-même n'est pas créé par FamilyBoard dans le cas courant : si
- * Nextcloud est configuré (côté NAS, hors de cette appli) pour s'authentifier contre le même
- * Serveur LDAP Synology (voir LdapService), le compte apparaît de lui-même à la première
- * connexion. ensureUserAndQuota() le crée quand même de façon proactive si besoin (pour que le
- * quota soit déjà en place avant la première connexion), sans jamais définir de mot de passe
- * utilisable (le compte s'authentifie via LDAP, pas via Nextcloud).
+ * Le compte Nextcloud lui-même n'est jamais créé par FamilyBoard : si Nextcloud est configuré
+ * (côté NAS, hors de cette appli) pour s'authentifier contre le même Serveur LDAP Synology (voir
+ * LdapService), le compte apparaît de lui-même à la première authentification/action réelle
+ * contre Nextcloud — jamais à la simple création du compte LDAP côté FamilyBoard. setUserQuota()
+ * échoue proprement (et rejouable, voir ProvisioningJob) tant que ce n'est pas encore le cas :
+ * une pré-création locale a été tentée ici par le passé, mais si elle s'exécutait avant cette
+ * première résolution côté Nextcloud, elle posait un compte LOCAL sous le même uid — et quand
+ * Nextcloud résolvait ensuite le vrai compte LDAP, il le renommait avec un suffixe numérique
+ * pour éviter la collision, laissant le compte local orphelin recevoir silencieusement toutes
+ * les actions de FamilyBoard à la place du vrai compte (observé en conditions réelles).
  */
 class NextcloudService
 {
@@ -176,27 +180,6 @@ class NextcloudService
         return $r['ok'];
     }
 
-    /** Mot de passe aléatoire respectant la politique de complexité par défaut de Nextcloud
-     *  (app "Password Policy" : majuscule + minuscule + chiffre + caractère spécial) — jamais
-     *  utilisable de toute façon (voir docblock de classe, le compte s'authentifie via LDAP),
-     *  seule sa capacité à passer la validation de création de compte compte. */
-    private static function randomCompliantPassword(): string
-    {
-        $lower = 'abcdefghijkmnpqrstuvwxyz';
-        $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-        $digits = '23456789';
-        $special = '!@#$%^&*-_=+';
-        $all = $lower . $upper . $digits . $special;
-
-        $password = $lower[random_int(0, strlen($lower) - 1)]
-            . $upper[random_int(0, strlen($upper) - 1)]
-            . $digits[random_int(0, strlen($digits) - 1)]
-            . $special[random_int(0, strlen($special) - 1)];
-        for ($i = 0; $i < 20; $i++) {
-            $password .= $all[random_int(0, strlen($all) - 1)];
-        }
-        return str_shuffle($password);
-    }
 
     /** $unlimited : envoie la valeur spéciale "none" (quota illimité natif Nextcloud) et ignore
      *  $quotaGb. $error est renseigné avec le motif exact en cas d'échec, pour remonter jusqu'au
@@ -204,16 +187,19 @@ class NextcloudService
     public static function setUserQuota(string $username, int $quotaGb, bool $unlimited, ?string &$error = null): bool
     {
         if (!self::userExists($username)) {
-            // Pré-provisionne le compte (sans mot de passe utilisable, voir docblock de classe)
-            // pour que le quota soit déjà en place avant la première connexion via LDAP.
-            $create = self::request('POST', '/cloud/users', [
-                'userid'   => $username,
-                'password' => self::randomCompliantPassword(),
-            ]);
-            if (!$create['ok']) {
-                $error = 'Création du compte Nextcloud échouée : ' . ($create['error'] ?? 'erreur inconnue');
-                return false;
-            }
+            // Autrefois pré-provisionné ici via POST /cloud/users — retiré : si ce job tourne
+            // avant que Nextcloud ait lui-même résolu le compte LDAP (ce qui n'arrive qu'à la
+            // toute première authentification/action de ce membre contre Nextcloud, pas
+            // immédiatement à la création du compte LDAP côté FamilyBoard), cette pré-création
+            // posait un compte LOCAL sous le même uid — et quand Nextcloud résolvait ensuite le
+          // vrai compte LDAP, il le renommait avec un suffixe numérique pour éviter la
+            // collision (observé en conditions réelles : "adrien" local orphelin + désactivé,
+            // "adrien_3771" LDAP réel jamais synchronisé car toutes les actions de FamilyBoard
+            // continuaient de cibler "adrien"). Le job échoue donc proprement ici tant que
+            // Nextcloud n'a pas résolu le compte lui-même, et sera rejoué (voir
+            // StorageProvisioningRunner, file rejouable) jusqu'à ce qu'il existe réellement.
+            $error = "Compte Nextcloud \"$username\" pas encore résolu côté serveur (LDAP) — nouvelle tentative au prochain passage.";
+            return false;
         }
         // L'endpoint est PUT /cloud/users/{userId} avec key=quota dans le corps — PAS
         // /cloud/users/{userId}/quota (ce chemin matche en réalité la route OCS
