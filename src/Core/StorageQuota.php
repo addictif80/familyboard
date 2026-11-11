@@ -22,11 +22,18 @@ class StorageQuota
         return (int)AppSetting::get('storage_family_quota_gb', '50');
     }
 
-    /** Quota familial illimité (réglage admin global) — quand actif, familyQuotaGb() reste
-     *  affiché/stocké tel quel mais n'est plus opposé à personne (voir FileStore::enforceQuota). */
-    public static function familyQuotaUnlimited(): bool
+    /** Quota familial illimité — soit par le réglage admin global (storage_family_quota_unlimited,
+     *  s'applique à toutes les familles), soit par familles.storage_quota_unlimited propre à UNE
+     *  famille (si $familyId fourni) — l'un ou l'autre suffit. familyQuotaGb() reste
+     *  affiché/stocké tel quel dans les deux cas, mais n'est plus opposé à personne (voir
+     *  FileStore::enforceQuota). Sans $familyId, ne reflète que le réglage global (affichage du
+     *  panneau admin général, hors contexte d'une famille précise). */
+    public static function familyQuotaUnlimited(?int $familyId = null): bool
     {
-        return AppSetting::get('storage_family_quota_unlimited', '0') === '1';
+        if (AppSetting::get('storage_family_quota_unlimited', '0') === '1') return true;
+        if ($familyId === null) return false;
+        $row = \App\Core\Database::fetch('SELECT storage_quota_unlimited FROM families WHERE id = ?', [$familyId]);
+        return !empty($row['storage_quota_unlimited']);
     }
 
     /** Plafond d'add-ons par membre (Go) — le réglage individuel users.storage_addon_cap_gb

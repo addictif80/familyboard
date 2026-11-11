@@ -208,6 +208,13 @@
                 </td>
                 <td style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center">
                     <a href="<?= BASE_URL ?>/admin?tab=users&family=<?= $f['id'] ?>" class="btn btn-secondary btn-sm">Voir membres</a>
+                    <form method="POST" action="<?= BASE_URL ?>/admin/families/<?= $f['id'] ?>/storage-unlimited">
+                        <?= \App\Core\Csrf::field() ?>
+                        <input type="hidden" name="enabled" value="<?= $f['storage_quota_unlimited'] ? '0' : '1' ?>">
+                        <button class="btn btn-secondary btn-sm" title="Quota familial partagé (stockage)">
+                            <?= $f['storage_quota_unlimited'] ? '♾️ Stockage illimité (désactiver)' : '♾️ Stockage illimité' ?>
+                        </button>
+                    </form>
                     <?php if ($fs && $fs['manual']): ?>
                     <form method="POST" action="<?= BASE_URL ?>/admin/families/<?= $f['id'] ?>/subscription/revoke"><?= \App\Core\Csrf::field() ?>
                         <button type="submit" class="btn btn-danger btn-sm">Retirer le palier manuel</button>
@@ -700,7 +707,7 @@
                 <tr>
                     <td><?= htmlspecialchars($fu['family_name']) ?></td>
                     <td><?= number_format($fu['used_bytes'] / 1024 / 1024 / 1024, 2, ',', ' ') ?> Go</td>
-                    <td style="<?= (!$storageFamilyQuotaUnlimited && $fu['pct'] >= $storageCapacityThresholdPct) ? 'color:var(--danger);font-weight:600' : '' ?>"><?= $storageFamilyQuotaUnlimited ? 'Illimité' : $fu['pct'] . '%' ?></td>
+                    <td style="<?= (!$fu['unlimited'] && $fu['pct'] >= $storageCapacityThresholdPct) ? 'color:var(--danger);font-weight:600' : '' ?>"><?= $fu['unlimited'] ? 'Illimité' : $fu['pct'] . '%' ?></td>
                     <td style="font-size:.8rem;color:var(--text-muted)">
                         <?php foreach ($fu['breakdown'] as $b): ?>
                             <?= htmlspecialchars($b['module']) ?> (<?= number_format($b['total_bytes'] / 1024 / 1024, 1, ',', ' ') ?> Mo)<?= in_array($b['module'], \App\Core\FileStore::excludedModules(), true) ? ' <em>hors quota</em>' : '' ?><br>

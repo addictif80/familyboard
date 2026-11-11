@@ -684,6 +684,7 @@ $router->post('/admin/subscriptions/urssaf', [AdminController::class, 'updateUrs
 $router->post('/admin/subscriptions/urssaf/send-now', [AdminController::class, 'sendUrssafReportNow']);
 $router->post('/admin/plans', [AdminController::class, 'savePlan']);
 $router->post('/admin/plans/:id/deactivate', [AdminController::class, 'deactivatePlan']);
+$router->post('/admin/families/:id/storage-unlimited', [AdminController::class, 'setFamilyStorageUnlimited']);
 $router->post('/admin/families/:id/subscription/grant', [AdminController::class, 'grantManualSubscription']);
 $router->post('/admin/families/:id/subscription/revoke', [AdminController::class, 'revokeManualSubscription']);
 $router->post('/admin/storage/settings', [AdminController::class, 'updateStorageSettings']);

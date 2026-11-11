@@ -53,7 +53,7 @@ class FileStore
     {
         $excluded = self::excludedModules();
         if (in_array($module, $excluded, true)) return;
-        if (StorageQuota::familyQuotaUnlimited()) return;
+        if (StorageQuota::familyQuotaUnlimited($familyId)) return;
 
         $quotaBytes = StorageQuota::familyQuotaGb() * 1024 * 1024 * 1024;
         $usedBytes = StoredFile::totalBytesForFamily($familyId, $excluded);

@@ -271,11 +271,13 @@ class AdminController extends BaseController
                 $usedBytes = \App\Models\StoredFile::totalBytesForFamily((int)$fam['id'], $excluded);
                 if ($usedBytes <= 0) continue;
                 $breakdown = \App\Models\StoredFile::breakdownByModuleForFamily((int)$fam['id']);
+                $familyUnlimited = \App\Core\StorageQuota::familyQuotaUnlimited((int)$fam['id']);
                 $familyStorageUsage[] = [
                     'family_id'   => $fam['id'],
                     'family_name' => $fam['name'],
                     'used_bytes'  => $usedBytes,
-                    'pct'         => (!$storageFamilyQuotaUnlimited && $quotaBytes > 0) ? min(999, round($usedBytes / $quotaBytes * 100)) : 0,
+                    'unlimited'   => $familyUnlimited,
+                    'pct'         => (!$familyUnlimited && $quotaBytes > 0) ? min(999, round($usedBytes / $quotaBytes * 100)) : 0,
                     'breakdown'   => $breakdown,
                 ];
             }
@@ -1375,6 +1377,21 @@ class AdminController extends BaseController
             FamilySubscription::grantManual($familyId, $planId, $until !== '' ? $until . ' 23:59:59' : null);
         }
         $this->redirect('/admin?tab=families&family=' . $familyId);
+    }
+
+    /** Quota familial partagé illimité pour CETTE famille uniquement — distinct du réglage admin
+     *  global storage_family_quota_unlimited (qui s'applique à toutes les familles en même
+     *  temps). Répercute le quota natif Nextcloud dans la foulée si déjà provisionné. */
+    public function setFamilyStorageUnlimited(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $familyId = (int)$params['id'];
+        $unlimited = !empty($_POST['enabled']);
+        Database::execute('UPDATE families SET storage_quota_unlimited = ? WHERE id = ?', [$unlimited ? 1 : 0, $familyId]);
+        if (\App\Models\FamilyNextcloudFolder::findByFamily($familyId)) {
+            \App\Core\NextcloudGroupFolderService::applyFamilyQuota($familyId);
+        }
+        $this->redirect('/admin?tab=families&msg=family_storage_unlimited_updated');
     }
 
     public function revokeManualSubscription(array $params): void
