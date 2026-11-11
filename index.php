@@ -83,6 +83,7 @@ use App\Controllers\CalendarFeedController;
 use App\Controllers\StockController;
 use App\Controllers\RecordController;
 use App\Controllers\SubscriptionController;
+use App\Controllers\MemberStorageController;
 use App\Controllers\SitterController;
 use App\Controllers\KioskController;
 use App\Controllers\NotificationController;
@@ -328,6 +329,12 @@ $router->get('/abonnement', [SubscriptionController::class, 'index']);
 $router->post('/api/subscription/checkout', [SubscriptionController::class, 'checkout']);
 $router->post('/api/subscription/portal', [SubscriptionController::class, 'portal']);
 $router->post('/stripe/webhook', [SubscriptionController::class, 'webhook']);
+$router->post('/api/storage/checkout', [MemberStorageController::class, 'checkout']);
+$router->post('/api/storage/request', [MemberStorageController::class, 'requestStorage']);
+$router->post('/api/storage/requests/:id/approve', [MemberStorageController::class, 'approveAndPay']);
+$router->post('/api/storage/requests/:id/reject', [MemberStorageController::class, 'rejectRequest']);
+$router->post('/api/storage/family/checkout', [MemberStorageController::class, 'familyCheckout']);
+$router->post('/api/storage/portal', [MemberStorageController::class, 'portal']);
 
 // ── Suivi salarié ─────────────────────────────────────────────
 $router->get('/employment', [EmploymentController::class, 'index']);
@@ -684,6 +691,7 @@ $router->post('/admin/subscriptions/urssaf', [AdminController::class, 'updateUrs
 $router->post('/admin/subscriptions/urssaf/send-now', [AdminController::class, 'sendUrssafReportNow']);
 $router->post('/admin/plans', [AdminController::class, 'savePlan']);
 $router->post('/admin/plans/:id/deactivate', [AdminController::class, 'deactivatePlan']);
+$router->post('/admin/families/:id/storage-unlimited', [AdminController::class, 'setFamilyStorageUnlimited']);
 $router->post('/admin/families/:id/subscription/grant', [AdminController::class, 'grantManualSubscription']);
 $router->post('/admin/families/:id/subscription/revoke', [AdminController::class, 'revokeManualSubscription']);
 $router->post('/admin/storage/settings', [AdminController::class, 'updateStorageSettings']);

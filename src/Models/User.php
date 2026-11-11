@@ -101,6 +101,13 @@ class User
         Database::execute('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [$stripeCustomerId, $id]);
     }
 
+    /** Résout le payeur d'un achat de stockage (perso ou familial) depuis l'ID client Stripe
+     *  porté par l'abonnement — voir SubscriptionController, webhooks storage_member/storage_family. */
+    public static function findByStripeCustomerId(string $stripeCustomerId): ?array
+    {
+        return Database::fetch('SELECT * FROM users WHERE stripe_customer_id = ?', [$stripeCustomerId]);
+    }
+
     /** uid du compte LDAP provisionné pour le stockage perso (voir App\Core\LdapService) — vide
      *  aussi ldap_resolved_username : la décision de migration (adoption/uid alternatif) n'a
      *  plus lieu d'être conservée une fois le compte réellement provisionné. */

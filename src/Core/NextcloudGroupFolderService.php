@@ -143,9 +143,9 @@ class NextcloudGroupFolderService
             $error = "Group Folder pas encore provisionné pour cette famille.";
             return false;
         }
-        $quota = StorageQuota::familyQuotaUnlimited()
+        $quota = StorageQuota::familyQuotaUnlimited($familyId)
             ? -3 // \OCP\Files\FileInfo::SPACE_UNLIMITED — vérifié contre le code source Nextcloud réel
-            : StorageQuota::familyQuotaGb() * 1024 * 1024 * 1024;
+            : StorageQuota::familyQuotaGb($familyId) * 1024 * 1024 * 1024;
 
         $r = self::request('POST', "/folders/{$folder['groupfolder_id']}/quota", ['quota' => $quota]);
         if (!$r['ok']) $error = $r['error'] ?? 'Erreur Group Folders inconnue.';

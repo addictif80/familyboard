@@ -54,6 +54,21 @@ class SettingsController extends BaseController
             $referralCode = null;
             $referrals = [];
             $myTestimonials = [];
+            $storageBillingEnabled = false;
+            $storageNextcloudUrl = null;
+            $isAdultForStorage = false;
+            $storageFreeQuotaGb = 0;
+            $myStorageAddonGb = 0;
+            $myStorageUnlimited = false;
+            $myStorageSubscriptions = [];
+            $myStorageRequests = [];
+            $storageMemberProducts = [];
+            $pendingStorageRequests = [];
+            $familyStorageProducts = [];
+            $familyStorageSubscriptions = [];
+            $familyStorageUsedBytes = 0;
+            $familyStorageQuotaGb = 0;
+            $familyStorageQuotaUnlimited = false;
             require BASE_PATH . '/templates/settings/index.php';
             return;
         }
@@ -85,6 +100,28 @@ class SettingsController extends BaseController
         $subStripeConfigured = \App\Core\StripeGateway::isConfigured();
         $subMemberCount     = count($members);
         $familyChildren     = \App\Models\FamilyChild::getByFamily((int)$user['family_id']);
+
+        // ── Stockage (perso + familial), onglet "Stockage" ──────────────────
+        $freshUser = User::findById((int)$user['id']);
+        $storageBillingEnabled = \App\Core\StorageQuota::billingEnabled();
+        $storageNextcloudUrl = !empty($freshUser['ldap_username']) ? (\App\Models\StorageSettings::get()['nextcloud_url'] ?: null) : null;
+        $isAdultForStorage = \App\Core\Majority::isAdult($freshUser['birthday'] ?? null);
+        $storageFreeQuotaGb = \App\Core\StorageQuota::freeQuotaGb();
+        $myStorageAddonGb = \App\Models\MemberStorageSubscription::totalAddonGbForBeneficiary((int)$user['id']);
+        $myStorageUnlimited = \App\Core\StorageQuota::isMemberUnlimited((int)$user['id']);
+        $myStorageSubscriptions = \App\Models\MemberStorageSubscription::getForBeneficiary((int)$user['id']);
+        $myStorageRequests = \App\Models\StorageRequest::getForBeneficiary((int)$user['id']);
+        $storageMemberProducts = $storageBillingEnabled ? \App\Models\StorageProduct::getByScope('member') : [];
+        // Visible à tout adulte de la famille (pas seulement l'admin) — n'importe quel adulte
+        // peut approuver + régler la demande d'un mineur.
+        $pendingStorageRequests = $isAdultForStorage ? \App\Models\StorageRequest::getPendingForFamily((int)$user['family_id']) : [];
+        // Stockage familial partagé : réservé à l'admin de la famille (achat/gestion), comme le
+        // reste des réglages familiaux (modules, abonnement de base...).
+        $familyStorageProducts = ($user['role'] === 'admin' && $storageBillingEnabled) ? \App\Models\StorageProduct::getByScope('family') : [];
+        $familyStorageSubscriptions = ($user['role'] === 'admin') ? \App\Models\FamilyStorageSubscription::getForFamily((int)$user['family_id']) : [];
+        $familyStorageUsedBytes = \App\Models\StoredFile::totalBytesForFamily((int)$user['family_id'], \App\Core\FileStore::excludedModules());
+        $familyStorageQuotaGb = \App\Core\StorageQuota::familyQuotaGb((int)$user['family_id']);
+        $familyStorageQuotaUnlimited = \App\Core\StorageQuota::familyQuotaUnlimited((int)$user['family_id']);
 
         $referralEnabled = (bool)(int)(\App\Models\AppSetting::get('referral_enabled') ?? '0');
         $referralCode = ($referralEnabled && $user['role'] === 'admin') ? Family::ensureReferralCode((int)$user['family_id']) : null;
