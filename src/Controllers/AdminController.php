@@ -244,7 +244,10 @@ class AdminController extends BaseController
         \App\Core\Session::delete('admin_ldap_migration_report');
         $ldapAuditReport = \App\Core\Session::get('admin_ldap_audit_report');
         \App\Core\Session::delete('admin_ldap_audit_report');
+        $ldapRoleResyncReport = \App\Core\Session::get('admin_ldap_role_resync_report');
+        \App\Core\Session::delete('admin_ldap_role_resync_report');
         $legacyLdapUserCount = (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE ldap_username IS NULL AND blocked_at IS NULL")['c'] ?? 0);
+        $ldapDirectory = $tab === 'ldap-directory' ? $this->buildLdapDirectory() : null;
         $storageMemberAddonCapGb = (int)(AppSetting::get('storage_member_addon_cap_gb') ?? '1024');
         $storageGraceDays = \App\Core\StorageQuota::gracePeriodDays();
         $storageCapacityThresholdPct = \App\Core\StorageQuota::capacityAlertThresholdPct();
@@ -1372,6 +1375,81 @@ class AdminController extends BaseController
 
         Session::set('admin_ldap_migration_report', ['sent' => $sent, 'failed' => $failed]);
         $this->redirect('/admin?tab=users&msg=ldap_migration_done');
+    }
+
+    /**
+     * Annuaire restreint aux groupes/comptes LDAP gérés par FamilyBoard (familyboard,
+     * familyboard_admins, family_N, family_N_admins) — lecture seule, pour vérifier visuellement
+     * la correspondance famille ↔ groupe et qui en est membre, sans avoir à se connecter en SSH.
+     * Résout chaque uid LDAP vers le compte FamilyBoard correspondant quand c'est possible
+     * (sinon affiché tel quel — ex. un compte LDAP créé hors FamilyBoard).
+     */
+    private function buildLdapDirectory(): array
+    {
+        if (!\App\Core\LdapService::isAvailable()) {
+            return ['available' => false];
+        }
+
+        $byLdapUsername = [];
+        foreach (Database::fetchAll("SELECT name, email, ldap_username FROM users WHERE ldap_username IS NOT NULL") as $row) {
+            $byLdapUsername[mb_strtolower($row['ldap_username'])] = $row;
+        }
+        $resolve = function (array $uids) use ($byLdapUsername): array {
+            return array_map(function (string $uid) use ($byLdapUsername) {
+                $match = $byLdapUsername[mb_strtolower($uid)] ?? null;
+                return $match ? "{$match['name']} ({$match['email']}) — uid $uid" : "$uid (compte LDAP sans correspondance FamilyBoard)";
+            }, $uids);
+        };
+
+        $globalGroups = [];
+        foreach (['familyboard', \App\Core\LdapService::nextcloudDelegationGroupNamePublic()] as $g) {
+            $globalGroups[] = ['name' => $g, 'members' => $resolve(\App\Core\LdapService::listGroupMembers($g))];
+        }
+
+        $families = [];
+        foreach (Database::fetchAll('SELECT id, name FROM families ORDER BY name') as $f) {
+            $group = \App\Core\LdapService::familyGroupNamePublic((int)$f['id']);
+            $adminGroup = \App\Core\LdapService::familyAdminGroupNamePublic((int)$f['id']);
+            $families[] = [
+                'family_id'          => (int)$f['id'],
+                'family_name'        => $f['name'],
+                'group'              => $group,
+                'group_members'      => $resolve(\App\Core\LdapService::listGroupMembers($group)),
+                'admin_group'        => $adminGroup,
+                'admin_group_members'=> $resolve(\App\Core\LdapService::listGroupMembers($adminGroup)),
+            ];
+        }
+
+        return ['available' => true, 'global_groups' => $globalGroups, 'families' => $families];
+    }
+
+    /**
+     * Rattrape, pour tout compte déjà provisionné LDAP (ldap_username renseigné) AVANT
+     * l'introduction des groupes family_N_admins/familyboard_admins, son appartenance aux bons
+     * groupes selon son rôle actuel (voir LdapService::syncFamilyRole) — un compte déjà admin
+     * avant cette fonctionnalité ne déclenche sinon ce rattrapage qu'à sa prochaine
+     * promotion/rétrogradation (qui peut ne jamais arriver s'il est admin depuis toujours).
+     * Idempotent, sans effet sur le mot de passe ni aucune autre donnée.
+     */
+    public function resyncLdapRoles(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+
+        $users = Database::fetchAll("SELECT id, ldap_username, family_id, role FROM users WHERE ldap_username IS NOT NULL");
+        $count = 0;
+        $errors = [];
+        foreach ($users as $u) {
+            try {
+                \App\Core\LdapService::syncFamilyRole($u['ldap_username'], (int)$u['family_id'], $u['role'] === 'admin');
+                $count++;
+            } catch (\Throwable $e) {
+                $errors[] = $u['ldap_username'] . ' : ' . $e->getMessage();
+            }
+        }
+
+        Session::set('admin_ldap_role_resync_report', ['count' => $count, 'errors' => $errors]);
+        $this->redirect('/admin?tab=users&msg=ldap_role_resync_done');
     }
 
     /**

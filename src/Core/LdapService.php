@@ -588,4 +588,45 @@ class LdapService
         }
         return false;
     }
+
+    /** Liste brute des uid membres d'un groupe LDAP (voir AdminController::ldapDirectory,
+     *  annuaire restreint aux groupes gérés par FamilyBoard) — [] si LDAP indisponible/non
+     *  configuré ou si le groupe n'existe pas encore (jamais une erreur bloquante, c'est un
+     *  simple affichage de diagnostic). */
+    public static function listGroupMembers(string $groupName): array
+    {
+        if (!self::isAvailable()) return [];
+        $conn = self::connect();
+        if (!$conn) return [];
+        try {
+            $groupEntry = self::findGroup($conn, $groupName, ['memberUid']);
+            if (!$groupEntry || !isset($groupEntry['memberuid'])) return [];
+            $count = (int)($groupEntry['memberuid']['count'] ?? 0);
+            $members = [];
+            for ($i = 0; $i < $count; $i++) {
+                $members[] = $groupEntry['memberuid'][$i];
+            }
+            sort($members);
+            return $members;
+        } finally {
+            @ldap_unbind($conn);
+        }
+    }
+
+    /** Expose familyGroupName/familyAdminGroupName/nextcloudDelegationGroupName à l'annuaire
+     *  admin (voir AdminController::ldapDirectory) sans dupliquer la convention de nommage. */
+    public static function familyGroupNamePublic(int $familyId): string
+    {
+        return self::familyGroupName($familyId);
+    }
+
+    public static function familyAdminGroupNamePublic(int $familyId): string
+    {
+        return self::familyAdminGroupName($familyId);
+    }
+
+    public static function nextcloudDelegationGroupNamePublic(): string
+    {
+        return self::nextcloudDelegationGroupName();
+    }
 }

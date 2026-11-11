@@ -702,6 +702,7 @@ $router->post('/admin/storage/backfill', [AdminController::class, 'runStorageBac
 $router->post('/admin/storage/nextcloud-file-migration', [AdminController::class, 'runNextcloudFileMigration']);
 $router->post('/admin/storage/nextcloud-group-resync', [AdminController::class, 'resyncNextcloudGroups']);
 $router->post('/admin/users/migrate-ldap', [AdminController::class, 'migrateLegacyUsersToLdap']);
+$router->post('/admin/users/resync-ldap-roles', [AdminController::class, 'resyncLdapRoles']);
 $router->post('/admin/users/audit-ldap', [AdminController::class, 'auditLdapConsistency']);
 $router->post('/admin/storage/ldap/test', [AdminController::class, 'testStorageLdapConnection']);
 $router->post('/admin/storage/ldap/test-account', [AdminController::class, 'testStorageLdapAccount']);
