@@ -96,7 +96,9 @@ class NextcloudService
         return $r;
     }
 
-    public static function setUserQuota(string $username, int $quotaGb): bool
+    /** $error est renseigné avec le motif exact en cas d'échec, pour remonter jusqu'au panneau
+     *  admin sans consulter les journaux serveur. */
+    public static function setUserQuota(string $username, int $quotaGb, ?string &$error = null): bool
     {
         if (!self::userExists($username)) {
             // Pré-provisionne le compte (sans mot de passe utilisable, voir docblock de classe)
@@ -105,12 +107,16 @@ class NextcloudService
                 'userid'   => $username,
                 'password' => bin2hex(random_bytes(24)),
             ]);
-            if (!$create['ok']) return false;
+            if (!$create['ok']) {
+                $error = 'Création du compte Nextcloud échouée : ' . ($create['error'] ?? 'erreur inconnue');
+                return false;
+            }
         }
         $r = self::request('PUT', '/cloud/users/' . rawurlencode($username) . '/quota', [
             'key'   => 'quota',
             'value' => $quotaGb . ' GB',
         ]);
+        if (!$r['ok']) $error = $r['error'] ?? 'Erreur Nextcloud inconnue.';
         return $r['ok'];
     }
 

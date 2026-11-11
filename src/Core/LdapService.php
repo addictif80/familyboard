@@ -258,12 +258,21 @@ class LdapService
      * Crée le compte LDAP d'un membre s'il n'existe pas, ou met à jour son mot de passe sinon
      * (idempotent — safe à appeler à chaque changement de mot de passe). $username est dérivé
      * de l'e-mail (partie locale), rendu unique si collision. Retourne le uid LDAP retenu
-     * (à stocker dans users.ldap_username), ou null si LDAP n'est pas disponible/configuré.
+     * (à stocker dans users.ldap_username), ou null si LDAP n'est pas disponible/configuré —
+     * $error est alors renseigné avec le motif exact, pour qu'il remonte jusqu'au panneau admin
+     * (voir ProvisioningJob::markFailed) sans avoir à aller chercher dans les journaux serveur.
      */
-    public static function createOrUpdateUser(int $userId, string $email, string $displayName, string $plainPassword, ?string $existingLdapUsername): ?string
+    public static function createOrUpdateUser(int $userId, string $email, string $displayName, string $plainPassword, ?string $existingLdapUsername, ?string &$error = null): ?string
     {
+        if (!self::isAvailable()) {
+            $error = "L'extension PHP ldap n'est pas installée sur ce serveur.";
+            return null;
+        }
         $conn = self::connect();
-        if (!$conn) return null;
+        if (!$conn) {
+            $error = 'Connexion ou authentification LDAP refusée — vérifiez hôte/DN/mot de passe.';
+            return null;
+        }
 
         try {
             $gidNumber = self::ensureGroup($conn);
@@ -274,6 +283,7 @@ class LdapService
                 // réservée à l'admin (voir AdminController::analyzeStorageLdapMigration), jamais
                 // résolu automatiquement par un suffixe arbitraire qui créerait un second compte
                 // sans que personne ne le sache.
+                $error = $e->getMessage();
                 error_log('LdapService: conflit de compte pour ' . $email . ' (' . $e->getMessage() . ')');
                 return null;
             }

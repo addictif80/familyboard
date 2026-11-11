@@ -96,15 +96,22 @@ class SynologyService
     /**
      * Pousse le quota (Go) d'un utilisateur LDAP sur le dossier partagé configuré. Sans effet
      * (retourne false) si Synology n'est pas configuré — appelant responsable de rejouer le job
-     * plus tard (voir App\Models\ProvisioningJob).
+     * plus tard (voir App\Models\ProvisioningJob). $error est renseigné avec le motif exact en
+     * cas d'échec, pour remonter jusqu'au panneau admin sans consulter les journaux serveur.
      */
-    public static function setUserQuota(string $username, int $quotaGb): bool
+    public static function setUserQuota(string $username, int $quotaGb, ?string &$error = null): bool
     {
         $settings = StorageSettings::get();
-        if (!$settings || !$settings['synology_shared_folder']) return false;
+        if (!$settings || !$settings['synology_shared_folder']) {
+            $error = 'Synology non configuré (URL/dossier partagé manquant).';
+            return false;
+        }
 
         $sid = self::login();
-        if (!$sid) return false;
+        if (!$sid) {
+            $error = 'Connexion Synology refusée — vérifiez URL/utilisateur/mot de passe.';
+            return false;
+        }
 
         try {
             $r = self::request('SYNO.Core.Quota', 'set', '1', [
@@ -113,6 +120,7 @@ class SynologyService
                 'volume_path' => $settings['synology_shared_folder'],
                 'limit'     => (string)($quotaGb * 1024 * 1024 * 1024),
             ], $sid);
+            if (!$r['ok']) $error = $r['error'] ?? 'Erreur Synology inconnue.';
             return $r['ok'];
         } finally {
             self::logout($sid);

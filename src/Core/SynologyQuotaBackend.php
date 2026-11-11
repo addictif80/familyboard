@@ -5,9 +5,9 @@ class SynologyQuotaBackend implements StorageQuotaBackend
 {
     public function slug(): string { return 'synology'; }
 
-    public function syncQuota(string $ldapUsername, int $quotaGb): bool
+    public function syncQuota(string $ldapUsername, int $quotaGb, ?string &$error = null): bool
     {
-        return SynologyService::setUserQuota($ldapUsername, $quotaGb);
+        return SynologyService::setUserQuota($ldapUsername, $quotaGb, $error);
     }
 
     public function deprovisionUser(string $ldapUsername): void

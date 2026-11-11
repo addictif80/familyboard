@@ -42,16 +42,19 @@ class StorageProvisioningRunner
             $attempts = (int)$job['attempts'] + 1;
 
             try {
+                $error = null;
                 $ok = match ($job['job_type']) {
-                    'provision_ldap' => $ldapEnabled && self::runProvisionLdap($job),
-                    'sync_quota'     => self::runSyncQuota($quotaBackends, $job),
-                    default          => false,
+                    'provision_ldap' => $ldapEnabled
+                        ? self::runProvisionLdap($job, $error)
+                        : self::fail($error, "Comptes LDAP désactivés (storage_ldap_enabled)."),
+                    'sync_quota'     => self::runSyncQuota($quotaBackends, $job, $error),
+                    default          => self::fail($error, 'Type de job inconnu : ' . $job['job_type']),
                 };
                 if ($ok) {
                     ProvisioningJob::markDone((int)$job['id'], $job['job_type'] === 'provision_ldap');
                     $stats['succeeded']++;
                 } else {
-                    ProvisioningJob::markFailed((int)$job['id'], $attempts, 'Échec du provisioning (voir le journal serveur).');
+                    ProvisioningJob::markFailed((int)$job['id'], $attempts, $error ?? 'Échec du provisioning (motif non renseigné — voir le journal serveur).');
                     $stats['failed']++;
                 }
             } catch (\Throwable $e) {
@@ -64,13 +67,26 @@ class StorageProvisioningRunner
         return $stats;
     }
 
-    private static function runProvisionLdap(array $job): bool
+    /** Raccourci pour un échec immédiat avec motif, dans l'expression match() ci-dessus. */
+    private static function fail(?string &$error, string $message): bool
+    {
+        $error = $message;
+        return false;
+    }
+
+    private static function runProvisionLdap(array $job, ?string &$error): bool
     {
         $payload = $job['payload'] ? json_decode($job['payload'], true) : null;
         $encryptedPassword = $payload['password'] ?? null;
-        if (!$encryptedPassword) return false;
+        if (!$encryptedPassword) {
+            $error = 'Mot de passe chiffré absent du job (payload invalide ou déjà consommé).';
+            return false;
+        }
         $plainPassword = Crypto::decrypt($encryptedPassword);
-        if ($plainPassword === null) return false;
+        if ($plainPassword === null) {
+            $error = 'Mot de passe chiffré illisible (clé applicative changée depuis l\'enfilement du job ?).';
+            return false;
+        }
 
         $user = User::findById((int)$job['user_id']);
         if (!$user) return true; // compte supprimé depuis l'enfilement : rien à faire, pas un échec
@@ -80,7 +96,7 @@ class StorageProvisioningRunner
         // uid alternatif) — sans elle, createOrUpdateUser dériverait le uid depuis l'e-mail.
         $targetUsername = $user['ldap_username'] ?: ($user['ldap_resolved_username'] ?? null);
         $externalUsername = LdapService::createOrUpdateUser(
-            (int)$user['id'], $user['email'], $user['name'], $plainPassword, $targetUsername
+            (int)$user['id'], $user['email'], $user['name'], $plainPassword, $targetUsername, $error
         );
         if (!$externalUsername) return false;
 
@@ -96,18 +112,28 @@ class StorageProvisioningRunner
     }
 
     /** @param StorageQuotaBackend[] $backends */
-    private static function runSyncQuota(array $backends, array $job): bool
+    private static function runSyncQuota(array $backends, array $job, ?string &$error): bool
     {
-        if (empty($backends)) return false;
-        if (!$job['ldap_username']) return false; // pas encore provisionné — provision_ldap doit passer en premier
+        if (empty($backends)) {
+            $error = 'Aucun backend de quota actif (storage_quota_backends).';
+            return false;
+        }
+        if (!$job['ldap_username']) {
+            $error = "Compte LDAP pas encore provisionné pour ce membre — le job provision_ldap doit passer en premier.";
+            return false;
+        }
 
         $quotaGb = StorageQuota::totalQuotaGbForMember((int)$job['user_id']);
         $allOk = true;
+        $backendErrors = [];
         foreach ($backends as $backend) {
-            if (!$backend->syncQuota($job['ldap_username'], $quotaGb)) {
+            $backendError = null;
+            if (!$backend->syncQuota($job['ldap_username'], $quotaGb, $backendError)) {
                 $allOk = false;
+                $backendErrors[] = $backend->slug() . ' : ' . ($backendError ?? 'erreur inconnue');
             }
         }
+        if (!$allOk) $error = implode(' | ', $backendErrors);
         return $allOk;
     }
 }
