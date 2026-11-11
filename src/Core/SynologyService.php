@@ -94,12 +94,15 @@ class SynologyService
     }
 
     /**
-     * Pousse le quota (Go) d'un utilisateur LDAP sur le dossier partagé configuré. Sans effet
-     * (retourne false) si Synology n'est pas configuré — appelant responsable de rejouer le job
-     * plus tard (voir App\Models\ProvisioningJob). $error est renseigné avec le motif exact en
-     * cas d'échec, pour remonter jusqu'au panneau admin sans consulter les journaux serveur.
+     * Pousse le quota (Go) d'un utilisateur LDAP sur le dossier partagé configuré — ou aucune
+     * limite si $unlimited (un limit de 0 octet désactive le quota côté DSM, équivalent à
+     * décocher la case "Quota" dans le Gestionnaire d'utilisateurs ; $quotaGb est alors ignoré).
+     * Sans effet (retourne false) si Synology n'est pas configuré — appelant responsable de
+     * rejouer le job plus tard (voir App\Models\ProvisioningJob). $error est renseigné avec le
+     * motif exact en cas d'échec, pour remonter jusqu'au panneau admin sans consulter les
+     * journaux serveur.
      */
-    public static function setUserQuota(string $username, int $quotaGb, ?string &$error = null): bool
+    public static function setUserQuota(string $username, int $quotaGb, bool $unlimited, ?string &$error = null): bool
     {
         $settings = StorageSettings::get();
         if (!$settings || !$settings['synology_shared_folder']) {
@@ -118,7 +121,7 @@ class SynologyService
                 'name'      => $username,
                 'type'      => 'user',
                 'volume_path' => $settings['synology_shared_folder'],
-                'limit'     => (string)($quotaGb * 1024 * 1024 * 1024),
+                'limit'     => $unlimited ? '0' : (string)($quotaGb * 1024 * 1024 * 1024),
             ], $sid);
             if (!$r['ok']) $error = $r['error'] ?? 'Erreur Synology inconnue.';
             return $r['ok'];

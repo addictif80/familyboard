@@ -85,6 +85,17 @@ class User
         Database::execute('UPDATE users SET storage_addon_cap_gb = ? WHERE id = ?', [$capGb, $id]);
     }
 
+    /** Quota de stockage perso illimité pour ce membre — réservé à l'admin système. Repousse le
+     *  quota vers les backends actifs dans la foulée (même pattern que
+     *  MemberStorageSubscription::enqueueQuotaSync), sans attendre un futur changement
+     *  d'abonnement. */
+    public static function setStorageUnlimited(int $id, bool $unlimited): void
+    {
+        Database::execute('UPDATE users SET storage_quota_unlimited = ? WHERE id = ?', [$unlimited ? 1 : 0, $id]);
+        if (empty(\App\Core\StorageProvisionerFactory::activeQuotaBackends())) return;
+        \App\Models\ProvisioningJob::enqueue($id, 'sync_quota');
+    }
+
     public static function setStripeCustomerId(int $id, string $stripeCustomerId): void
     {
         Database::execute('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [$stripeCustomerId, $id]);

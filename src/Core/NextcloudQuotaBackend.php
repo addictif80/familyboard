@@ -5,9 +5,9 @@ class NextcloudQuotaBackend implements StorageQuotaBackend
 {
     public function slug(): string { return 'nextcloud'; }
 
-    public function syncQuota(string $ldapUsername, int $quotaGb, ?string &$error = null): bool
+    public function syncQuota(string $ldapUsername, int $quotaGb, bool $unlimited, ?string &$error = null): bool
     {
-        return NextcloudService::setUserQuota($ldapUsername, $quotaGb, $error);
+        return NextcloudService::setUserQuota($ldapUsername, $quotaGb, $unlimited, $error);
     }
 
     public function deprovisionUser(string $ldapUsername): void
