@@ -475,6 +475,13 @@ class SettingsController extends BaseController
             $member = User::findById($id);
             if ($member && $member['family_id'] === $user['family_id'] && $member['role'] === 'member') {
                 \App\Core\Database::execute("UPDATE users SET role='admin' WHERE id=?", [$id]);
+                if (!empty($member['ldap_username'])) {
+                    try {
+                        \App\Core\LdapService::syncFamilyRole($member['ldap_username'], (int)$member['family_id'], true);
+                    } catch (\Throwable $e) {
+                        error_log('LdapService::syncFamilyRole failed on promote for user ' . $id . ': ' . $e->getMessage());
+                    }
+                }
                 \App\Models\Notification::create(
                     $id, 'settings', 'Vous êtes maintenant administrateur',
                     $user['name'] . ' vous a promu administrateur de la famille.', BASE_URL . '/settings'
@@ -502,6 +509,13 @@ class SettingsController extends BaseController
                     exit;
                 }
                 \App\Core\Database::execute("UPDATE users SET role='member' WHERE id=?", [$id]);
+                if (!empty($member['ldap_username'])) {
+                    try {
+                        \App\Core\LdapService::syncFamilyRole($member['ldap_username'], (int)$member['family_id'], false);
+                    } catch (\Throwable $e) {
+                        error_log('LdapService::syncFamilyRole failed on demote for user ' . $id . ': ' . $e->getMessage());
+                    }
+                }
                 \App\Models\Notification::create(
                     $id, 'settings', 'Rôle administrateur retiré',
                     $user['name'] . ' vous a retiré le rôle d\'administrateur de la famille.', BASE_URL . '/settings'

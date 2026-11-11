@@ -240,6 +240,11 @@ class AdminController extends BaseController
         \App\Core\Session::delete('admin_nextcloud_file_migration_report');
         $nextcloudGroupResyncReport = \App\Core\Session::get('admin_nextcloud_group_resync_report');
         \App\Core\Session::delete('admin_nextcloud_group_resync_report');
+        $ldapMigrationReport = \App\Core\Session::get('admin_ldap_migration_report');
+        \App\Core\Session::delete('admin_ldap_migration_report');
+        $ldapAuditReport = \App\Core\Session::get('admin_ldap_audit_report');
+        \App\Core\Session::delete('admin_ldap_audit_report');
+        $legacyLdapUserCount = (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE ldap_username IS NULL AND blocked_at IS NULL")['c'] ?? 0);
         $storageMemberAddonCapGb = (int)(AppSetting::get('storage_member_addon_cap_gb') ?? '1024');
         $storageGraceDays = \App\Core\StorageQuota::gracePeriodDays();
         $storageCapacityThresholdPct = \App\Core\StorageQuota::capacityAlertThresholdPct();
@@ -1321,6 +1326,103 @@ class AdminController extends BaseController
         }
         \App\Core\Session::set('admin_nextcloud_group_resync_report', ['count' => $count, 'errors' => $errors]);
         $this->redirect('/admin?tab=storage&msg=nextcloud_group_resync_done');
+    }
+
+    /**
+     * Force la réinitialisation du mot de passe de tout compte créé avant l'intégration LDAP
+     * (ldap_username encore NULL) — leur mot de passe FamilyBoard actuel est irrécupérable
+     * (hash bcrypt, voir User::enqueueLdapProvisioningOnLoginIfMissing), donc la seule façon de
+     * provisionner leur compte LDAP/Nextcloud avec un vrai mot de passe connu de l'utilisateur
+     * est de lui en faire choisir un nouveau. Invalide toute session/« se souvenir de moi » en
+     * cours (comme un changement de mot de passe volontaire) et envoie le même e-mail que
+     * "mot de passe oublié" — la connexion suivante déclenchera le provisioning LDAP normal
+     * (voir AuthController::resetPassword -> User::updatePassword).
+     */
+    public function migrateLegacyUsersToLdap(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+
+        $users = Database::fetchAll(
+            "SELECT id, name, email, family_id FROM users WHERE ldap_username IS NULL AND blocked_at IS NULL"
+        );
+        $sent = [];
+        $failed = [];
+        foreach ($users as $u) {
+            try {
+                Database::execute('UPDATE users SET force_logout_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s'), $u['id']]);
+                \App\Models\AuthToken::deleteForUser((int)$u['id']);
+
+                $token = \App\Models\PasswordReset::create((int)$u['id']);
+                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $resetUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . BASE_URL . '/reset-password/' . $token;
+
+                $rendered = EmailContent::render('password_reset', ['user_name' => $u['name']]);
+                $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+                    'label' => 'Réinitialiser mon mot de passe',
+                    'url'   => $resetUrl,
+                ]);
+                Mail::send((int)$u['family_id'], $u['email'], $u['name'], $rendered['subject'], $html, 'security');
+                $sent[] = $u['name'] . ' (' . $u['email'] . ')';
+            } catch (\Throwable $e) {
+                error_log('migrateLegacyUsersToLdap failed for user ' . $u['id'] . ': ' . $e->getMessage());
+                $failed[] = $u['name'] . ' (' . $u['email'] . ') : ' . $e->getMessage();
+            }
+        }
+
+        Session::set('admin_ldap_migration_report', ['sent' => $sent, 'failed' => $failed]);
+        $this->redirect('/admin?tab=users&msg=ldap_migration_done');
+    }
+
+    /**
+     * Vérifie, pour chaque compte déjà migré (ldap_username renseigné), que le compte LDAP
+     * existe réellement, est bien membre du groupe de sa famille, et — s'il est admin — bien
+     * membre du sous-groupe admin de sa famille (voir LdapService::checkFamilyMembership) :
+     * rien n'écrit, juste un rapport des écarts constatés, pour repérer un provisioning qui
+     * aurait échoué silencieusement ou un rôle qui n'aurait pas été resynchronisé.
+     */
+    public function auditLdapConsistency(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+
+        $issues = [];
+        $checked = 0;
+        $users = Database::fetchAll(
+            "SELECT id, name, email, family_id, role, ldap_username FROM users WHERE ldap_username IS NOT NULL"
+        );
+        foreach ($users as $u) {
+            $checked++;
+            $label = $u['name'] . ' (' . $u['email'] . ', famille #' . $u['family_id'] . ')';
+
+            $lookup = \App\Core\LdapService::lookupUser($u['ldap_username']);
+            if (!$lookup['ok']) {
+                $issues[] = "$label : connexion LDAP impossible (" . ($lookup['error'] ?: 'erreur inconnue') . ")";
+                continue;
+            }
+            if (!$lookup['found']) {
+                $issues[] = "$label : compte LDAP \"{$u['ldap_username']}\" introuvable (supprimé côté serveur ?)";
+                continue;
+            }
+
+            $membership = \App\Core\LdapService::checkFamilyMembership($u['ldap_username'], (int)$u['family_id']);
+            if (!$membership['ok']) {
+                $issues[] = "$label : vérification du groupe famille impossible (" . ($membership['error'] ?: 'erreur inconnue') . ")";
+                continue;
+            }
+            if (!$membership['inFamilyGroup']) {
+                $issues[] = "$label : absent du groupe LDAP de sa famille";
+            }
+            if ($u['role'] === 'admin' && !$membership['inAdminGroup']) {
+                $issues[] = "$label : admin de famille mais absent du sous-groupe admin LDAP";
+            }
+            if ($u['role'] !== 'admin' && $membership['inAdminGroup']) {
+                $issues[] = "$label : n'est plus admin mais encore membre du sous-groupe admin LDAP";
+            }
+        }
+
+        Session::set('admin_ldap_audit_report', ['checked' => $checked, 'issues' => $issues]);
+        $this->redirect('/admin?tab=users&msg=ldap_audit_done');
     }
 
     // ── Programme de parrainage ───────────────────────────────────

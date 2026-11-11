@@ -77,6 +77,25 @@ class LdapService
         return AppSetting::get('storage_ldap_group', 'familyboard') ?: 'familyboard';
     }
 
+    /** Groupe LDAP propre à une famille (distinct du groupe global "familyboard", qui reste
+     *  utilisé pour le provisioning Synology) — même convention de nom que le groupe Nextcloud
+     *  équivalent (voir NextcloudGroupFolderService::groupName), pour qu'un admin retrouve
+     *  facilement la correspondance entre les deux systèmes. Permet, côté Nextcloud, de mapper
+     *  nativement ce groupe LDAP pour déléguer la gestion des Group Folders famille par famille
+     *  plutôt que via un compte admin global. */
+    private static function familyGroupName(int $familyId): string
+    {
+        return 'family_' . $familyId;
+    }
+
+    /** Sous-groupe des administrateurs d'une famille — distinct du groupe famille complet, pour
+     *  pouvoir déléguer la gestion Nextcloud (Group Folders) aux seuls admins de la famille,
+     *  jamais à tous ses membres. */
+    private static function familyAdminGroupName(int $familyId): string
+    {
+        return 'family_' . $familyId . '_admins';
+    }
+
     /** Recherche sous-arbre depuis le DN de base — trouve un compte/groupe quel que soit le
      *  conteneur dans lequel le serveur LDAP l'a réellement placé. Retourne ses attributs
      *  (toujours avec 'dn') ou null si rien ne correspond. */
@@ -198,6 +217,113 @@ class LdapService
         return $gidNumber;
     }
 
+    /** Prochain gidNumber disponible pour un groupe famille/admin — compteur dédié (distinct de
+     *  storage_ldap_group_gid et de nextUidNumber) protégé par la même transaction SQL que
+     *  nextUidNumber(), pour éviter toute collision entre deux provisionnings concurrents. */
+    private static function nextFamilyGidNumber(): int
+    {
+        $pdo = Database::getInstance();
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare("SELECT `value` FROM app_settings WHERE `key`='storage_ldap_next_family_gid' FOR UPDATE");
+            $stmt->execute();
+            $current = (int)($stmt->fetchColumn() ?: 3000);
+            $next = $current + 1;
+            $pdo->prepare("INSERT INTO app_settings (`key`,`value`) VALUES ('storage_ldap_next_family_gid', ?)
+                ON DUPLICATE KEY UPDATE `value` = ?")->execute([(string)$next, (string)$next]);
+            $pdo->commit();
+            return $current;
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+
+    /** Crée (si besoin) un groupe posixGroup générique — factorise ensureFamilyGroup() et
+     *  ensureFamilyAdminGroup(), qui ne diffèrent que par le nom du groupe. */
+    private static function ensureNamedGroup($conn, string $groupName): int
+    {
+        $entry = self::findGroup($conn, $groupName, ['gidNumber']);
+        if ($entry) {
+            return (int)$entry['gidnumber'][0];
+        }
+        $gidNumber = self::nextFamilyGidNumber();
+        $groupDn = 'cn=' . ldap_escape($groupName, '', LDAP_ESCAPE_DN) . ',' . self::groupsCreationDn();
+        $newEntry = [
+            'objectClass' => ['posixGroup', 'top'],
+            'cn'          => $groupName,
+            'gidNumber'   => (string)$gidNumber,
+        ];
+        if (!@ldap_add($conn, $groupDn, $newEntry)) {
+            throw new \RuntimeException(ldap_error($conn));
+        }
+        return $gidNumber;
+    }
+
+    private static function ensureFamilyGroup($conn, int $familyId): int
+    {
+        return self::ensureNamedGroup($conn, self::familyGroupName($familyId));
+    }
+
+    private static function ensureFamilyAdminGroup($conn, int $familyId): int
+    {
+        return self::ensureNamedGroup($conn, self::familyAdminGroupName($familyId));
+    }
+
+    /** Ajoute $username à un groupe nommé, idempotent (voir addToGroup — même logique,
+     *  factorisée pour les groupes famille/admin). */
+    private static function addToNamedGroup($conn, string $username, string $groupName): void
+    {
+        $groupEntry = self::findGroup($conn, $groupName);
+        if (!$groupEntry) return;
+        if (!@ldap_mod_add($conn, $groupEntry['dn'], ['memberUid' => [$username]])) {
+            $err = ldap_errno($conn);
+            if ($err !== 20 /* LDAP_TYPE_OR_VALUE_EXISTS */) {
+                error_log("LdapService::addToNamedGroup ($groupName) failed: " . ldap_error($conn));
+            }
+        }
+    }
+
+    /** Retire $username d'un groupe nommé — sans effet (pas une erreur) s'il n'en était pas
+     *  membre. */
+    private static function removeFromNamedGroup($conn, string $username, string $groupName): void
+    {
+        $groupEntry = self::findGroup($conn, $groupName);
+        if (!$groupEntry) return;
+        if (!@ldap_mod_del($conn, $groupEntry['dn'], ['memberUid' => [$username]])) {
+            $err = ldap_errno($conn);
+            if ($err !== 16 /* LDAP_NO_SUCH_ATTRIBUTE (pas membre) */) {
+                error_log("LdapService::removeFromNamedGroup ($groupName) failed: " . ldap_error($conn));
+            }
+        }
+    }
+
+    /**
+     * Rattache (ou détache, si $isAdmin devient faux) $username au groupe famille et à son
+     * sous-groupe admin — appelé par createOrUpdateUser() à chaque provisioning, et séparément
+     * par SettingsController lors d'une promotion/rétrogradation (sans toucher au mot de passe).
+     * Best-effort : sans effet si LDAP n'est pas configuré.
+     */
+    public static function syncFamilyRole(string $username, int $familyId, bool $isAdmin): void
+    {
+        $conn = self::connect();
+        if (!$conn) return;
+        try {
+            self::ensureFamilyGroup($conn, $familyId);
+            self::addToNamedGroup($conn, $username, self::familyGroupName($familyId));
+
+            self::ensureFamilyAdminGroup($conn, $familyId);
+            $adminGroup = self::familyAdminGroupName($familyId);
+            if ($isAdmin) {
+                self::addToNamedGroup($conn, $username, $adminGroup);
+            } else {
+                self::removeFromNamedGroup($conn, $username, $adminGroup);
+            }
+        } finally {
+            @ldap_unbind($conn);
+        }
+    }
+
     /**
      * Diagnostic pour la migration des comptes créés avant cette intégration (voir
      * AdminController::analyzeStorageLdapMigration) : calcule le uid que recevrait ce membre et
@@ -262,7 +388,7 @@ class LdapService
      * $error est alors renseigné avec le motif exact, pour qu'il remonte jusqu'au panneau admin
      * (voir ProvisioningJob::markFailed) sans avoir à aller chercher dans les journaux serveur.
      */
-    public static function createOrUpdateUser(int $userId, string $email, string $displayName, string $plainPassword, ?string $existingLdapUsername, ?string &$error = null): ?string
+    public static function createOrUpdateUser(int $userId, string $email, string $displayName, string $plainPassword, ?string $existingLdapUsername, ?string &$error = null, ?int $familyId = null, bool $isAdmin = false): ?string
     {
         if (!self::isAvailable()) {
             $error = "L'extension PHP ldap n'est pas installée sur ce serveur.";
@@ -313,6 +439,19 @@ class LdapService
                     throw new \RuntimeException(ldap_error($conn));
                 }
                 self::addToGroup($conn, $username);
+            }
+
+            if ($familyId !== null) {
+                self::ensureFamilyGroup($conn, $familyId);
+                self::addToNamedGroup($conn, $username, self::familyGroupName($familyId));
+
+                self::ensureFamilyAdminGroup($conn, $familyId);
+                $adminGroup = self::familyAdminGroupName($familyId);
+                if ($isAdmin) {
+                    self::addToNamedGroup($conn, $username, $adminGroup);
+                } else {
+                    self::removeFromNamedGroup($conn, $username, $adminGroup);
+                }
             }
 
             return $username;
@@ -369,7 +508,7 @@ class LdapService
 
     /** Supprime le compte LDAP d'un membre (résiliation/suppression de compte) — sans effet si
      *  LDAP n'est pas configuré ou si le compte n'existe déjà plus. */
-    public static function deleteUser(string $username): void
+    public static function deleteUser(string $username, ?int $familyId = null): void
     {
         $conn = self::connect();
         if (!$conn) return;
@@ -379,8 +518,48 @@ class LdapService
 
             $groupEntry = self::findGroup($conn, self::groupName());
             if ($groupEntry) @ldap_mod_del($conn, $groupEntry['dn'], ['memberUid' => [$username]]);
+
+            if ($familyId !== null) {
+                self::removeFromNamedGroup($conn, $username, self::familyGroupName($familyId));
+                self::removeFromNamedGroup($conn, $username, self::familyAdminGroupName($familyId));
+            }
         } finally {
             @ldap_unbind($conn);
         }
+    }
+
+    /**
+     * Diagnostic de cohérence (voir AdminController::auditLdapConsistency) : pour un compte LDAP
+     * donné, indique s'il appartient réellement au groupe famille et, si attendu, au sous-groupe
+     * admin — sans rien modifier. Utilisé pour vérifier qu'aucun membre n'a été omis après une
+     * migration ou un changement de rôle.
+     */
+    public static function checkFamilyMembership(string $username, int $familyId): array
+    {
+        if (!self::isAvailable()) {
+            return ['ok' => false, 'inFamilyGroup' => false, 'inAdminGroup' => false, 'error' => "L'extension PHP ldap n'est pas installée sur ce serveur."];
+        }
+        $conn = self::connect();
+        if (!$conn) {
+            return ['ok' => false, 'inFamilyGroup' => false, 'inAdminGroup' => false, 'error' => 'Connexion ou authentification LDAP refusée.'];
+        }
+        try {
+            $inFamilyGroup = self::isMemberOfNamedGroup($conn, $username, self::familyGroupName($familyId));
+            $inAdminGroup = self::isMemberOfNamedGroup($conn, $username, self::familyAdminGroupName($familyId));
+            return ['ok' => true, 'inFamilyGroup' => $inFamilyGroup, 'inAdminGroup' => $inAdminGroup, 'error' => ''];
+        } finally {
+            @ldap_unbind($conn);
+        }
+    }
+
+    private static function isMemberOfNamedGroup($conn, string $username, string $groupName): bool
+    {
+        $groupEntry = self::findGroup($conn, $groupName, ['memberUid']);
+        if (!$groupEntry || !isset($groupEntry['memberuid'])) return false;
+        $count = (int)($groupEntry['memberuid']['count'] ?? 0);
+        for ($i = 0; $i < $count; $i++) {
+            if (strtolower($groupEntry['memberuid'][$i]) === strtolower($username)) return true;
+        }
+        return false;
     }
 }

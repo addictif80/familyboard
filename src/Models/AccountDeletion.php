@@ -81,7 +81,7 @@ class AccountDeletion
         // ON DELETE CASCADE, le job serait supprimé avant d'avoir pu tourner si le compte est
         // déjà effacé au moment où le cron le traite.
         if (!empty($user['ldap_username'])) {
-            self::deprovisionStorage($user['ldap_username'], $userId);
+            self::deprovisionStorage($user['ldap_username'], $userId, $familyId);
         }
 
         Database::execute('DELETE FROM users WHERE id=?', [$userId]);
@@ -91,10 +91,10 @@ class AccountDeletion
 
     /** Supprime le compte LDAP et retire le quota sur chaque backend actif — best-effort,
      *  jamais bloquant pour la suppression en cours. */
-    private static function deprovisionStorage(string $ldapUsername, int $userId): void
+    private static function deprovisionStorage(string $ldapUsername, int $userId, int $familyId): void
     {
         try {
-            \App\Core\LdapService::deleteUser($ldapUsername);
+            \App\Core\LdapService::deleteUser($ldapUsername, $familyId);
         } catch (\Throwable $e) {
             error_log('LDAP deprovisioning failed for user ' . $userId . ': ' . $e->getMessage());
         }
@@ -243,7 +243,7 @@ class AccountDeletion
         // users.family_id ON DELETE CASCADE ci-dessous, qui efface ces comptes sans jamais
         // appeler deleteUser().
         foreach (Database::fetchAll('SELECT id, ldap_username FROM users WHERE family_id=? AND ldap_username IS NOT NULL', [$familyId]) as $row) {
-            self::deprovisionStorage($row['ldap_username'], (int)$row['id']);
+            self::deprovisionStorage($row['ldap_username'], (int)$row['id'], $familyId);
         }
         // Avant la cascade sur `families` ci-dessous (qui efface family_nextcloud_folders) :
         // best-effort, jamais bloquant pour la suppression RGPD en cours.
