@@ -61,11 +61,14 @@ class NextcloudService
         $body = json_decode($response, true);
         $statuscode = (int)($body['ocs']['meta']['statuscode'] ?? 0);
         $ok = $status >= 200 && $status < 300 && in_array($statuscode, [100, 200], true);
+        // "message" existe parfois mais vide (ex. un rejet par une politique de mot de passe
+        // sans message dédié) — ?? ne couvre que la clé absente/null, jamais une chaîne vide.
+        $message = trim($body['ocs']['meta']['message'] ?? '');
         return [
             'ok'     => $ok,
             'status' => $status,
             'data'   => $body['ocs']['data'] ?? null,
-            'error'  => $ok ? '' : ($body['ocs']['meta']['message'] ?? "Erreur API Nextcloud (HTTP $status)."),
+            'error'  => $ok ? '' : ($message !== '' ? $message : "Erreur API Nextcloud (HTTP $status, code OCS $statuscode)."),
         ];
     }
 
@@ -96,6 +99,28 @@ class NextcloudService
         return $r;
     }
 
+    /** Mot de passe aléatoire respectant la politique de complexité par défaut de Nextcloud
+     *  (app "Password Policy" : majuscule + minuscule + chiffre + caractère spécial) — jamais
+     *  utilisable de toute façon (voir docblock de classe, le compte s'authentifie via LDAP),
+     *  seule sa capacité à passer la validation de création de compte compte. */
+    private static function randomCompliantPassword(): string
+    {
+        $lower = 'abcdefghijkmnpqrstuvwxyz';
+        $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        $digits = '23456789';
+        $special = '!@#$%^&*-_=+';
+        $all = $lower . $upper . $digits . $special;
+
+        $password = $lower[random_int(0, strlen($lower) - 1)]
+            . $upper[random_int(0, strlen($upper) - 1)]
+            . $digits[random_int(0, strlen($digits) - 1)]
+            . $special[random_int(0, strlen($special) - 1)];
+        for ($i = 0; $i < 20; $i++) {
+            $password .= $all[random_int(0, strlen($all) - 1)];
+        }
+        return str_shuffle($password);
+    }
+
     /** $error est renseigné avec le motif exact en cas d'échec, pour remonter jusqu'au panneau
      *  admin sans consulter les journaux serveur. */
     public static function setUserQuota(string $username, int $quotaGb, ?string &$error = null): bool
@@ -105,14 +130,19 @@ class NextcloudService
             // pour que le quota soit déjà en place avant la première connexion via LDAP.
             $create = self::request('POST', '/cloud/users', [
                 'userid'   => $username,
-                'password' => bin2hex(random_bytes(24)),
+                'password' => self::randomCompliantPassword(),
             ]);
             if (!$create['ok']) {
                 $error = 'Création du compte Nextcloud échouée : ' . ($create['error'] ?? 'erreur inconnue');
                 return false;
             }
         }
-        $r = self::request('PUT', '/cloud/users/' . rawurlencode($username) . '/quota', [
+        // L'endpoint est PUT /cloud/users/{userId} avec key=quota dans le corps — PAS
+        // /cloud/users/{userId}/quota (ce chemin matche en réalité la route OCS
+        // editUserMultiValue, qui ne permet de modifier que l'e-mail, pas le quota, et
+        // renvoie un statuscode 103 sans message exploitable — vérifié contre le code
+        // source réel de provisioning_api/UsersController).
+        $r = self::request('PUT', '/cloud/users/' . rawurlencode($username), [
             'key'   => 'quota',
             'value' => $quotaGb . ' GB',
         ]);
