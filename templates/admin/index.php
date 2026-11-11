@@ -904,7 +904,21 @@
             <div class="form-group">
                 <label>DN de base</label>
                 <input type="text" name="ldap_base_dn" value="<?= htmlspecialchars($storageSettings['ldap_base_dn'] ?? '') ?>" autocomplete="off" placeholder="dc=example,dc=com">
+                <small style="color:var(--text-muted)">La détection d'un compte/groupe déjà existant cherche dans tout l'arbre sous ce DN — inutile de connaître le conteneur exact pour ça.</small>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Conteneur de création des comptes (optionnel)</label>
+                    <input type="text" name="storage_ldap_people_dn" value="<?= htmlspecialchars($storageLdapPeopleDn) ?>" autocomplete="off" placeholder="cn=users,dc=example,dc=com (vide = DN de base)">
+                </div>
+                <div class="form-group">
+                    <label>Conteneur de création des groupes (optionnel)</label>
+                    <input type="text" name="storage_ldap_groups_dn" value="<?= htmlspecialchars($storageLdapGroupsDn) ?>" autocomplete="off" placeholder="cn=group,dc=example,dc=com (vide = DN de base)">
+                </div>
+            </div>
+            <p style="color:var(--text-muted);font-size:.8rem;margin-top:-.5rem">
+                À renseigner seulement si une <strong>création</strong> de compte échoue parce que le serveur exige un conteneur dédié (ex. le Serveur LDAP Synology place ses comptes sous "cn=users,&lt;DN de base&gt;"). Sans effet sur la détection d'un compte déjà existant.
+            </p>
             <?php if (!empty($storageSettings['ldap_host'])): ?>
             <div style="margin-bottom:1rem">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageConnection('ldap')">🔌 Tester la connexion LDAP</button>

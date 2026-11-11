@@ -248,6 +248,8 @@ class AdminController extends BaseController
         \App\Core\Session::delete('admin_storage_provisioning_report');
         $storageLdapEnabled = \App\Core\StorageProvisionerFactory::ldapEnabled();
         $storageLdapGroup = AppSetting::get('storage_ldap_group', 'familyboard');
+        $storageLdapPeopleDn = AppSetting::get('storage_ldap_people_dn', '') ?? '';
+        $storageLdapGroupsDn = AppSetting::get('storage_ldap_groups_dn', '') ?? '';
         $storageQuotaBackends = array_filter(array_map('trim', explode(',', AppSetting::get('storage_quota_backends', '') ?: '')));
         $storageOutstandingJobs = $tab === 'storage' ? \App\Models\ProvisioningJob::getOutstanding(100) : [];
         $storageLdapMigrationReport = \App\Core\Session::get('admin_storage_ldap_migration_report');
@@ -1079,6 +1081,8 @@ class AdminController extends BaseController
             'nextcloud_admin_password' => $_POST['nextcloud_admin_password'] ?? '',
         ]);
         AppSetting::set('storage_ldap_group', trim($_POST['storage_ldap_group'] ?? '') ?: 'familyboard');
+        AppSetting::set('storage_ldap_people_dn', trim($_POST['storage_ldap_people_dn'] ?? ''));
+        AppSetting::set('storage_ldap_groups_dn', trim($_POST['storage_ldap_groups_dn'] ?? ''));
         AppSetting::set('storage_ldap_enabled', !empty($_POST['storage_ldap_enabled']) ? '1' : '0');
         // Les comptes dépendent toujours du Serveur LDAP Synology ; le(s) backend(s) de quota
         // (Synology et/ou Nextcloud) sont indépendants et peuvent être actifs simultanément.
