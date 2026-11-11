@@ -987,14 +987,44 @@
                     <input type="password" name="nextcloud_admin_password" autocomplete="new-password">
                 <?php endif; ?>
             </div>
-            <?php if (!empty($storageSettings['nextcloud_url'])): ?>
-            <div style="margin-bottom:1rem">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageConnection('nextcloud')">🔌 Tester la connexion Nextcloud</button>
-                <div id="storage-nextcloud-test-result" style="margin-top:.5rem"></div>
+            <div class="form-group">
+                <label><input type="checkbox" name="nextcloud_calendar_sync_enabled" value="1" <?= $nextcloudCalendarSyncEnabled ? 'checked' : '' ?>> Synchroniser le calendrier (événements, garde alternée, congés) vers Nextcloud, à sens unique</label>
+                <small style="color:var(--text-muted)">Pousse vers un calendrier "FamilyBoard" dédié par membre (compte technique ci-dessus, partagé en lecture seule) — jamais l'inverse, aucune écriture depuis Nextcloud ne revient dans FamilyBoard. Nécessite les comptes LDAP activés ci-dessus.</small>
             </div>
+            <?php if (!empty($storageSettings['nextcloud_url'])): ?>
+            <div style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageConnection('nextcloud')">🔌 Tester la connexion Nextcloud (OCS)</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testStorageConnection('nextcloud-caldav')">🔌 Tester l'accès calendrier (CalDAV)</button>
+            </div>
+            <div id="storage-nextcloud-test-result" style="margin-bottom:.5rem"></div>
+            <div id="storage-nextcloud-caldav-test-result" style="margin-bottom:1rem"></div>
             <?php endif; ?>
             <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
         </form>
+
+        <?php if ($nextcloudCalendarSyncEnabled): ?>
+        <div class="card" style="padding:1.25rem;max-width:640px;margin-top:1rem">
+            <h4 style="margin-top:0">Synchronisation calendrier → Nextcloud</h4>
+            <form method="POST" action="<?= BASE_URL ?>/admin/nextcloud/calendar-sync/run"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">🔄 Synchroniser maintenant</button>
+            </form>
+            <?php if ($nextcloudCalendarSyncReport): ?>
+            <p style="margin-top:.75rem;font-size:.9rem">
+                <?= $nextcloudCalendarSyncReport['members'] ?> membre(s) synchronisé(s) —
+                <?= $nextcloudCalendarSyncReport['pushed'] ?> événement(s) créé(s),
+                <?= $nextcloudCalendarSyncReport['updated'] ?> mis à jour,
+                <?= $nextcloudCalendarSyncReport['deleted'] ?> supprimé(s).
+            </p>
+            <?php if (!empty($nextcloudCalendarSyncReport['errors'])): ?>
+            <ul style="margin:.5rem 0 0;padding-left:1.2rem;font-size:.85rem;color:var(--danger)">
+                <?php foreach ($nextcloudCalendarSyncReport['errors'] as $err): ?>
+                    <li><?= htmlspecialchars($err) ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
 
         <div class="card" style="padding:1.25rem;max-width:640px;margin-top:1rem">
             <h4 style="margin-top:0">File de provisioning</h4>
