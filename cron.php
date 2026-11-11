@@ -171,6 +171,20 @@ try {
     error_log('Storage provisioning error: ' . $e->getMessage());
 }
 
+// Synchronisation calendrier → Nextcloud (voir App\Core\NextcloudCalendarSync) — sans effet
+// tant que nextcloud_calendar_sync_enabled=0. Throttlée (toutes les 15 min) : une
+// réconciliation complète par membre à chaque passage serait inutilement coûteuse vu la
+// fréquence du cron ; déclenchable aussi immédiatement depuis /admin.
+try {
+    $lastSync = AppSetting::get('nextcloud_calendar_sync_last_run');
+    if (!$lastSync || strtotime($lastSync) <= time() - 15 * 60) {
+        \App\Core\NextcloudCalendarSync::syncAllMembers();
+        AppSetting::set('nextcloud_calendar_sync_last_run', date('Y-m-d H:i:s'));
+    }
+} catch (\Throwable $e) {
+    error_log('Nextcloud calendar sync error: ' . $e->getMessage());
+}
+
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;
 
 // ──────────────────────────────────────────────────────────────────────────

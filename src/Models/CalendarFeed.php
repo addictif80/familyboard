@@ -43,11 +43,6 @@ class CalendarFeed
 
     public static function buildIcs(array $user): string
     {
-        $familyId = (int)$user['family_id'];
-        $tz = Family::getTimezone($familyId);
-        $start = date('Y-m-d', strtotime('-' . self::PAST_DAYS . ' days'));
-        $end   = date('Y-m-d', strtotime('+' . self::FUTURE_DAYS . ' days'));
-
         $lines = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
@@ -57,34 +52,58 @@ class CalendarFeed
             'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
             'X-PUBLISHED-TTL:PT1H',
         ];
-
-        if ($user['role'] === 'coparent') {
-            $scheduleIds = array_column(Custody::getSchedulesForUser((int)$user['id']), 'id');
-            foreach (Custody::getAllEventsForSchedules($scheduleIds, $start, $end) as $e) {
-                $lines = array_merge($lines, self::custodyEvent($e, $tz));
-            }
-        } else {
-            foreach (Event::getByFamily($familyId, $start . ' 00:00:00', $end . ' 23:59:59') as $e) {
-                $lines = array_merge($lines, self::calendarEvent($e, $tz));
-            }
-            foreach (Custody::getAllEventsForFamily($familyId, $start, $end) as $e) {
-                $lines = array_merge($lines, self::custodyEvent($e, $tz));
-            }
-            foreach (Vacation::getByFamily($familyId, $start, $end) as $v) {
-                $lines = array_merge($lines, self::vacationEvent($v));
-            }
+        foreach (self::buildItems($user) as $uid => $vevent) {
+            $lines[] = $vevent;
         }
-
         $lines[] = 'END:VCALENDAR';
         return implode("\r\n", $lines) . "\r\n";
     }
 
+    /**
+     * Même contenu que buildIcs(), mais un VEVENT à la fois, indexé par UID — utilisé aussi par
+     * App\Core\NextcloudCalendarSync pour pousser/retirer un événement à la fois dans le
+     * calendrier Nextcloud dédié de ce membre (voir sa docblock de classe pour le raisonnement
+     * sur les occurrences récurrentes de garde alternée, qui n'ont pas de ligne DB stable mais
+     * un UID déterministe).
+     *
+     * @return array<string, string> uid => "BEGIN:VEVENT\r\n...\r\nEND:VEVENT"
+     */
+    public static function buildItems(array $user): array
+    {
+        $familyId = (int)$user['family_id'];
+        $tz = Family::getTimezone($familyId);
+        $start = date('Y-m-d', strtotime('-' . self::PAST_DAYS . ' days'));
+        $end   = date('Y-m-d', strtotime('+' . self::FUTURE_DAYS . ' days'));
+
+        $items = [];
+        if ($user['role'] === 'coparent') {
+            $scheduleIds = array_column(Custody::getSchedulesForUser((int)$user['id']), 'id');
+            foreach (Custody::getAllEventsForSchedules($scheduleIds, $start, $end) as $e) {
+                [$uid, $vevent] = self::custodyEvent($e);
+                $items[$uid] = $vevent;
+            }
+        } else {
+            foreach (Event::getByFamily($familyId, $start . ' 00:00:00', $end . ' 23:59:59') as $e) {
+                [$uid, $vevent] = self::calendarEvent($e, $tz);
+                $items[$uid] = $vevent;
+            }
+            foreach (Custody::getAllEventsForFamily($familyId, $start, $end) as $e) {
+                [$uid, $vevent] = self::custodyEvent($e);
+                $items[$uid] = $vevent;
+            }
+            foreach (Vacation::getByFamily($familyId, $start, $end) as $v) {
+                [$uid, $vevent] = self::vacationEvent($v);
+                $items[$uid] = $vevent;
+            }
+        }
+        return $items;
+    }
+
+    /** @return array{0: string, 1: string} [uid, "BEGIN:VEVENT...END:VEVENT"] */
     private static function calendarEvent(array $e, string $tz): array
     {
-        $lines = [
-            'BEGIN:VEVENT',
-            'UID:event-' . $e['id'] . '@familyboard',
-        ];
+        $uid = 'event-' . $e['id'] . '@familyboard';
+        $lines = ['BEGIN:VEVENT', 'UID:' . $uid];
         if (!empty($e['is_all_day'])) {
             $lines[] = 'DTSTART;VALUE=DATE:' . self::localDate($e['start_datetime']);
             $lines[] = 'DTEND;VALUE=DATE:' . self::localDate($e['end_datetime'], 1);
@@ -96,33 +115,39 @@ class CalendarFeed
         if (!empty($e['description'])) $lines[] = 'DESCRIPTION:' . self::escape($e['description']);
         if (!empty($e['location'])) $lines[] = 'LOCATION:' . self::escape($e['location']);
         $lines[] = 'END:VEVENT';
-        return $lines;
+        return [$uid, implode("\r\n", $lines)];
     }
 
-    private static function custodyEvent(array $e, string $tz): array
+    /** @return array{0: string, 1: string} */
+    private static function custodyEvent(array $e): array
     {
+        $uid = 'custody-' . $e['id'] . '@familyboard';
         $title = ($e['child_name'] ?? 'Enfant') . ' chez ' . ($e['parent_name'] ?? '?');
-        return [
+        $lines = [
             'BEGIN:VEVENT',
-            'UID:custody-' . $e['id'] . '@familyboard',
+            'UID:' . $uid,
             'DTSTART;VALUE=DATE:' . self::localDate($e['start_date']),
             'DTEND;VALUE=DATE:' . self::localDate($e['end_date'], 1),
             'SUMMARY:' . self::escape('👨‍👧 ' . $title),
             'END:VEVENT',
         ];
+        return [$uid, implode("\r\n", $lines)];
     }
 
+    /** @return array{0: string, 1: string} */
     private static function vacationEvent(array $v): array
     {
+        $uid = 'vacation-' . $v['id'] . '@familyboard';
         $title = trim(($v['user_name'] ?? '') . ' — ' . ($v['title'] ?? 'Congé'));
-        return [
+        $lines = [
             'BEGIN:VEVENT',
-            'UID:vacation-' . $v['id'] . '@familyboard',
+            'UID:' . $uid,
             'DTSTART;VALUE=DATE:' . self::localDate($v['start_date']),
             'DTEND;VALUE=DATE:' . self::localDate($v['end_date'], 1),
             'SUMMARY:' . self::escape('🏖️ ' . $title),
             'END:VEVENT',
         ];
+        return [$uid, implode("\r\n", $lines)];
     }
 
     /** Date pure (YYYYMMDD), avec un décalage de jours optionnel (DTEND est exclusive en

@@ -252,6 +252,9 @@ class AdminController extends BaseController
         $storageLdapGroupsDn = AppSetting::get('storage_ldap_groups_dn', '') ?? '';
         $storageQuotaBackends = array_filter(array_map('trim', explode(',', AppSetting::get('storage_quota_backends', '') ?: '')));
         $storageOutstandingJobs = $tab === 'storage' ? \App\Models\ProvisioningJob::getOutstanding(100) : [];
+        $nextcloudCalendarSyncEnabled = \App\Core\NextcloudCalendarSync::isEnabled();
+        $nextcloudCalendarSyncReport = \App\Core\Session::get('admin_nextcloud_calendar_sync_report');
+        \App\Core\Session::delete('admin_nextcloud_calendar_sync_report');
         $storageLdapMigrationReport = \App\Core\Session::get('admin_storage_ldap_migration_report');
         \App\Core\Session::delete('admin_storage_ldap_migration_report');
 
@@ -1091,7 +1094,19 @@ class AdminController extends BaseController
             ['synology', 'nextcloud']
         ));
         AppSetting::set('storage_quota_backends', implode(',', $quotaBackends));
+        AppSetting::set('nextcloud_calendar_sync_enabled', !empty($_POST['nextcloud_calendar_sync_enabled']) ? '1' : '0');
         $this->redirect('/admin?tab=storage&msg=storage_infra_saved');
+    }
+
+    /** Déclenche immédiatement une réconciliation calendrier → Nextcloud pour tous les membres
+     *  éligibles (voir App\Core\NextcloudCalendarSync) — sans attendre le prochain passage
+     *  throttlé du cron. Aucun accès SSH requis. */
+    public function runNextcloudCalendarSync(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $totals = \App\Core\NextcloudCalendarSync::syncAllMembers();
+        \App\Core\Session::set('admin_nextcloud_calendar_sync_report', $totals);
+        $this->redirect('/admin?tab=storage&msg=nextcloud_calendar_sync_done');
     }
 
     public function testStorageLdapConnection(array $params): void
@@ -1116,6 +1131,14 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $this->json(fn() => \App\Core\NextcloudService::testConnection());
+    }
+
+    /** Teste l'accès DAV (calendrier), distinct de l'API OCS ci-dessus — les deux protocoles
+     *  peuvent échouer indépendamment (ex. app Calendrier Nextcloud désactivée). */
+    public function testStorageNextcloudCalDavConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\NextcloudCalDavClient::testConnection());
     }
 
     /**
