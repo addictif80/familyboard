@@ -127,6 +127,19 @@ class NextcloudService
         ]);
     }
 
+    /** Affecte un nom affiché lisible à un groupe (sans toucher à son identifiant technique,
+     *  immuable) — endpoint ajouté par Nextcloud 25 (fonctionnalité "noms de groupe affichés"),
+     *  best-effort : une instance plus ancienne renvoie un statut d'échec, ignoré silencieusement
+     *  par l'appelant (voir NextcloudGroupFolderService::ensureGroupDisplayName), purement
+     *  cosmétique pour l'admin parcourant Nextcloud, jamais bloquant pour le provisioning. */
+    public static function setGroupDisplayName(string $groupId, string $displayName): void
+    {
+        self::request('PUT', '/cloud/groups/' . rawurlencode($groupId), [
+            'key'   => 'displayname',
+            'value' => $displayName,
+        ]);
+    }
+
     private static function groupExists(string $groupId): bool
     {
         $r = self::request('GET', '/cloud/groups/' . rawurlencode($groupId));

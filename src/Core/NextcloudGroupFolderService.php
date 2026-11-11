@@ -1,6 +1,7 @@
 <?php
 namespace App\Core;
 
+use App\Models\Family;
 use App\Models\FamilyNextcloudFolder;
 use App\Models\StorageSettings;
 
@@ -23,14 +24,37 @@ class NextcloudGroupFolderService
 {
     private const TIMEOUT = 15;
 
+    /** Identifiant technique du groupe — jamais modifié après création (un groupe Nextcloud ne
+     *  peut pas être renommé sans le recréer, ce qui perdrait son rattachement au Group Folder et
+     *  à ses membres) ; voir ensureGroupDisplayName() pour le nom lisible affiché à l'admin. */
     private static function groupName(int $familyId): string
     {
         return 'family_' . $familyId;
     }
 
+    /** ASCII, minuscules, séparé par des tirets — utilisé à la fois pour le mount_point (qui
+     *  tolère des espaces/accents, mais reste plus sûr à transmettre en ASCII pur sur un chemin
+     *  WebDAV) et comme base du nom de groupe lisible. */
+    private static function slug(string $text): string
+    {
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT', $text);
+        $ascii = strtolower($ascii !== false ? $ascii : $text);
+        $ascii = preg_replace('/[^a-z0-9]+/', '-', $ascii);
+        $ascii = trim($ascii, '-');
+        return $ascii !== '' ? $ascii : 'famille';
+    }
+
+    /** Nom de famille lisible pour le mount_point (voir docblock de classe : contrairement au
+     *  nom de groupe, le mount_point d'un Group Folder se renomme librement via l'API sans aucun
+     *  risque pour les fichiers déjà stockés — seul le libellé affiché change). L'id reste
+     *  présent en suffixe pour garantir l'unicité même si deux familles portent le même nom
+     *  (vérifié : Nextcloud rejette la création d'un second Group Folder avec un mount_point déjà
+     *  pris, HTTP 400). */
     private static function mountPoint(int $familyId): string
     {
-        return 'familyboard_family_' . $familyId;
+        $family = Family::findById($familyId);
+        $slug = $family ? self::slug($family['name']) : 'famille';
+        return 'famille-' . $slug . '-' . $familyId;
     }
 
     private static function request(string $method, string $path, array $params = []): array
@@ -113,6 +137,7 @@ class NextcloudGroupFolderService
             // rattrapés). Désormais revérifié à chaque appel (idempotent côté Nextcloud, sans
             // effet néfaste si déjà membre).
             self::ensureAllMembersInGroup($familyId, $existing['nextcloud_group']);
+            self::ensureReadableNaming($familyId, $existing);
             return $existing;
         }
 
@@ -122,6 +147,7 @@ class NextcloudGroupFolderService
 
         try {
             NextcloudService::ensureTechnicalAccountDisplayName();
+            self::ensureGroupDisplayName($group, $familyId);
         } catch (\Throwable $e) {
             // Cosmétique uniquement (voir docblock de la méthode) — jamais bloquant.
         }
@@ -166,6 +192,39 @@ class NextcloudGroupFolderService
         self::ensureAllMembersInGroup($familyId, $group);
 
         return FamilyNextcloudFolder::findByFamily($familyId);
+    }
+
+    /** Affecte au groupe Nextcloud un nom affiché lisible (le nom réel de la famille) sans
+     *  toucher à son identifiant technique immuable — best-effort : l'API de renommage des
+     *  groupes n'existe que depuis Nextcloud 25, donc sans effet (silencieux) sur une instance
+     *  plus ancienne. */
+    private static function ensureGroupDisplayName(string $group, int $familyId): void
+    {
+        $family = Family::findById($familyId);
+        if (!$family) return;
+        NextcloudService::setGroupDisplayName($group, $family['name']);
+    }
+
+    /** Rattrape, pour une famille déjà provisionnée avant l'introduction de noms lisibles, le
+     *  nom de groupe affiché et le mount_point du Group Folder — best-effort, idempotent (ne
+     *  renomme rien si déjà à jour). Le mount_point se renomme sans risque pour les fichiers déjà
+     *  stockés (voir mountPoint()), mais la ligne family_nextcloud_folders doit être mise à jour
+     *  dans la foulée : NextcloudFileClient l'utilise tel quel comme segment d'URL WebDAV. */
+    private static function ensureReadableNaming(int $familyId, array $existing): void
+    {
+        try {
+            self::ensureGroupDisplayName($existing['nextcloud_group'], $familyId);
+
+            $desired = self::mountPoint($familyId);
+            if ($existing['mount_point'] === $desired) return;
+
+            $rename = self::request('PUT', "/folders/{$existing['groupfolder_id']}", ['mountPoint' => $desired]);
+            if ($rename['ok']) {
+                FamilyNextcloudFolder::updateMountPoint($familyId, $desired);
+            }
+        } catch (\Throwable $e) {
+            error_log("NextcloudGroupFolderService: renommage lisible échoué (famille $familyId): " . $e->getMessage());
+        }
     }
 
     /** Ajoute au groupe de la famille tout membre déjà provisionné LDAP (ldap_username non nul)
