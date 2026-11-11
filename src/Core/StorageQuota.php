@@ -17,9 +17,15 @@ class StorageQuota
         return (int)AppSetting::get('storage_free_quota_gb', '5');
     }
 
-    public static function familyQuotaGb(): int
+    /** Quota familial partagé total (Go) : réglage de base + somme des abonnements d'add-on
+     *  familiaux actifs/en grâce (voir FamilyStorageSubscription::totalAddonGbForFamily) quand
+     *  $familyId est fourni. Sans $familyId, ne retourne que le réglage de base (affichage
+     *  global du panneau admin, hors contexte d'une famille précise). */
+    public static function familyQuotaGb(?int $familyId = null): int
     {
-        return (int)AppSetting::get('storage_family_quota_gb', '50');
+        $base = (int)AppSetting::get('storage_family_quota_gb', '50');
+        if ($familyId === null) return $base;
+        return $base + \App\Models\FamilyStorageSubscription::totalAddonGbForFamily($familyId);
     }
 
     /** Quota familial illimité — soit par le réglage admin global (storage_family_quota_unlimited,

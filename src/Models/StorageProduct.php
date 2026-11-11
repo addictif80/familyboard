@@ -23,6 +23,15 @@ class StorageProduct
         return Database::fetch('SELECT * FROM storage_products WHERE id = ?', [$id]);
     }
 
+    /** Paliers actifs d'une portée donnée ('member' ou 'family') — pour les écrans d'achat. */
+    public static function getByScope(string $scope, bool $activeOnly = true): array
+    {
+        $sql = 'SELECT * FROM storage_products WHERE scope = ?';
+        if ($activeOnly) $sql .= ' AND active = 1';
+        $sql .= ' ORDER BY sort_order, id';
+        return Database::fetchAll($sql, [$scope]);
+    }
+
     public static function save(array $data): int
     {
         $id = (int)($data['id'] ?? 0);

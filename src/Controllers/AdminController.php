@@ -266,12 +266,14 @@ class AdminController extends BaseController
         $familyStorageUsage = [];
         if ($tab === 'storage') {
             $excluded = \App\Core\FileStore::excludedModules();
-            $quotaBytes = $storageFamilyQuotaGb * 1024 * 1024 * 1024;
             foreach (Database::fetchAll('SELECT id, name FROM families ORDER BY name') as $fam) {
                 $usedBytes = \App\Models\StoredFile::totalBytesForFamily((int)$fam['id'], $excluded);
                 if ($usedBytes <= 0) continue;
                 $breakdown = \App\Models\StoredFile::breakdownByModuleForFamily((int)$fam['id']);
                 $familyUnlimited = \App\Core\StorageQuota::familyQuotaUnlimited((int)$fam['id']);
+                // Par famille (pas une valeur globale) : inclut ses propres abonnements d'add-on
+                // familiaux (voir FamilyStorageSubscription), différents d'une famille à l'autre.
+                $quotaBytes = \App\Core\StorageQuota::familyQuotaGb((int)$fam['id']) * 1024 * 1024 * 1024;
                 $familyStorageUsage[] = [
                     'family_id'   => $fam['id'],
                     'family_name' => $fam['name'],

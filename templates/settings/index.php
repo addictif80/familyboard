@@ -15,6 +15,9 @@ ob_start();
         <?php if ($user['role'] === 'admin'): ?>
         <button type="button" class="settings-tab-btn" data-tab="abonnement" onclick="switchSettingsTab('abonnement')">💳 Abonnement</button>
         <?php endif; ?>
+        <?php if ($storageBillingEnabled || $storageNextcloudUrl): ?>
+        <button type="button" class="settings-tab-btn" data-tab="stockage" onclick="switchSettingsTab('stockage')">📦 Stockage</button>
+        <?php endif; ?>
         <?php if (!empty($emailLogs)): ?>
         <button type="button" class="settings-tab-btn" data-tab="historique" onclick="switchSettingsTab('historique')">📨 Historique</button>
         <?php endif; ?>
@@ -920,6 +923,160 @@ ob_start();
         <?php endif; ?>
     </div>
     <!-- ═══ /Onglet : Abonnement ═══ -->
+    <?php endif; ?>
+
+    <?php if (!$isCoparentSettings && ($storageBillingEnabled || $storageNextcloudUrl)): ?>
+    <!-- ═══ Onglet : Stockage ═══ -->
+    <div class="settings-tab-panel" data-tab="stockage">
+
+        <?php if (!empty($_GET['storage_success'])): ?>
+        <div class="card settings-section" style="border-left:4px solid var(--success)"><p style="margin:0">✅ Paiement confirmé — le stockage sera disponible dès la synchronisation (quelques minutes).</p></div>
+        <?php elseif (!empty($_GET['storage_canceled'])): ?>
+        <div class="card settings-section" style="border-left:4px solid var(--text-muted)"><p style="margin:0">Achat annulé — rien n'a été débité.</p></div>
+        <?php endif; ?>
+
+        <div class="card settings-section">
+            <h3>Mon espace personnel</h3>
+            <p>
+                Quota : <strong><?= $myStorageUnlimited ? 'Illimité' : ($storageFreeQuotaGb + $myStorageAddonGb) . ' Go' ?></strong>
+                <?php if (!$myStorageUnlimited && $myStorageAddonGb > 0): ?>
+                    <span style="color:var(--text-muted);font-size:.85rem">(<?= $storageFreeQuotaGb ?> Go gratuits + <?= $myStorageAddonGb ?> Go d'add-ons)</span>
+                <?php endif; ?>
+            </p>
+            <?php if ($storageNextcloudUrl): ?>
+            <p>
+                <a href="<?= htmlspecialchars($storageNextcloudUrl) ?>" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">☁️ Accéder à mon espace Nextcloud</a>
+                <br><span style="color:var(--text-muted);font-size:.78rem">Connectez-vous avec le même identifiant/mot de passe que FamilyBoard — vous y retrouvez vos fichiers personnels ainsi que l'espace partagé de votre famille.</span>
+            </p>
+            <?php endif; ?>
+
+            <?php if (!empty($myStorageSubscriptions)): ?>
+            <p style="font-weight:600;margin-bottom:.3rem;margin-top:1rem">Mes add-ons :</p>
+            <ul style="margin:0 0 .5rem;padding-left:1.2rem;font-size:.88rem">
+                <?php foreach ($myStorageSubscriptions as $s): ?>
+                <li><?= htmlspecialchars($s['product_name']) ?> (+<?= $s['quota_gb'] ?> Go) —
+                    <span class="badge <?= $s['status'] === 'active' ? 'badge-success' : ($s['status'] === 'canceled' ? '' : 'badge-danger') ?>"><?= ['active'=>'Actif','past_due'=>'Paiement en échec','grace'=>'En grâce','canceled'=>'Résilié'][$s['status']] ?? $s['status'] ?></span>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+            <form method="POST" action="<?= BASE_URL ?>/api/storage/portal">
+                <?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">Gérer mes add-ons (Stripe)</button>
+            </form>
+            <?php endif; ?>
+
+            <?php if (!empty($myStorageRequests)): ?>
+            <p style="font-weight:600;margin-bottom:.3rem;margin-top:1rem">Mes demandes :</p>
+            <ul style="margin:0;padding-left:1.2rem;font-size:.88rem;color:var(--text-muted)">
+                <?php foreach ($myStorageRequests as $r): ?>
+                <li><?= htmlspecialchars($r['product_name']) ?> (+<?= $r['quota_gb'] ?> Go) — <?= ['pending'=>'en attente d\'un adulte','approved'=>'approuvée','rejected'=>'refusée','canceled'=>'annulée'][$r['status']] ?? $r['status'] ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+        </div>
+
+        <?php if ($storageBillingEnabled && !empty($storageMemberProducts)): ?>
+        <div class="card settings-section">
+            <h3>Acheter un palier perso</h3>
+            <?php if (!$isAdultForStorage): ?>
+            <p style="color:var(--text-muted);font-size:.85rem">Votre date de naissance n'est pas confirmée comme majeure — vous pouvez demander un palier, qu'un adulte de votre famille devra approuver et régler.</p>
+            <?php endif; ?>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:.75rem">
+                <?php foreach ($storageMemberProducts as $p): ?>
+                <div class="card" style="display:flex;flex-direction:column;gap:.6rem">
+                    <strong><?= htmlspecialchars($p['name']) ?></strong>
+                    <div><strong style="font-size:1.2rem"><?= number_format($p['price_monthly_cents'] / 100, 2, ',', ' ') ?> €</strong> <span style="color:var(--text-muted);font-size:.8rem">/ mois</span></div>
+                    <?php if ($isAdultForStorage): ?>
+                    <form method="POST" action="<?= BASE_URL ?>/api/storage/checkout">
+                <?= \App\Core\Csrf::field() ?>
+                        <input type="hidden" name="product_id" value="<?= $p['id'] ?>">
+                        <button type="submit" class="btn btn-primary btn-sm" style="width:100%">Acheter</button>
+                    </form>
+                    <?php else: ?>
+                    <form method="POST" action="<?= BASE_URL ?>/api/storage/request">
+                <?= \App\Core\Csrf::field() ?>
+                        <input type="hidden" name="product_id" value="<?= $p['id'] ?>">
+                        <button type="submit" class="btn btn-secondary btn-sm" style="width:100%">Demander à un adulte</button>
+                    </form>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if (!empty($pendingStorageRequests)): ?>
+        <div class="card settings-section">
+            <h3>Demandes en attente dans votre famille</h3>
+            <table class="admin-table">
+                <thead><tr><th>Membre</th><th>Palier</th><th>Prix</th><th>Actions</th></tr></thead>
+                <tbody>
+                <?php foreach ($pendingStorageRequests as $r): ?>
+                <tr>
+                    <td><?= htmlspecialchars($r['beneficiary_name']) ?></td>
+                    <td><?= htmlspecialchars($r['product_name']) ?> (+<?= $r['quota_gb'] ?> Go)</td>
+                    <td><?= number_format($r['price_monthly_cents'] / 100, 2, ',', ' ') ?> € / mois</td>
+                    <td style="display:flex;gap:.3rem">
+                        <form method="POST" action="<?= BASE_URL ?>/api/storage/requests/<?= $r['id'] ?>/approve">
+                <?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-primary btn-sm">Approuver et payer</button>
+                        </form>
+                        <form method="POST" action="<?= BASE_URL ?>/api/storage/requests/<?= $r['id'] ?>/reject">
+                <?= \App\Core\Csrf::field() ?>
+                            <button type="submit" class="btn btn-danger btn-sm">Refuser</button>
+                        </form>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($user['role'] === 'admin'): ?>
+        <div class="card settings-section">
+            <h3>Stockage familial partagé</h3>
+            <p>
+                Utilisé : <strong><?= number_format($familyStorageUsedBytes / 1024 / 1024 / 1024, 2, ',', ' ') ?> Go</strong>
+                sur <strong><?= $familyStorageQuotaUnlimited ? 'illimité' : $familyStorageQuotaGb . ' Go' ?></strong>
+            </p>
+            <?php if (!empty($familyStorageSubscriptions)): ?>
+            <p style="font-weight:600;margin-bottom:.3rem">Add-ons familiaux :</p>
+            <ul style="margin:0 0 .5rem;padding-left:1.2rem;font-size:.88rem">
+                <?php foreach ($familyStorageSubscriptions as $s): ?>
+                <li><?= htmlspecialchars($s['product_name']) ?> (+<?= $s['quota_gb'] ?> Go) —
+                    <span class="badge <?= $s['status'] === 'active' ? 'badge-success' : ($s['status'] === 'canceled' ? '' : 'badge-danger') ?>"><?= ['active'=>'Actif','past_due'=>'Paiement en échec','grace'=>'En grâce','canceled'=>'Résilié'][$s['status']] ?? $s['status'] ?></span>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+            <form method="POST" action="<?= BASE_URL ?>/api/storage/portal">
+                <?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">Gérer les add-ons familiaux (Stripe)</button>
+            </form>
+            <?php endif; ?>
+        </div>
+
+        <?php if (!empty($familyStorageProducts)): ?>
+        <div class="card settings-section">
+            <h3>Acheter un palier familial</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:.75rem">
+                <?php foreach ($familyStorageProducts as $p): ?>
+                <div class="card" style="display:flex;flex-direction:column;gap:.6rem">
+                    <strong><?= htmlspecialchars($p['name']) ?></strong>
+                    <div><strong style="font-size:1.2rem"><?= number_format($p['price_monthly_cents'] / 100, 2, ',', ' ') ?> €</strong> <span style="color:var(--text-muted);font-size:.8rem">/ mois</span></div>
+                    <form method="POST" action="<?= BASE_URL ?>/api/storage/family/checkout">
+                        <?= \App\Core\Csrf::field() ?>
+                        <input type="hidden" name="product_id" value="<?= $p['id'] ?>">
+                        <button type="submit" class="btn btn-primary btn-sm" style="width:100%">Acheter</button>
+                    </form>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+        <?php endif; ?>
+    </div>
+    <!-- ═══ /Onglet : Stockage ═══ -->
     <?php endif; ?>
 
     <?php if (!$isCoparentSettings): ?>

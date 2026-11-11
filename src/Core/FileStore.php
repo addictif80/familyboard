@@ -55,7 +55,7 @@ class FileStore
         if (in_array($module, $excluded, true)) return;
         if (StorageQuota::familyQuotaUnlimited($familyId)) return;
 
-        $quotaBytes = StorageQuota::familyQuotaGb() * 1024 * 1024 * 1024;
+        $quotaBytes = StorageQuota::familyQuotaGb($familyId) * 1024 * 1024 * 1024;
         $usedBytes = StoredFile::totalBytesForFamily($familyId, $excluded);
         if ($usedBytes + $additionalBytes > $quotaBytes) {
             throw new \RuntimeException(

@@ -151,13 +151,13 @@ class SubscriptionController extends BaseController
                 case 'checkout.session.completed':
                     if (!empty($obj->subscription)) {
                         $stripe = StripeGateway::client();
-                        if ($stripe) $this->syncSubscriptionObject($stripe->subscriptions->retrieve($obj->subscription));
+                        if ($stripe) $this->dispatchSubscriptionSync($stripe->subscriptions->retrieve($obj->subscription));
                     }
                     break;
                 case 'customer.subscription.created':
                 case 'customer.subscription.updated':
                 case 'customer.subscription.deleted':
-                    $this->syncSubscriptionObject($obj);
+                    $this->dispatchSubscriptionSync($obj);
                     break;
                 default:
                     break;
@@ -168,6 +168,81 @@ class SubscriptionController extends BaseController
 
         http_response_code(200);
         echo 'ok';
+    }
+
+    /** Un seul webhook Stripe pour tous les domaines de facturation de cette appli (abonnement
+     *  familial de base, stockage perso, stockage familial) — distingués par metadata.kind sur
+     *  l'abonnement Stripe lui-même (jamais sur la seule Session, absente des événements
+     *  customer.subscription.*). Son absence correspond au comportement historique
+     *  (abonnement familial), inchangé : ce flux ne définit jamais metadata.kind. */
+    private function dispatchSubscriptionSync($stripeSub): void
+    {
+        $kind = $stripeSub->metadata->kind ?? null;
+        match ($kind) {
+            'storage_member' => $this->syncMemberStorageSubscriptionObject($stripeSub),
+            'storage_family' => $this->syncFamilyStorageSubscriptionObject($stripeSub),
+            default => $this->syncSubscriptionObject($stripeSub),
+        };
+    }
+
+    private const STORAGE_STATUS_MAP = [
+        'trialing' => 'active',
+        'active'   => 'active',
+        'past_due' => 'past_due',
+        'unpaid'   => 'past_due',
+        'canceled' => 'canceled',
+        'incomplete_expired' => 'canceled',
+        // 'incomplete' (pas encore payé) : volontairement absent — rien à synchroniser tant
+        // que le premier paiement n'a pas abouti.
+    ];
+
+    private function syncMemberStorageSubscriptionObject($stripeSub): void
+    {
+        $meta = $stripeSub->metadata;
+        $beneficiaryId = (int)($meta->beneficiary_id ?? 0);
+        $productId = (int)($meta->storage_product_id ?? 0);
+        $requestId = (int)($meta->request_id ?? 0);
+        $status = self::STORAGE_STATUS_MAP[$stripeSub->status] ?? null;
+        if (!$beneficiaryId || !$productId || !$status) return;
+
+        $payer = \App\Models\User::findByStripeCustomerId($stripeSub->customer);
+        if (!$payer) return;
+
+        $existing = \App\Models\MemberStorageSubscription::findByStripeSubscriptionId($stripeSub->id);
+        if ($existing) {
+            $status === 'canceled'
+                ? \App\Models\MemberStorageSubscription::cancel((int)$existing['id'])
+                : \App\Models\MemberStorageSubscription::updateStatus((int)$existing['id'], $status);
+        } elseif ($status !== 'canceled') {
+            $id = \App\Models\MemberStorageSubscription::create($beneficiaryId, (int)$payer['id'], $productId, $stripeSub->id);
+            if ($status !== 'active') \App\Models\MemberStorageSubscription::updateStatus($id, $status);
+        }
+
+        if ($requestId) {
+            \App\Models\StorageRequest::markApproved($requestId, (int)$payer['id'], (int)$payer['id']);
+        }
+    }
+
+    private function syncFamilyStorageSubscriptionObject($stripeSub): void
+    {
+        $meta = $stripeSub->metadata;
+        $familyId = (int)($meta->family_id ?? 0);
+        $productId = (int)($meta->storage_product_id ?? 0);
+        $status = self::STORAGE_STATUS_MAP[$stripeSub->status] ?? null;
+        if (!$familyId || !$productId || !$status) return;
+
+        $payer = \App\Models\User::findByStripeCustomerId($stripeSub->customer);
+        if (!$payer) return;
+
+        $existing = \App\Models\FamilyStorageSubscription::findByStripeSubscriptionId($stripeSub->id);
+        if ($existing) {
+            $status === 'canceled'
+                ? \App\Models\FamilyStorageSubscription::cancel((int)$existing['id'])
+                : \App\Models\FamilyStorageSubscription::updateStatus((int)$existing['id'], $status);
+        } elseif ($status !== 'canceled') {
+            $id = \App\Models\FamilyStorageSubscription::create($familyId, (int)$payer['id'], $productId, $stripeSub->id);
+            if ($status !== 'active') \App\Models\FamilyStorageSubscription::updateStatus($id, $status);
+        }
     }
 
     private function syncSubscriptionObject($stripeSub): void
