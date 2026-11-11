@@ -124,7 +124,25 @@ class NextcloudGroupFolderService
         }
         $folderId = (int)($create['data']['id'] ?? 0);
         if (!$folderId) {
-            $error = 'Création du Group Folder : identifiant introuvable dans la réponse Nextcloud.';
+            // Avant d'abandonner : la création peut avoir réellement abouti côté serveur malgré
+            // une réponse sans id exploitable (vu en conditions de test : des comptes sans droit
+            // suffisant produisent des réponses non standard) — on vérifie directement la liste
+            // des dossiers existants plutôt que de supposer un échec.
+            $list = self::request('GET', '/folders');
+            foreach (($list['data'] ?? []) as $existingFolder) {
+                if (($existingFolder['mount_point'] ?? null) === $mountPoint) {
+                    $folderId = (int)($existingFolder['id'] ?? 0);
+                    break;
+                }
+            }
+        }
+        if (!$folderId) {
+            // Motif précis introuvable en conditions de test (vérifié : la création répond
+            // toujours un id, y compris en cas de mountpoint déjà pris) — diagnostic complet
+            // journalisé pour identifier la cause exacte côté serveur réel.
+            $raw = json_encode($create);
+            error_log("NextcloudGroupFolderService: réponse inattendue à la création du Group Folder (famille $familyId, mountpoint $mountPoint) : $raw");
+            $error = 'Création du Group Folder : identifiant introuvable dans la réponse Nextcloud. Détail : ' . mb_substr($raw, 0, 500);
             return null;
         }
 
