@@ -1066,16 +1066,19 @@
                             <?php endif; ?>
                         </td>
                         <td>
-                            <?php if ($row['needs_decision']): ?>
                             <details>
                                 <summary style="cursor:pointer;font-size:.8rem">Résoudre</summary>
-                                <form method="POST" action="<?= BASE_URL ?>/admin/storage/ldap/migration/<?= $row['id'] ?>/resolve" style="margin-top:.4rem;display:flex;gap:.4rem"><?= \App\Core\Csrf::field() ?>
-                                    <button type="submit" name="adopt_username" value="<?= htmlspecialchars($row['candidate']) ?>" class="btn btn-secondary btn-sm" title="Associer ce compte existant, sans toucher à son mot de passe ni ses données — le prochain mot de passe FamilyBoard de ce membre l'écrasera.">Associer le compte existant</button>
-                                    <input type="text" name="ldap_username" placeholder="uid alternatif" style="width:120px">
+                                <form method="POST" action="<?= BASE_URL ?>/admin/storage/ldap/migration/<?= $row['id'] ?>/resolve" style="margin-top:.4rem;display:flex;gap:.4rem;flex-wrap:wrap"><?= \App\Core\Csrf::field() ?>
+                                    <?php if ($row['exists']): ?>
+                                    <button type="submit" name="adopt_username" value="<?= htmlspecialchars($row['candidate']) ?>" class="btn btn-secondary btn-sm" title="Associer ce compte existant, sans toucher à son mot de passe ni ses données — le prochain mot de passe FamilyBoard de ce membre l'écrasera.">Associer « <?= htmlspecialchars($row['candidate']) ?> »</button>
+                                    <?php endif; ?>
+                                    <input type="text" name="ldap_username" placeholder="uid réel (ex. identifiant LDAP existant)" style="width:220px">
                                     <button type="submit" class="btn btn-primary btn-sm">Utiliser cet uid</button>
                                 </form>
+                                <p style="color:var(--text-muted);font-size:.75rem;margin:.3rem 0 0">
+                                    L'uid attendu est deviné depuis la partie locale de l'e-mail — s'il ne correspond pas au vrai identifiant LDAP de ce membre (ex. compte créé avant FamilyBoard, sous un autre nom), indique-le ici pour qu'il soit associé à la prochaine connexion plutôt qu'un nouveau compte créé à tort.
+                                </p>
                             </details>
-                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>
