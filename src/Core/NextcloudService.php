@@ -99,6 +99,42 @@ class NextcloudService
         return $r;
     }
 
+    private static function groupExists(string $groupId): bool
+    {
+        $r = self::request('GET', '/cloud/groups/' . rawurlencode($groupId));
+        return $r['ok'];
+    }
+
+    /** Crée le groupe Nextcloud s'il n'existe pas déjà (idempotent) — voir
+     *  App\Core\NextcloudGroupFolderService, qui rattache ce groupe à l'espace familial partagé
+     *  (Group Folder) d'une famille FamilyBoard. */
+    public static function ensureGroup(string $groupId, ?string &$error = null): bool
+    {
+        if (self::groupExists($groupId)) return true;
+        $r = self::request('POST', '/cloud/groups', ['groupid' => $groupId]);
+        if (!$r['ok']) $error = $r['error'] ?? 'Erreur Nextcloud inconnue.';
+        return $r['ok'];
+    }
+
+    /** Supprime un groupe Nextcloud — best-effort (RGPD, famille supprimée), sans effet si déjà
+     *  absent. */
+    public static function deleteGroup(string $groupId): bool
+    {
+        $r = self::request('DELETE', '/cloud/groups/' . rawurlencode($groupId));
+        return $r['ok'] || $r['status'] === 404;
+    }
+
+    /** Ajoute un compte à un groupe — idempotent (ajouter un membre déjà présent est sans effet
+     *  néfaste côté Nextcloud). Utilisé à la fois pour les membres de la famille et pour le
+     *  compte technique admin lui-même (qui doit être membre du groupe pour que le Group Folder
+     *  se monte dans son propre espace DAV, voir NextcloudGroupFolderService). */
+    public static function addUserToGroup(string $username, string $groupId, ?string &$error = null): bool
+    {
+        $r = self::request('POST', '/cloud/users/' . rawurlencode($username) . '/groups', ['groupid' => $groupId]);
+        if (!$r['ok']) $error = $r['error'] ?? 'Erreur Nextcloud inconnue.';
+        return $r['ok'];
+    }
+
     /** Mot de passe aléatoire respectant la politique de complexité par défaut de Nextcloud
      *  (app "Password Policy" : majuscule + minuscule + chiffre + caractère spécial) — jamais
      *  utilisable de toute façon (voir docblock de classe, le compte s'authentifie via LDAP),

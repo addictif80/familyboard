@@ -428,8 +428,8 @@ class SchoolController extends BaseController
         if (!$student) { http_response_code(404); echo 'Introuvable.'; return; }
         $doc = SchoolStudent::getDocumentById((int)$params['docId'], (int)$student['id']);
         if (!$doc) { http_response_code(404); echo 'Introuvable.'; return; }
-        $path = BASE_PATH . $doc['file_path'];
-        if (!file_exists($path)) { http_response_code(404); echo 'Introuvable.'; return; }
+        $path = \App\Core\FileStore::resolveLocalPath($doc['file_path']);
+        if (!$path) { http_response_code(404); echo 'Introuvable.'; return; }
 
         header('Content-Type: ' . $doc['file_mime']);
         header('Content-Length: ' . filesize($path));

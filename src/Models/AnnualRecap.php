@@ -135,8 +135,8 @@ class AnnualRecap
 
         $photos = [];
         foreach ($posts as $p) {
-            $path = BASE_PATH . $p['image_path'];
-            if (!is_file($path) || filesize($path) > 4 * 1024 * 1024) continue;
+            $path = \App\Core\FileStore::resolveLocalPath($p['image_path']);
+            if (!$path || filesize($path) > 4 * 1024 * 1024) continue;
             $mime = match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
                 'png' => 'image/png', 'webp' => 'image/webp', 'gif' => 'image/gif',
                 default => 'image/jpeg',

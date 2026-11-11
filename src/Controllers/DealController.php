@@ -60,8 +60,8 @@ class DealController extends BaseController
         $this->requireAuth();
         $deal = $this->owned((int)$params['id']);
         if (!$deal || !$deal['file_path']) { http_response_code(404); echo 'Introuvable.'; return; }
-        $path = BASE_PATH . $deal['file_path'];
-        if (!file_exists($path)) { http_response_code(404); echo 'Introuvable.'; return; }
+        $path = \App\Core\FileStore::resolveLocalPath($deal['file_path']);
+        if (!$path) { http_response_code(404); echo 'Introuvable.'; return; }
 
         header('Content-Type: ' . $deal['file_mime']);
         header('Content-Length: ' . filesize($path));

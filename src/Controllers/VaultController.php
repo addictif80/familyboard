@@ -74,8 +74,8 @@ class VaultController extends BaseController
         $this->requireAdmin();
         $entry = $this->ownedEntry((int)$params['id']);
         if (!$entry || !$entry['file_path']) { http_response_code(404); echo 'Introuvable.'; return; }
-        $path = BASE_PATH . $entry['file_path'];
-        if (!file_exists($path)) { http_response_code(404); echo 'Introuvable.'; return; }
+        $path = \App\Core\FileStore::resolveLocalPath($entry['file_path']);
+        if (!$path) { http_response_code(404); echo 'Introuvable.'; return; }
 
         header('Content-Type: ' . $entry['file_mime']);
         header('Content-Length: ' . filesize($path));

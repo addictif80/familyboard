@@ -104,6 +104,17 @@ class StorageProvisioningRunner
             User::setLdapUsername((int)$user['id'], $externalUsername);
         }
 
+        // Sans cette étape, le membre ne verrait jamais le Group Folder partagé de sa famille
+        // apparaître dans son propre espace Nextcloud (un Group Folder ne se monte que pour les
+        // comptes membres du groupe assigné, vérifié contre une instance réelle).
+        if (FileStore::nextcloudFilesEnabled()) {
+            $groupError = null;
+            if (!NextcloudGroupFolderService::addMemberToFamilyGroup((int)$user['family_id'], $externalUsername, $groupError)) {
+                $error = $groupError ?: "Ajout au groupe Nextcloud de la famille échoué.";
+                return false;
+            }
+        }
+
         // Le compte vient d'être (re)créé/mis à jour : le quota doit suivre dans la foulée,
         // sans attendre un futur changement d'abonnement.
         ProvisioningJob::enqueue((int)$user['id'], 'sync_quota');

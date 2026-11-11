@@ -147,10 +147,11 @@ class PremiumDataPurge
         foreach ($modules as $slug) {
             foreach ($fileQueries[$slug] ?? [] as $q) {
                 foreach (Database::fetchAll($q['sql'], [$familyId]) as $row) {
-                    if (!empty($row['p'])) {
-                        $abs = BASE_PATH . $row['p'];
-                        if (is_file($abs)) @unlink($abs);
-                    }
+                    // Passe par FileStore (routes "/files/{id}" ET chemins bruts) plutôt qu'un
+                    // unlink() direct : seul moyen de supprimer aussi le contenu porté par
+                    // Nextcloud (voir App\Core\FileStore::deleteByValue) et d'éviter de laisser
+                    // une ligne stored_files orpheline derrière la suppression du fichier.
+                    \App\Core\FileStore::deleteByValue($row['p'] ?? null);
                 }
                 if (!empty($q['dir'])) $dirsToRemove[$q['dir']] = true;
             }

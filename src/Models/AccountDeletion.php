@@ -245,6 +245,13 @@ class AccountDeletion
         foreach (Database::fetchAll('SELECT id, ldap_username FROM users WHERE family_id=? AND ldap_username IS NOT NULL', [$familyId]) as $row) {
             self::deprovisionStorage($row['ldap_username'], (int)$row['id']);
         }
+        // Avant la cascade sur `families` ci-dessous (qui efface family_nextcloud_folders) :
+        // best-effort, jamais bloquant pour la suppression RGPD en cours.
+        try {
+            \App\Core\NextcloudGroupFolderService::deleteFamilyFolder($familyId);
+        } catch (\Throwable $e) {
+            error_log('Nextcloud group folder deletion failed for family ' . $familyId . ': ' . $e->getMessage());
+        }
 
         // event_shares / event_share_changes / family_friends n'ont volontairement plus de
         // contrainte de clé étrangère (cf. database/add_family_sharing_no_fk.sql) : nettoyage
