@@ -960,14 +960,17 @@
 
         <hr style="margin:1.5rem 0;border-color:var(--border)">
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
-            Renomme, sur le Group Folder lui-même, les fichiers déjà migrés vers Nextcloud avant
-            l'introduction d'un nom lisible (upload ou migration antérieure à ce correctif) — ils
-            portent sinon un nom purement aléatoire, visible tel quel par les membres de la
-            famille dans leur client Nextcloud. Rejouable : un fichier déjà renommé n'est pas
-            retraité. <strong>Ne renommez jamais ces fichiers manuellement depuis l'interface
-            Nextcloud</strong> : FamilyBoard chercherait ensuite le fichier sous son ancien nom et
-            le perdrait (404) — passez toujours par ce bouton, qui met à jour la base en même
-            temps que le nom réel.
+            Corrige, sur le Group Folder lui-même, les fichiers déjà migrés vers Nextcloud avant
+            l'introduction d'un nom de fichier et de dossier de module lisibles (upload ou
+            migration antérieure à ces correctifs) — ils portent sinon un nom aléatoire et/ou se
+            trouvent dans un dossier nommé en anglais (ex. "warranties" au lieu de "garanties"),
+            visible tel quel par les membres de la famille dans leur client Nextcloud. Un ancien
+            dossier de module devenu vide après déplacement de tout son contenu est supprimé.
+            Rejouable : un fichier déjà conforme n'est pas retraité.
+            <strong>Ne renommez/déplacez jamais ces fichiers manuellement depuis l'interface
+            Nextcloud</strong> : FamilyBoard chercherait ensuite le fichier à son ancien
+            emplacement et le perdrait (404) — passez toujours par ce bouton, qui met à jour la
+            base en même temps que l'emplacement réel.
         </p>
         <div style="display:flex;gap:.6rem;margin-bottom:1.25rem">
             <form method="POST" action="<?= BASE_URL ?>/admin/storage/nextcloud-file-rename"><?= \App\Core\Csrf::field() ?>
@@ -983,8 +986,9 @@
         <div class="card" style="padding:1.25rem">
             <h4 style="margin-top:0"><?= $nextcloudFileRenameReport['apply'] ? 'Rapport — appliqué' : 'Rapport — simulation' ?></h4>
             <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
-                <li>Fichiers renommés : <?= $nextcloudFileRenameReport['stats']['renamed'] ?></li>
-                <li>Déjà lisibles (ignorés) : <?= $nextcloudFileRenameReport['stats']['already_ok'] ?></li>
+                <li>Fichiers déplacés/renommés : <?= $nextcloudFileRenameReport['stats']['renamed'] ?></li>
+                <li>Déjà conformes (ignorés) : <?= $nextcloudFileRenameReport['stats']['already_ok'] ?></li>
+                <li>Anciens dossiers vidés supprimés : <?= $nextcloudFileRenameReport['stats']['folders_cleaned'] ?></li>
                 <li>Échecs : <?= $nextcloudFileRenameReport['stats']['failed'] ?></li>
             </ul>
 

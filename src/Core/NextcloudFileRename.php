@@ -5,17 +5,21 @@ use App\Models\FamilyNextcloudFolder;
 use App\Models\StoredFile;
 
 /**
- * Donne un nom lisible, sur le Group Folder Nextcloud lui-même, aux fichiers déjà migrés avant
- * l'introduction de FileStore::nextcloudFilename() (auparavant : bin2hex(random_bytes(16)), voir
- * historique de NextcloudFileMigration/FileStore::saveToNextcloud). Renomme via WebDAV MOVE (voir
- * NextcloudFileClient::moveFile) puis répercute le nouveau chemin dans stored_files — sans cette
- * seconde étape, FamilyBoard chercherait toujours le fichier sous son ANCIEN nom et le perdrait
- * (404) : un renommage fait manuellement depuis l'interface Nextcloud romprait le lien de la même
- * façon, c'est pourquoi ce rattrapage doit passer par FamilyBoard et non par un renommage manuel.
+ * Remet au propre, sur le Group Folder Nextcloud lui-même, les fichiers écrits avant
+ * l'introduction (1) d'un nom de fichier lisible (FileStore::nextcloudFilename — auparavant
+ * bin2hex(random_bytes(16))) et (2) d'un nom de dossier de module en français
+ * (FileStore::nextcloudFolder — auparavant la clé interne anglaise, ex. "warranties" au lieu de
+ * "garanties"). Renomme/déplace via WebDAV MOVE (voir NextcloudFileClient::moveFile) puis
+ * répercute le nouveau chemin dans stored_files — sans cette seconde étape, FamilyBoard
+ * chercherait toujours le fichier sous son ANCIEN chemin et le perdrait (404) : un renommage fait
+ * manuellement depuis l'interface Nextcloud romprait le lien de la même façon, c'est pourquoi ce
+ * rattrapage doit passer par FamilyBoard et non par un renommage manuel.
  *
- * Idempotent : looksAlreadyReadable() reconnaît un nom déjà dérivé de l'original (même après un
- * premier passage de cet outil) et le saute, pour qu'un second lancement n'empile pas les
- * suffixes anti-collision à l'infini.
+ * Idempotent : looksAlreadyCorrect() reconnaît un chemin déjà conforme (dossier ET nom de
+ * fichier) et le saute, pour qu'un second lancement n'empile pas les suffixes anti-collision à
+ * l'infini ni ne redéplace ce qui l'a déjà été. Une fois tous les fichiers d'un ancien dossier
+ * anglais déplacés, ce dossier devenu vide est supprimé (uniquement s'il est vide — voir
+ * NextcloudFileClient::deleteFolderIfEmpty).
  */
 class NextcloudFileRename
 {
@@ -23,34 +27,39 @@ class NextcloudFileRename
 
     public function run(): array
     {
-        $stats = ['renamed' => 0, 'already_ok' => 0, 'failed' => 0];
+        $stats = ['renamed' => 0, 'already_ok' => 0, 'failed' => 0, 'folders_cleaned' => 0];
         $log = [];
         $failures = [];
 
         $rows = Database::fetchAll("SELECT * FROM stored_files WHERE storage_backend = 'nextcloud' ORDER BY family_id, id");
         $folderCache = [];
+        // (family_id, ancien dossier) -> true — anciens dossiers de module à essayer de nettoyer
+        // une fois tous leurs fichiers déplacés.
+        $oldFoldersToClean = [];
 
         foreach ($rows as $row) {
             $familyId = (int)$row['family_id'];
             if (!array_key_exists($familyId, $folderCache)) {
                 $folderCache[$familyId] = FamilyNextcloudFolder::findByFamily($familyId);
             }
-            $folder = $folderCache[$familyId];
-            if (!$folder) {
+            $groupFolder = $folderCache[$familyId];
+            if (!$groupFolder) {
                 $stats['failed']++;
                 $failures[] = "famille #{$familyId} : Group Folder introuvable (stored_files#{$row['id']}).";
                 continue;
             }
 
+            $currentDir = dirname($row['path']);
             $currentBasename = basename($row['path']);
             $ext = pathinfo($row['path'], PATHINFO_EXTENSION);
-            if (self::looksAlreadyReadable($currentBasename, $row['original_name'])) {
+            $desiredDir = FileStore::nextcloudFolder($row['module']);
+
+            if ($currentDir === $desiredDir && self::looksAlreadyReadable($currentBasename, $row['original_name'])) {
                 $stats['already_ok']++;
                 continue;
             }
 
-            $dir = dirname($row['path']);
-            $newPath = ($dir !== '.' ? $dir . '/' : '') . FileStore::nextcloudFilename($row['original_name'], $ext);
+            $newPath = $desiredDir . '/' . FileStore::nextcloudFilename($row['original_name'], $ext);
 
             if (!$this->apply) {
                 $stats['renamed']++;
@@ -58,7 +67,7 @@ class NextcloudFileRename
                 continue;
             }
 
-            $move = NextcloudFileClient::moveFile($folder['mount_point'], $row['path'], $newPath);
+            $move = NextcloudFileClient::moveFile($groupFolder['mount_point'], $row['path'], $newPath);
             if (!$move['ok']) {
                 $stats['failed']++;
                 $failures[] = "stored_files#{$row['id']} : " . $move['error'];
@@ -66,8 +75,20 @@ class NextcloudFileRename
             }
 
             StoredFile::markMigratedToNextcloud((int)$row['id'], $newPath, $move['etag']);
+            if ($currentDir !== $desiredDir && $currentDir !== '.') {
+                $oldFoldersToClean[$familyId . '|' . $currentDir] = [$groupFolder['mount_point'], $currentDir];
+            }
             $stats['renamed']++;
             $log[] = "OK stored_files#{$row['id']} : {$row['path']} -> $newPath";
+        }
+
+        if ($this->apply) {
+            foreach ($oldFoldersToClean as [$mountPoint, $oldDir]) {
+                if (NextcloudFileClient::deleteFolderIfEmpty($mountPoint, $oldDir)) {
+                    $stats['folders_cleaned']++;
+                    $log[] = "Dossier vidé supprimé : $mountPoint/$oldDir";
+                }
+            }
         }
 
         return ['stats' => $stats, 'log' => $log, 'failures' => $failures, 'apply' => $this->apply];
@@ -75,7 +96,9 @@ class NextcloudFileRename
 
     /** Vrai si $currentBasename est déjà de la forme "<radical dérivé de $originalName>_<8 hex>.ext"
      *  (produite par FileStore::nextcloudFilename), qu'il ait été posé par cet outil lors d'un
-     *  précédent passage ou directement à l'upload après le correctif. */
+     *  précédent passage ou directement à l'upload après le correctif. Le dossier est vérifié
+     *  séparément par l'appelant (comparaison directe, FileStore::nextcloudFolder() étant une
+     *  simple table de correspondance déterministe). */
     private static function looksAlreadyReadable(string $currentBasename, ?string $originalName): bool
     {
         if (!preg_match('/^(.*)_[0-9a-f]{8}(\.[^.]+)?$/', $currentBasename, $m)) return false;

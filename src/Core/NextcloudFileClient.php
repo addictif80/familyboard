@@ -190,6 +190,30 @@ class NextcloudFileClient
         return $r['ok'] || $r['status'] === 404;
     }
 
+    /** Supprime un DOSSIER uniquement s'il est réellement vide (PROPFIND Depth:1 préalable) —
+     *  jamais de suppression récursive aveugle : voir NextcloudFileRename, qui nettoie les
+     *  anciens dossiers de module (en anglais) une fois tous leurs fichiers déplacés vers le
+     *  dossier au nom français. Sans effet (pas une erreur) si le dossier contient encore quoi
+     *  que ce soit, ou n'existe déjà plus. */
+    public static function deleteFolderIfEmpty(string $mountPoint, string $remotePath): bool
+    {
+        $base = self::baseUrl($mountPoint);
+        if (!$base) return false;
+        $url = $base . implode('/', array_map('rawurlencode', explode('/', $remotePath))) . '/';
+
+        $p = self::request('PROPFIND', $url, '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/></d:prop></d:propfind>', ['Depth: 1']);
+        if ($p['status'] === 404) return true; // déjà absent
+        if (!$p['ok']) return false;
+        // Depth:1 renvoie une réponse <d:response> pour le dossier lui-même PLUS une par enfant —
+        // un seul <d:response> dans le corps signifie donc "aucun enfant".
+        if (substr_count($p['body'], '<d:response>') + substr_count($p['body'], '<D:response>') > 1) {
+            return false; // non vide — ne jamais supprimer
+        }
+
+        $r = self::request('DELETE', $url);
+        return $r['ok'] || $r['status'] === 404;
+    }
+
     public static function testConnection(string $mountPoint): array
     {
         $base = self::baseUrl($mountPoint);
