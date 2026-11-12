@@ -59,7 +59,7 @@ class NextcloudFileMigration
             }
 
             $ext = pathinfo($row['path'], PATHINFO_EXTENSION);
-            $remotePath = $row['module'] . '/' . bin2hex(random_bytes(16)) . ($ext ? '.' . $ext : '');
+            $remotePath = $row['module'] . '/' . FileStore::nextcloudFilename($row['original_name'] ?? null, $ext);
 
             if (!$this->apply) {
                 $stats['migrated']++;
