@@ -124,6 +124,16 @@ class StorageProvisioningRunner
         // sans attendre un futur changement d'abonnement.
         ProvisioningJob::enqueue((int)$user['id'], 'sync_quota');
 
+        // Un nouveau membre vient potentiellement de rejoindre une famille déjà amie avec
+        // une/d'autres familles — sans ce rattrapage, il resterait invisible pour elles côté
+        // Nextcloud (groupe de visibilité, voir NextcloudVisibilityService) jusqu'au prochain
+        // changement de lien d'amitié.
+        try {
+            NextcloudVisibilityService::syncFamilyMembership((int)$user['family_id']);
+        } catch (\Throwable $e) {
+            error_log('NextcloudVisibilityService: échec resync visibilité à la jonction du membre ' . $user['id'] . ' : ' . $e->getMessage());
+        }
+
         return true;
     }
 

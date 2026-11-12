@@ -87,6 +87,15 @@ class AccountDeletion
         Database::execute('DELETE FROM users WHERE id=?', [$userId]);
 
         \App\Core\Mailcow::syncFamily($familyId);
+
+        // Doit avoir lieu APRÈS la suppression SQL : le groupe de visibilité (voir
+        // NextcloudVisibilityService) est reconstruit depuis la liste actuelle des membres de la
+        // famille, le membre supprimé ne doit plus y figurer.
+        try {
+            \App\Core\NextcloudVisibilityService::syncFamilyMembership($familyId);
+        } catch (\Throwable $e) {
+            error_log('NextcloudVisibilityService: échec resync visibilité après suppression de compte (famille ' . $familyId . '): ' . $e->getMessage());
+        }
     }
 
     /** Supprime le compte LDAP et retire le quota sur chaque backend actif — best-effort,
@@ -251,6 +260,18 @@ class AccountDeletion
             \App\Core\NextcloudGroupFolderService::deleteFamilyFolder($familyId);
         } catch (\Throwable $e) {
             error_log('Nextcloud group folder deletion failed for family ' . $familyId . ': ' . $e->getMessage());
+        }
+
+        // Avant la suppression des lignes family_friends ci-dessous : referme la visibilité
+        // Nextcloud croisée ouverte avec chaque famille amie (voir NextcloudVisibilityService) —
+        // la cascade users.family_id va de toute façon effacer tous ses membres juste après, mais
+        // sans ce nettoyage le groupe de visibilité resterait peuplé de comptes fantômes.
+        foreach (\App\Models\FamilyFriend::getAcceptedFamilyIds($familyId) as $friendFamilyId) {
+            try {
+                \App\Core\NextcloudVisibilityService::syncLink($familyId, $friendFamilyId, false);
+            } catch (\Throwable $e) {
+                error_log('NextcloudVisibilityService: échec fermeture visibilité à la suppression de la famille ' . $familyId . ' / ' . $friendFamilyId . ': ' . $e->getMessage());
+            }
         }
 
         // event_shares / event_share_changes / family_friends n'ont volontairement plus de

@@ -124,6 +124,13 @@ class FamilyFriend
             'Votre demande de mise en relation a été acceptée.',
             BASE_URL . '/settings#friends'
         );
+        // Ouvre la visibilité croisée Nextcloud (recherche de personnes, Talk, calendrier...)
+        // entre les deux familles désormais amies — voir NextcloudVisibilityService.
+        try {
+            \App\Core\NextcloudVisibilityService::syncLink((int)$row['requester_family_id'], (int)$row['target_family_id'], true);
+        } catch (\Throwable $e) {
+            error_log('NextcloudVisibilityService: échec ouverture visibilité pour family_friends#' . $id . ': ' . $e->getMessage());
+        }
         return true;
     }
 
@@ -146,6 +153,13 @@ class FamilyFriend
         $otherFamilyId = (int)$row['requester_family_id'] === $familyId ? (int)$row['target_family_id'] : (int)$row['requester_family_id'];
         \App\Models\EventShare::removeForFamilyPair($familyId, $otherFamilyId);
         Database::execute('DELETE FROM family_friends WHERE id=?', [$id]);
+        // Referme la visibilité croisée Nextcloud ouverte par accept() — sans effet si elle
+        // n'avait jamais été établie (demande refusée/retirée avant acceptation).
+        try {
+            \App\Core\NextcloudVisibilityService::syncLink($familyId, $otherFamilyId, false);
+        } catch (\Throwable $e) {
+            error_log('NextcloudVisibilityService: échec fermeture visibilité pour family_friends#' . $id . ': ' . $e->getMessage());
+        }
         return true;
     }
 }
