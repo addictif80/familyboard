@@ -13,8 +13,8 @@
         }
         <?php if ($sub = ($_GET['sub'] ?? '')): ?>
         // Lien direct depuis le menu latéral ("Stockage & fichiers") vers un sous-onglet précis —
-        // prime sur tout <script>switchAdminSubTab(...)</script> de rapport flash plus bas dans
-        // cette page, car exécuté avant eux dans l'ordre du document.
+        // prime sur tout appel switchAdminSubTab(...) de rapport flash plus bas dans cette page,
+        // car exécuté avant eux dans l'ordre du document.
         switchAdminSubTab(<?= json_encode($sub) ?>);
         <?php endif; ?>
         </script>
