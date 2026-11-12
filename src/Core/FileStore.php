@@ -65,6 +65,34 @@ class FileStore
         }
     }
 
+    /** Nom de dossier en français pour chaque module, utilisé UNIQUEMENT comme segment de chemin
+     *  sur le Group Folder Nextcloud (directement visible par les membres de la famille via leur
+     *  client Nextcloud) — stored_files.module garde toujours la clé interne anglaise ci-dessous
+     *  comme valeur (quota par module, modules exclus, répartition admin...), jamais traduite :
+     *  seul l'endroit où le contenu est physiquement rangé change. Un module absent de cette
+     *  liste (nouveau module pas encore mappé) garde son nom interne tel quel plutôt que de
+     *  planter — mieux vaut un dossier en anglais qu'un échec d'upload. */
+    private const NEXTCLOUD_FOLDER_BY_MODULE = [
+        'documents'  => 'documents',
+        'warranties' => 'garanties',
+        'deals'      => 'bons-plans',
+        'vault'      => 'coffre-fort',
+        'wishlist'   => 'liste-de-cadeaux',
+        'birth-list' => 'liste-de-naissance',
+        'school'     => 'suivi-scolaire',
+        'disputes'   => 'litiges',
+        'voice'      => 'messages-vocaux',
+        'album'      => 'albums-photo',
+        'wall'       => 'mur-familial',
+        'avatar'     => 'avatars',
+        'baby'       => 'bebe',
+    ];
+
+    public static function nextcloudFolder(string $module): string
+    {
+        return self::NEXTCLOUD_FOLDER_BY_MODULE[$module] ?? $module;
+    }
+
     // ── Cache local disposable (backend Nextcloud) ──────────────────────────
 
     private static function cacheDir(int $familyId): string
@@ -191,7 +219,7 @@ class FileStore
         $folder = NextcloudGroupFolderService::ensureFamilyFolder($familyId, $error);
         if (!$folder) throw new \RuntimeException($error ?: 'Espace familial Nextcloud indisponible — réessayez plus tard.');
 
-        $remotePath = $module . '/' . self::nextcloudFilename($file['name'] ?? null, $ext);
+        $remotePath = self::nextcloudFolder($module) . '/' . self::nextcloudFilename($file['name'] ?? null, $ext);
         $put = NextcloudFileClient::putFile($folder['mount_point'], $remotePath, $content);
         if (!$put['ok']) throw new \RuntimeException($put['error']);
 
@@ -223,7 +251,7 @@ class FileStore
             $folder = NextcloudGroupFolderService::ensureFamilyFolder($familyId, $error);
             if (!$folder) return null;
 
-            $destPath = $newModule . '/' . self::nextcloudFilename($originalName, $ext);
+            $destPath = self::nextcloudFolder($newModule) . '/' . self::nextcloudFilename($originalName, $ext);
             $copy = NextcloudFileClient::copyFile($folder['mount_point'], $sourcePath, $destPath);
             if (!$copy['ok']) return null;
 
@@ -364,7 +392,7 @@ class FileStore
                 $lastError = $error ?: 'Espace familial Nextcloud indisponible — réessayez plus tard.';
                 return null;
             }
-            $remotePath = $module . '/' . self::nextcloudFilename($file['name'] ?? null, self::IMAGE_EXT_BY_MIME[$realType]);
+            $remotePath = self::nextcloudFolder($module) . '/' . self::nextcloudFilename($file['name'] ?? null, self::IMAGE_EXT_BY_MIME[$realType]);
             $put = NextcloudFileClient::putFile($folder['mount_point'], $remotePath, $content);
             if (!$put['ok']) {
                 $lastError = $put['error'];
@@ -417,7 +445,7 @@ class FileStore
             $error = null;
             $folder = NextcloudGroupFolderService::ensureFamilyFolder($familyId, $error);
             if (!$folder) return null;
-            $destPath = $newModule . '/' . self::nextcloudFilename($source['original_name'] ?? null, $ext);
+            $destPath = self::nextcloudFolder($newModule) . '/' . self::nextcloudFilename($source['original_name'] ?? null, $ext);
             $copy = NextcloudFileClient::copyFile($folder['mount_point'], $source['path'], $destPath);
             if (!$copy['ok']) return null;
 
