@@ -177,20 +177,28 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
+            <li class="nav-item">
+                <button type="button" onclick="toggleAiAssistantPanel()" class="nav-link" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit">
+                    <span class="nav-icon">🤖</span>
+                    <span class="nav-label">Assistant IA</span>
+                </button>
+            </li>
+            <?php endif; ?>
 
-            <?php if ($_navEnabled('wall') || $_navEnabled('albums') || $_navEnabled('chat') || $_navEnabled('calendar') || $_navEnabled('contacts') || $_navEnabled('meals') || $_navEnabled('wishlist') || $_navEnabled('polls')): ?>
-            <li class="nav-section-label" data-section-toggle="vie-de-famille" role="button" tabindex="0">
-                <span>Vie de famille</span><span class="nav-section-chevron">▾</span>
+            <?php if ($_navEnabled('wall') || $_navEnabled('chat') || $_navEnabled('calendar') || $_navEnabled('tasks') || $_navEnabled('contacts') || $_navEnabled('meals') || $_navEnabled('stock') || $_navEnabled('links')): ?>
+            <li class="nav-section-label" data-section-toggle="quotidien" role="button" tabindex="0">
+                <span>Quotidien</span><span class="nav-section-chevron">▾</span>
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('wall')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/wall') && !str_contains($currentPath, '/family-wall') ? 'active' : '' ?>" data-section="vie-de-famille">
+            <li class="nav-item <?= str_contains($currentPath, '/wall') && !str_contains($currentPath, '/family-wall') ? 'active' : '' ?>" data-section="quotidien">
                 <a href="<?= BASE_URL ?>/wall" class="nav-link">
                     <span class="nav-icon">📸</span>
                     <span class="nav-label">Mur familial</span>
                 </a>
             </li>
-            <li class="nav-item <?= str_contains($currentPath, '/messages') ? 'active' : '' ?>" data-section="vie-de-famille">
+            <li class="nav-item <?= str_contains($currentPath, '/messages') ? 'active' : '' ?>" data-section="quotidien">
                 <a href="<?= BASE_URL ?>/messages" class="nav-link">
                     <span class="nav-icon">✉️</span>
                     <span class="nav-label">Messages privés</span>
@@ -199,22 +207,8 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                 </a>
             </li>
             <?php endif; ?>
-            <?php if ($_navEnabled('albums')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>" data-section="vie-de-famille">
-                <a href="<?= BASE_URL ?>/albums" class="nav-link">
-                    <span class="nav-icon">🖼️</span>
-                    <span class="nav-label">Albums photo</span>
-                </a>
-            </li>
-            <li class="nav-item <?= str_contains($currentPath, '/annual-recap') ? 'active' : '' ?>" data-section="vie-de-famille">
-                <a href="<?= BASE_URL ?>/annual-recap" class="nav-link">
-                    <span class="nav-icon">🎞️</span>
-                    <span class="nav-label">Récap annuel</span>
-                </a>
-            </li>
-            <?php endif; ?>
             <?php if ($_navEnabled('chat')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>" data-section="vie-de-famille">
+            <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>" data-section="quotidien">
                 <a href="<?= BASE_URL ?>/chat" class="nav-link">
                     <span class="nav-icon">💬</span>
                     <span class="nav-label">Chat familial</span>
@@ -222,15 +216,23 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('calendar')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>" data-section="vie-de-famille">
+            <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>" data-section="quotidien">
                 <a href="<?= BASE_URL ?>/calendar" class="nav-link">
                     <span class="nav-icon">📅</span>
                     <span class="nav-label">Calendrier</span>
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('tasks')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/tasks') ? 'active' : '' ?>" data-section="quotidien">
+                <a href="<?= BASE_URL ?>/tasks" class="nav-link">
+                    <span class="nav-icon">✅</span>
+                    <span class="nav-label">Tâches & Courses</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('contacts')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/contacts') ? 'active' : '' ?>" data-section="vie-de-famille">
+            <li class="nav-item <?= str_contains($currentPath, '/contacts') ? 'active' : '' ?>" data-section="quotidien">
                 <a href="<?= BASE_URL ?>/contacts" class="nav-link">
                     <span class="nav-icon">📒</span>
                     <span class="nav-label">Répertoire</span>
@@ -238,7 +240,7 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('meals')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/meals') ? 'active' : '' ?>" data-section="vie-de-famille">
+            <li class="nav-item <?= str_contains($currentPath, '/meals') ? 'active' : '' ?>" data-section="quotidien">
                 <a href="<?= BASE_URL ?>/meals" class="nav-link">
                     <span class="nav-icon">🍽️</span>
                     <span class="nav-label">Repas</span>
@@ -246,15 +248,43 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('stock')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/stock') ? 'active' : '' ?>" data-section="vie-de-famille">
+            <li class="nav-item <?= str_contains($currentPath, '/stock') ? 'active' : '' ?>" data-section="quotidien">
                 <a href="<?= BASE_URL ?>/stock" class="nav-link">
                     <span class="nav-icon">🧊</span>
                     <span class="nav-label">Stock frigo/congélo</span>
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('links')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/links') ? 'active' : '' ?>" data-section="quotidien">
+                <a href="<?= BASE_URL ?>/links" class="nav-link">
+                    <span class="nav-icon">🔗</span>
+                    <span class="nav-label">Portail de liens</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('albums') || $_navEnabled('wishlist') || $_navEnabled('polls') || $_navEnabled('baby')): ?>
+            <li class="nav-section-label" data-section-toggle="souvenirs" role="button" tabindex="0">
+                <span>Souvenirs & famille</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('albums')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>" data-section="souvenirs">
+                <a href="<?= BASE_URL ?>/albums" class="nav-link">
+                    <span class="nav-icon">🖼️</span>
+                    <span class="nav-label">Albums photo</span>
+                </a>
+            </li>
+            <li class="nav-item <?= str_contains($currentPath, '/annual-recap') ? 'active' : '' ?>" data-section="souvenirs">
+                <a href="<?= BASE_URL ?>/annual-recap" class="nav-link">
+                    <span class="nav-icon">🎞️</span>
+                    <span class="nav-label">Récap annuel</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if ($_navEnabled('wishlist')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/wishlist') ? 'active' : '' ?>" data-section="vie-de-famille">
+            <li class="nav-item <?= str_contains($currentPath, '/wishlist') ? 'active' : '' ?>" data-section="souvenirs">
                 <a href="<?= BASE_URL ?>/wishlist" class="nav-link">
                     <span class="nav-icon">🎁</span>
                     <span class="nav-label">Liste de cadeaux</span>
@@ -262,10 +292,18 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('polls')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/polls') ? 'active' : '' ?>" data-section="vie-de-famille">
+            <li class="nav-item <?= str_contains($currentPath, '/polls') ? 'active' : '' ?>" data-section="souvenirs">
                 <a href="<?= BASE_URL ?>/polls" class="nav-link">
                     <span class="nav-icon">🗳️</span>
                     <span class="nav-label">Sondages</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('baby')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/baby') ? 'active' : '' ?>" data-section="souvenirs">
+                <a href="<?= BASE_URL ?>/baby" class="nav-link">
+                    <span class="nav-icon">🍼</span>
+                    <span class="nav-label">Bébé</span>
                 </a>
             </li>
             <?php endif; ?>
@@ -300,191 +338,21 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('tasks') || $_navEnabled('projects') || $_navEnabled('budget') || $_navEnabled('documents') || $_navEnabled('warranties') || $_navEnabled('links')): ?>
-            <li class="nav-section-label" data-section-toggle="organisation" role="button" tabindex="0">
-                <span>Organisation</span><span class="nav-section-chevron">▾</span>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('tasks')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/tasks') ? 'active' : '' ?>" data-section="organisation">
-                <a href="<?= BASE_URL ?>/tasks" class="nav-link">
-                    <span class="nav-icon">✅</span>
-                    <span class="nav-label">Tâches & Courses</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('projects')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/projects') ? 'active' : '' ?>" data-section="organisation">
-                <a href="<?= BASE_URL ?>/projects" class="nav-link">
-                    <span class="nav-icon">📋</span>
-                    <span class="nav-label">Projets</span>
-                </a>
+            <?php if ($_navEnabled('budget') || $_navEnabled('deals') || $_navEnabled('additions')): ?>
+            <li class="nav-section-label" data-section-toggle="finances" role="button" tabindex="0">
+                <span>Finances</span><span class="nav-section-chevron">▾</span>
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('budget')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/budget') ? 'active' : '' ?>" data-section="organisation">
+            <li class="nav-item <?= str_contains($currentPath, '/budget') ? 'active' : '' ?>" data-section="finances">
                 <a href="<?= BASE_URL ?>/budget" class="nav-link">
                     <span class="nav-icon">💰</span>
                     <span class="nav-label">Budget</span>
                 </a>
             </li>
             <?php endif; ?>
-            <?php if ($_navEnabled('documents')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/documents') ? 'active' : '' ?>" data-section="organisation">
-                <a href="<?= BASE_URL ?>/documents" class="nav-link">
-                    <span class="nav-icon">🗂️</span>
-                    <span class="nav-label">Documents</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('warranties')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/warranties') ? 'active' : '' ?>" data-section="organisation">
-                <a href="<?= BASE_URL ?>/warranties" class="nav-link">
-                    <span class="nav-icon">🛡️</span>
-                    <span class="nav-label">Garanties</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('links')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/links') ? 'active' : '' ?>" data-section="organisation">
-                <a href="<?= BASE_URL ?>/links" class="nav-link">
-                    <span class="nav-icon">🔗</span>
-                    <span class="nav-label">Portail de liens</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('letters') || $_navEnabled('disputes') || $_navEnabled('school') || $_navEnabled('employment') || $_navEnabled('nanny') || $_navEnabled('health') || $_navEnabled('vehicles') || $_navEnabled('pets') || $_navEnabled('meters') || $_navEnabled('medication')): ?>
-            <li class="nav-section-label" data-section-toggle="famille-suivi" role="button" tabindex="0">
-                <span>Famille & suivi</span><span class="nav-section-chevron">▾</span>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('letters')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/letters') ? 'active' : '' ?>" data-section="famille-suivi">
-                <a href="<?= BASE_URL ?>/letters" class="nav-link">
-                    <span class="nav-icon">✉️</span>
-                    <span class="nav-label">Courriers</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('disputes')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/disputes') ? 'active' : '' ?>" data-section="famille-suivi">
-                <a href="<?= BASE_URL ?>/disputes" class="nav-link">
-                    <span class="nav-icon">⚖️</span>
-                    <span class="nav-label">Dossiers de litige</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('school')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/school') ? 'active' : '' ?>" data-section="famille-suivi">
-                <a href="<?= BASE_URL ?>/school" class="nav-link">
-                    <span class="nav-icon">🎓</span>
-                    <span class="nav-label">Suivi scolaire</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('employment')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/employment') ? 'active' : '' ?>" data-section="famille-suivi">
-                <a href="<?= BASE_URL ?>/employment" class="nav-link">
-                    <span class="nav-icon">💼</span>
-                    <span class="nav-label">Suivi salarié</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('nanny')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/nanny') ? 'active' : '' ?>" data-section="famille-suivi">
-                <a href="<?= BASE_URL ?>/nanny" class="nav-link">
-                    <span class="nav-icon">🕒</span>
-                    <span class="nav-label">Suivi nounou</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('health')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/health') ? 'active' : '' ?>" data-section="famille-suivi">
-                <a href="<?= BASE_URL ?>/health" class="nav-link">
-                    <span class="nav-icon">🏥</span>
-                    <span class="nav-label">Santé</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('medication')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/medication') ? 'active' : '' ?>" data-section="famille-suivi">
-                <a href="<?= BASE_URL ?>/medication" class="nav-link">
-                    <span class="nav-icon">💊</span>
-                    <span class="nav-label">Traitement médical</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('vehicles')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/vehicles') ? 'active' : '' ?>" data-section="famille-suivi">
-                <a href="<?= BASE_URL ?>/vehicles" class="nav-link">
-                    <span class="nav-icon">🚗</span>
-                    <span class="nav-label">Véhicules</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('pets')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/pets') ? 'active' : '' ?>" data-section="famille-suivi">
-                <a href="<?= BASE_URL ?>/pets" class="nav-link">
-                    <span class="nav-icon">🐾</span>
-                    <span class="nav-label">Animaux</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('meters')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/meters') ? 'active' : '' ?>" data-section="famille-suivi">
-                <a href="<?= BASE_URL ?>/meters" class="nav-link">
-                    <span class="nav-icon">📊</span>
-                    <span class="nav-label">Compteurs</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('admin_procedures') || $_navEnabled('leave') || $_navEnabled('travels') || $_navEnabled('deals') || $_navEnabled('additions') || ($_navEnabled('vault') && $currentUser['role'] === 'admin') || ($_navEnabled('ai_assistant') && $_ollamaConfigured)): ?>
-            <li class="nav-section-label" data-section-toggle="demarches" role="button" tabindex="0">
-                <span>Démarches & services</span><span class="nav-section-chevron">▾</span>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('admin_procedures')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/admin-procedures') ? 'active' : '' ?>" data-section="demarches">
-                <a href="<?= BASE_URL ?>/admin-procedures" class="nav-link">
-                    <span class="nav-icon">🪪</span>
-                    <span class="nav-label">Démarches admin.</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('leave')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/leave') ? 'active' : '' ?>" data-section="demarches">
-                <a href="<?= BASE_URL ?>/leave" class="nav-link">
-                    <span class="nav-icon">🏖️</span>
-                    <span class="nav-label">Congés familiaux</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('travels')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/travels') ? 'active' : '' ?>" data-section="demarches">
-                <a href="<?= BASE_URL ?>/travels" class="nav-link">
-                    <span class="nav-icon">✈️</span>
-                    <span class="nav-label">Voyages & réservations</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('vault') && $currentUser['role'] === 'admin'): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/vault') ? 'active' : '' ?>" data-section="demarches">
-                <a href="<?= BASE_URL ?>/vault" class="nav-link">
-                    <span class="nav-icon">🔐</span>
-                    <span class="nav-label">Coffre-fort numérique</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
-            <li class="nav-item" data-section="demarches">
-                <button type="button" onclick="toggleAiAssistantPanel()" class="nav-link" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit">
-                    <span class="nav-icon">🤖</span>
-                    <span class="nav-label">Assistant IA</span>
-                </button>
-            </li>
-            <?php endif; ?>
             <?php if ($_navEnabled('deals')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="demarches">
+            <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="finances">
                 <a href="<?= BASE_URL ?>/deals" class="nav-link">
                     <span class="nav-icon">🏷️</span>
                     <span class="nav-label">Bons plans</span>
@@ -492,7 +360,7 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('additions')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/additions') ? 'active' : '' ?>" data-section="demarches">
+            <li class="nav-item <?= str_contains($currentPath, '/additions') ? 'active' : '' ?>" data-section="finances">
                 <a href="<?= BASE_URL ?>/additions" class="nav-link">
                     <span class="nav-icon">🧾</span>
                     <span class="nav-label">Additions</span>
@@ -500,40 +368,180 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('baby') || $_navEnabled('location') || $_navEnabled('emergency') || $_vaultwarden): ?>
-            <li class="nav-section-label" data-section-toggle="suivi-securite" role="button" tabindex="0">
-                <span>Suivi & sécurité</span><span class="nav-section-chevron">▾</span>
+            <?php if ($_navEnabled('health') || $_navEnabled('medication') || $_navEnabled('emergency') || $_navEnabled('location')): ?>
+            <li class="nav-section-label" data-section-toggle="sante-securite" role="button" tabindex="0">
+                <span>Santé & sécurité</span><span class="nav-section-chevron">▾</span>
             </li>
             <?php endif; ?>
-            <?php if ($_vaultwarden): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/vault-passwords') ? 'active' : '' ?>" data-section="suivi-securite">
-                <a href="<?= BASE_URL ?>/vault-passwords" class="nav-link">
-                    <span class="nav-icon">🔐</span>
-                    <span class="nav-label">Coffre-fort</span>
+            <?php if ($_navEnabled('health')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/health') ? 'active' : '' ?>" data-section="sante-securite">
+                <a href="<?= BASE_URL ?>/health" class="nav-link">
+                    <span class="nav-icon">🏥</span>
+                    <span class="nav-label">Santé</span>
                 </a>
             </li>
             <?php endif; ?>
-            <?php if ($_navEnabled('baby')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/baby') ? 'active' : '' ?>" data-section="suivi-securite">
-                <a href="<?= BASE_URL ?>/baby" class="nav-link">
-                    <span class="nav-icon">🍼</span>
-                    <span class="nav-label">Bébé</span>
+            <?php if ($_navEnabled('medication')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/medication') ? 'active' : '' ?>" data-section="sante-securite">
+                <a href="<?= BASE_URL ?>/medication" class="nav-link">
+                    <span class="nav-icon">💊</span>
+                    <span class="nav-label">Traitement médical</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('emergency')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/emergency') ? 'active' : '' ?>" data-section="sante-securite">
+                <a href="<?= BASE_URL ?>/emergency" class="nav-link">
+                    <span class="nav-icon">🚑</span>
+                    <span class="nav-label">Fiches urgence</span>
                 </a>
             </li>
             <?php endif; ?>
             <?php if ($_navEnabled('location')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>" data-section="suivi-securite">
+            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>" data-section="sante-securite">
                 <a href="<?= BASE_URL ?>/location" class="nav-link">
                     <span class="nav-icon">📍</span>
                     <span class="nav-label">Position</span>
                 </a>
             </li>
             <?php endif; ?>
-            <?php if ($_navEnabled('emergency')): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/emergency') ? 'active' : '' ?>" data-section="suivi-securite">
-                <a href="<?= BASE_URL ?>/emergency" class="nav-link">
-                    <span class="nav-icon">🚑</span>
-                    <span class="nav-label">Fiches urgence</span>
+
+            <?php if ($_navEnabled('documents') || $_navEnabled('warranties') || $_navEnabled('letters') || $_navEnabled('disputes') || $_navEnabled('admin_procedures') || ($_navEnabled('vault') && $currentUser['role'] === 'admin') || $_vaultwarden || $_navEnabled('school') || $_navEnabled('employment') || $_navEnabled('nanny') || $_navEnabled('leave')): ?>
+            <li class="nav-section-label" data-section-toggle="juridique-administratif" role="button" tabindex="0">
+                <span>Juridique & administratif</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('documents')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/documents') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/documents" class="nav-link">
+                    <span class="nav-icon">🗂️</span>
+                    <span class="nav-label">Documents</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('warranties')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/warranties') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/warranties" class="nav-link">
+                    <span class="nav-icon">🛡️</span>
+                    <span class="nav-label">Garanties</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('letters')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/letters') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/letters" class="nav-link">
+                    <span class="nav-icon">✉️</span>
+                    <span class="nav-label">Courriers</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('disputes')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/disputes') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/disputes" class="nav-link">
+                    <span class="nav-icon">⚖️</span>
+                    <span class="nav-label">Dossiers de litige</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('admin_procedures')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/admin-procedures') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/admin-procedures" class="nav-link">
+                    <span class="nav-icon">🪪</span>
+                    <span class="nav-label">Démarches admin.</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('vault') && $currentUser['role'] === 'admin'): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/vault') && !str_contains($currentPath, '/vault-passwords') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/vault" class="nav-link">
+                    <span class="nav-icon">🔐</span>
+                    <span class="nav-label">Coffre-fort numérique</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_vaultwarden): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/vault-passwords') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/vault-passwords" class="nav-link">
+                    <span class="nav-icon">🔑</span>
+                    <span class="nav-label">Gestionnaire de mots de passe</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('school')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/school') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/school" class="nav-link">
+                    <span class="nav-icon">🎓</span>
+                    <span class="nav-label">Suivi scolaire</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('employment')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/employment') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/employment" class="nav-link">
+                    <span class="nav-icon">💼</span>
+                    <span class="nav-label">Suivi salarié</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('nanny')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/nanny') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/nanny" class="nav-link">
+                    <span class="nav-icon">🕒</span>
+                    <span class="nav-label">Suivi nounou</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('leave')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/leave') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/leave" class="nav-link">
+                    <span class="nav-icon">🏖️</span>
+                    <span class="nav-label">Congés familiaux</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('vehicles') || $_navEnabled('pets') || $_navEnabled('meters') || $_navEnabled('travels') || $_navEnabled('projects')): ?>
+            <li class="nav-section-label" data-section-toggle="biens-deplacements" role="button" tabindex="0">
+                <span>Biens & déplacements</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('vehicles')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/vehicles') ? 'active' : '' ?>" data-section="biens-deplacements">
+                <a href="<?= BASE_URL ?>/vehicles" class="nav-link">
+                    <span class="nav-icon">🚗</span>
+                    <span class="nav-label">Véhicules</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('pets')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/pets') ? 'active' : '' ?>" data-section="biens-deplacements">
+                <a href="<?= BASE_URL ?>/pets" class="nav-link">
+                    <span class="nav-icon">🐾</span>
+                    <span class="nav-label">Animaux</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('meters')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/meters') ? 'active' : '' ?>" data-section="biens-deplacements">
+                <a href="<?= BASE_URL ?>/meters" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Compteurs</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('travels')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/travels') ? 'active' : '' ?>" data-section="biens-deplacements">
+                <a href="<?= BASE_URL ?>/travels" class="nav-link">
+                    <span class="nav-icon">✈️</span>
+                    <span class="nav-label">Voyages & réservations</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('projects')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/projects') ? 'active' : '' ?>" data-section="biens-deplacements">
+                <a href="<?= BASE_URL ?>/projects" class="nav-link">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-label">Projets</span>
                 </a>
             </li>
             <?php endif; ?>
