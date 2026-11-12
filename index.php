@@ -706,6 +706,7 @@ $router->post('/admin/users/migrate-ldap', [AdminController::class, 'migrateLega
 $router->post('/admin/users/resync-ldap-roles', [AdminController::class, 'resyncLdapRoles']);
 $router->post('/admin/users/audit-ldap', [AdminController::class, 'auditLdapConsistency']);
 $router->post('/admin/users/resync-nextcloud-visibility', [AdminController::class, 'resyncNextcloudVisibility']);
+$router->post('/admin/storage/nextcloud-file-rename', [AdminController::class, 'runNextcloudFileRename']);
 $router->post('/admin/storage/ldap/test', [AdminController::class, 'testStorageLdapConnection']);
 $router->post('/admin/storage/ldap/test-account', [AdminController::class, 'testStorageLdapAccount']);
 $router->post('/admin/storage/synology/test', [AdminController::class, 'testStorageSynologyConnection']);

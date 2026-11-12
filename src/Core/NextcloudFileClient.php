@@ -156,6 +156,30 @@ class NextcloudFileClient
         return ['ok' => true, 'etag' => $etag !== null ? trim($etag, '"') : null, 'error' => ''];
     }
 
+    /** Renommage/déplacement côté serveur (méthode WebDAV MOVE) — voir NextcloudFileRename, qui
+     *  l'utilise pour donner un nom lisible aux fichiers déjà migrés vers un Group Folder avant
+     *  l'introduction de FileStore::nextcloudFilename(). "Overwrite: F" : échoue proprement
+     *  (412 Precondition Failed) plutôt que d'écraser silencieusement un fichier qui porterait
+     *  déjà le nom cible. */
+    public static function moveFile(string $mountPoint, string $sourcePath, string $destPath): array
+    {
+        $base = self::baseUrl($mountPoint);
+        if (!$base) return ['ok' => false, 'etag' => null, 'error' => 'Nextcloud non configuré.'];
+
+        $dir = trim(dirname($destPath), '.');
+        if ($dir !== '' && $dir !== '.') {
+            self::request('MKCOL', $base . implode('/', array_map('rawurlencode', explode('/', $dir))) . '/');
+        }
+
+        $sourceUrl = $base . implode('/', array_map('rawurlencode', explode('/', $sourcePath)));
+        $destUrl = $base . implode('/', array_map('rawurlencode', explode('/', $destPath)));
+        $r = self::request('MOVE', $sourceUrl, null, ['Destination: ' . $destUrl, 'Overwrite: F']);
+        if (!$r['ok']) return ['ok' => false, 'etag' => null, 'error' => $r['error'] ?: 'Échec du renommage Nextcloud.'];
+
+        $etag = $r['headers']['oc-etag'] ?? $r['headers']['etag'] ?? null;
+        return ['ok' => true, 'etag' => $etag !== null ? trim($etag, '"') : null, 'error' => ''];
+    }
+
     /** Idempotent : 404 (déjà absent) est traité comme un succès. */
     public static function deleteFile(string $mountPoint, string $remotePath): bool
     {
