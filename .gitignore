@@ -68,3 +68,6 @@ coverage/
 
 # Signing configs
 signing.properties
+
+# Claude Code session-local tooling state (background agent worktrees, etc.) — never project content
+.claude/

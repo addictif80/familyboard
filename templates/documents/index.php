@@ -8,72 +8,79 @@ use App\Core\DateHelper;
 
 $totalDocs = array_sum($typeCounts);
 ?>
-<div class="docs-container">
-
-    <!-- Toolbar -->
-    <div class="docs-toolbar">
-        <div class="docs-search-wrap">
-            <input type="search" id="docs-search" class="docs-search"
-                   placeholder="🔍 Rechercher dans vos documents…"
-                   value="<?= htmlspecialchars($search) ?>"
-                   oninput="searchDocs(this.value)">
+<div class="tasks-container">
+    <div class="tasks-sidebar">
+        <div class="tasks-sidebar-header">
+            <h3>Types</h3>
         </div>
-        <button class="btn btn-primary" onclick="openDocModal()">+ Ajouter un document</button>
+        <ul class="lists-menu">
+            <li class="list-item <?= $filterType === '' ? 'active' : '' ?>">
+                <a href="javascript:void(0)" class="list-link" onclick="filterByType('')">
+                    <span class="list-name">📁 Tous</span>
+                    <span class="list-count"><?= $totalDocs ?></span>
+                </a>
+            </li>
+            <?php foreach ($allTypes as $tKey => $tDef): ?>
+                <?php $cnt = $typeCounts[$tKey] ?? 0; if ($cnt === 0 && $filterType !== $tKey) continue; ?>
+                <li class="list-item <?= $filterType === $tKey ? 'active' : '' ?>">
+                    <a href="javascript:void(0)" class="list-link" onclick="filterByType('<?= $tKey ?>')">
+                        <span class="list-dot" style="background:<?= htmlspecialchars($tDef['color']) ?>"></span>
+                        <span class="list-name"><?= $tDef['icon'] ?> <?= htmlspecialchars($tDef['label']) ?></span>
+                        <?php if ($cnt > 0): ?><span class="list-count"><?= $cnt ?></span><?php endif; ?>
+                    </a>
+                </li>
+            <?php endforeach; ?>
+        </ul>
     </div>
 
-    <!-- Expiry alert -->
-    <?php if (!empty($expiring)): ?>
-    <div class="warranty-alert-strip" style="margin-bottom:1rem">
-        ⚠️ <strong><?= count($expiring) ?> document<?= count($expiring) > 1 ? 's' : '' ?> expire<?= count($expiring) > 1 ? 'nt' : '' ?> dans les 90 jours :</strong>
-        <?php foreach ($expiring as $d): ?>
-            <span class="warranty-alert-chip <?= $d['expiry_status'] === 'critical' ? 'w-critical' : 'w-soon' ?>">
-                <?= htmlspecialchars($d['title']) ?>
-                (<?= $d['days_until_expiry'] ?>j)
-            </span>
-        <?php endforeach; ?>
-    </div>
-    <?php endif; ?>
-
-    <!-- Type filter chips -->
-    <div class="docs-type-filters" id="docs-type-filters">
-        <button class="doc-filter-chip <?= $filterType === '' ? 'active' : '' ?>"
-                onclick="filterByType('')">
-            📁 Tous <span class="doc-filter-count"><?= $totalDocs ?></span>
-        </button>
-        <?php foreach ($allTypes as $tKey => $tDef): ?>
-            <?php $cnt = $typeCounts[$tKey] ?? 0; if ($cnt === 0 && $filterType !== $tKey) continue; ?>
-            <button class="doc-filter-chip <?= $filterType === $tKey ? 'active' : '' ?>"
-                    onclick="filterByType('<?= $tKey ?>')"
-                    style="--type-color:<?= htmlspecialchars($tDef['color']) ?>">
-                <?= $tDef['icon'] ?> <?= htmlspecialchars($tDef['label']) ?>
-                <span class="doc-filter-count"><?= $cnt ?></span>
-            </button>
-        <?php endforeach; ?>
-    </div>
-
-    <!-- Member filter (if >1 member) -->
-    <?php if (count($members) > 1): ?>
-    <div class="docs-member-filters">
-        <span style="font-size:.8rem;color:var(--text-muted);margin-right:.5rem">Membre :</span>
-        <button class="doc-filter-chip small <?= $filterUser === 0 ? 'active' : '' ?>" onclick="filterByUser(0)">Tous</button>
-        <?php foreach ($members as $m): ?>
-            <button class="doc-filter-chip small <?= $filterUser === (int)$m['id'] ? 'active' : '' ?>"
-                    onclick="filterByUser(<?= $m['id'] ?>)">
-                <?= \App\Core\Avatar::html($m['avatar'] ?? null, $m['color'], $m['name'], 'user-avatar-xs') ?>
-                <?= htmlspecialchars($m['name']) ?>
-            </button>
-        <?php endforeach; ?>
-    </div>
-    <?php endif; ?>
-
-    <!-- Document grid -->
-    <div class="docs-grid" id="docs-grid">
-        <?php if (empty($documents)): ?>
-            <div class="empty-state" style="grid-column:1/-1">
-                Aucun document. Ajoutez vos pièces d'identité, justificatifs, contrats…
+    <div class="tasks-main">
+        <!-- Toolbar -->
+        <div class="docs-toolbar">
+            <div class="docs-search-wrap">
+                <input type="search" id="docs-search" class="docs-search"
+                       placeholder="🔍 Rechercher dans vos documents…"
+                       value="<?= htmlspecialchars($search) ?>"
+                       oninput="searchDocs(this.value)">
             </div>
-        <?php else: ?>
-        <?php foreach ($documents as $doc): ?>
+            <button class="btn btn-primary" onclick="openDocModal()">+ Ajouter un document</button>
+        </div>
+
+        <!-- Expiry alert -->
+        <?php if (!empty($expiring)): ?>
+        <div class="warranty-alert-strip" style="margin-bottom:1rem">
+            ⚠️ <strong><?= count($expiring) ?> document<?= count($expiring) > 1 ? 's' : '' ?> expire<?= count($expiring) > 1 ? 'nt' : '' ?> dans les 90 jours :</strong>
+            <?php foreach ($expiring as $d): ?>
+                <span class="warranty-alert-chip <?= $d['expiry_status'] === 'critical' ? 'w-critical' : 'w-soon' ?>">
+                    <?= htmlspecialchars($d['title']) ?>
+                    (<?= $d['days_until_expiry'] ?>j)
+                </span>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Member filter (if >1 member) -->
+        <?php if (count($members) > 1): ?>
+        <div class="docs-member-filters">
+            <span style="font-size:.8rem;color:var(--text-muted);margin-right:.5rem">Membre :</span>
+            <button class="doc-filter-chip small <?= $filterUser === 0 ? 'active' : '' ?>" onclick="filterByUser(0)">Tous</button>
+            <?php foreach ($members as $m): ?>
+                <button class="doc-filter-chip small <?= $filterUser === (int)$m['id'] ? 'active' : '' ?>"
+                        onclick="filterByUser(<?= $m['id'] ?>)">
+                    <?= \App\Core\Avatar::html($m['avatar'] ?? null, $m['color'], $m['name'], 'user-avatar-xs') ?>
+                    <?= htmlspecialchars($m['name']) ?>
+                </button>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Document grid -->
+        <div class="docs-grid" id="docs-grid">
+            <?php if (empty($documents)): ?>
+                <div class="empty-state" style="grid-column:1/-1">
+                    Aucun document. Ajoutez vos pièces d'identité, justificatifs, contrats…
+                </div>
+            <?php else: ?>
+            <?php foreach ($documents as $doc): ?>
         <div class="doc-card" data-id="<?= $doc['id'] ?>" data-type="<?= htmlspecialchars($doc['doc_type']) ?>"
              onclick="openDocDetail(<?= htmlspecialchars(json_encode($doc)) ?>)">
 
@@ -133,6 +140,7 @@ $totalDocs = array_sum($typeCounts);
         </div>
         <?php endforeach; ?>
         <?php endif; ?>
+        </div>
     </div>
 </div>
 

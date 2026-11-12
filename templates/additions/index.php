@@ -3,13 +3,6 @@ $pageTitle = 'Additions';
 $extraJs   = ['additions.js'];
 ob_start();
 ?>
-<div class="content-header">
-    <h2>🧾 Additions</h2>
-    <div style="display:flex;gap:.5rem">
-        <button class="btn btn-secondary" onclick="openAdditionModal(false)">+ Créer une addition</button>
-        <button class="btn btn-primary" onclick="openAdditionModal(true)">🪙 Créer une cagnotte</button>
-    </div>
-</div>
 <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1.25rem">
     Partagez une dépense (restaurant, cadeau commun, activité...) avec des membres de la famille,
     un co-parent, une famille amie, ou une personne invitée par e-mail sans compte. Chaque
@@ -50,11 +43,41 @@ ob_start();
 </div>
 <?php endif; ?>
 
-<?php if (empty($additions)): ?>
-    <p class="empty-state">Aucune addition pour l'instant.</p>
-<?php else: ?>
-<div style="display:flex;flex-direction:column;gap:1rem">
-    <?php foreach ($additions as $a): ?>
+<div class="tasks-container">
+    <div class="tasks-sidebar">
+        <div class="tasks-sidebar-header">
+            <h3>Additions</h3>
+            <div style="display:flex;gap:.25rem">
+                <button class="btn-icon" onclick="openAdditionModal(false)" title="Créer une addition">🧾+</button>
+                <button class="btn-icon" onclick="openAdditionModal(true)" title="Créer une cagnotte">🪙+</button>
+            </div>
+        </div>
+        <ul class="lists-menu">
+            <?php foreach ($additions as $i => $a): ?>
+                <li class="list-item <?= $i === 0 ? 'active' : '' ?>">
+                    <a href="javascript:void(0)" class="list-link" onclick="selectAddition(<?= (int)$a['id'] ?>)">
+                        <span class="list-name"><?= $a['is_cagnotte'] ? '🪙 ' : '🧾 ' ?><?= htmlspecialchars($a['title']) ?></span>
+                        <?php if ($a['is_cagnotte']): ?>
+                            <span class="list-badge badge-shopping">cagnotte</span>
+                        <?php endif; ?>
+                    </a>
+                </li>
+            <?php endforeach; ?>
+            <?php if (empty($additions)): ?>
+                <li class="empty-state">Aucune addition.</li>
+            <?php endif; ?>
+        </ul>
+    </div>
+
+    <div class="tasks-main">
+    <?php if (empty($additions)): ?>
+        <div class="empty-state-card">
+            <p>Créez une addition ou une cagnotte pour commencer.</p>
+            <button class="btn btn-primary" onclick="openAdditionModal(false)">+ Créer une addition</button>
+        </div>
+    <?php else: ?>
+    <?php foreach ($additions as $i => $a): ?>
+    <div class="addition-detail" id="addition-detail-<?= (int)$a['id'] ?>" style="<?= $i === 0 ? '' : 'display:none' ?>">
     <div class="card" style="padding:1.25rem" data-addition-id="<?= (int)$a['id'] ?>" data-split-mode="<?= htmlspecialchars($a['split_mode']) ?>" data-is-cagnotte="<?= $a['is_cagnotte'] ? '1' : '0' ?>">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
             <div>
@@ -143,9 +166,11 @@ ob_start();
         <?php endif; ?>
         <?php endif; ?>
     </div>
+    </div>
     <?php endforeach; ?>
+    <?php endif; ?>
+    </div>
 </div>
-<?php endif; ?>
 
 <!-- Créer une addition / cagnotte -->
 <div class="modal-overlay" id="addition-modal" style="display:none">
@@ -285,6 +310,19 @@ ob_start();
         </div>
     </div>
 </div>
+
+<script>
+function selectAddition(id) {
+    document.querySelectorAll('.addition-detail').forEach(function (el) {
+        el.style.display = el.id === 'addition-detail-' + id ? '' : 'none';
+    });
+    document.querySelectorAll('.tasks-sidebar .list-item').forEach(function (el) {
+        el.classList.remove('active');
+    });
+    var link = document.querySelector('.tasks-sidebar .list-link[onclick="selectAddition(' + id + ')"]');
+    if (link) link.closest('.list-item').classList.add('active');
+}
+</script>
 
 <?php
 $content = ob_get_clean();
