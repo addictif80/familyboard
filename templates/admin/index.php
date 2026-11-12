@@ -29,22 +29,39 @@
         </div>
         <ul class="admin-nav">
             <?php
+            // Une clé "tab:sub" (voir boucle de rendu ci-dessous) pointe directement sur un
+            // sous-onglet précis d'une page à sous-onglets gérés en JS (voir
+            // templates/admin/tabs/storage.php, switchAdminSubTab()) plutôt que de rouvrir la
+            // page sur son premier sous-onglet par défaut à chaque clic.
             $adminNavGroups = [
                 'Vue d\'ensemble' => ['dashboard' => '📊 Tableau de bord', 'health' => '🩺 Santé plateforme'],
                 'Comptes' => ['families' => '🏠 Familles', 'users' => '👥 Utilisateurs', 'ldap-directory' => '🗂️ Annuaire LDAP', 'deleted-accounts' => '🗑️ Comptes supprimés'],
-                'Facturation' => ['subscriptions' => '💳 Abonnements', 'storage' => '💾 Stockage perso', 'referrals' => '🤝 Parrainage'],
+                'Facturation' => ['subscriptions' => '💳 Abonnements', 'referrals' => '🤝 Parrainage'],
+                'Stockage & fichiers' => [
+                    'storage' => '⚙️ Réglages',
+                    'storage:storage-produits' => '📦 Paliers de stockage',
+                    'storage:storage-consommation' => '📊 Consommation',
+                    'storage:storage-rattrapage' => '🔄 Rattrapage fichiers',
+                    'storage:storage-nextcloud-migration' => '☁️ Migration Nextcloud',
+                    'storage:storage-infra' => '🖥️ LDAP / Synology',
+                ],
                 'Support & sécurité' => ['tickets' => '🎫 Tickets support', 'impersonation' => '🕵️ Impersonation', 'ips' => '🚫 IPs bloquées'],
                 'Communication' => ['notifications' => '📣 Notifications & intégrations', 'smtp' => '✉️ SMTP', 'email' => '📧 Emails'],
                 'Contenu' => ['announcements' => '📣 Annonces', 'testimonials' => '💬 Témoignages', 'namedays' => '🎉 Fêtes des prénoms', 'highlights' => '🏢 Mises en avant ABHD', 'links' => '🔗 Liens certifiés', 'legal' => '📜 Contenu légal', 'roadmap' => '🗺️ Roadmap'],
             ];
+            $currentSub = $_GET['sub'] ?? '';
             ?>
             <?php foreach ($adminNavGroups as $groupLabel => $items): ?>
             <li class="admin-nav-group">
                 <div class="admin-nav-group-label"><?= $groupLabel ?></div>
                 <ul style="list-style:none;margin:0;padding:0">
-                    <?php foreach ($items as $t => $label): ?>
-                    <li class="<?= $tab === $t ? 'active' : '' ?>">
-                        <a href="<?= BASE_URL ?>/admin?tab=<?= $t ?>"><?= $label ?></a>
+                    <?php foreach ($items as $t => $label):
+                        [$realTab, $sub] = str_contains($t, ':') ? explode(':', $t, 2) : [$t, null];
+                        $isActive = $tab === $realTab && ($sub === null ? $currentSub === '' : $currentSub === $sub);
+                        $href = BASE_URL . '/admin?tab=' . $realTab . ($sub ? '&sub=' . $sub : '');
+                    ?>
+                    <li class="<?= $isActive ? 'active' : '' ?>">
+                        <a href="<?= $href ?>"><?= $label ?></a>
                     </li>
                     <?php endforeach; ?>
                 </ul>

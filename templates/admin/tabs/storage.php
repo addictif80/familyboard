@@ -11,6 +11,12 @@
             document.querySelectorAll('[data-admin-subtab-panel]').forEach(p => p.classList.toggle('active', p.dataset.adminSubtabPanel === tab));
             document.querySelectorAll('.settings-tab-btn[data-tab^="storage-"]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
         }
+        <?php if ($sub = ($_GET['sub'] ?? '')): ?>
+        // Lien direct depuis le menu latéral ("Stockage & fichiers") vers un sous-onglet précis —
+        // prime sur tout <script>switchAdminSubTab(...)</script> de rapport flash plus bas dans
+        // cette page, car exécuté avant eux dans l'ordre du document.
+        switchAdminSubTab(<?= json_encode($sub) ?>);
+        <?php endif; ?>
         </script>
 
         <div class="settings-tab-panel active" data-admin-subtab-panel="storage-reglages">
