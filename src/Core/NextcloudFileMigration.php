@@ -25,6 +25,16 @@ class NextcloudFileMigration
 
         $rows = Database::fetchAll("SELECT * FROM stored_files WHERE storage_backend = 'local' ORDER BY family_id, id");
 
+        // ensureFamilyFolder() fait plusieurs vrais appels HTTP à Nextcloud (appartenance au
+        // groupe, ACL, nommage...) — un par famille suffit amplement : les fichiers d'une même
+        // famille sont consécutifs (ORDER BY family_id) mais on indexe par id au cas où, pour ne
+        // jamais refaire ce travail une seconde fois pour la même famille. Sans ce cache, une
+        // migration de plusieurs centaines de fichiers répétait ces appels autant de fois qu'il y
+        // avait de LIGNES, pas de familles — assez pour dépasser le délai du reverse-proxy devant
+        // Nextcloud avant même la fin de la simple simulation (aucun transfert de contenu n'a
+        // pourtant lieu en simulation).
+        $folderCache = [];
+
         foreach ($rows as $row) {
             $abs = BASE_PATH . $row['path'];
             if (!is_file($abs)) {
@@ -33,11 +43,18 @@ class NextcloudFileMigration
                 continue;
             }
 
-            $error = null;
-            $folder = NextcloudGroupFolderService::ensureFamilyFolder((int)$row['family_id'], $error);
+            $familyId = (int)$row['family_id'];
+            if (!array_key_exists($familyId, $folderCache)) {
+                $error = null;
+                $folderCache[$familyId] = [
+                    'folder' => NextcloudGroupFolderService::ensureFamilyFolder($familyId, $error),
+                    'error'  => $error,
+                ];
+            }
+            $folder = $folderCache[$familyId]['folder'];
             if (!$folder) {
                 $stats['failed']++;
-                $failures[] = "famille #{$row['family_id']} : " . ($error ?: 'Group Folder introuvable/non provisionnable.');
+                $failures[] = "famille #{$familyId} : " . ($folderCache[$familyId]['error'] ?: 'Group Folder introuvable/non provisionnable.');
                 continue;
             }
 

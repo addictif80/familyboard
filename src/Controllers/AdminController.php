@@ -246,6 +246,8 @@ class AdminController extends BaseController
         \App\Core\Session::delete('admin_ldap_audit_report');
         $ldapRoleResyncReport = \App\Core\Session::get('admin_ldap_role_resync_report');
         \App\Core\Session::delete('admin_ldap_role_resync_report');
+        $nextcloudVisibilityResyncReport = \App\Core\Session::get('admin_nextcloud_visibility_resync_report');
+        \App\Core\Session::delete('admin_nextcloud_visibility_resync_report');
         $legacyLdapUserCount = (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE ldap_username IS NULL AND blocked_at IS NULL")['c'] ?? 0);
         $ldapDirectory = $tab === 'ldap-directory' ? $this->buildLdapDirectory() : null;
         $storageMemberAddonCapGb = (int)(AppSetting::get('storage_member_addon_cap_gb') ?? '1024');
@@ -1461,6 +1463,35 @@ class AdminController extends BaseController
 
         Session::set('admin_ldap_role_resync_report', ['count' => $count, 'errors' => $errors]);
         $this->redirect('/admin?tab=users&msg=ldap_role_resync_done');
+    }
+
+    /**
+     * Rattrape, pour toute paire de familles déjà amies (family_friends, status='accepted')
+     * AVANT l'introduction des groupes de visibilité croisée, la création/le peuplement du
+     * groupe Nextcloud correspondant (voir NextcloudVisibilityService) — une amitié acceptée
+     * avant cette fonctionnalité ne déclenche sinon jamais ce rattrapage (accept()/remove() ne
+     * tournent qu'au moment du changement de lien, pas pour l'historique déjà en base).
+     * Idempotent, sans effet sur les groupes family_N/family_N_admins (accès au Group Folder).
+     */
+    public function resyncNextcloudVisibility(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+
+        $pairs = Database::fetchAll("SELECT requester_family_id, target_family_id FROM family_friends WHERE status='accepted'");
+        $count = 0;
+        $errors = [];
+        foreach ($pairs as $p) {
+            try {
+                \App\Core\NextcloudVisibilityService::syncLink((int)$p['requester_family_id'], (int)$p['target_family_id'], true);
+                $count++;
+            } catch (\Throwable $e) {
+                $errors[] = 'familles #' . $p['requester_family_id'] . '/#' . $p['target_family_id'] . ' : ' . $e->getMessage();
+            }
+        }
+
+        Session::set('admin_nextcloud_visibility_resync_report', ['count' => $count, 'errors' => $errors]);
+        $this->redirect('/admin?tab=users&msg=nextcloud_visibility_resync_done');
     }
 
     /**

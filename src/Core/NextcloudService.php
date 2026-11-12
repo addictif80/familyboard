@@ -190,6 +190,16 @@ class NextcloudService
         return $r['ok'] || $r['status'] === 404;
     }
 
+    /** Membres actuels d'un groupe Nextcloud (liste d'identifiants) — utilisé pour réconcilier un
+     *  groupe de visibilité (voir NextcloudVisibilityService) contre la liste désirée, sans faire
+     *  d'hypothèse sur son contenu précédent. Tableau vide si le groupe n'existe pas. */
+    public static function getGroupMembers(string $groupId): array
+    {
+        $r = self::request('GET', '/cloud/groups/' . rawurlencode($groupId));
+        if (!$r['ok']) return [];
+        return $r['data']['users'] ?? [];
+    }
+
 
     /** $unlimited : envoie la valeur spéciale "none" (quota illimité natif Nextcloud) et ignore
      *  $quotaGb. $error est renseigné avec le motif exact en cas d'échec, pour remonter jusqu'au

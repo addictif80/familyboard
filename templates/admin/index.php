@@ -295,6 +295,27 @@
                 <?php endif; ?>
             </p>
             <?php endif; ?>
+
+            <form method="POST" action="<?= BASE_URL ?>/admin/users/resync-nextcloud-visibility" style="margin-top:.75rem">
+                <?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">👁️ Resynchroniser la visibilité Nextcloud (familles amies)</button>
+            </form>
+            <p style="margin-top:.4rem;font-size:.8rem;color:var(--text-muted)">
+                Recrée/repeuple le groupe Nextcloud dédié à chaque paire de familles déjà amies — à lancer une fois après
+                activation du réglage « Restreindre le partage aux membres du groupe » côté Nextcloud, ou si une amitié
+                acceptée avant la mise en place de cette isolation ne s'est jamais vue attribuer son groupe.
+            </p>
+            <?php if ($nextcloudVisibilityResyncReport): ?>
+            <p style="margin-top:.75rem;font-size:.85rem">
+                <strong><?= $nextcloudVisibilityResyncReport['count'] ?></strong> paire(s) de familles resynchronisée(s).
+                <?php if ($nextcloudVisibilityResyncReport['errors']): ?>
+                <br><span style="color:var(--danger,#c53030)"><?= count($nextcloudVisibilityResyncReport['errors']) ?> échec(s) :</span>
+                <ul>
+                    <?php foreach ($nextcloudVisibilityResyncReport['errors'] as $e): ?><li><?= htmlspecialchars($e) ?></li><?php endforeach; ?>
+                </ul>
+                <?php endif; ?>
+            </p>
+            <?php endif; ?>
         </div>
 
         <table class="admin-table">
