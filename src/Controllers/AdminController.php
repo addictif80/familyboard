@@ -240,6 +240,8 @@ class AdminController extends BaseController
         \App\Core\Session::delete('admin_nextcloud_file_migration_report');
         $nextcloudGroupResyncReport = \App\Core\Session::get('admin_nextcloud_group_resync_report');
         \App\Core\Session::delete('admin_nextcloud_group_resync_report');
+        $nextcloudFileRenameReport = \App\Core\Session::get('admin_nextcloud_file_rename_report');
+        \App\Core\Session::delete('admin_nextcloud_file_rename_report');
         $ldapMigrationReport = \App\Core\Session::get('admin_ldap_migration_report');
         \App\Core\Session::delete('admin_ldap_migration_report');
         $ldapAuditReport = \App\Core\Session::get('admin_ldap_audit_report');
@@ -1308,6 +1310,20 @@ class AdminController extends BaseController
         $result = (new \App\Core\NextcloudFileMigration($apply))->run();
         \App\Core\Session::set('admin_nextcloud_file_migration_report', $result);
         $this->redirect('/admin?tab=storage&msg=nextcloud_file_migration_done');
+    }
+
+    /** Renomme sur le Group Folder lui-même (voir App\Core\NextcloudFileRename) les fichiers déjà
+     *  migrés vers Nextcloud sous un nom aléatoire illisible (avant l'introduction de
+     *  FileStore::nextcloudFilename) — simulation puis application, même convention que
+     *  runNextcloudFileMigration() ci-dessus. */
+    public function runNextcloudFileRename(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(600);
+        $apply = !empty($_POST['apply']);
+        $result = (new \App\Core\NextcloudFileRename($apply))->run();
+        \App\Core\Session::set('admin_nextcloud_file_rename_report', $result);
+        $this->redirect('/admin?tab=storage&msg=nextcloud_file_rename_done');
     }
 
     /** Rattrape immédiatement les membres déjà provisionnés LDAP mais jamais ajoutés au groupe

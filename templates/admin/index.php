@@ -960,6 +960,53 @@
 
         <hr style="margin:1.5rem 0;border-color:var(--border)">
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Renomme, sur le Group Folder lui-même, les fichiers déjà migrés vers Nextcloud avant
+            l'introduction d'un nom lisible (upload ou migration antérieure à ce correctif) — ils
+            portent sinon un nom purement aléatoire, visible tel quel par les membres de la
+            famille dans leur client Nextcloud. Rejouable : un fichier déjà renommé n'est pas
+            retraité. <strong>Ne renommez jamais ces fichiers manuellement depuis l'interface
+            Nextcloud</strong> : FamilyBoard chercherait ensuite le fichier sous son ancien nom et
+            le perdrait (404) — passez toujours par ce bouton, qui met à jour la base en même
+            temps que le nom réel.
+        </p>
+        <div style="display:flex;gap:.6rem;margin-bottom:1.25rem">
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/nextcloud-file-rename"><?= \App\Core\Csrf::field() ?>
+                <button type="submit" class="btn btn-secondary btn-sm">▶️ Lancer en simulation</button>
+            </form>
+            <form method="POST" action="<?= BASE_URL ?>/admin/storage/nextcloud-file-rename" onsubmit="return confirm('Renommer réellement ces fichiers sur Nextcloud ?');"><?= \App\Core\Csrf::field() ?>
+                <input type="hidden" name="apply" value="1">
+                <button type="submit" class="btn btn-primary btn-sm">✅ Appliquer</button>
+            </form>
+        </div>
+
+        <?php if ($nextcloudFileRenameReport): ?>
+        <div class="card" style="padding:1.25rem">
+            <h4 style="margin-top:0"><?= $nextcloudFileRenameReport['apply'] ? 'Rapport — appliqué' : 'Rapport — simulation' ?></h4>
+            <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
+                <li>Fichiers renommés : <?= $nextcloudFileRenameReport['stats']['renamed'] ?></li>
+                <li>Déjà lisibles (ignorés) : <?= $nextcloudFileRenameReport['stats']['already_ok'] ?></li>
+                <li>Échecs : <?= $nextcloudFileRenameReport['stats']['failed'] ?></li>
+            </ul>
+
+            <?php if (!empty($nextcloudFileRenameReport['failures'])): ?>
+            <p style="font-weight:600;margin-bottom:.3rem;color:var(--danger)">Échecs :</p>
+            <ul style="margin:0 0 1rem;padding-left:1.2rem;font-size:.9rem">
+                <?php foreach ($nextcloudFileRenameReport['failures'] as $f): ?>
+                    <li style="color:var(--danger)"><?= htmlspecialchars($f) ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <?php endif; ?>
+
+            <details>
+                <summary style="cursor:pointer;color:var(--text-muted);font-size:.85rem">Journal détaillé</summary>
+                <pre style="font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:var(--bg-secondary);padding:.75rem;border-radius:6px;margin-top:.5rem"><?= htmlspecialchars(implode("\n", $nextcloudFileRenameReport['log'])) ?></pre>
+            </details>
+        </div>
+        <script>switchAdminSubTab('storage-nextcloud-migration');</script>
+        <?php endif; ?>
+
+        <hr style="margin:1.5rem 0;border-color:var(--border)">
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Rattrape immédiatement les membres déjà provisionnés LDAP mais jamais ajoutés au
             groupe Nextcloud de leur famille (ex. provisionnés avant l'activation du backend
             fichiers) — sans effet destructif, sans attendre qu'un document soit enregistré.
