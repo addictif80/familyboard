@@ -87,7 +87,7 @@ ob_start();
 .emergency-card {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-decoration: none; border-radius: 12px; padding: .75rem 1.25rem;
-    background: color-mix(in srgb, var(--ec-color) 12%, white);
+    background: color-mix(in srgb, var(--ec-color) 12%, var(--card-bg));
     border: 2px solid var(--ec-color);
     min-width: 90px; transition: transform .15s, box-shadow .15s;
 }

@@ -316,7 +316,9 @@ ob_start();
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; font-size: .8rem; font-weight: 600; background: var(--card-bg); color: var(--text);
     min-height: 38px; user-select: none;
+    transition: transform .18s cubic-bezier(.3,1.5,.5,1), box-shadow .15s;
 }
+.cp-proposal-day:hover { transform: scale(1.08); box-shadow: var(--shadow-lg); }
 .cp-proposal-day.cp-empty { visibility: hidden; }
 .cp-legend-dot { display:inline-block; width:.7rem; height:.7rem; border-radius:50%; margin-right:.25rem; vertical-align:middle; }
 .cp-doc-item, .cp-event-item, .cp-custody-item { padding:.6rem 0; border-bottom:1px solid var(--border); font-size:.88rem; }
@@ -324,7 +326,8 @@ ob_start();
 .cp-journal-msg { background:var(--bg); border-radius:10px; padding:.5rem .75rem; font-size:.88rem; }
 .cp-journal-msg .cp-journal-meta { font-size:.72rem; color:var(--text-muted); margin-bottom:.15rem; }
 .album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:1rem; }
-.album-card { display:block; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-decoration:none; color:var(--text); cursor:pointer; }
+.album-card { display:block; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-decoration:none; color:var(--text); cursor:pointer; transition: transform .2s cubic-bezier(.2,1.4,.3,1), box-shadow .2s ease; }
+.album-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .album-cover { aspect-ratio:1; background:var(--bg) center/cover no-repeat; display:flex; align-items:center; justify-content:center; }
 .album-cover-placeholder { font-size:2.5rem; opacity:.4; }
 .album-info { padding:.5rem .65rem; display:flex; flex-direction:column; gap:.1rem; }
