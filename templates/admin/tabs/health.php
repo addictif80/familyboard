@@ -14,7 +14,19 @@
             </div>
             <div class="admin-stat-card"><div class="stat-val"><?= \App\Core\PlatformHealth::formatBytes($dbSizeBytes) ?></div><div class="stat-label">Taille base de données</div></div>
             <div class="admin-stat-card"><div class="stat-val"><?= \App\Core\PlatformHealth::formatBytes($storageSizeBytes) ?></div><div class="stat-label">Fichiers stockés</div></div>
+            <div class="admin-stat-card <?= !empty($migrationStatus['pending']) ? 'stat-warn' : '' ?>">
+                <div class="stat-val"><?= $migrationStatus['applied'] ?> / <?= $migrationStatus['total'] ?></div>
+                <div class="stat-label">Migrations SQL appliquées<?= !empty($migrationStatus['pending']) ? ' ⚠️' : '' ?></div>
+            </div>
         </div>
+
+        <?php if (!empty($migrationStatus['pending'])): ?>
+        <div class="alert alert-error" style="margin-top:1rem">
+            ⚠️ <?= count($migrationStatus['pending']) ?> migration(s) SQL en échec silencieux : <strong><?= htmlspecialchars(implode(', ', $migrationStatus['pending'])) ?></strong>.
+            Elles sont retentées à chaque requête (<code>Database::autoMigrate()</code>) mais échouent toujours — regardez le error_log du serveur pour le message exact
+            (<code>Migration &lt;fichier&gt; failed: …</code>), corrigez le fichier dans <code>database/</code> et redéployez.
+        </div>
+        <?php endif; ?>
 
         <?php if ($cronStatus['stale']): ?>
         <div class="alert alert-error" style="margin-top:1rem">

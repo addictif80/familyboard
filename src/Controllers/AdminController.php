@@ -312,13 +312,14 @@ class AdminController extends BaseController
 
         // Coûteux (SUM sur information_schema, appel `du`) : calculé uniquement quand l'onglet
         // est effectivement consulté, pas à chaque chargement du panneau admin.
-        $cronStatus = $errorStats = $emailStats = $dbSizeBytes = $storageSizeBytes = null;
+        $cronStatus = $errorStats = $emailStats = $dbSizeBytes = $storageSizeBytes = $migrationStatus = null;
         if ($tab === 'health') {
             $cronStatus = \App\Core\PlatformHealth::cronStatus();
             $errorStats = \App\Core\PlatformHealth::errorStats();
             $emailStats = \App\Core\PlatformHealth::emailStats();
             $dbSizeBytes = \App\Core\PlatformHealth::dbSizeBytes();
             $storageSizeBytes = \App\Core\PlatformHealth::storageSizeBytes();
+            $migrationStatus = \App\Core\PlatformHealth::migrationStatus();
         }
 
         require BASE_PATH . '/templates/admin/index.php';
