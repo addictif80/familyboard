@@ -10,6 +10,22 @@ class User
         return Database::fetch('SELECT * FROM users WHERE id = ?', [$id]);
     }
 
+    /** Visites guidées "Comment ça marche" déjà vues (clé = ModuleGuide, ex. "global", "calendar"). */
+    public static function hasSeenTour(array $user, string $key): bool
+    {
+        if (empty($user['tours_seen'])) return false;
+        $seen = json_decode($user['tours_seen'], true);
+        return is_array($seen) && !empty($seen[$key]);
+    }
+
+    public static function markTourSeen(int $userId, string $key): void
+    {
+        $row = Database::fetch('SELECT tours_seen FROM users WHERE id = ?', [$userId]);
+        $seen = $row && !empty($row['tours_seen']) ? (json_decode($row['tours_seen'], true) ?: []) : [];
+        $seen[$key] = true;
+        Database::execute('UPDATE users SET tours_seen = ? WHERE id = ?', [json_encode($seen), $userId]);
+    }
+
     public static function findByEmail(string $email): ?array
     {
         // Normalisé explicitement plutôt que de dépendre uniquement de la collation de la

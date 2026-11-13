@@ -1022,6 +1022,9 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .modal-header button { background: none; border: none; cursor: pointer; font-size: 1.2rem; color: var(--text-muted); border-radius: var(--radius-sm); padding: .2rem .4rem; }
 .modal-header button:hover { background: var(--bg); }
 .modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 1.35rem; }
+.tour-tagline { color: var(--text-muted); font-size: .92rem; margin: 0 0 1rem; }
+.tour-points { margin: 0 0 1rem; padding-left: 1.2rem; display: flex; flex-direction: column; gap: .5rem; }
+.tour-points li { font-size: .88rem; line-height: 1.5; }
 .modal-footer { flex: none; display: flex; gap: .5rem; justify-content: flex-end; padding: 1.1rem 1.35rem; border-top: 1px solid var(--border); }
 
 /* ---- Auth ---- */
