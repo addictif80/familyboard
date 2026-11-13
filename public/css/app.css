@@ -1232,9 +1232,13 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .chat-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: .5rem; padding: .5rem 0; }
 .message-row { display: flex; align-items: flex-end; gap: .5rem; }
 .message-row.own { flex-direction: row-reverse; }
-.message-bubble { max-width: 70%; padding: .5rem .9rem; border-radius: 18px; font-size: .875rem; line-height: 1.5; position: relative; }
+.message-bubble {
+  max-width: 70%; padding: .5rem .9rem; border-radius: 18px; font-size: .875rem; line-height: 1.5; position: relative;
+  animation: fbPop .3s cubic-bezier(.3,1.5,.5,1) both;
+}
 .bubble-other { background: var(--card-bg); border-radius: 4px 18px 18px 18px; box-shadow: var(--shadow); }
-.bubble-own { background: var(--primary); color: #fff; border-radius: 18px 18px 4px 18px; }
+.bubble-own { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; border-radius: 18px 18px 4px 18px; }
+@media (prefers-reduced-motion: reduce) { .message-bubble { animation: none; } }
 .message-author { font-size: .7rem; font-weight: 600; margin-bottom: .15rem; }
 .message-time { font-size: .65rem; opacity: .6; margin-top: .2rem; text-align: right; }
 .msg-delete-btn { background: none; border: none; font-size: .7rem; color: var(--text-muted); cursor: pointer; opacity: 0; transition: opacity .15s; padding: .2rem; }
