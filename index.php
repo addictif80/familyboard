@@ -20,6 +20,7 @@ use App\Core\Router;
 use App\Controllers\AuthController;
 use App\Controllers\DeletedAccountController;
 use App\Controllers\DashboardController;
+use App\Controllers\TourController;
 use App\Controllers\LegalController;
 use App\Controllers\HelpController;
 use App\Controllers\SearchController;
@@ -251,6 +252,7 @@ $router->get('/api/search', [SearchController::class, 'search']);
 $router->get('/', [DashboardController::class, 'index']);
 $router->post('/api/dashboard/widgets', [DashboardController::class, 'saveWidgets']);
 $router->post('/api/dashboard/weekly-digest/dismiss', [DashboardController::class, 'dismissWeeklyDigest']);
+$router->post('/api/tour/seen', [TourController::class, 'markSeen']);
 
 // Calendar
 $router->get('/calendar', [CalendarController::class, 'index']);

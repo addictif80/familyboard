@@ -660,6 +660,7 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                     <span class="nav-search-kbd">Ctrl K</span>
                 </button>
                 <button class="btn-icon nav-search-trigger-mobile" onclick="openNavSearch()" title="Rechercher">🔎</button>
+                <?php require BASE_PATH . '/templates/partials/tour_widget.php'; ?>
                 <button class="btn-icon" onclick="openReportIssueModal()" title="Signaler un problème">🐞</button>
                 <a class="btn-icon" href="<?= BASE_URL ?>/announcements" title="Annonces" style="position:relative;text-decoration:none">
                     📣
