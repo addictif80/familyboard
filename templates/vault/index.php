@@ -60,7 +60,7 @@ use App\Models\Vault;
                         <?php if ($t['status'] === 'none'): ?>
                             <span style="color:var(--text-muted)">Aucune demande</span>
                         <?php elseif ($t['status'] === 'requested'): ?>
-                            <span style="color:#E67E22;font-weight:600">⏳ Demande en attente</span>
+                            <span style="color:var(--warning-text);font-weight:600">⏳ Demande en attente</span>
                             <div style="margin-top:.3rem">
                                 <button class="btn btn-primary btn-sm" onclick="decideTrustee(<?= $t['id'] ?>, true)">Approuver</button>
                                 <button class="btn btn-secondary btn-sm" onclick="decideTrustee(<?= $t['id'] ?>, false)">Refuser</button>

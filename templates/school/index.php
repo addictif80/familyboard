@@ -284,7 +284,7 @@ foreach ($timetable as $slot) {
                         </div>
                         <div class="form-group">
                             <label>Couleur</label>
-                            <input type="color" id="subject-color" value="#8E44AD">
+                            <input type="color" id="subject-color" value="#7C5CFF">
                         </div>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm" onclick="addSubject()">+ Ajouter la matière</button>
@@ -440,7 +440,7 @@ foreach ($timetable as $slot) {
                 </div>
                 <div class="form-group">
                     <label>Couleur</label>
-                    <input type="color" id="student-color" value="#4A90D9">
+                    <input type="color" id="student-color" value="#7C5CFF">
                 </div>
             </div>
         </div>

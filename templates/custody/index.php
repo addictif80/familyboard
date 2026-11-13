@@ -493,7 +493,7 @@ ob_start();
 .proposal-day.pd-p2 { color: white !important; }
 .proposal-day .pd-num { font-size: .75rem; }
 .proposal-day .pd-initial { font-size: .65rem; font-weight: 700; margin-top: 1px; opacity: .9; }
-.btn-xs { font-size: .7rem; padding: .15rem .45rem; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; white-space: nowrap; }
+.btn-xs { font-size: .7rem; padding: .15rem .45rem; border-radius: 5px; border: 1px solid var(--border); background: var(--card-bg); cursor: pointer; white-space: nowrap; }
 .btn-xs:hover { background: var(--bg); }
 .recurrence-info { background: var(--info-bg); border: 1px solid color-mix(in srgb, var(--info) 35%, transparent); border-radius: 8px; padding: .65rem .9rem; font-size: .8rem; color: var(--info-text); margin-top: .5rem; }
 .field-hint { font-size: .75rem; color: var(--text-muted); margin-top: .2rem; display:block; }

@@ -182,8 +182,8 @@ ob_start();
                     <canvas id="budget-chart"></canvas>
                 </div>
                 <div style="display:flex;gap:1rem;justify-content:center;margin-top:.5rem;font-size:.78rem;color:var(--text-muted)">
-                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#4A90D9;margin-right:4px"></span>Fixes (récurrents)</span>
-                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#F39C12;margin-right:4px"></span>Variables (transactions)</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--primary);margin-right:4px"></span>Fixes (récurrents)</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--warning);margin-right:4px"></span>Variables (transactions)</span>
                 </div>
             </div>
 
@@ -341,7 +341,7 @@ ob_start();
             </div>
             <div class="form-row">
                 <div class="form-group"><label>Échéance</label><input type="date" id="goal-deadline"></div>
-                <div class="form-group"><label>Couleur</label><input type="color" id="goal-color" value="#4A90D9"></div>
+                <div class="form-group"><label>Couleur</label><input type="color" id="goal-color" value="#7C5CFF"></div>
             </div>
         </div>
         <div class="modal-footer">
@@ -371,7 +371,7 @@ ob_start();
             <div class="form-row">
                 <input type="text" id="new-cat-name" placeholder="Nouvelle catégorie">
                 <input type="text" id="new-cat-icon" placeholder="💡" style="width:60px">
-                <input type="color" id="new-cat-color" value="#4A90D9" style="width:50px">
+                <input type="color" id="new-cat-color" value="#7C5CFF" style="width:50px">
                 <button class="btn btn-primary btn-sm" onclick="createCategory()">Ajouter</button>
             </div>
         </div>

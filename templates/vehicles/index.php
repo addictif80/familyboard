@@ -8,7 +8,7 @@ $soon = date('Y-m-d', strtotime('+30 days'));
 $expiryClass = function ($date) use ($today, $soon) {
     if (!$date) return '';
     if ($date < $today) return 'color:var(--danger);font-weight:600';
-    if ($date <= $soon) return 'color:#E67E22;font-weight:600';
+    if ($date <= $soon) return 'color:var(--warning-text);font-weight:600';
     return '';
 };
 ?>
