@@ -34,6 +34,12 @@ $totalDocs = array_sum($typeCounts);
     </div>
 
     <div class="tasks-main">
+        <div class="docs-page-head">
+            <div>
+                <h2 class="docs-page-title">Documents</h2>
+                <p class="docs-page-sub"><strong id="docs-count-anim" data-count="<?= $totalDocs ?>">0</strong> document<?= $totalDocs > 1 ? 's' : '' ?></p>
+            </div>
+        </div>
         <!-- Toolbar -->
         <div class="docs-toolbar">
             <div class="docs-search-wrap">
@@ -86,9 +92,12 @@ $totalDocs = array_sum($typeCounts);
 
             <!-- Colored type header -->
             <div class="doc-card-head" style="background:<?= htmlspecialchars($doc['type_color']) ?>">
-                <span class="doc-card-icon"><?= $doc['type_icon'] ?></span>
+                <span class="doc-card-icon doc-card-icon-badge"><?= $doc['type_icon'] ?></span>
                 <span class="doc-card-type"><?= htmlspecialchars($doc['type_label']) ?></span>
                 <?php if (!empty($doc['custody_schedule_ids'])): ?><span title="Partagé avec le co-parent">🔒</span><?php endif; ?>
+                <?php if (in_array($doc['expiry_status'] ?? '', ['critical', 'soon'], true)): ?>
+                    <span class="doc-expiring-pill">expire bientôt</span>
+                <?php endif; ?>
                 <div class="doc-card-actions" onclick="event.stopPropagation()">
                     <button class="btn-icon-sm light" onclick="openEditDocModal(<?= htmlspecialchars(json_encode($doc)) ?>)" title="Modifier">✏️</button>
                     <button class="btn-icon-sm light" onclick="deleteDoc(<?= $doc['id'] ?>)" title="Supprimer">🗑</button>
@@ -355,6 +364,19 @@ const DOC_TYPES = <?= json_encode(array_map(fn($k, $v) => ['key'=>$k,'label'=>$v
 const DOC_CURRENT_FILTER_TYPE = <?= json_encode($filterType) ?>;
 const DOC_CURRENT_FILTER_USER = <?= json_encode($filterUser) ?>;
 const DOC_CURRENT_USER_ID = <?= json_encode((int)($_SESSION['user_id'] ?? 0)) ?>;
+(function () {
+    var el = document.getElementById('docs-count-anim');
+    if (!el) return;
+    var target = parseInt(el.dataset.count, 10) || 0;
+    if (!target) { el.textContent = '0'; return; }
+    var start = Date.now(), duration = 700;
+    (function step() {
+        var t = Math.min(1, (Date.now() - start) / duration);
+        var eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(target * eased);
+        if (t < 1) requestAnimationFrame(step);
+    })();
+})();
 </script>
 <?php
 $content = ob_get_clean();

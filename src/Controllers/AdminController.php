@@ -168,11 +168,21 @@ class AdminController extends BaseController
         $tab = $_GET['tab'] ?? 'dashboard';
 
         $stats = [
-            'families'    => (int)(Database::fetch('SELECT COUNT(*) c FROM families')['c'] ?? 0),
-            'users'       => (int)(Database::fetch('SELECT COUNT(*) c FROM users')['c'] ?? 0),
-            'blocked'     => (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE blocked_at IS NOT NULL")['c'] ?? 0),
-            'tickets'     => SupportTicket::countOpen(),
+            'families'       => (int)(Database::fetch('SELECT COUNT(*) c FROM families')['c'] ?? 0),
+            'families_month' => (int)(Database::fetch("SELECT COUNT(*) c FROM families WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')")['c'] ?? 0),
+            'users'          => (int)(Database::fetch('SELECT COUNT(*) c FROM users')['c'] ?? 0),
+            'users_month'    => (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')")['c'] ?? 0),
+            'blocked'        => (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE blocked_at IS NOT NULL")['c'] ?? 0),
+            'tickets'        => SupportTicket::countOpen(),
+            'storage_bytes'  => (int)(Database::fetch('SELECT COALESCE(SUM(size_bytes),0) b FROM stored_files')['b'] ?? 0),
         ];
+        $recentFamilies = Database::fetchAll(
+            'SELECT f.*, p.name as plan_name
+             FROM families f
+             LEFT JOIN family_subscriptions fs ON fs.family_id = f.id AND fs.status = "active"
+             LEFT JOIN plans p ON p.id = fs.plan_id
+             ORDER BY f.created_at DESC LIMIT 3'
+        );
         $families     = Database::fetchAll('SELECT f.*, COUNT(u.id) as member_count FROM families f LEFT JOIN users u ON u.family_id=f.id GROUP BY f.id ORDER BY f.created_at DESC');
         // Colonnes explicites (jamais SELECT u.*) : évite qu'un futur ajout de colonne sensible
         // (mot de passe, secret TOTP...) ne se retrouve exposé sans y penser dans ce tableau.
