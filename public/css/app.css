@@ -1120,8 +1120,8 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .wall-container { max-width: 680px; margin: 0 auto; }
 .wall-toolbar { display: flex; gap: .6rem; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
 .wall-tabs { display: flex; gap: .3rem; }
-.wall-tab { padding: .45rem .9rem; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text-muted); font-size: .85rem; cursor: pointer; font-weight: 600; }
-.wall-tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.wall-tab { padding: .45rem .9rem; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text-muted); font-size: .85rem; cursor: pointer; font-weight: 600; transition: background .15s, color .15s, border-color .15s, transform .18s cubic-bezier(.3,1.5,.5,1); }
+.wall-tab.active { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; border-color: transparent; transform: scale(1.03); }
 .wall-album-section { margin-bottom: 1.5rem; }
 .wall-album-title { font-size: .95rem; margin: 0 0 .6rem; display: flex; align-items: baseline; gap: .5rem; }
 .wall-album-owner { font-size: .75rem; color: var(--text-muted); font-weight: 400; }
@@ -1182,7 +1182,8 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .calendar-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .calendar-filters { display: flex; gap: .5rem; flex-wrap: wrap; }
 .calendar-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
-.member-filter { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; font-size: .8rem; padding: .3rem .7rem; border-radius: 20px; background: var(--bg); border: 2px solid var(--color, var(--border)); color: var(--text); transition: background .15s, color .15s, border-color .15s; }
+.member-filter { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; font-size: .8rem; padding: .3rem .7rem; border-radius: 20px; background: var(--bg); border: 2px solid var(--color, var(--border)); color: var(--text); transition: background .15s, color .15s, border-color .15s, transform .18s cubic-bezier(.3,1.5,.5,1); }
+.member-filter:has(input:checked) { transform: scale(1.04); }
 .member-filter:has(input:checked) { background: var(--color, var(--primary)); border-color: var(--color, var(--primary)); color: #fff; }
 .member-filter input { display: none; }
 .caldav-list { }
@@ -1602,15 +1603,19 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .cal-nav h3 { flex: 1; text-align: center; font-size: 1rem; font-weight: 600; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
 .cal-dayname { text-align: center; padding: .5rem; font-size: .75rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); }
-.cal-day { min-height: 90px; padding: .3rem; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
-.cal-day:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.cal-day { min-height: 90px; padding: .3rem; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); cursor: pointer; transition: background .18s ease; }
+.cal-day:hover { background: color-mix(in srgb, var(--primary) 7%, transparent); }
 .cal-day:nth-child(7n) { border-right: none; }
 .cal-other-month .cal-day-num { color: var(--text-muted); opacity: .4; }
-.cal-today .cal-day-num { background: var(--primary); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.cal-today .cal-day-num { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; animation: fbPulseDot 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .cal-today .cal-day-num { animation: none; }
+}
 .cal-day-num { font-size: .8rem; font-weight: 500; margin-bottom: .2rem; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
 .cal-events { display: flex; flex-direction: column; gap: 2px; }
 .cal-event { font-size: .7rem; padding: 1px 5px; border-radius: 3px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.cal-event:hover { opacity: .85; filter: brightness(1.1); }
+.cal-event { transition: opacity .15s, filter .15s, transform .15s cubic-bezier(.3,1.5,.5,1); }
+.cal-event:hover { opacity: .85; filter: brightness(1.1); transform: translateX(1px) scale(1.03); }
 .cal-event-recurring { opacity: .85; border-left: 3px solid rgba(255,255,255,.6) !important; }
 .cal-more { font-size: .65rem; color: var(--text-muted); padding: 1px 4px; }
 
@@ -2487,6 +2492,20 @@ p { text-wrap: pretty; }
     .poll-card, .consult-card, .letter-item, .baby-info-bar, .pregnancy-info-card,
     .birth-info-card, .cal-wrapper, .cam-card, .doc-card, .warranty-card, .project-card,
     .link-card, .contact-card) { border-radius: var(--radius); box-shadow: var(--shadow); }
+
+/* Même traitement de survol "vivant" (léger soulèvement) que les widgets et cartes
+   documents, étendu aux cartes similaires qui n'avaient pas encore de transition. */
+:is(.summary-card, .post-card, .poll-card, .consult-card, .letter-item,
+    .baby-info-bar, .pregnancy-info-card, .birth-info-card, .cam-card,
+    .warranty-card, .project-card, .link-card, .contact-card) {
+  transition: transform .2s cubic-bezier(.2,1.4,.3,1), box-shadow .2s ease;
+}
+:is(.summary-card, .post-card, .poll-card, .consult-card, .letter-item,
+    .baby-info-bar, .pregnancy-info-card, .birth-info-card, .cam-card,
+    .warranty-card, .project-card, .link-card, .contact-card):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
 
 /* ---- Boutons ---- */
 .btn { padding: .6rem 1.15rem; border-radius: 11px; }
