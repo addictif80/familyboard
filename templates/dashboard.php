@@ -12,6 +12,8 @@ ob_start();
     </div>
     <div class="dash-head-actions">
         <div class="dash-infopill" id="dashboard-hero">
+            <div class="dash-clock" id="dash-clock" aria-hidden="true">🕐 --:--</div>
+            <div class="dash-infopill-sep"></div>
             <div class="hero-weather" id="hero-weather">
                 <span class="weather-loading">…</span>
             </div>
@@ -607,6 +609,20 @@ ob_start();
     </div>
 </div>
 <?php endif; ?>
+
+<!-- Bouton d'ajout rapide (mobile/PWA) -->
+<button type="button" class="dash-fab" id="dash-fab" onclick="Dashboard.openQuickAdd()" aria-label="Ajouter rapidement">+</button>
+<div class="dash-sheet-overlay" id="dash-sheet-overlay" style="display:none" onclick="Dashboard.closeQuickAdd()"></div>
+<div class="dash-sheet" id="dash-sheet" style="display:none">
+    <div class="dash-sheet-handle"></div>
+    <h2>Ajouter rapidement</h2>
+    <div class="dash-sheet-grid">
+        <a href="<?= BASE_URL ?>/tasks" class="dash-sheet-btn"><span aria-hidden="true">✅</span>Tâche</a>
+        <a href="<?= BASE_URL ?>/calendar" class="dash-sheet-btn"><span aria-hidden="true">📅</span>Événement</a>
+        <a href="<?= BASE_URL ?>/documents" class="dash-sheet-btn"><span aria-hidden="true">🗂️</span>Document</a>
+        <a href="<?= BASE_URL ?>/wall" class="dash-sheet-btn"><span aria-hidden="true">📸</span>Photo</a>
+    </div>
+</div>
 
 <script>
 var _weatherCity = <?= json_encode($family['weather_city'] ?? '') ?>;

@@ -195,15 +195,37 @@ var Dashboard = (() => {
         apiFetch(`${_baseUrl}/api/dashboard/weekly-digest/dismiss`, { method: 'POST' }).catch(() => {});
     }
 
+    // ── Horloge (bandeau du haut, utile surtout sur mobile/PWA) ──
+    function tickClock() {
+        const el = document.getElementById('dash-clock');
+        if (!el) return;
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        el.textContent = '🕐 ' + h + ':' + m;
+    }
+
+    // ── Feuille d'ajout rapide (mobile/PWA) ──────────────────────
+    function openQuickAdd() {
+        document.getElementById('dash-sheet-overlay').style.display = 'block';
+        document.getElementById('dash-sheet').style.display = 'block';
+    }
+    function closeQuickAdd() {
+        document.getElementById('dash-sheet-overlay').style.display = 'none';
+        document.getElementById('dash-sheet').style.display = 'none';
+    }
+
     // ── Init ─────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
         initDrag();
         loadWeather();
+        tickClock();
+        setInterval(tickClock, 30000);
         if (typeof _hasWeeklyDigest !== 'undefined' && _hasWeeklyDigest) {
             const modal = document.getElementById('weekly-digest-modal');
             if (modal) modal.style.display = 'flex';
         }
     });
 
-    return { toggleWidget, openWidgetManager, closeWidgetManager, saveWidgets, dismissWeeklyDigest };
+    return { toggleWidget, openWidgetManager, closeWidgetManager, saveWidgets, dismissWeeklyDigest, openQuickAdd, closeQuickAdd };
 })();
