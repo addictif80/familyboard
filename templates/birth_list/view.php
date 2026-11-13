@@ -19,10 +19,10 @@ ob_start();
         voient jamais ce qui a été réservé : la surprise est garantie !
     </p>
 
-    <div id="birth-list-items" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-top:1.25rem">
+    <div id="birth-list-items" class="birth-list-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;margin-top:1.25rem">
         <?php foreach ($items as $item): ?>
             <?php $reserved = !empty($item['reserved_at']); ?>
-            <div class="card" data-item-id="<?= $item['id'] ?>" style="padding:1rem;display:flex;flex-direction:column;gap:.5rem;<?= $reserved ? 'opacity:.6' : '' ?>">
+            <div class="card" data-item-id="<?= $item['id'] ?>" style="padding:1rem;display:flex;flex-direction:column;gap:.5rem;animation:fbFadeInUp .4s cubic-bezier(.2,1.4,.3,1) both;<?= $reserved ? 'opacity:.6' : '' ?>">
                 <?php if ($item['image_path']): ?>
                     <img src="<?= BASE_URL . htmlspecialchars($item['image_path']) ?>" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px">
                 <?php endif; ?>
@@ -47,6 +47,10 @@ ob_start();
 <?php endif; ?>
 </div>
 </div>
+
+<style>
+@media (prefers-reduced-motion: reduce) { .birth-list-grid > .card { animation: none !important; } }
+</style>
 
 <script>
 const LIST_TOKEN = <?= json_encode($params['token'] ?? '') ?>;

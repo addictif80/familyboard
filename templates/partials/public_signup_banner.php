@@ -16,7 +16,12 @@ if ((\App\Models\AppSetting::get('public_signup_banner_enabled', '1')) !== '0'):
         if ($_bannerRefCode) $_bannerRegisterUrl .= '?ref=' . urlencode($_bannerRefCode);
     }
 ?>
-<div class="card" style="max-width:720px;width:100%;margin:0 auto 1.25rem;padding:1.25rem 1.5rem;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;border:2px solid var(--accent);background:color-mix(in srgb, var(--accent) 16%, var(--card-bg));box-shadow:var(--shadow-lg)">
+<style>
+@media (prefers-reduced-motion: no-preference) {
+  .public-signup-banner { animation: fbPop .4s cubic-bezier(.2,1.4,.3,1) both; }
+}
+</style>
+<div class="card public-signup-banner" style="max-width:720px;width:100%;margin:0 auto 1.25rem;padding:1.25rem 1.5rem;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap;border:2px solid var(--accent);background:color-mix(in srgb, var(--accent) 16%, var(--card-bg));box-shadow:var(--shadow-lg)">
     <div style="flex:1;min-width:240px">
         <div style="font-size:1.05rem;font-weight:700">🏡 Cette liste est propulsée par FamilyBoard</div>
         <p style="margin:.3rem 0 0;color:var(--text-muted);font-size:.88rem">

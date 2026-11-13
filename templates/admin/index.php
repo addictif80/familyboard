@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css?v=<?= APP_VERSION ?>">
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/quill.snow.css?v=<?= APP_VERSION ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Baloo+2:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
 </head>
 <body class="admin-body">
 <div class="admin-layout">
@@ -75,7 +75,7 @@
             </li>
         </ul>
         <div class="admin-sidebar-footer">
-            <a href="<?= BASE_URL ?>/" style="font-size:.8rem;color:var(--text-muted)">← Site</a>
+            <a href="<?= BASE_URL ?>/" style="font-size:.8rem;color:var(--sidebar-text)">← Site</a>
             <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème" style="margin-left:.5rem"><span class="theme-icon-sun">☀️</span><span class="theme-icon-moon">🌙</span></button>
             <a href="<?= BASE_URL ?>/admin/logout" class="btn btn-danger btn-sm" style="margin-left:auto">Déconnexion</a>
         </div>
