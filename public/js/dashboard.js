@@ -7,6 +7,8 @@ var Dashboard = (() => {
         if (idx >= 0) widgetState[idx].enabled = enabled;
         const el = document.getElementById('widget-' + slug);
         if (el) el.classList.toggle('widget-hidden', !enabled);
+        const managerItem = document.querySelector('.widget-manager-item[data-slug="' + slug + '"]');
+        if (managerItem) managerItem.classList.toggle('widget-manager-item-on', enabled);
     }
 
     function openWidgetManager() {
