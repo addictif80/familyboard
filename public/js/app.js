@@ -384,6 +384,25 @@ function toggleUserMenu() {
     document.getElementById('user-menu-trigger')?.classList.toggle('open', userMenuOpen);
 }
 
+// Topbar "⋯" menu (Annonces, thème, signaler un problème, comment ça marche)
+let topbarMenuOpen = false;
+
+function toggleTopbarMenu() {
+    const popover = document.getElementById('topbar-menu-popover');
+    if (!popover) return;
+    topbarMenuOpen = !topbarMenuOpen;
+    popover.style.display = topbarMenuOpen ? 'flex' : 'none';
+    document.getElementById('topbar-menu-trigger')?.classList.toggle('open', topbarMenuOpen);
+}
+
+// Referme le menu dès qu'on choisit une de ses entrées (elles ouvrent une page ou une modale,
+// jamais le menu lui-même).
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('topbar-menu-popover')?.addEventListener('click', e => {
+        if (e.target.closest('.topbar-menu-item')) toggleTopbarMenu();
+    });
+});
+
 // Notifications
 let notifOpen = false;
 
@@ -663,6 +682,12 @@ document.addEventListener('click', function(e) {
         userMenuOpen = false;
         document.getElementById('user-menu-popover').style.display = 'none';
         document.getElementById('user-menu-trigger')?.classList.remove('open');
+    }
+    const topbarMenu = document.getElementById('topbar-menu');
+    if (topbarMenu && topbarMenuOpen && !topbarMenu.contains(e.target)) {
+        topbarMenuOpen = false;
+        document.getElementById('topbar-menu-popover').style.display = 'none';
+        document.getElementById('topbar-menu-trigger')?.classList.remove('open');
     }
 });
 

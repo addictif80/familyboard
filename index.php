@@ -20,6 +20,7 @@ use App\Core\Router;
 use App\Controllers\AuthController;
 use App\Controllers\DeletedAccountController;
 use App\Controllers\DashboardController;
+use App\Controllers\LoyaltyCardController;
 use App\Controllers\TourController;
 use App\Controllers\LegalController;
 use App\Controllers\HelpController;
@@ -251,6 +252,7 @@ $router->get('/api/search', [SearchController::class, 'search']);
 // Dashboard
 $router->get('/', [DashboardController::class, 'index']);
 $router->post('/api/dashboard/widgets', [DashboardController::class, 'saveWidgets']);
+$router->post('/api/dashboard/quick-access', [DashboardController::class, 'saveQuickAccess']);
 $router->post('/api/dashboard/weekly-digest/dismiss', [DashboardController::class, 'dismissWeeklyDigest']);
 $router->post('/api/tour/seen', [TourController::class, 'markSeen']);
 
@@ -402,6 +404,12 @@ $router->post('/api/pets/:id', [PetController::class, 'update']);
 $router->post('/api/pets/:id/delete', [PetController::class, 'delete']);
 $router->post('/api/pets/:id/care', [PetController::class, 'addCareEntry']);
 $router->post('/api/pets/:id/care/:careId/delete', [PetController::class, 'deleteCareEntry']);
+
+// ── Cartes de fidélité ────────────────────────────────────────
+$router->get('/loyalty-cards', [LoyaltyCardController::class, 'index']);
+$router->post('/api/loyalty-cards', [LoyaltyCardController::class, 'create']);
+$router->post('/api/loyalty-cards/:id', [LoyaltyCardController::class, 'update']);
+$router->post('/api/loyalty-cards/:id/delete', [LoyaltyCardController::class, 'delete']);
 
 // ── Compteurs & consommation ─────────────────────────────────
 $router->get('/meters', [MeterController::class, 'index']);

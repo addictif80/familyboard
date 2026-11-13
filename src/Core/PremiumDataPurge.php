@@ -57,6 +57,7 @@ class PremiumDataPurge
         'admin_procedures' => ['admin_procedures'],
         'leave'      => ['leave_requests'],
         'travels'    => ['travels'],
+        'loyalty_cards' => ['loyalty_cards'],
         'vault'      => ['vault_entries', 'vault_trustees'],
         'ai_assistant' => ['ai_assistant_messages', 'ai_assistant_actions'],
     ];

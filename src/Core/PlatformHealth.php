@@ -95,6 +95,26 @@ class PlatformHealth
         return $found ? $total : null;
     }
 
+    /** Fichiers de database/*.sql pas encore marqués comme appliqués dans _migrations. Comme
+     *  Database::autoMigrate() tourne déjà à chaque requête (avant le routage, voir index.php),
+     *  un fichier encore "en attente" au moment où l'admin consulte cette page a donc déjà échoué
+     *  au moins une fois sur CETTE requête — c'est un vrai échec silencieux à investiguer dans le
+     *  error_log du serveur ("Migration <fichier> failed: ..."), pas une simple attente. */
+    public static function migrationStatus(): array
+    {
+        $files = array_map('basename', glob(BASE_PATH . '/database/*.sql') ?: []);
+        sort($files);
+
+        try {
+            $applied = array_column(Database::fetchAll('SELECT filename FROM _migrations'), 'filename');
+        } catch (\Throwable) {
+            $applied = [];
+        }
+
+        $pending = array_values(array_diff($files, $applied));
+        return ['total' => count($files), 'applied' => count($applied), 'pending' => $pending];
+    }
+
     public static function formatBytes(?int $bytes): string
     {
         if ($bytes === null) return 'inconnu';

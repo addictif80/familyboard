@@ -175,6 +175,24 @@ ob_start();
         <div class="widget-drag-handle" title="Déplacer">⠿</div>
         <div class="widget-body">
         <?php switch ($slug):
+            case 'quick_access': ?>
+                <div class="card-header">
+                    <h3><?= $meta['icon'] ?> <?= $meta['label'] ?></h3>
+                    <button type="button" class="btn-text" onclick="Dashboard.openQuickAccessEditor()">⚙️ Modifier</button>
+                </div>
+                <?php if (empty($quickAccess['selected'])): ?>
+                    <p class="empty-state">Choisissez vos modules préférés pour y accéder en un clic.</p>
+                <?php else: ?>
+                    <div class="quick-access-grid">
+                        <?php foreach ($quickAccess['selected'] as $qa): ?>
+                            <a href="<?= BASE_URL . $qa['route'] ?>" class="quick-access-btn">
+                                <span class="quick-access-icon" aria-hidden="true"><?= $qa['icon'] ?></span>
+                                <span class="quick-access-label"><?= htmlspecialchars($qa['label']) ?></span>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; break;
+
             case 'calendar': ?>
                 <div class="card-header">
                     <h3><?= $meta['icon'] ?> <?= $meta['label'] ?></h3>
@@ -624,11 +642,34 @@ ob_start();
     </div>
 </div>
 
+<!-- Choix personnel des modules épinglés au widget "Accès rapides" -->
+<div class="dash-sheet-overlay" id="quick-access-sheet-overlay" style="display:none" onclick="Dashboard.closeQuickAccessEditor()"></div>
+<div class="dash-sheet" id="quick-access-sheet" style="display:none">
+    <div class="dash-sheet-handle"></div>
+    <h2>⚡ Accès rapides</h2>
+    <p style="color:var(--text-muted);font-size:.85rem;margin:-.5rem 0 1rem">Choisissez les modules qui apparaissent dans votre widget — c'est personnel, chacun fait sa sélection.</p>
+    <div class="quick-access-picker" id="quick-access-picker">
+        <?php $_qaSelectedSlugs = array_column($quickAccess['selected'], 'slug'); ?>
+        <?php foreach ($quickAccess['available'] as $qa): ?>
+            <label class="quick-access-picker-item <?= in_array($qa['slug'], $_qaSelectedSlugs) ? 'quick-access-picker-item-on' : '' ?>" data-slug="<?= $qa['slug'] ?>">
+                <input type="checkbox" value="<?= $qa['slug'] ?>" <?= in_array($qa['slug'], $_qaSelectedSlugs) ? 'checked' : '' ?>
+                       onchange="this.closest('label').classList.toggle('quick-access-picker-item-on', this.checked)">
+                <span class="quick-access-icon" aria-hidden="true"><?= $qa['icon'] ?></span>
+                <span><?= htmlspecialchars($qa['label']) ?></span>
+            </label>
+        <?php endforeach; ?>
+    </div>
+    <div class="dash-sheet-grid" style="margin-top:1rem">
+        <button type="button" class="btn btn-primary" style="grid-column:1/-1" onclick="Dashboard.saveQuickAccessSelection()">Enregistrer</button>
+    </div>
+</div>
+
 <script>
 var _weatherCity = <?= json_encode($family['weather_city'] ?? '') ?>;
 var _widgetConfig = <?= json_encode($widgetConfig) ?>;
 var _baseUrl = <?= json_encode(BASE_URL) ?>;
 var _hasWeeklyDigest = <?= $weeklyDigest ? 'true' : 'false' ?>;
+var _quickAccessAll = <?= json_encode($quickAccess['available']) ?>;
 </script>
 <script src="<?= ASSETS_URL ?>/js/dashboard.js?v=<?= APP_VERSION ?>"></script>
 <?php
