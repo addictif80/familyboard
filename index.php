@@ -251,6 +251,7 @@ $router->get('/api/search', [SearchController::class, 'search']);
 // Dashboard
 $router->get('/', [DashboardController::class, 'index']);
 $router->post('/api/dashboard/widgets', [DashboardController::class, 'saveWidgets']);
+$router->post('/api/dashboard/quick-access', [DashboardController::class, 'saveQuickAccess']);
 $router->post('/api/dashboard/weekly-digest/dismiss', [DashboardController::class, 'dismissWeeklyDigest']);
 $router->post('/api/tour/seen', [TourController::class, 'markSeen']);
 

@@ -31,6 +31,7 @@ use App\Core\Session;
 class DashboardController extends \App\Controllers\BaseController
 {
     public const AVAILABLE_WIDGETS = [
+        'quick_access' => ['label' => 'Accès rapides',        'icon' => '⚡', 'cat' => 'quotidien'],
         'calendar'   => ['label' => 'Calendrier',             'icon' => '📅', 'cat' => 'quotidien'],
         'wall'       => ['label' => 'Mur familial',           'icon' => '📸', 'cat' => 'quotidien'],
         'tasks'      => ['label' => 'Tâches',                 'icon' => '✅', 'cat' => 'quotidien'],
@@ -99,6 +100,7 @@ class DashboardController extends \App\Controllers\BaseController
         $headerStats  = $this->computeHeaderStats($familyId, (int)$user['id'], $disabledModules);
         $timelineDays = $this->computeTimeline($familyId);
         $familyMembers = User::getByFamily($familyId);
+        $quickAccess   = $this->computeQuickAccess($user, $disabledModules);
 
         $city = trim((string)($family['weather_city'] ?? '')) ?: null;
         $officialAlerts = [];
@@ -160,11 +162,71 @@ class DashboardController extends \App\Controllers\BaseController
         echo json_encode(['ok' => true]);
     }
 
+    /** Sélection personnelle (par utilisateur, pas par famille) de modules épinglés dans le
+     *  widget "Accès rapides" — stockée dans dashboard_config['quick_access'], à défaut un
+     *  ordre de priorité fixe (voir Family::defaultQuickAccess). */
+    public function saveQuickAccess(array $params): void
+    {
+        $this->requireAuth();
+        $user = Session::user();
+
+        $body  = json_decode(file_get_contents('php://input'), true) ?: [];
+        $slugs = is_array($body['slugs'] ?? null) ? $body['slugs'] : null;
+        if ($slugs === null) {
+            http_response_code(400);
+            echo json_encode(['error' => 'invalid']);
+            return;
+        }
+
+        $clean = array_values(array_intersect(array_map('strval', $slugs), array_keys(Family::QUICK_NAV_ROUTES)));
+
+        $config = [];
+        if (!empty($user['dashboard_config'])) {
+            $config = json_decode($user['dashboard_config'], true) ?: [];
+        }
+        $config['quick_access'] = $clean;
+
+        Database::execute('UPDATE users SET dashboard_config=? WHERE id=?', [json_encode($config), $user['id']]);
+
+        $updated = \App\Models\User::findById($user['id']);
+        Session::set('user', $updated);
+
+        header('Content-Type: application/json');
+        echo json_encode(['ok' => true]);
+    }
+
     // ── private helpers ──────────────────────────────────────────
+
+    private function computeQuickAccess(array $user, array $disabledModules): array
+    {
+        $availableSlugs = array_values(array_diff(array_keys(Family::QUICK_NAV_ROUTES), $disabledModules));
+
+        $saved = null;
+        if (!empty($user['dashboard_config'])) {
+            $parsed = json_decode($user['dashboard_config'], true);
+            if (isset($parsed['quick_access']) && is_array($parsed['quick_access'])) {
+                $saved = array_values(array_intersect($parsed['quick_access'], $availableSlugs));
+            }
+        }
+        $selected = $saved ?? Family::defaultQuickAccess($availableSlugs);
+
+        $make = fn(string $slug) => [
+            'slug'  => $slug,
+            'route' => Family::QUICK_NAV_ROUTES[$slug],
+            'icon'  => Family::MODULES[$slug]['icon'] ?? '▫️',
+            'label' => Family::MODULES[$slug]['label'] ?? $slug,
+        ];
+
+        return [
+            'available' => array_map($make, $availableSlugs),
+            'selected'  => array_map($make, $selected),
+        ];
+    }
 
     private function getUserWidgets(array $user, array $disabledModules): array
     {
         $default = [
+            ['slug' => 'quick_access', 'enabled' => true],
             ['slug' => 'calendar', 'enabled' => true],
             ['slug' => 'wall',     'enabled' => true],
             ['slug' => 'tasks',    'enabled' => true],

@@ -215,6 +215,29 @@ var Dashboard = (() => {
         document.getElementById('dash-sheet').style.display = 'none';
     }
 
+    // ── Choix personnel du widget "Accès rapides" ────────────────
+    function openQuickAccessEditor() {
+        document.getElementById('quick-access-sheet-overlay').style.display = 'block';
+        document.getElementById('quick-access-sheet').style.display = 'block';
+    }
+    function closeQuickAccessEditor() {
+        document.getElementById('quick-access-sheet-overlay').style.display = 'none';
+        document.getElementById('quick-access-sheet').style.display = 'none';
+    }
+    function saveQuickAccessSelection() {
+        const picker = document.getElementById('quick-access-picker');
+        const slugs = Array.from(picker.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+
+        fetch(_baseUrl + '/api/dashboard/quick-access', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ slugs }),
+        })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(() => location.reload())
+        .catch(e => alert('Erreur: ' + e.message));
+    }
+
     // ── Init ─────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
         initDrag();
@@ -227,5 +250,5 @@ var Dashboard = (() => {
         }
     });
 
-    return { toggleWidget, openWidgetManager, closeWidgetManager, saveWidgets, dismissWeeklyDigest, openQuickAdd, closeQuickAdd };
+    return { toggleWidget, openWidgetManager, closeWidgetManager, saveWidgets, dismissWeeklyDigest, openQuickAdd, closeQuickAdd, openQuickAccessEditor, closeQuickAccessEditor, saveQuickAccessSelection };
 })();

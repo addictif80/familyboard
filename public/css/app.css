@@ -400,6 +400,29 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 
 .user-menu-divider { height: 1px; background: var(--border); margin: .3rem .1rem; }
 
+/* ── Topbar "⋯" menu (Annonces, thème, signaler un problème, comment ça marche) ── */
+.topbar-menu { position: relative; }
+.topbar-menu-trigger { position: relative; font-size: 1.1rem; }
+.topbar-menu-trigger.open { background: var(--bg); color: var(--text); }
+.topbar-menu-popover {
+  position: absolute; top: calc(100% + 8px); right: 0; min-width: 230px;
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow), 0 8px 30px rgba(0,0,0,.18); z-index: 200;
+  flex-direction: column; padding: .4rem; gap: .1rem; overflow: hidden;
+}
+.topbar-menu-item {
+  display: flex; align-items: center; gap: .6rem; padding: .55rem .65rem; border-radius: var(--radius-sm);
+  font-size: .85rem; font-weight: 500; color: var(--text); text-decoration: none;
+  background: none; border: none; width: 100%; text-align: left; cursor: pointer; transition: background .15s;
+}
+.topbar-menu-item:hover { background: var(--bg); }
+.topbar-menu-item-icon { font-size: 1rem; width: 1.3rem; text-align: center; flex: none; }
+.topbar-menu-item-badge {
+  margin-left: auto; background: var(--danger); color: #fff; font-size: .68rem; font-weight: 700;
+  min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; display: inline-flex;
+  align-items: center; justify-content: center;
+}
+
 .push-cta-btn {
   background: color-mix(in srgb, var(--accent) 15%, transparent) !important;
   color: var(--accent) !important;
@@ -2441,6 +2464,26 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .dash-sheet-btn span { font-size: 1.25rem; }
 .dash-sheet-btn:hover { transform: translateY(-2px); }
 @media (prefers-reduced-motion: reduce) { .dash-fab { animation: none; } }
+
+/* ── Widget "Accès rapides" ───────────────────────────────────── */
+.quick-access-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: .6rem; }
+.quick-access-btn {
+  display: flex; flex-direction: column; align-items: center; gap: .4rem; padding: .8rem .4rem;
+  border-radius: 14px; border: 1px solid var(--border); background: var(--bg); font-size: .72rem; font-weight: 700;
+  color: var(--text); text-decoration: none; text-align: center;
+  transition: transform .18s cubic-bezier(.3,1.5,.5,1), border-color .18s ease;
+}
+.quick-access-btn:hover { transform: translateY(-2px); border-color: var(--primary); }
+.quick-access-icon { font-size: 1.4rem; }
+.quick-access-picker { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; max-height: 50vh; overflow-y: auto; }
+.quick-access-picker-item {
+  display: flex; align-items: center; gap: .5rem; padding: .55rem .7rem; border-radius: 12px;
+  border: 2px solid var(--border); background: var(--card-bg); font-size: .82rem; cursor: pointer;
+  transition: border-color .18s ease, background .18s ease;
+}
+.quick-access-picker-item input { position: absolute; opacity: 0; width: 0; height: 0; }
+.quick-access-picker-item.quick-access-picker-item-on { border-color: var(--primary); background: var(--primary-soft); }
+@media (max-width: 420px) { .quick-access-picker { grid-template-columns: 1fr; } }
 
 @media (max-width: 700px) {
   .dash-stats { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(130px, 1fr); overflow-x: auto; padding-bottom: .3rem; }

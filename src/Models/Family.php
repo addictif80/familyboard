@@ -72,14 +72,25 @@ class Family
         'school' => '/school', 'employment' => '/employment', 'nanny' => '/nanny', 'deals' => '/deals', 'health' => '/health', 'vehicles' => '/vehicles', 'pets' => '/pets', 'meters' => '/meters', 'admin_procedures' => '/admin-procedures', 'leave' => '/leave', 'travels' => '/travels', 'vault' => '/vault', 'ai_assistant' => '/ai-assistant', 'medication' => '/medication',
     ];
 
+    /** Ordre de priorité partagé par les deux raccourcis par défaut ci-dessous (barre de
+     *  navigation rapide mobile et widget "Accès rapides" du tableau de bord), tant que
+     *  l'utilisateur n'a pas choisi sa propre sélection. */
+    private const QUICK_ACCESS_PRIORITY = ['calendar', 'tasks', 'wall', 'chat', 'custody', 'budget', 'contacts', 'documents', 'wishlist', 'albums', 'projects', 'stock'];
+
     /** Sélection par défaut de la barre de navigation rapide (mobile/PWA), tant que
-     *  l'utilisateur n'a pas choisi la sienne — un ordre de priorité fixe, filtré sur les
-     *  modules réellement activés pour la famille, jamais recalculé depuis l'usage réel
-     *  (une barre qui bouge toute seule casse la mémoire musculaire). */
+     *  l'utilisateur n'a pas choisi la sienne — filtré sur les modules réellement activés
+     *  pour la famille, jamais recalculé depuis l'usage réel (une barre qui bouge toute
+     *  seule casse la mémoire musculaire). */
     public static function defaultQuickNav(array $availableSlugs): array
     {
-        $priority = ['calendar', 'tasks', 'wall', 'chat', 'custody', 'budget', 'contacts', 'documents', 'wishlist', 'albums'];
-        return array_slice(array_values(array_intersect($priority, $availableSlugs)), 0, 3);
+        return array_slice(array_values(array_intersect(self::QUICK_ACCESS_PRIORITY, $availableSlugs)), 0, 3);
+    }
+
+    /** Sélection par défaut du widget "Accès rapides" du tableau de bord (même logique que
+     *  defaultQuickNav, mais pas limité à 3 puisqu'il a toute la largeur d'une carte). */
+    public static function defaultQuickAccess(array $availableSlugs): array
+    {
+        return array_slice(array_values(array_intersect(self::QUICK_ACCESS_PRIORITY, $availableSlugs)), 0, 8);
     }
 
     public static function findById(int $id): ?array
