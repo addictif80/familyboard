@@ -27,17 +27,19 @@ $todayStr = date('Y-m-d');
         background: var(--bg);
     }
 
-    /* ── Blue header banner ── */
+    /* ── Header banner ── */
     .fw-banner {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
         color: #fff;
         padding: .9rem 1.75rem;
         display: flex;
         align-items: center;
         gap: 2rem;
         flex-shrink: 0;
-        box-shadow: 0 2px 8px rgba(74,144,217,.3);
+        box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 30%, transparent);
+        animation: fbFadeInUp .5s cubic-bezier(.2,1.4,.3,1) both;
     }
+    @media (prefers-reduced-motion: reduce) { .fw-banner, .fw-card { animation: none !important; } }
 
     .fw-banner-family {
         display: flex;
@@ -129,26 +131,28 @@ $todayStr = date('Y-m-d');
     }
     .fw-timer.running { border-color: var(--primary); }
     .fw-timer.alarming {
-        border-color: #E74C3C; background: rgba(231,76,60,.12);
+        border-color: var(--danger); background: var(--danger-bg);
         animation: fw-timer-pulse 1s ease-in-out infinite;
     }
-    @keyframes fw-timer-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,.5); } 50% { box-shadow: 0 0 0 8px rgba(231,76,60,0); } }
+    @keyframes fw-timer-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 50%, transparent); } 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--danger) 0%, transparent); } }
     .fw-timer-label { font-weight: 600; font-size: .88rem; }
     .fw-timer-value { font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: .85rem; min-width: 3.2em; }
-    .fw-timer.alarming .fw-timer-value { color: #E74C3C; font-weight: 700; }
+    .fw-timer.alarming .fw-timer-value { color: var(--danger); font-weight: 700; }
     .fw-timer-btn {
         border: none; border-radius: 50%; width: 30px; height: 30px;
-        background: var(--primary); color: #fff; font-size: .85rem; cursor: pointer;
+        background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; font-size: .85rem; cursor: pointer;
         display: flex; align-items: center; justify-content: center;
+        transition: transform .18s cubic-bezier(.3,1.5,.5,1);
     }
-    .fw-timer.alarming .fw-timer-btn.fw-timer-stop { background: #E74C3C; }
+    .fw-timer-btn:active { transform: scale(.9); }
+    .fw-timer.alarming .fw-timer-btn.fw-timer-stop { background: var(--danger); }
 
     /* ── Alarme plein écran ── */
     .fw-alarm-overlay {
         position: fixed; inset: 0; z-index: 999;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         gap: 1rem; cursor: pointer;
-        background: #C0392B;
+        background: var(--danger-dark, var(--danger));
         animation: fw-alarm-flash .6s step-start infinite;
     }
     @keyframes fw-alarm-flash { 50% { background: #1a1a1a; } }
@@ -177,7 +181,11 @@ $todayStr = date('Y-m-d');
         flex-direction: column;
         overflow: hidden;
         min-height: 0;
+        animation: fbFadeInUp .5s cubic-bezier(.2,1.4,.3,1) both;
     }
+    .fw-grid > .fw-card:nth-child(1) { animation-delay: .05s; }
+    .fw-grid > .fw-card:nth-child(2) { animation-delay: .1s; }
+    .fw-grid > .fw-card:nth-child(3) { animation-delay: .15s; }
 
     .fw-card-head {
         padding: .85rem 1.1rem .6rem;
@@ -302,9 +310,9 @@ $todayStr = date('Y-m-d');
         justify-content: center;
         font-size: .58rem;
         color: #fff;
-        transition: all .12s;
+        transition: background .12s, border-color .12s, transform .18s cubic-bezier(.3,1.5,.5,1);
     }
-    .fw-task.done .fw-task-cb { background: var(--success); border-color: var(--success); }
+    .fw-task.done .fw-task-cb { background: var(--success); border-color: var(--success); transform: scale(1.1); }
 
     .fw-task-lbl { color: var(--text); flex: 1; }
     .fw-task.done .fw-task-lbl { text-decoration: line-through; color: var(--text-muted); }
@@ -357,8 +365,8 @@ $todayStr = date('Y-m-d');
         border-radius: 9px;
         text-align: center;
     }
-    .fw-balance.pos { background: rgba(46,204,113,.08); border: 1px solid rgba(46,204,113,.2); }
-    .fw-balance.neg { background: rgba(231,76,60,.08);  border: 1px solid rgba(231,76,60,.2); }
+    .fw-balance.pos { background: var(--success-bg); border: 1px solid color-mix(in srgb, var(--success) 25%, transparent); }
+    .fw-balance.neg { background: var(--danger-bg);  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent); }
     .fw-balance-lbl { font-size: .65rem; color: var(--text-muted); margin-bottom: .15rem; }
     .fw-balance-amt { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
     .fw-balance-amt.pos { color: var(--success); }

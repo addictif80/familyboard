@@ -203,11 +203,17 @@ ob_start();
 .album-upload-card { padding:1rem; margin-bottom:1rem; }
 .album-meta { font-size:.8rem; color:var(--text-muted); }
 .album-photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.75rem; }
-.album-photo { position:relative; border-radius:10px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border); }
+.album-photo {
+    position:relative; border-radius:10px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border);
+    animation: fbFadeInUp .4s cubic-bezier(.2,1.4,.3,1) both;
+    transition: transform .2s cubic-bezier(.2,1.4,.3,1), box-shadow .2s ease;
+}
+.album-photo:hover { transform: translateY(-3px) scale(1.02); box-shadow: var(--shadow-lg); }
 .album-photo img { width:100%; aspect-ratio:1; object-fit:cover; cursor:pointer; display:block; }
 .album-photo-meta { display:flex; justify-content:space-between; align-items:center; padding:.35rem .5rem; font-size:.72rem; }
-.album-photo-delete { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:.85rem; }
-.album-photo-delete:hover { color:#E74C3C; }
+.album-photo-delete { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:.85rem; transition: transform .15s cubic-bezier(.3,1.5,.5,1), color .15s; }
+.album-photo-delete:hover { color:var(--danger); transform: scale(1.15); }
+@media (prefers-reduced-motion: reduce) { .album-photo { animation: none; } }
 #album-lightbox { background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; }
 </style>
 <?php

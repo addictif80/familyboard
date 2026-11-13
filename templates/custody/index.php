@@ -481,21 +481,21 @@ ob_start();
     border: 2px solid transparent;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     cursor: pointer; font-size: .75rem; font-weight: 500;
-    transition: transform .1s, box-shadow .1s;
+    transition: transform .18s cubic-bezier(.3,1.5,.5,1), box-shadow .15s;
     min-height: 36px;
     user-select: none;
 }
-.proposal-day:hover { transform: scale(1.08); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.proposal-day:hover { transform: scale(1.1); box-shadow: var(--shadow-lg); }
 .proposal-day.pd-empty { visibility: hidden; pointer-events: none; }
 .proposal-day.pd-other-month { opacity: .35; }
-.proposal-day.pd-weekend { background: #f8f9fa; }
+.proposal-day.pd-weekend { background: var(--bg); }
 .proposal-day.pd-p1 { color: white !important; }
 .proposal-day.pd-p2 { color: white !important; }
 .proposal-day .pd-num { font-size: .75rem; }
 .proposal-day .pd-initial { font-size: .65rem; font-weight: 700; margin-top: 1px; opacity: .9; }
 .btn-xs { font-size: .7rem; padding: .15rem .45rem; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; white-space: nowrap; }
 .btn-xs:hover { background: var(--bg); }
-.recurrence-info { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: .65rem .9rem; font-size: .8rem; color: #1e40af; margin-top: .5rem; }
+.recurrence-info { background: var(--info-bg); border: 1px solid color-mix(in srgb, var(--info) 35%, transparent); border-radius: 8px; padding: .65rem .9rem; font-size: .8rem; color: var(--info-text); margin-top: .5rem; }
 .field-hint { font-size: .75rem; color: var(--text-muted); margin-top: .2rem; display:block; }
 .recurrence-badge { font-size: .8rem; }
 .parent-block { background: var(--bg); border-radius: 8px; padding: .75rem; margin-bottom: .75rem; }
