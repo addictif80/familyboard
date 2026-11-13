@@ -47,6 +47,7 @@ class Family
         'vault'       => ['label' => 'Coffre-fort numérique',  'icon' => '🔐'],
         'ai_assistant' => ['label' => 'Assistant IA',           'icon' => '🤖'],
         'medication'  => ['label' => 'Traitement médical',     'icon' => '💊'],
+        'loyalty_cards' => ['label' => 'Cartes de fidélité',    'icon' => '💳'],
     ];
 
     /** Modules automatiquement masqués aux comptes au rôle 'ado' — financier, juridique ou
@@ -69,7 +70,7 @@ class Family
         'emergency' => '/emergency', 'comm_log' => '/comm-log', 'meals' => '/meals',
         'wishlist' => '/wishlist', 'polls' => '/polls', 'links' => '/links', 'stock' => '/stock',
         'additions' => '/additions', 'letters' => '/letters', 'disputes' => '/disputes',
-        'school' => '/school', 'employment' => '/employment', 'nanny' => '/nanny', 'deals' => '/deals', 'health' => '/health', 'vehicles' => '/vehicles', 'pets' => '/pets', 'meters' => '/meters', 'admin_procedures' => '/admin-procedures', 'leave' => '/leave', 'travels' => '/travels', 'vault' => '/vault', 'ai_assistant' => '/ai-assistant', 'medication' => '/medication',
+        'school' => '/school', 'employment' => '/employment', 'nanny' => '/nanny', 'deals' => '/deals', 'health' => '/health', 'vehicles' => '/vehicles', 'pets' => '/pets', 'meters' => '/meters', 'admin_procedures' => '/admin-procedures', 'leave' => '/leave', 'travels' => '/travels', 'vault' => '/vault', 'ai_assistant' => '/ai-assistant', 'medication' => '/medication', 'loyalty_cards' => '/loyalty-cards',
     ];
 
     /** Ordre de priorité partagé par les deux raccourcis par défaut ci-dessous (barre de

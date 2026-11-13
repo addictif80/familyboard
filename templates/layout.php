@@ -338,7 +338,7 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
             </li>
             <?php endif; ?>
 
-            <?php if ($_navEnabled('budget') || $_navEnabled('deals') || $_navEnabled('additions')): ?>
+            <?php if ($_navEnabled('budget') || $_navEnabled('deals') || $_navEnabled('additions') || $_navEnabled('loyalty_cards')): ?>
             <li class="nav-section-label" data-section-toggle="finances" role="button" tabindex="0">
                 <span>Finances</span><span class="nav-section-chevron">▾</span>
             </li>
@@ -364,6 +364,14 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                 <a href="<?= BASE_URL ?>/additions" class="nav-link">
                     <span class="nav-icon">🧾</span>
                     <span class="nav-label">Additions</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('loyalty_cards')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/loyalty-cards') ? 'active' : '' ?>" data-section="finances">
+                <a href="<?= BASE_URL ?>/loyalty-cards" class="nav-link">
+                    <span class="nav-icon">💳</span>
+                    <span class="nav-label">Cartes de fidélité</span>
                 </a>
             </li>
             <?php endif; ?>

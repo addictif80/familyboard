@@ -207,6 +207,11 @@ class ModuleGuide
                 'Carnet de soins : vaccins, vermifuges, visites, avec rappel de la prochaine échéance',
                 'Un animal par famille ou plusieurs, sans limite',
             ]],
+            'loyalty_cards' => ['route' => 'loyalty-cards', 'icon' => '💳', 'title' => 'Cartes de fidélité', 'tagline' => 'Toutes vos cartes de magasins dans votre poche, prêtes à scanner en caisse.', 'points' => [
+                'Code-barres/QR généré automatiquement depuis le numéro de la carte',
+                'Numéro rentré à la main ou scanné directement avec l\'appareil photo',
+                'Partagées par toute la famille, aucune limite de cartes',
+            ]],
             'meters' => ['route' => 'meters', 'icon' => '📊', 'title' => 'Compteurs & consommation', 'tagline' => 'Relevés eau, électricité, gaz — suivez votre consommation dans le temps.', 'points' => [
                 'Un compteur par point de mesure, avec fournisseur et numéro de contrat',
                 'Historique des relevés avec calcul automatique de la consommation entre deux dates',

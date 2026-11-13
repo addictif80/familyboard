@@ -1242,6 +1242,16 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .task-item { display: flex; align-items: center; gap: .75rem; padding: .6rem .75rem; border-radius: 10px; border: 1px solid var(--border); background: var(--card-bg); transition: box-shadow .18s ease, transform .18s cubic-bezier(.2,1.4,.3,1), opacity .2s; }
 .task-item:hover { box-shadow: var(--shadow); transform: translateX(2px); }
 .task-item.completed { opacity: .55; }
+
+/* ── Cartes de fidélité ───────────────────────────────────────── */
+.loyalty-card-display {
+  border-radius: 20px; padding: 1.75rem 1.5rem; color: #fff; text-align: center;
+  box-shadow: var(--shadow-lg); max-width: 380px; margin: 0 auto;
+}
+.loyalty-card-store { font-size: 1.15rem; font-weight: 800; margin-bottom: 1.1rem; text-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.loyalty-card-barcode-wrap { background: #fff; border-radius: 12px; padding: 1rem; display: flex; align-items: center; justify-content: center; min-height: 100px; }
+.loyalty-card-barcode-wrap svg, .loyalty-card-barcode-wrap img { max-width: 100%; }
+.loyalty-card-number { margin-top: .9rem; font-family: var(--font-mono); font-size: .95rem; letter-spacing: .04em; }
 .task-check { background: none; border: none; font-size: 1.1rem; cursor: pointer; flex-shrink: 0; padding: 0; }
 .task-body { flex: 1; cursor: pointer; }
 .task-title { font-size: .875rem; }
