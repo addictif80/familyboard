@@ -1355,9 +1355,27 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 @media (max-width: 600px) { .warranty-grid { grid-template-columns: 1fr; } }
 
 /* ---- Documents ---- */
+.docs-page-head { margin-bottom: .6rem; }
+.docs-page-title {
+  margin: 0 0 .2rem; font-size: 1.6rem; font-weight: 800; font-family: var(--font-display);
+  background: linear-gradient(135deg, var(--primary-dark), var(--accent));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--primary-dark);
+}
+.docs-page-sub { margin: 0; color: var(--text-muted); font-size: .85rem; }
+.docs-page-sub strong { color: var(--primary-dark); font-variant-numeric: tabular-nums; }
 .docs-toolbar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .docs-search-wrap { flex: 1; min-width: 220px; }
 .docs-search { width: 100%; padding: .55rem .85rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card-bg); color: var(--text); font-size: .9rem; }
+.doc-card-icon-badge {
+  width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px;
+  background: rgba(255,255,255,.25);
+}
+.doc-expiring-pill {
+  font-size: .62rem; font-weight: 700; color: #fff; padding: .2rem .55rem; border-radius: 999px; white-space: nowrap;
+  background: linear-gradient(135deg, var(--accent), var(--warning)); animation: fbGlowPulse 2s ease-in-out infinite;
+}
+@keyframes fbGlowPulse { 0%,100% { box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent); } 50% { box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 65%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .doc-expiring-pill { animation: none; } }
 .docs-type-filters { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
 .docs-member-filters { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .85rem; align-items: center; }
 .doc-filter-chip { padding: .3rem .75rem; border-radius: 20px; border: 1.5px solid var(--border); background: var(--card-bg); color: var(--text); font-size: .8rem; font-weight: 500; cursor: pointer; transition: all .15s; white-space: nowrap; }
