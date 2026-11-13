@@ -130,7 +130,7 @@ $sections = [
     'Suivi & sécurité' => [
         [
             "🍼 Suivi bébé",
-            "Biberons, couches, sommeil et courbes de croissance, pour suivre le quotidien d'un nourrisson à plusieurs.",
+            "Biberons, couches, sommeil, suivi de grossesse et liste de naissance, pour suivre le quotidien d'un nourrisson à plusieurs.",
         ],
         [
             "📍 Position",

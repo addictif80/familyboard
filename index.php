@@ -245,6 +245,8 @@ $router->get('/faq', [LegalController::class, 'faq']);
 
 // Guide d'utilisation (réservé aux utilisateurs connectés)
 $router->get('/aide', [HelpController::class, 'index']);
+$router->get('/aide/:slug', [HelpController::class, 'chapter']);
+$router->get('/api/help/search', [HelpController::class, 'search']);
 
 // Recherche globale (contenu réel, pas seulement les pages/modules)
 $router->get('/api/search', [SearchController::class, 'search']);

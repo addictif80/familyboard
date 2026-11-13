@@ -187,9 +187,9 @@ class ModuleGuide
                 'Classement par catégorie (alimentation, loisirs, enfants…)',
                 'Date de validité optionnelle, avec signalement des bons plans expirés',
             ]],
-            'health' => ['route' => 'health', 'icon' => '🏥', 'title' => 'Santé', 'tagline' => 'Carnet de santé, courbes de croissance et carnet médical de toute la famille.', 'points' => [
+            'health' => ['route' => 'health', 'icon' => '🏥', 'title' => 'Santé', 'tagline' => 'Carnet de santé, suivi de croissance et carnet médical de toute la famille.', 'points' => [
                 'Vaccins, allergies et traitements par membre ou par enfant',
-                'Courbes de croissance (taille, poids) pour chaque enfant',
+                'Suivi de croissance (taille, poids) pour chaque enfant',
                 'Médecins et spécialistes, avec rappels de renouvellement d\'ordonnance',
             ]],
             'medication' => ['route' => 'medication', 'icon' => '💊', 'title' => 'Traitement médical', 'tagline' => 'Vos prises de traitement, avec rappel automatique.', 'points' => [

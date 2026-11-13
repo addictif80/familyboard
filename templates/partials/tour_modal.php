@@ -17,6 +17,16 @@ $_tourKey    = $_tourRoute === '' ? 'dashboard' : \App\Core\ModuleGuide::keyForR
 $_tourGlobal = \App\Core\ModuleGuide::get('global');
 $_tourModule = $_tourKey ? \App\Core\ModuleGuide::get($_tourKey) : null;
 
+// Lien vers la page du guide complet : le tableau de bord et la visite générale mènent aux chapitres
+// de prise en main ; un module mène à son propre chapitre (s'il est visible pour ce compte).
+$_tourHelp = [];
+$_tourAlias = ['commlog' => 'comm_log', 'familywall' => 'family-wall', 'coparent' => 'coparent-espace'];
+foreach (['global' => 'demarrer', 'dashboard' => 'tableau-de-bord', (string)$_tourKey => $_tourAlias[(string)$_tourKey] ?? (string)$_tourKey] as $_k => $_slug) {
+    if ($_k !== '' && \App\Core\HelpGuide::exists($_slug) && \App\Core\HelpGuide::isVisible($_slug, $currentUser, [])) {
+        $_tourHelp[$_k] = BASE_URL . '/aide/' . $_slug;
+    }
+}
+
 $_tourAutoKey = null;
 if ($_tourModule && !\App\Models\User::hasSeenTour($currentUser, $_tourKey)) {
     $_tourAutoKey = $_tourKey;
@@ -36,6 +46,7 @@ if ($_tourModule && !\App\Models\User::hasSeenTour($currentUser, $_tourKey)) {
             <?php if ($_tourModule): ?>
             <button type="button" class="btn-text" id="tour-modal-global-link" onclick="Tour.open('global')" style="display:none">Voir aussi la visite générale de FamilyBoard →</button>
             <?php endif; ?>
+            <a class="btn-text" id="tour-modal-help-link" href="#" style="display:none">📖 Lire le guide complet →</a>
         </div>
         <div class="modal-footer">
             <button class="btn btn-primary" onclick="Tour.close()">Compris, merci !</button>
@@ -49,6 +60,7 @@ var Tour = (function () {
         'global' => $_tourGlobal,
         $_tourKey => $_tourModule,
     ])) ?>;
+    var helpLinks = <?= json_encode($_tourHelp, JSON_UNESCAPED_SLASHES | JSON_FORCE_OBJECT) ?>;
     var autoKey = <?= json_encode($_tourAutoKey) ?>;
 
     function render(key) {
@@ -65,6 +77,11 @@ var Tour = (function () {
         });
         var globalLink = document.getElementById('tour-modal-global-link');
         if (globalLink) globalLink.style.display = key === 'global' ? 'none' : '';
+        var helpLink = document.getElementById('tour-modal-help-link');
+        if (helpLink) {
+            if (helpLinks[key]) { helpLink.href = helpLinks[key]; helpLink.style.display = ''; }
+            else { helpLink.style.display = 'none'; }
+        }
         document.getElementById('tour-modal').dataset.currentKey = key;
     }
 
