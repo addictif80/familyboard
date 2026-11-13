@@ -54,8 +54,14 @@ ob_start();
 .album-public-card { max-width: 900px; margin: 2rem auto; padding: 1.5rem; }
 .album-public-upload { display:flex; align-items:flex-end; gap:1rem; flex-wrap:wrap; margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border); }
 .album-photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.75rem; }
-.album-photo { border-radius:10px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border); }
+.album-photo {
+    border-radius:10px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border);
+    animation: fbFadeInUp .4s cubic-bezier(.2,1.4,.3,1) both;
+    transition: transform .2s cubic-bezier(.2,1.4,.3,1), box-shadow .2s ease;
+}
+.album-photo:hover { transform: translateY(-3px) scale(1.02); box-shadow: var(--shadow-lg); }
 .album-photo img { width:100%; aspect-ratio:1; object-fit:cover; cursor:pointer; display:block; }
+@media (prefers-reduced-motion: reduce) { .album-photo { animation: none; } }
 .album-photo-meta { padding:.35rem .5rem; font-size:.72rem; color:var(--text-muted); }
 #ap-lightbox { background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; }
 .album-meta { font-size:.8rem; color:var(--text-muted); }

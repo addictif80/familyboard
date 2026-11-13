@@ -55,7 +55,12 @@ ob_start();
    colonne ne rétrécit jamais sous la taille de son contenu (titre long, image...) — c'est ce
    qui faisait déborder la dernière colonne hors du cadre blanc plutôt que de s'y adapter. */
 .gift-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 1.25rem; }
-.gift-grid > .card { min-width: 0; }
+.gift-grid > .card { min-width: 0; animation: fbFadeInUp .4s cubic-bezier(.2,1.4,.3,1) both; }
+.gift-grid > .card:nth-child(4n+1) { animation-delay: .02s; }
+.gift-grid > .card:nth-child(4n+2) { animation-delay: .06s; }
+.gift-grid > .card:nth-child(4n+3) { animation-delay: .1s; }
+.gift-grid > .card:nth-child(4n+4) { animation-delay: .14s; }
+@media (prefers-reduced-motion: reduce) { .gift-grid > .card { animation: none; } }
 .gift-actions { display: flex; align-items: center; gap: .5rem; margin-top: auto; }
 .gift-actions .btn, .gift-actions .item-status { flex: 1; min-width: 0; }
 .gift-actions .item-status button { width: 100%; }
