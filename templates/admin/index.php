@@ -75,7 +75,7 @@
             </li>
         </ul>
         <div class="admin-sidebar-footer">
-            <a href="<?= BASE_URL ?>/" style="font-size:.8rem;color:var(--text-muted)">← Site</a>
+            <a href="<?= BASE_URL ?>/" style="font-size:.8rem;color:var(--sidebar-text)">← Site</a>
             <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème" style="margin-left:.5rem"><span class="theme-icon-sun">☀️</span><span class="theme-icon-moon">🌙</span></button>
             <a href="<?= BASE_URL ?>/admin/logout" class="btn btn-danger btn-sm" style="margin-left:auto">Déconnexion</a>
         </div>
