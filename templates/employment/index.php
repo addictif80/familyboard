@@ -370,7 +370,7 @@ $euros = fn($cents) => number_format(((int)$cents) / 100, 2, ',', ' ') . ' €';
             <div class="form-row">
                 <div class="form-group"><label>Date d'embauche</label><input type="date" id="profile-hire-date"></div>
                 <div class="form-group"><label>Fin de période d'essai</label><input type="date" id="profile-trial-end"></div>
-                <div class="form-group"><label>Couleur</label><input type="color" id="profile-color" value="#4A90D9"></div>
+                <div class="form-group"><label>Couleur</label><input type="color" id="profile-color" value="#7C5CFF"></div>
             </div>
 
             <h4>Rémunération</h4>

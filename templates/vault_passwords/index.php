@@ -64,7 +64,7 @@ ob_start();
             <button onclick="closeModal('bw-unlock-modal')">✕</button>
         </div>
         <div class="modal-body">
-            <div id="bw-unlock-kdf-warning" style="display:none;background:color-mix(in srgb, #E67E22 12%, transparent);border-left:3px solid #E67E22;border-radius:6px;padding:.75rem 1rem;font-size:.85rem">
+            <div id="bw-unlock-kdf-warning" style="display:none;background:color-mix(in srgb, var(--warning) 15%, transparent);border-left:3px solid var(--warning);border-radius:6px;padding:.75rem 1rem;font-size:.85rem">
                 Ce compte utilise un type de dérivation de clé (Argon2id) non pris en charge par cette vue intégrée.
                 Utilisez le bouton « 🔗 Ouvrir mon coffre-fort » ci-dessus pour y accéder directement.
             </div>

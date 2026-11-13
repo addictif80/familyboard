@@ -62,7 +62,7 @@ function openGoalModal() {
     document.getElementById('goal-target').value = '';
     document.getElementById('goal-current').value = '0';
     document.getElementById('goal-deadline').value = '';
-    document.getElementById('goal-color').value = '#4A90D9';
+    document.getElementById('goal-color').value = '#7C5CFF';
     openModal('goal-modal');
 }
 
@@ -257,13 +257,17 @@ function renderBudgetChart() {
         return;
     }
 
+    const _rootStyle = getComputedStyle(document.documentElement);
+    const _fixedColor = _rootStyle.getPropertyValue('--primary').trim() || '#7C5CFF';
+    const _variableColor = _rootStyle.getPropertyValue('--warning').trim() || '#FFB84D';
+
     _budgetChart = new Chart(canvas, {
         type: 'bar',
         data: {
             labels,
             datasets: [
-                { label: 'Fixes (récurrents)', data: fixed,    backgroundColor: '#4A90D9', stack: 'a' },
-                { label: 'Variables',           data: variable, backgroundColor: '#F39C12', stack: 'a' },
+                { label: 'Fixes (récurrents)', data: fixed,    backgroundColor: _fixedColor, stack: 'a' },
+                { label: 'Variables',           data: variable, backgroundColor: _variableColor, stack: 'a' },
             ],
         },
         options: {
