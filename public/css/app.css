@@ -1885,9 +1885,16 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 @media (prefers-reduced-motion: reduce) {
   .admin-sidebar, .admin-sidebar::before, .admin-sidebar::after { animation: none; }
 }
-.admin-stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.admin-page-head { margin-bottom: 1.1rem; }
+.admin-page-head h2 {
+  margin: 0 0 .2rem; font-size: 1.5rem; font-weight: 800;
+  background: linear-gradient(135deg, var(--primary-dark), var(--accent));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--primary-dark);
+}
+.admin-page-sub { margin: 0; color: var(--text-muted); font-size: .85rem; }
+.admin-stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .admin-stat-card {
-  background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.25rem 1rem; text-align: center;
+  background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.1rem; text-align: left;
   transition: transform .2s cubic-bezier(.2,1.4,.3,1), box-shadow .2s ease;
   animation: fbFadeInUp .4s cubic-bezier(.2,1.4,.3,1) both;
 }
@@ -1898,8 +1905,17 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .admin-stats-grid .admin-stat-card:nth-child(n+5) { animation-delay: .14s; }
 .admin-stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .admin-stat-card.stat-warn { border-left: 4px solid var(--danger); }
-.stat-val { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; color: var(--primary); }
-.stat-label { font-size: .8rem; color: var(--text-muted); margin-top: .25rem; }
+.admin-stat-label, .stat-label { font-family: var(--font-mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: .35rem; }
+.stat-val { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; color: var(--text); }
+.admin-stat-delta { font-size: .72rem; font-weight: 700; margin-top: .2rem; }
+.admin-stat-delta-up { color: var(--success); }
+.admin-stat-delta-down { color: var(--danger); }
+.admin-recent-families .card-header h3 { font-family: var(--font-display); }
+.admin-recent-list { display: flex; flex-direction: column; }
+.admin-recent-row { display: flex; justify-content: space-between; align-items: center; padding: .65rem 0; border-bottom: 1px solid var(--border); font-size: .88rem; }
+.admin-recent-row:last-child { border-bottom: none; }
+.admin-recent-name { display: flex; align-items: center; gap: .6rem; }
+.admin-recent-icon { width: 1.9rem; height: 1.9rem; border-radius: 8px; background: var(--primary-soft); color: var(--primary-dark); display: flex; align-items: center; justify-content: center; font-size: .85rem; }
 @media (prefers-reduced-motion: reduce) {
   .admin-stat-card { animation: none; }
 }
@@ -2704,7 +2720,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
 
 /* ---- Chiffres clés ---- */
 .summary-amount { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
-.stat-val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.9rem; }
+.stat-val { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 .stat-chip { border-radius: 999px; box-shadow: var(--shadow-sm); }
 
 /* ---- Tableau de bord ---- */
