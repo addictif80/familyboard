@@ -764,6 +764,8 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
 </div>
 <?php endif; ?>
 
+<?php require BASE_PATH . '/templates/partials/tour_modal.php'; ?>
+
 <!-- Signaler un problème (disponible sur toutes les pages, y compris l'accès co-parent restreint) -->
 <div class="modal-overlay" id="report-issue-modal" style="display:none">
     <div class="modal">
