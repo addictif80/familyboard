@@ -145,7 +145,12 @@ $scheduleLabel = function (array $t): string {
 
 <style>
 .medication-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:.75rem; }
-.medication-card{ background:var(--bg-card,#fff); border:1px solid var(--border); border-radius:10px; padding:.85rem 1rem; display:flex; flex-direction:column; gap:.3rem; }
+.medication-card{
+    background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:.85rem 1rem;
+    display:flex; flex-direction:column; gap:.3rem; box-shadow: var(--shadow);
+    transition: transform .2s cubic-bezier(.2,1.4,.3,1), box-shadow .2s ease;
+}
+.medication-card:hover{ transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .medication-card.medication-inactive{ opacity:.6 }
 .medication-card-head{ display:flex; justify-content:space-between; align-items:center }
 .medication-card-actions{ display:flex; gap:.4rem; margin-top:.5rem }
