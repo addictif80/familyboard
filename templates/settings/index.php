@@ -141,7 +141,7 @@ ob_start();
                 Ente Auth...), ou ajoutez le compte manuellement avec la clé affichée en dessous.
             </p>
             <div id="tfa-totp-qrcode" style="display:flex;justify-content:center;margin:.75rem 0"></div>
-            <p style="font-family:monospace;font-size:1.05rem;letter-spacing:2px;background:var(--bg-alt);padding:.6rem;border-radius:8px;word-break:break-all;text-align:center" id="tfa-totp-secret"></p>
+            <p style="font-family:monospace;font-size:1.05rem;letter-spacing:2px;background:var(--card-bg-alt);padding:.6rem;border-radius:8px;word-break:break-all;text-align:center" id="tfa-totp-secret"></p>
             <div class="form-group">
                 <label>Code affiché par l'application</label>
                 <input type="text" id="tfa-totp-code" inputmode="numeric" maxlength="6" placeholder="123456" style="letter-spacing:3px">
@@ -1191,7 +1191,7 @@ ob_start();
                     <button type="button" class="btn btn-secondary btn-sm" id="kiosk-qr-copy-btn">📋 Copier le lien</button>
                     <a href="#" target="_blank" class="btn btn-secondary btn-sm" id="kiosk-qr-open-link">Ouvrir</a>
                 </div>
-                <hr style="margin:1rem 0;border-color:var(--border-color)">
+                <hr style="margin:1rem 0;border-color:var(--border)">
                 <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:.5rem">
                     Ou, sur une TV connectée : ouvrez <strong><?= htmlspecialchars($_SERVER['HTTP_HOST'] ?? '') ?><?= BASE_URL ?>/tv</strong>
                     et saisissez ce code :

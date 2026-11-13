@@ -146,7 +146,7 @@
 
             <details>
                 <summary style="cursor:pointer;color:var(--text-muted);font-size:.85rem">Journal détaillé</summary>
-                <pre style="font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:var(--bg-secondary);padding:.75rem;border-radius:6px;margin-top:.5rem"><?= htmlspecialchars(implode("\n", $storageBackfillReport['log'])) ?></pre>
+                <pre style="font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:var(--bg);padding:.75rem;border-radius:6px;margin-top:.5rem"><?= htmlspecialchars(implode("\n", $storageBackfillReport['log'])) ?></pre>
             </details>
         </div>
         <script>switchAdminSubTab('storage-rattrapage');</script>
@@ -193,7 +193,7 @@
 
             <details>
                 <summary style="cursor:pointer;color:var(--text-muted);font-size:.85rem">Journal détaillé</summary>
-                <pre style="font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:var(--bg-secondary);padding:.75rem;border-radius:6px;margin-top:.5rem"><?= htmlspecialchars(implode("\n", $nextcloudFileMigrationReport['log'])) ?></pre>
+                <pre style="font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:var(--bg);padding:.75rem;border-radius:6px;margin-top:.5rem"><?= htmlspecialchars(implode("\n", $nextcloudFileMigrationReport['log'])) ?></pre>
             </details>
         </div>
         <script>switchAdminSubTab('storage-nextcloud-migration');</script>
@@ -244,7 +244,7 @@
 
             <details>
                 <summary style="cursor:pointer;color:var(--text-muted);font-size:.85rem">Journal détaillé</summary>
-                <pre style="font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:var(--bg-secondary);padding:.75rem;border-radius:6px;margin-top:.5rem"><?= htmlspecialchars(implode("\n", $nextcloudFileRenameReport['log'])) ?></pre>
+                <pre style="font-size:.75rem;white-space:pre-wrap;max-height:300px;overflow-y:auto;background:var(--bg);padding:.75rem;border-radius:6px;margin-top:.5rem"><?= htmlspecialchars(implode("\n", $nextcloudFileRenameReport['log'])) ?></pre>
             </details>
         </div>
         <script>switchAdminSubTab('storage-nextcloud-migration');</script>

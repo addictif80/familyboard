@@ -66,7 +66,7 @@
                     <div class="form-group">
                         <label>Nom d'utilisateur actuel</label>
                         <input type="text" value="<?= htmlspecialchars($adminUsername) ?>" disabled
-                               style="background:var(--bg-secondary,#f5f5f5);color:var(--text-muted);cursor:not-allowed">
+                               style="background:var(--bg);color:var(--text-muted);cursor:not-allowed">
                     </div>
 
                     <div class="form-group">

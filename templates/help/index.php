@@ -142,13 +142,13 @@ $coparentIntroModules = ['custody', 'comm_log', 'documents', 'calendar', 'albums
     </p>
 
     <?php if ($isCoparent): ?>
-        <p style="background:var(--bg-alt, rgba(127,127,127,.08));border-radius:8px;padding:.75rem 1rem;font-size:.88rem;color:var(--text-muted)">
+        <p style="background:var(--bg);border-radius:8px;padding:.75rem 1rem;font-size:.88rem;color:var(--text-muted)">
             Votre accès est un <strong>accès co-parent</strong> restreint : vous ne voyez ici que les modules
             réellement accessibles depuis votre espace (planning de garde, journal parental, documents, agenda,
             albums, portail de liens et additions liés à l'enfant concerné).
         </p>
     <?php else: ?>
-        <p style="background:var(--bg-alt, rgba(127,127,127,.08));border-radius:8px;padding:.75rem 1rem;font-size:.88rem;color:var(--text-muted)">
+        <p style="background:var(--bg);border-radius:8px;padding:.75rem 1rem;font-size:.88rem;color:var(--text-muted)">
             Plusieurs personnes peuvent administrer la même famille (par exemple les deux parents) : depuis
             <strong>Réglages → Membres de la famille</strong>, un administrateur peut promouvoir un membre au
             rôle d'administrateur, ou rétrograder un autre administrateur. Le tout premier administrateur de la
