@@ -1367,8 +1367,8 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .docs-search-wrap { flex: 1; min-width: 220px; }
 .docs-search { width: 100%; padding: .55rem .85rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card-bg); color: var(--text); font-size: .9rem; }
 .doc-card-icon-badge {
-  width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px;
-  background: rgba(255,255,255,.25);
+  width: 2.2rem; height: 2.2rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px;
+  font-size: 1.15rem;
 }
 .doc-expiring-pill {
   font-size: .62rem; font-weight: 700; color: #fff; padding: .2rem .55rem; border-radius: 999px; white-space: nowrap;
@@ -1402,14 +1402,11 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 @media (prefers-reduced-motion: reduce) {
   .doc-card { animation: none; }
 }
-.doc-card-head { padding: .7rem 1rem; display: flex; align-items: center; gap: .5rem; color: #fff; position: relative; }
-.doc-card-icon { font-size: 1.3rem; flex-shrink: 0; }
-.doc-card-type { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; flex: 1; }
-.doc-card-actions { display: flex; gap: .15rem; }
-.btn-icon-sm.light { color: rgba(255,255,255,.85); }
-.btn-icon-sm.light:hover { color: #fff; background: rgba(255,255,255,.15); }
-.doc-card-body { padding: .75rem 1rem .85rem; }
-.doc-card-title { font-weight: 600; font-size: .9rem; margin-bottom: .4rem; line-height: 1.3; }
+.doc-card-head { padding: .9rem 1rem 0; display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; position: relative; }
+.doc-card-actions { display: flex; gap: .15rem; margin-left: auto; }
+.doc-card-body { padding: .6rem 1rem 1rem; }
+.doc-card-title { font-weight: 700; font-size: .95rem; margin-bottom: .15rem; line-height: 1.3; display: flex; align-items: center; gap: .3rem; }
+.doc-card-type-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted); margin-bottom: .5rem; }
 .doc-card-meta { display: flex; flex-wrap: wrap; gap: .25rem .65rem; font-size: .75rem; color: var(--text-muted); margin-bottom: .5rem; }
 .doc-expiry.critical { color: var(--danger); font-weight: 600; }
 .doc-expiry.soon     { color: var(--warning-text); font-weight: 500; }

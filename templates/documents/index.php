@@ -88,24 +88,26 @@ $totalDocs = array_sum($typeCounts);
             <?php else: ?>
             <?php foreach ($documents as $doc): ?>
         <div class="doc-card" data-id="<?= $doc['id'] ?>" data-type="<?= htmlspecialchars($doc['doc_type']) ?>"
+             style="border-left:4px solid <?= htmlspecialchars($doc['type_color']) ?>"
              onclick="openDocDetail(<?= htmlspecialchars(json_encode($doc)) ?>)">
 
-            <!-- Colored type header -->
-            <div class="doc-card-head" style="background:<?= htmlspecialchars($doc['type_color']) ?>">
-                <span class="doc-card-icon doc-card-icon-badge"><?= $doc['type_icon'] ?></span>
-                <span class="doc-card-type"><?= htmlspecialchars($doc['type_label']) ?></span>
-                <?php if (!empty($doc['custody_schedule_ids'])): ?><span title="Partagé avec le co-parent">🔒</span><?php endif; ?>
+            <div class="doc-card-head">
+                <span class="doc-card-icon-badge" style="background:color-mix(in srgb, <?= htmlspecialchars($doc['type_color']) ?> 16%, var(--card-bg))"><?= $doc['type_icon'] ?></span>
                 <?php if (in_array($doc['expiry_status'] ?? '', ['critical', 'soon'], true)): ?>
                     <span class="doc-expiring-pill">expire bientôt</span>
                 <?php endif; ?>
                 <div class="doc-card-actions" onclick="event.stopPropagation()">
-                    <button class="btn-icon-sm light" onclick="openEditDocModal(<?= htmlspecialchars(json_encode($doc)) ?>)" title="Modifier">✏️</button>
-                    <button class="btn-icon-sm light" onclick="deleteDoc(<?= $doc['id'] ?>)" title="Supprimer">🗑</button>
+                    <button class="btn-icon-sm" onclick="openEditDocModal(<?= htmlspecialchars(json_encode($doc)) ?>)" title="Modifier">✏️</button>
+                    <button class="btn-icon-sm" onclick="deleteDoc(<?= $doc['id'] ?>)" title="Supprimer">🗑</button>
                 </div>
             </div>
 
             <div class="doc-card-body">
-                <div class="doc-card-title"><?= htmlspecialchars($doc['title']) ?></div>
+                <div class="doc-card-title">
+                    <?= htmlspecialchars($doc['title']) ?>
+                    <?php if (!empty($doc['custody_schedule_ids'])): ?><span title="Partagé avec le co-parent">🔒</span><?php endif; ?>
+                </div>
+                <div class="doc-card-type-label"><?= htmlspecialchars($doc['type_label']) ?></div>
 
                 <div class="doc-card-meta">
                     <?php if ($doc['issuer']): ?>

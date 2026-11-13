@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= APP_NAME ?> — L'espace privé de votre famille</title>
-    <meta name="description" content="Calendrier partagé, mur familial, tâches, budget, garde alternée avec journal légal, suivi scolaire, dossiers de litige, suivi bébé... Toute la vie de votre famille réunie dans une application pensée dans le moindre détail.">
+    <title><?= APP_NAME ?> — Toute votre famille, un seul endroit vivant</title>
+    <meta name="description" content="Calendrier partagé, tâches, documents, garde alternée, budget, santé… FamilyBoard organise le quotidien de toute la famille, en toute simplicité.">
     <script>
     (function () {
         try {
@@ -32,86 +32,92 @@
             <span><?= APP_NAME ?></span>
         </div>
         <div class="landing-nav-actions">
+            <a href="#features-detail" class="landing-nav-link">Fonctionnalités</a>
+            <?php if (!empty($pricingPlans)): ?><a href="#tarifs" class="landing-nav-link">Tarifs</a><?php endif; ?>
             <a href="<?= BASE_URL ?>/faq" class="landing-nav-link">FAQ</a>
+            <a href="<?= BASE_URL ?>/login" class="landing-nav-link">Connexion</a>
             <button class="theme-toggle-landing" onclick="toggleTheme()" title="Changer de thème" aria-label="Changer de thème">🌓</button>
-            <a href="<?= BASE_URL ?>/login" class="btn btn-secondary">Se connecter</a>
-            <a href="<?= BASE_URL ?>/register" class="btn btn-primary">Créer ma famille</a>
+            <a href="<?= BASE_URL ?>/register" class="btn btn-primary">Essayer gratuitement</a>
         </div>
     </nav>
 
     <header class="hero">
-        <span class="hero-eyebrow">✨ Nouveau · pensé pour les familles modernes</span>
-        <h1>L'espace privé où <em>toute votre famille</em> s'organise, enfin sans le bazar</h1>
-        <p class="hero-subtitle">
-            Calendrier, mur de souvenirs, tâches, budget, garde alternée, suivi de bébé...
-            FamilyBoard réunit l'essentiel de votre quotidien familial dans une seule application,
-            claire et rapide.
-        </p>
-        <div class="hero-actions">
-            <a href="<?= BASE_URL ?>/register" class="btn btn-primary">Créer ma famille</a>
-            <a href="<?= BASE_URL ?>/login" class="btn btn-secondary">Se connecter</a>
-        </div>
-        <div class="hero-trust">
-            <span>🔒 Vos données restent privées</span>
-            <span>🚫 Aucune publicité tierce, aucune revente de données</span>
-            <span>⚡ Installable comme une app (PWA)</span>
+        <div class="hero-grid">
+        <div class="hero-copy">
+            <span class="hero-eyebrow">✨ Nouveau : Assistant IA &amp; Traitement médical</span>
+            <h1>Toute votre famille,<br><em>un seul endroit vivant.</em></h1>
+            <p class="hero-subtitle">
+                Calendrier partagé, tâches, documents, garde alternée, budget, santé…
+                FamilyBoard organise le quotidien de toute la famille, en toute simplicité.
+            </p>
+            <div class="hero-actions">
+                <a href="<?= BASE_URL ?>/register" class="btn btn-primary">Créer ma famille — c'est gratuit</a>
+                <a href="<?= BASE_URL ?>/login" class="btn btn-secondary">Se connecter</a>
+            </div>
+            <div class="hero-trust">
+                <span>🔒 Hébergement privé</span>
+                <span>🇫🇷 Conçu en France</span>
+                <span>👨‍👩‍👧‍👦 Pensé pour les familles</span>
+            </div>
         </div>
 
         <div class="hero-mockup-wrap">
         <div class="hero-mockup" aria-hidden="true">
-            <div class="hero-mockup-bar">
-                <span></span><span></span><span></span>
-                <strong class="hero-mockup-bar-title">FamilyBoard</strong>
-            </div>
-            <div class="hero-mockup-grid">
-                <div class="hero-mockup-cell">
-                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#6BA6E8;--mm-b:#3D6BAF">📅</span><span class="mm-title">Calendrier</span></div>
-                    <div class="mm-cal">
-                        <span></span><span></span><span class="mm-on mm-c1"></span><span></span>
-                        <span class="mm-on mm-c2"></span><span></span><span></span>
-                    </div>
+            <div class="hero-mockup-inner">
+                <div class="hero-mockup-bar">
+                    <strong>Bonjour Camille 👋</strong>
+                    <span class="hero-mockup-avatar"></span>
                 </div>
-                <div class="hero-mockup-cell">
-                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#F5A9C1;--mm-b:#D65B84">📸</span><span class="mm-title">Mur familial</span></div>
-                    <div class="mm-photos">
-                        <span style="background:linear-gradient(135deg,#F7C873,#E67E22)"></span>
-                        <span style="background:linear-gradient(135deg,#8FD3C6,#1E9C7A)"></span>
-                        <span style="background:linear-gradient(135deg,#B9A6F0,#7B5FE0)"></span>
-                    </div>
+                <div class="hero-mockup-stats">
+                    <div class="hero-mockup-stat"><span>TÂCHES</span><strong>3</strong></div>
+                    <div class="hero-mockup-stat"><span>BUDGET</span><strong>68%</strong></div>
                 </div>
-                <div class="hero-mockup-cell">
-                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#7BD79A;--mm-b:#2FA968">✅</span><span class="mm-title">Tâches</span></div>
-                    <div class="mm-tasks">
-                        <span class="mm-task done"></span>
-                        <span class="mm-task done"></span>
-                        <span class="mm-task"></span>
-                    </div>
-                </div>
-                <div class="hero-mockup-cell">
-                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#F0C267;--mm-b:#D69A2E">💰</span><span class="mm-title">Budget</span></div>
-                    <div class="mm-bars">
-                        <span style="height:38%"></span><span style="height:72%"></span><span style="height:52%"></span><span style="height:88%"></span><span style="height:60%"></span>
-                    </div>
-                </div>
-                <div class="hero-mockup-cell">
-                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#8FB8E8;--mm-b:#4A7FC7">👶</span><span class="mm-title">Garde alternée</span></div>
-                    <div class="mm-custody">
-                        <span class="mm-avatar" style="background:#4A90D9"></span>
-                        <span class="mm-custody-swap">⇄</span>
-                        <span class="mm-avatar" style="background:#E67E22"></span>
-                    </div>
-                </div>
-                <div class="hero-mockup-cell">
-                    <div class="mm-head"><span class="mm-icon" style="--mm-a:#F0A6B8;--mm-b:#D6667F">🍼</span><span class="mm-title">Suivi bébé</span></div>
-                    <div class="mm-baby">
-                        <span class="mm-baby-stat">🍼 <b>4</b></span>
-                        <span class="mm-baby-stat">💤 <b>7h20</b></span>
-                    </div>
+                <div class="hero-mockup-agenda">
+                    <div class="hero-mockup-ev"><span style="background:var(--accent)"></span>16h30 · École Léo</div>
+                    <div class="hero-mockup-ev"><span style="background:var(--success)"></span>14h00 · Pédiatre</div>
                 </div>
             </div>
+        </div>
         </div>
         </div>
     </header>
+
+    <section class="landing-section overview-section">
+        <h2 class="overview-title">Tout ce qu'il faut, rien de superflu</h2>
+        <p class="overview-sub">Organisé par thème, pour que chaque membre trouve ce qu'il cherche en un coup d'œil.</p>
+        <div class="overview-grid">
+            <a href="#features-detail" class="overview-tile">
+                <span class="overview-icon">📅</span>
+                <h3>Quotidien</h3>
+                <p>Calendrier partagé, tâches, courses, chat familial — tout le monde synchronisé.</p>
+            </a>
+            <a href="#features-detail" class="overview-tile">
+                <span class="overview-icon">👨‍👩‍👧</span>
+                <h3>Garde partagée</h3>
+                <p>Planning de garde, journal parental et espace co-parent, en toute sérénité.</p>
+            </a>
+            <a href="#features-detail" class="overview-tile">
+                <span class="overview-icon">💰</span>
+                <h3>Finances</h3>
+                <p>Budget familial, bons plans, additions partagées pour les sorties en groupe.</p>
+            </a>
+            <a href="#features-detail" class="overview-tile">
+                <span class="overview-icon">🏥</span>
+                <h3>Santé &amp; sécurité</h3>
+                <p>Suivi santé, rappels de traitement, fiches d'urgence, position en temps réel.</p>
+            </a>
+            <a href="#features-detail" class="overview-tile">
+                <span class="overview-icon">🗂️</span>
+                <h3>Juridique &amp; administratif</h3>
+                <p>Documents, garanties, coffre-fort numérique, courriers — tout centralisé et sécurisé.</p>
+            </a>
+            <a href="#features-detail" class="overview-tile">
+                <span class="overview-icon">🤖</span>
+                <h3>Assistant IA</h3>
+                <p>Posez une question, créez une tâche ou un événement à la voix ou à l'écrit.</p>
+            </a>
+        </div>
+    </section>
 
     <?php
     $features = [
@@ -316,9 +322,9 @@
         ]],
     ];
     ?>
-    <section class="landing-section">
+    <section class="landing-section" id="features-detail">
         <div class="section-heading reveal">
-            <span class="kicker">Fonctionnalités</span>
+            <span class="kicker">Le détail, module par module</span>
             <h2>Tout ce dont votre famille a besoin, réuni au même endroit</h2>
             <p>Chaque module est pensé pour être utile dès la première minute, sans réglages compliqués. Cliquez sur un module pour en voir le détail.</p>
         </div>
@@ -469,40 +475,42 @@
     <?php endif; ?>
 
     <?php if (!empty($pricingPlans)): ?>
-    <section class="landing-section pricing-section">
+    <?php $highlightIdx = intdiv(count($pricingPlans), 2); ?>
+    <section class="landing-section pricing-section" id="tarifs">
         <div class="section-heading reveal">
             <span class="kicker">Tarifs</span>
-            <h2>Une offre gratuite pour découvrir, un seul abonnement Premium pour tout débloquer</h2>
-            <p>Aucune carte requise pour commencer. Passez à Premium quand votre famille est prête, avec <?= $trialDays ?> jours d'essai gratuit.</p>
+            <h2>Un tarif pour chaque famille</h2>
+            <p>Aucune carte requise pour commencer. Passez à un abonnement payant quand votre famille est prête, avec <?= $trialDays ?> jours d'essai gratuit.</p>
         </div>
-        <div class="pricing-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.25rem;max-width:960px;margin:0 auto">
-            <div class="card reveal" style="display:flex;flex-direction:column;gap:.6rem;padding:1.5rem">
-                <h3 style="margin:0">Gratuit</h3>
-                <p style="color:var(--text-muted);margin:0">Jusqu'à 4 membres</p>
-                <div><strong style="font-size:1.5rem">0 €</strong> <span style="color:var(--text-muted)">/ mois</span></div>
-                <p style="color:var(--text-muted);font-size:.85rem;margin:0">Calendrier, tâches, mur familial, chat, répertoire et anniversaires — sans limite de temps.</p>
-                <a href="<?= BASE_URL ?>/register" class="btn btn-secondary" style="margin-top:auto">Créer ma famille</a>
+        <div class="pricing-grid">
+            <div class="pricing-card reveal">
+                <h3>Gratuit</h3>
+                <div class="pricing-amount">0 €</div>
+                <p class="pricing-desc">Mur, calendrier, tâches, chat, répertoire et anniversaires — sans limite de temps.</p>
+                <a href="<?= BASE_URL ?>/register" class="btn btn-secondary pricing-cta">Commencer</a>
             </div>
-            <?php foreach ($pricingPlans as $p): ?>
-            <div class="card reveal" style="display:flex;flex-direction:column;gap:.6rem;padding:1.5rem;border:2px solid var(--primary)">
-                <h3 style="margin:0"><?= htmlspecialchars($p['name']) ?></h3>
-                <p style="color:var(--text-muted);margin:0"><?= $p['member_limit'] ? "Jusqu'à {$p['member_limit']} membres" : 'Membres illimités' ?></p>
-                <div><strong style="font-size:1.5rem"><?= number_format($p['price_monthly_cents'] / 100, 2, ',', ' ') ?> €</strong> <span style="color:var(--text-muted)">/ mois</span></div>
-                <p style="color:var(--text-muted);font-size:.85rem;margin:0"><?= number_format($p['price_yearly_cents'] / 100, 2, ',', ' ') ?> € / an<?= $annualDiscount > 0 ? " (-{$annualDiscount}%)" : '' ?></p>
-                <p style="color:var(--text-muted);font-size:.85rem;margin:0">Tous les modules débloqués : garde alternée, suivi scolaire, dossiers de litige, budget, projets…</p>
-                <a href="<?= BASE_URL ?>/register" class="btn btn-primary" style="margin-top:auto">Essayer <?= $trialDays ?> jours gratuits</a>
+            <?php foreach ($pricingPlans as $i => $p): ?>
+            <div class="pricing-card reveal <?= $i === $highlightIdx ? 'pricing-card-featured' : '' ?>">
+                <?php if ($i === $highlightIdx): ?><span class="pricing-badge">LE PLUS CHOISI</span><?php endif; ?>
+                <h3><?= htmlspecialchars($p['name']) ?></h3>
+                <div class="pricing-amount"><?= number_format($p['price_monthly_cents'] / 100, 2, ',', ' ') ?> €<span>/mois</span></div>
+                <p class="pricing-desc">
+                    <?= $p['member_limit'] ? "Jusqu'à {$p['member_limit']} membres" : 'Membres illimités' ?> · tous les modules<br>
+                    <?= number_format($p['price_yearly_cents'] / 100, 2, ',', ' ') ?> € / an<?= $annualDiscount > 0 ? " (-{$annualDiscount}%)" : '' ?>
+                </p>
+                <a href="<?= BASE_URL ?>/register" class="btn <?= $i === $highlightIdx ? 'btn-primary' : 'btn-secondary' ?> pricing-cta">Essayer <?= $trialDays ?> jours gratuits</a>
             </div>
             <?php endforeach; ?>
         </div>
+        <p class="pricing-footnote">Stockage additionnel dès 1,99€/mois · Nextcloud partagé par famille</p>
     </section>
     <?php endif; ?>
 
     <section class="cta-section">
-        <h2>Prêt à simplifier la vie de votre famille ?</h2>
-        <p>Créez votre espace en moins d'une minute, invitez vos proches, et retrouvez enfin votre organisation au même endroit.</p>
+        <h2>Prêt à organiser votre famille ?</h2>
+        <p>Créez votre espace en moins de 2 minutes. Aucune carte bancaire requise.</p>
         <div class="hero-actions">
-            <a href="<?= BASE_URL ?>/register" class="btn btn-primary">Créer ma famille</a>
-            <a href="<?= BASE_URL ?>/login" class="btn btn-secondary">Se connecter</a>
+            <a href="<?= BASE_URL ?>/register" class="btn btn-cta-final">Créer ma famille gratuitement</a>
         </div>
     </section>
 
