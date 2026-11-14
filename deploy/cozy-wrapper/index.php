@@ -162,7 +162,7 @@ if ($path === '/magic-link' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     curl_close($ch);
 
     $data = json_decode((string)$response, true);
-    if ($status !== 200 || !is_array($data) || empty($data['code'])) {
+    if ($status !== 200 && $status !== 201 || !is_array($data) || empty($data['code'])) {
         respond(500, ['error' => "Échec de la génération du lien magique (HTTP $status) : " . trim((string)$response)]);
     }
     respond(200, ['login_url' => 'https://' . $domain . '/auth/magic_link?code=' . urlencode($data['code'])]);
