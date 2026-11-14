@@ -18,6 +18,8 @@
  *   COZY_ADMIN_PASSWORD  phrase de passe admin cozy-stack (celle choisie à l'installation du paquet) —
  *                        requise pour /magic-link, qui appelle l'API admin HTTP plutôt que la CLI
  *   COZY_ADMIN_URL       base de l'API admin HTTP (défaut: "http://127.0.0.1:6060")
+ *   COZY_DISK_QUOTA      quota disque par instance (défaut: "500M") — Cozy n'étant qu'un sas de
+ *                        transit, inutile d'autoriser plus
  */
 
 header('Content-Type: application/json');
@@ -103,9 +105,15 @@ if ($path === '/create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // réelles). "home" héberge la gestion des Konnectors (factures) ; "store" permet d'en
     // installer d'autres que les Konnectors préinstallés par défaut ; "settings" pour les
     // réglages du compte.
+    // --disk-quota : Cozy n'est qu'un sas de transit (les fichiers sont supprimés côté Cozy dès
+    // qu'ils sont rapatriés dans Documents, voir CozyDocumentSync) — une limite basse empêche
+    // une synchro cassée ou un Konnector en boucle d'accumuler indéfiniment du contenu sur le
+    // disque de ce serveur.
+    $diskQuota = getenv('COZY_DISK_QUOTA') ?: '500M';
     $command = escapeshellarg($cozyStackBin) . ' instances add '
         . escapeshellarg($domain) . ' --email ' . escapeshellarg($email)
         . ' --passphrase ' . escapeshellarg($throwawayPassphrase) . ' --magic_link'
+        . ' --disk-quota ' . escapeshellarg($diskQuota)
         . ' --apps home,store,settings --locale fr --tz Europe/Paris 2>&1';
     [$code, $output] = runCommand($command);
     if ($code !== 0) {
