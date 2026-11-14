@@ -38,19 +38,23 @@ class FamilyCozyConnection
      * Slug stable pour le sous-domaine de l'instance Cozy d'une famille (<slug>.<suffixe
      * configuré>) — dérivé du nom au moment de la connexion, désambiguïsé par un suffixe
      * numérique en cas de collision (même principe que l'ancien slug d'alias e-mail, retiré).
+     * Aucun tiret (contrairement à l'ancien slug mail) : le serveur Cozy est configuré en mode
+     * "subdomains: flat", qui interdit tout tiret dans le premier niveau du domaine — il sert en
+     * interne de séparateur entre l'instance et le nom de l'application (ex. test-home.domaine)
+     * — constaté en conditions réelles ("Domain name contains illegal characters" sur un nom de
+     * famille à plusieurs mots).
      */
     public static function generateDomain(string $familyName, string $suffix): string
     {
         $base = strtolower((string)iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $familyName));
-        $base = preg_replace('/[^a-z0-9]+/', '-', $base);
-        $base = trim((string)$base, '-');
+        $base = preg_replace('/[^a-z0-9]+/', '', $base);
         if ($base === '') $base = 'famille';
         $base = substr($base, 0, 60);
 
         $slug = $base;
         $i = 2;
         while (Database::fetch('SELECT id FROM family_cozy_connections WHERE cozy_domain = ?', [$slug . '.' . $suffix])) {
-            $slug = $base . '-' . $i;
+            $slug = $base . $i;
             $i++;
         }
         return $slug . '.' . $suffix;
