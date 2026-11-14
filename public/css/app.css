@@ -401,13 +401,15 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 .user-menu-divider { height: 1px; background: var(--border); margin: .3rem .1rem; }
 
 /* ── Topbar "⋯" menu (Annonces, thème, signaler un problème, comment ça marche) ── */
-.topbar-menu { position: relative; }
 .topbar-menu-trigger { position: relative; font-size: 1.1rem; }
 .topbar-menu-trigger.open { background: var(--bg); color: var(--text); }
+/* position:fixed, pas absolute : le popover vit hors du DOM de .topbar (voir layout.php) et sa
+   position (top/right) est calculée en JS depuis le bouton déclencheur à chaque ouverture
+   (toggleTopbarMenu() dans app.js), puisqu'il n'est plus un enfant positionné du déclencheur. */
 .topbar-menu-popover {
-  position: absolute; top: calc(100% + 8px); right: 0; min-width: 230px;
+  position: fixed; min-width: 230px;
   background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  box-shadow: var(--shadow), 0 8px 30px rgba(0,0,0,.18); z-index: 200;
+  box-shadow: var(--shadow), 0 8px 30px rgba(0,0,0,.18); z-index: 300;
   flex-direction: column; padding: .4rem; gap: .1rem; overflow: hidden;
 }
 .topbar-menu-item {

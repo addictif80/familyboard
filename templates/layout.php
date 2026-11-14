@@ -669,29 +669,12 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
                 </button>
                 <button class="btn-icon nav-search-trigger-mobile" onclick="openNavSearch()" title="Rechercher">🔎</button>
 
-                <div class="topbar-menu" id="topbar-menu">
-                    <button type="button" class="btn-icon topbar-menu-trigger" id="topbar-menu-trigger" onclick="toggleTopbarMenu()" title="Plus d'options">
-                        ⋯
-                        <?php if ($unreadAnnouncements > 0): ?>
-                            <span class="badge-dot"><?= $unreadAnnouncements ?></span>
-                        <?php endif; ?>
-                    </button>
-                    <div class="topbar-menu-popover" id="topbar-menu-popover" style="display:none">
-                        <a href="<?= BASE_URL ?>/announcements" class="topbar-menu-item">
-                            <span class="topbar-menu-item-icon">📣</span> Annonces
-                            <?php if ($unreadAnnouncements > 0): ?>
-                                <span class="topbar-menu-item-badge"><?= $unreadAnnouncements ?></span>
-                            <?php endif; ?>
-                        </a>
-                        <button type="button" class="topbar-menu-item" onclick="toggleTheme()">
-                            <span class="topbar-menu-item-icon theme-icon-sun">☀️</span><span class="topbar-menu-item-icon theme-icon-moon">🌙</span> Changer de thème
-                        </button>
-                        <?php require BASE_PATH . '/templates/partials/tour_widget.php'; ?>
-                        <button type="button" class="topbar-menu-item" onclick="openReportIssueModal()">
-                            <span class="topbar-menu-item-icon">🐞</span> Signaler un problème
-                        </button>
-                    </div>
-                </div>
+                <button type="button" class="btn-icon topbar-menu-trigger" id="topbar-menu-trigger" onclick="toggleTopbarMenu()" title="Plus d'options">
+                    ⋯
+                    <?php if ($unreadAnnouncements > 0): ?>
+                        <span class="badge-dot"><?= $unreadAnnouncements ?></span>
+                    <?php endif; ?>
+                </button>
 
                 <button class="btn-icon" onclick="toggleNotifications()" title="Notifications">
                     🔔
@@ -784,6 +767,25 @@ $_ollamaConfigured = \App\Core\AiProvider::isConfigured();
     <?= $content ?? '' ?>
 </div>
 <?php endif; ?>
+
+<!-- Menu "⋯" de la topbar (Annonces, thème, signaler un problème, comment ça marche) — hors du
+     DOM de .topbar, qui a overflow:hidden + backdrop-filter (containing block pour
+     position:fixed) : dedans, ce menu serait tronqué/mal empilé quel que soit son z-index. -->
+<div class="topbar-menu-popover" id="topbar-menu-popover" style="display:none">
+    <a href="<?= BASE_URL ?>/announcements" class="topbar-menu-item">
+        <span class="topbar-menu-item-icon">📣</span> Annonces
+        <?php if ($unreadAnnouncements > 0): ?>
+            <span class="topbar-menu-item-badge"><?= $unreadAnnouncements ?></span>
+        <?php endif; ?>
+    </a>
+    <button type="button" class="topbar-menu-item" onclick="toggleTheme()">
+        <span class="topbar-menu-item-icon theme-icon-sun">☀️</span><span class="topbar-menu-item-icon theme-icon-moon">🌙</span> Changer de thème
+    </button>
+    <?php require BASE_PATH . '/templates/partials/tour_widget.php'; ?>
+    <button type="button" class="topbar-menu-item" onclick="openReportIssueModal()">
+        <span class="topbar-menu-item-icon">🐞</span> Signaler un problème
+    </button>
+</div>
 
 <?php require BASE_PATH . '/templates/partials/tour_modal.php'; ?>
 

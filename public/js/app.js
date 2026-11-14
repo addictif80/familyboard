@@ -389,10 +389,18 @@ let topbarMenuOpen = false;
 
 function toggleTopbarMenu() {
     const popover = document.getElementById('topbar-menu-popover');
-    if (!popover) return;
+    const trigger = document.getElementById('topbar-menu-trigger');
+    if (!popover || !trigger) return;
     topbarMenuOpen = !topbarMenuOpen;
+    if (topbarMenuOpen) {
+        // Positionné en JS (position:fixed) : le popover vit hors du DOM de .topbar, qui le
+        // tronquerait sinon (overflow:hidden + backdrop-filter, voir layout.php).
+        const rect = trigger.getBoundingClientRect();
+        popover.style.top = (rect.bottom + 8) + 'px';
+        popover.style.right = (window.innerWidth - rect.right) + 'px';
+    }
     popover.style.display = topbarMenuOpen ? 'flex' : 'none';
-    document.getElementById('topbar-menu-trigger')?.classList.toggle('open', topbarMenuOpen);
+    trigger.classList.toggle('open', topbarMenuOpen);
 }
 
 // Referme le menu dès qu'on choisit une de ses entrées (elles ouvrent une page ou une modale,
@@ -683,11 +691,13 @@ document.addEventListener('click', function(e) {
         document.getElementById('user-menu-popover').style.display = 'none';
         document.getElementById('user-menu-trigger')?.classList.remove('open');
     }
-    const topbarMenu = document.getElementById('topbar-menu');
-    if (topbarMenu && topbarMenuOpen && !topbarMenu.contains(e.target)) {
+    const topbarTrigger = document.getElementById('topbar-menu-trigger');
+    const topbarPopover = document.getElementById('topbar-menu-popover');
+    if (topbarMenuOpen && topbarTrigger && topbarPopover
+        && !topbarTrigger.contains(e.target) && !topbarPopover.contains(e.target)) {
         topbarMenuOpen = false;
-        document.getElementById('topbar-menu-popover').style.display = 'none';
-        document.getElementById('topbar-menu-trigger')?.classList.remove('open');
+        topbarPopover.style.display = 'none';
+        topbarTrigger.classList.remove('open');
     }
 });
 
