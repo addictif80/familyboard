@@ -75,11 +75,12 @@ use App\Models\LoyaltyCard;
             <div class="form-row">
                 <div class="form-group flex-2">
                     <label>Magasin / enseigne <span style="color:var(--danger)">*</span></label>
-                    <input type="text" id="loyalty-card-store" placeholder="Carrefour, Fnac, Sephora…">
+                    <input type="text" id="loyalty-card-store" list="loyalty-brand-list" placeholder="Carrefour, Fnac, Sephora…" oninput="LoyaltyCards.matchBrandColor(this.value)">
+                    <datalist id="loyalty-brand-list"></datalist>
                 </div>
                 <div class="form-group">
                     <label>Couleur</label>
-                    <input type="color" id="loyalty-card-color" value="#7C5CFF">
+                    <input type="color" id="loyalty-card-color" value="#7C5CFF" onchange="LoyaltyCards.markColorTouched()">
                 </div>
             </div>
             <div class="form-row">
