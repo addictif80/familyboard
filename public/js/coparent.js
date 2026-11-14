@@ -186,7 +186,7 @@ async function cpLoadAlbums() {
 
 async function cpOpenAlbum(id) {
     cpCurrentAlbumId = id;
-    document.getElementById('cp-album-photos').innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>';
+    document.getElementById('cp-album-photos').innerHTML = fbSkeletonGrid(6);
     openModal('cp-album-modal');
 
     const data = await apiFetch(`${BASE_URL}/api/coparent/albums/${id}`);

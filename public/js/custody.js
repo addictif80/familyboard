@@ -831,7 +831,7 @@ async function openVacationModal(scheduleId, childName) {
 
 async function loadVacationPeriods(scheduleId) {
     const list = document.getElementById('vacation-list');
-    list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>';
+    list.innerHTML = fbSkeletonRows(3);
     const schedule = SCHEDULES.find(s => s.id == scheduleId);
     const data = await apiFetch(`${BASE_URL}/api/custody/schedule/${scheduleId}/vacation-list`);
     vacationPeriodsCache = Array.isArray(data) ? data : (data.periods || []);
@@ -947,7 +947,7 @@ async function sendCoparentInvite() {
 
 async function openActivityLogModal(scheduleId, childName) {
     document.getElementById('activity-log-title').textContent = `Journal d'activité — ${childName}`;
-    document.getElementById('activity-log-content').innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>';
+    document.getElementById('activity-log-content').innerHTML = fbSkeletonRows(4);
     openModal('activity-log-modal');
     const data = await apiFetch(`${BASE_URL}/api/custody/schedule/${scheduleId}/activity-log`);
     document.getElementById('activity-log-content').innerHTML = renderActivityLogHtml(data);

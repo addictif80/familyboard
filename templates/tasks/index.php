@@ -84,11 +84,18 @@ ob_start();
                     </li>
                 <?php endforeach; ?>
                 <?php if (empty($tasks)): ?>
-                    <li class="empty-state">Aucune tâche. Cliquez sur "+ Ajouter" pour commencer.</li>
+                    <li class="empty-state-card">
+                        <div class="empty-state-icon">✅</div>
+                        <h4>Aucune tâche</h4>
+                        <p>Ajoutez une tâche ou une course pour commencer.</p>
+                        <button class="btn btn-primary" onclick="openNewTaskModal()">+ Ajouter une tâche</button>
+                    </li>
                 <?php endif; ?>
             </ul>
         <?php else: ?>
             <div class="empty-state-card">
+                <div class="empty-state-icon">📋</div>
+                <h4>Aucune liste</h4>
                 <p>Créez une liste pour commencer.</p>
                 <button class="btn btn-primary" onclick="openNewListModal()">+ Nouvelle liste</button>
             </div>

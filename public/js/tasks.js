@@ -84,38 +84,55 @@ async function saveTask() {
     }
 }
 
+// Mise à jour optimiste (Lot 4) : l'interface change avant la réponse du serveur — une case à
+// cocher doit réagir à l'instant, pas après un aller-retour réseau. On revient en arrière si
+// la requête échoue (ex. un autre membre a supprimé la tâche entre-temps).
 async function toggleTask(id) {
+    const item = document.querySelector(`[data-task-id="${id}"]`);
+    if (!item) return;
+    const wasCompleted = item.classList.contains('completed');
+    const nowCompleted = !wasCompleted;
+
+    item.classList.toggle('completed', nowCompleted);
+    const btn = item.querySelector('.task-check');
+    if (btn) {
+        btn.textContent = nowCompleted ? '✅' : '⬜';
+        btn.classList.remove('just-toggled');
+        void btn.offsetWidth;
+        btn.classList.add('just-toggled');
+    }
+    // Dernière tâche de la liste à être cochée : petite fête, discrète (confettis verts,
+    // jamais pour un décochage accidentel ni quand il restait déjà des tâches avant).
+    if (nowCompleted) {
+        const list = item.closest('.task-list') || item.parentElement;
+        const items = list ? list.querySelectorAll('[data-task-id]') : [];
+        const allDone = items.length > 0 && Array.from(items).every(i => i.classList.contains('completed'));
+        if (allDone && typeof fbConfetti === 'function') fbConfetti(['#2BD4A8', '#7C5CFF'], 28);
+    }
+
     const result = await apiFetch(`${BASE_URL}/api/tasks/task/${id}/toggle`, { method: 'POST' });
-    if (result.success) {
-        const item = document.querySelector(`[data-task-id="${id}"]`);
-        if (item) {
-            item.classList.toggle('completed', result.completed);
-            const btn = item.querySelector('.task-check');
-            if (btn) {
-                btn.textContent = result.completed ? '✅' : '⬜';
-                btn.classList.remove('just-toggled');
-                void btn.offsetWidth;
-                btn.classList.add('just-toggled');
-            }
-            // Dernière tâche de la liste à être cochée : petite fête, discrète (confettis verts,
-            // jamais pour un décochage accidentel ni quand il restait déjà des tâches avant).
-            if (result.completed) {
-                const list = item.closest('.task-list') || item.parentElement;
-                const items = list ? list.querySelectorAll('[data-task-id]') : [];
-                const allDone = items.length > 0 && Array.from(items).every(i => i.classList.contains('completed'));
-                if (allDone && typeof fbConfetti === 'function') fbConfetti(['#2BD4A8', '#7C5CFF'], 28);
-            }
-        }
+    if (!result.success) {
+        item.classList.toggle('completed', wasCompleted);
+        if (btn) btn.textContent = wasCompleted ? '✅' : '⬜';
+        Dialog.toast("Impossible de mettre à jour la tâche.", 'error');
     }
 }
 
-async function deleteTask(id) {
-    if (!await Dialog.confirm('Supprimer cette tâche ?')) return;
-    const result = await apiFetch(`${BASE_URL}/api/tasks/task/${id}/delete`, { method: 'POST' });
-    if (result.success) {
-        const item = document.querySelector(`[data-task-id="${id}"]`);
-        if (item) item.remove();
-    }
+// Suppression avec annulation (Lot 4) : jamais de confirm() bloquant pour une tâche — l'élément
+// disparaît tout de suite, un toast "Annuler" de 5s précède l'appel réel à l'API.
+function deleteTask(id) {
+    const item = document.querySelector(`[data-task-id="${id}"]`);
+    if (!item) return;
+    item.style.display = 'none';
+    Dialog.undoableRemove(
+        'Tâche supprimée.',
+        async () => {
+            const result = await apiFetch(`${BASE_URL}/api/tasks/task/${id}/delete`, { method: 'POST' });
+            if (result.success) item.remove();
+            else { item.style.display = ''; Dialog.toast('Impossible de supprimer la tâche.', 'error'); }
+        },
+        () => { item.style.display = ''; }
+    );
 }
 
 // ---- Partage public (lien, sans compte) ----

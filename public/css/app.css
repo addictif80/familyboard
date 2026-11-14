@@ -125,6 +125,51 @@
 .cascade > *:nth-child(5) { animation-delay: 160ms; }
 @media (prefers-reduced-motion: reduce) { .cascade > * { animation: none; } }
 
+/* ============================================================
+   Lot PWA — splash animé dans l'app (artefact figé).
+   ============================================================ */
+.fb-app-splash {
+  position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1rem; background: var(--bg);
+}
+.fb-app-splash.fade-out { opacity: 0; transition: opacity var(--duration-2) var(--ease-out-soft); }
+.fb-splash-mark { width: 96px; height: 96px; border-radius: 22px; overflow: hidden; animation: fbSplashPop var(--duration-3) var(--ease-spring) both; }
+.fb-splash-mark svg { width: 100%; height: 100%; display: block; }
+.fb-splash-word { font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; color: var(--text);
+  animation: fbWordFade var(--duration-2) var(--ease-out-soft) var(--duration-3) both; }
+@keyframes fbSplashPop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes fbWordFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .fb-app-splash { display: none !important; } }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* ============================================================
+   Lot PWA — barre de chargement (artefact figé, "barre épaisse").
+   ============================================================ */
+.fb-loadbar {
+  position: fixed; left: 0; right: 0; top: var(--banners-h, 0px); height: 6px; z-index: 400;
+  background: transparent; pointer-events: none; overflow: hidden;
+}
+.fb-loadbar-fill {
+  position: absolute; inset: 0; width: 100%; transform: scaleX(0); transform-origin: left;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transition: transform var(--duration-3) var(--ease-out-soft), opacity var(--duration-2);
+}
+.fb-loadbar.error .fb-loadbar-fill { background: var(--danger); }
+@media (prefers-reduced-motion: reduce) { .fb-loadbar-fill { transition: opacity var(--duration-2); } }
+
+/* ---- Tirer pour actualiser (PWA installée) ---- */
+.fb-ptr-ring {
+  position: fixed; left: 50%; top: calc(var(--banners-h, 0px) + var(--topbar-height));
+  transform: translate(-50%, -48px) rotate(calc(var(--fb-ptr-pull, 0) * 1deg)); width: 34px; height: 34px;
+  border-radius: 50%; background: var(--card-bg); box-shadow: var(--shadow-lg); display: flex; align-items: center;
+  justify-content: center; z-index: 401; opacity: var(--fb-ptr-opacity, 0); transition: transform var(--duration-2) var(--ease-out-soft), opacity var(--duration-2);
+  pointer-events: none;
+}
+.fb-ptr-ring svg { width: 16px; height: 16px; color: var(--primary); }
+.fb-ptr-ring.refreshing { opacity: 1; transform: translate(-50%, 10px); animation: fbSpin .7s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .fb-ptr-ring { transition: opacity var(--duration-2); } .fb-ptr-ring.refreshing { animation-duration: 1.4s; } }
+
 @keyframes fbDrift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 @keyframes fbPop { from { transform: scale(.95) translateY(6px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 @keyframes fbFloat { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-4px) rotate(-3deg); } }
@@ -987,6 +1032,18 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 .btn:active { transform: scale(.95); }
 @media (prefers-reduced-motion: reduce) { .btn, .btn:hover, .btn:active { transform: none; } }
 
+/* État de chargement intégré (artefact Design System, Lot 3) : le texte disparaît au profit
+   d'un spin continu, le bouton se désactive — jamais de double-clic possible pendant une
+   requête. Garder le texte dans le DOM (color:transparent) préserve la largeur du bouton. */
+.btn-loading { position: relative; color: transparent !important; pointer-events: none; }
+.btn-loading::after {
+  content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; animation: fbSpin .7s linear infinite;
+}
+.btn-secondary.btn-loading::after, .btn-text.btn-loading::after { border-color: color-mix(in srgb, var(--text) 25%, transparent); border-top-color: var(--text); }
+@keyframes fbSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn-loading::after { animation-duration: 1.4s; } }
+
 .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; box-shadow: 0 3px 14px color-mix(in srgb, var(--primary) 38%, rgba(0,0,0,.18)), inset 0 1px 0 rgba(255,255,255,.32); }
 .btn-primary:hover { background: var(--primary-dark); }
 .btn-secondary { background: var(--card-bg); color: var(--text); border-color: var(--border); }
@@ -1258,6 +1315,13 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .comment-form { display: flex; gap: .5rem; margin-top: .5rem; }
 .comment-input { flex: 1; border-radius: 20px; padding: .4rem .85rem; border: 1px solid var(--border); background: var(--bg); }
 .empty-state-card { text-align: center; padding: 3rem; color: var(--text-muted); background: var(--card-bg); border-radius: var(--radius); }
+/* État vide illustré (artefact Design System, Lot 3) : icône + titre + texte + action
+   directe — jamais une phrase seule. .empty-state-icon/h4 sont facultatifs, ajoutés aux
+   empty-state-card existantes sans rien casser pour celles qui n'en ont pas encore. */
+.empty-state-icon { font-size: 2.2rem; margin-bottom: .6rem; opacity: .7; }
+.empty-state-card h4 { font-family: var(--font-display); color: var(--text); margin: 0 0 .4rem; }
+.empty-state-card p { margin: 0 0 1rem; }
+.empty-state-card p:last-child { margin-bottom: 0; }
 .load-more-container { text-align: center; margin-top: .5rem; }
 
 /* ---- Calendar ---- */

@@ -89,7 +89,10 @@ ob_start();
             <?php endforeach; ?>
             <?php if (empty($posts)): ?>
                 <div class="empty-state-card">
-                    <p>🌟 Soyez le premier à publier quelque chose ! Abonnez-vous à d'autres membres (bouton « Membres ») pour voir leurs publications personnelles.</p>
+                    <div class="empty-state-icon">📸</div>
+                    <h4>Aucune publication</h4>
+                    <p>Soyez le premier à publier quelque chose ! Abonnez-vous à d'autres membres (bouton « Membres ») pour voir leurs publications personnelles.</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('post-form')?.scrollIntoView({behavior:'smooth'})">+ Publier</button>
                 </div>
             <?php endif; ?>
         </div>
@@ -134,7 +137,7 @@ ob_start();
         </div>
         <div class="modal-body">
             <div class="album-photo-grid" id="wall-album-picker-grid">
-                <p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>
+                <div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div><div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div><div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div>
             </div>
         </div>
     </div>

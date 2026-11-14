@@ -19,7 +19,8 @@
     <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon-192.png" type="image/png">
     <!-- PWA -->
     <link rel="manifest" href="<?= BASE_URL ?>/public/manifest.json">
-    <meta name="theme-color" content="#212838">
+    <meta name="theme-color" content="#7C5CFF" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#15132A" media="(prefers-color-scheme: dark)">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="FamilyBoard">
@@ -27,9 +28,9 @@
     <?php
     // Écrans de démarrage iOS (apple-touch-startup-image) : sans eux, Safari affiche un flash
     // blanc à l'ouverture de l'app installée le temps que la page charge, au lieu d'une
-    // transition douce. Un fichier par profil d'appareil × orientation (générés dans
-    // public/icons/splash/, fond = background_color du manifest). Ignoré par tout ce qui
-    // n'est pas Safari/iOS — sans coût pour les autres navigateurs.
+    // transition douce. Un fichier par profil d'appareil × orientation × thème (générés dans
+    // public/icons/splash/ par scripts/generate-pwa-icons.js, à relancer si le logo ou les
+    // couleurs changent). Ignoré par tout ce qui n'est pas Safari/iOS — sans coût ailleurs.
     $__iosSplashDevices = [
         ['iphone-se',       375, 667,  2],
         ['iphone-standard', 390, 844,  3],
@@ -46,14 +47,18 @@
     foreach ($__iosSplashDevices as [$__name, $__w, $__h, $__ratio]):
         foreach (['portrait', 'landscape'] as $__orientation):
             [$__mw, $__mh] = $__orientation === 'portrait' ? [$__w, $__h] : [$__h, $__w];
+            foreach (['light', 'dark'] as $__theme):
+                $__suffix = $__theme === 'dark' ? '-dark' : '';
+                $__colorScheme = $__theme === 'dark' ? ' and (prefers-color-scheme: dark)' : ' and (prefers-color-scheme: light)';
     ?>
     <link rel="apple-touch-startup-image"
-          media="(device-width: <?= $__mw ?>px) and (device-height: <?= $__mh ?>px) and (-webkit-device-pixel-ratio: <?= $__ratio ?>) and (orientation: <?= $__orientation ?>)"
-          href="<?= BASE_URL ?>/public/icons/splash/<?= $__name ?>-<?= $__orientation ?>.png">
+          media="(device-width: <?= $__mw ?>px) and (device-height: <?= $__mh ?>px) and (-webkit-device-pixel-ratio: <?= $__ratio ?>) and (orientation: <?= $__orientation ?>)<?= $__colorScheme ?>"
+          href="<?= BASE_URL ?>/public/icons/splash/<?= $__name ?>-<?= $__orientation . $__suffix ?>.png">
     <?php
+            endforeach;
         endforeach;
     endforeach;
-    unset($__iosSplashDevices, $__name, $__w, $__h, $__ratio, $__orientation, $__mw, $__mh);
+    unset($__iosSplashDevices, $__name, $__w, $__h, $__ratio, $__orientation, $__mw, $__mh, $__theme, $__suffix, $__colorScheme);
     ?>
     <!-- Styles -->
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css?v=<?= APP_VERSION ?>">
@@ -66,6 +71,46 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Baloo+2:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
 </head>
 <body>
+
+<?php
+// Splash animé dans l'app (Lot PWA, Phase A artefact "Splash" figé) : reprend exactement le
+// splash natif (apple-touch-startup-image / icône Android ci-dessus) puis anime le logo avant
+// de s'effacer sur le tableau de bord — jamais de rupture visible avec l'image statique du
+// système. Affiché UNE SEULE FOIS par session de navigateur (sessionStorage), seulement quand
+// l'app tourne "installée" (display-mode: standalone / navigator.standalone), jamais à chaque
+// navigation. Le script ci-dessous le retire avant la première peinture s'il ne doit pas
+// s'afficher — aucun flash possible. Le kiosque a son propre template (templates/kiosk/*),
+// qui n'inclut pas layout.php : il n'est donc jamais concerné.
+$__fbSplashSvg = file_get_contents(BASE_PATH . '/public/icons/icon.svg');
+?>
+<div id="fb-splash" class="fb-app-splash" aria-hidden="true">
+    <div class="fb-splash-mark"><?= $__fbSplashSvg ?></div>
+    <div class="fb-splash-word">FamilyBoard</div>
+</div>
+<script>
+(function () {
+    try {
+        var el = document.getElementById('fb-splash');
+        var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+        var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var seen = sessionStorage.getItem('fb-splash-shown');
+        if (!standalone || reduced || seen) { el.remove(); return; }
+        sessionStorage.setItem('fb-splash-shown', '1');
+        var removed = false;
+        function removeSplash() {
+            if (removed) return;
+            removed = true;
+            el.classList.add('fade-out');
+            setTimeout(function () { el.remove(); }, 220);
+        }
+        window.addEventListener('load', function () { setTimeout(removeSplash, 200); });
+        setTimeout(removeSplash, 1400); // durée max avant retrait forcé, même si "load" tarde
+    } catch (e) {
+        var el2 = document.getElementById('fb-splash');
+        if (el2) el2.remove();
+    }
+})();
+</script>
 
 <div id="top-banners">
 <div class="impersonation-banner" id="offline-banner" style="background:#6B5B3D;display:none">
@@ -94,6 +139,14 @@
 </div>
 <?php endif; ?>
 </div>
+
+<!-- Barre de chargement (navigation, apiFetch, actualisation) — artefact figé "Barre épaisse".
+     position:fixed hors du DOM de .topbar : .topbar a overflow:hidden + backdrop-filter, qui
+     piègerait tout élément positionné à l'intérieur (même bug déjà rencontré sur le menu "⋯"
+     et la modale du guide). aria-live discret : l'arrivée du contenu lui-même suffit, la barre
+     n'a pas besoin d'être annoncée mot pour mot à chaque requête. -->
+<div class="fb-loadbar" id="fb-loadbar" role="status" aria-live="polite"><span class="fb-loadbar-fill" id="fb-loadbar-fill"></span><span class="sr-only" id="fb-loadbar-sr"></span></div>
+
 <script>
 // Fixe --banners-h dès le parsing du HTML (avant même le chargement d'app.js en bas de page) :
 // sans ça, la sidebar/topbar (position fixed/sticky) démarrent brièvement à top:0, sous les

@@ -62,7 +62,7 @@ ob_start();
             <h3 style="margin:0">Prochains jours de garde</h3>
             <button class="btn btn-primary btn-sm" onclick="cpOpenProposalModal()">Proposer des jours</button>
         </div>
-        <div id="cp-custody-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        <div id="cp-custody-list"><div class="skel skel-text" aria-hidden="true" style="width:85%"></div><div class="skel skel-text" aria-hidden="true" style="width:65%"></div><div class="skel skel-text" aria-hidden="true" style="width:75%"></div></div>
     </div>
 </div>
 
@@ -84,7 +84,7 @@ ob_start();
         <p style="color:var(--text-muted);font-size:.8rem;margin-top:-.5rem;margin-bottom:1rem">
             Vous pouvez ajouter vos propres photos aux albums partagés ci-dessous, et voir celles ajoutées par l'autre parent.
         </p>
-        <div id="cp-albums-grid" class="album-grid"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        <div id="cp-albums-grid" class="album-grid"><div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div><div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div><div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div></div>
     </div>
 </div>
 
@@ -105,7 +105,7 @@ ob_start();
     </div>
     <div class="card" style="padding:1.25rem">
         <h3 style="margin-top:0">Documents</h3>
-        <div id="cp-documents-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        <div id="cp-documents-list"><div class="skel skel-text" aria-hidden="true" style="width:80%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div></div>
     </div>
 </div>
 
@@ -130,7 +130,7 @@ ob_start();
     </div>
     <div class="card" style="padding:1.25rem">
         <h3 style="margin-top:0">Évènements à venir</h3>
-        <div id="cp-events-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        <div id="cp-events-list"><div class="skel skel-text" aria-hidden="true" style="width:85%"></div><div class="skel skel-text" aria-hidden="true" style="width:65%"></div></div>
     </div>
 </div>
 
@@ -140,7 +140,7 @@ ob_start();
         <p style="color:var(--text-muted);font-size:.8rem;margin-top:-.5rem;margin-bottom:1rem">
             Historique horodaté (fuseau de la famille) et IP de toutes les actions liées à cet enfant, des deux côtés — visible par les deux parents.
         </p>
-        <div id="cp-activity-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        <div id="cp-activity-list"><div class="skel skel-text" aria-hidden="true" style="width:90%"></div><div class="skel skel-text" aria-hidden="true" style="width:75%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div><div class="skel skel-text" aria-hidden="true" style="width:80%"></div></div>
     </div>
 </div>
 
@@ -155,7 +155,7 @@ ob_start();
             votre part attend la validation d'un administrateur avant de s'afficher ici.
         </p>
     </div>
-    <div class="links-grid" id="cp-links-grid"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+    <div class="links-grid" id="cp-links-grid"><div class="skel" aria-hidden="true" style="height:70px;border-radius:var(--radius-sm)"></div><div class="skel" aria-hidden="true" style="height:70px;border-radius:var(--radius-sm)"></div></div>
 </div>
 
 <!-- Propose link modal -->
@@ -221,7 +221,7 @@ ob_start();
             nom d'une famille).
         </p>
     </div>
-    <div id="cp-additions-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+    <div id="cp-additions-list"><div class="skel skel-text" aria-hidden="true" style="width:80%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div></div>
 </div>
 
 <div class="coparent-panel" id="cp-panel-notifications">

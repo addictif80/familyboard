@@ -259,7 +259,7 @@ async function loadMorePosts() {
     if (wallLoading) return;
     wallLoading = true;
     const btn = document.getElementById('load-more-btn');
-    btn.textContent = 'Chargement…';
+    btn.classList.add('btn-loading');
 
     const data = await apiFetch(BASE_URL + '/api/wall/more?offset=' + wallOffset);
     if (data.posts && data.posts.length > 0) {
@@ -271,7 +271,7 @@ async function loadMorePosts() {
         document.getElementById('load-more-container').style.display = 'none';
     }
     wallLoading = false;
-    btn.textContent = 'Charger plus';
+    btn.classList.remove('btn-loading');
 }
 
 // ---- Abonnements (mur "réseau social") ----

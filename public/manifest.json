@@ -5,8 +5,8 @@
     "start_url": "/",
     "scope": "/",
     "display": "standalone",
-    "background_color": "#F7F3EC",
-    "theme_color": "#212838",
+    "background_color": "#F4F2FB",
+    "theme_color": "#7C5CFF",
     "lang": "fr",
     "icons": [
         {
@@ -26,6 +26,12 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
+        },
+        {
+            "src": "/public/icons/icon-monochrome.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "monochrome"
         }
     ],
     "shortcuts": [
