@@ -10,9 +10,10 @@ use App\Models\FamilyCozyConnection;
 
 /**
  * Parcours de connexion d'une famille à son instance Cozy Cloud (import automatique de
- * documents) : création de l'instance (via CozyProvisioner), onboarding (lien Cozy où la famille
- * choisit son mot de passe), puis autorisation OAuth2 (voir CozyOAuthClient) pour que FamilyBoard
- * puisse lire/nettoyer le dossier Administratif. Réservé à l'admin de famille.
+ * documents) : création de l'instance (via CozyProvisioner, avec connexion par lien magique
+ * activée), puis autorisation OAuth2 en un seul aller-retour (voir CozyOAuthClient) — Cozy gère
+ * lui-même la connexion de la famille (lien magique) au milieu de ce même parcours si elle n'est
+ * pas encore authentifiée, avant le consentement. Réservé à l'admin de famille.
  */
 class CozyController extends BaseController
 {
@@ -51,13 +52,12 @@ class CozyController extends BaseController
 
             $id = FamilyCozyConnection::createProvisioning($familyId, $cozyDomain);
             FamilyCozyConnection::markPendingOnboarding($id);
-
-            // L'instance est créée avec un mot de passe aléatoire jetable (jamais connu de la
-            // famille) et la connexion par lien magique activée (--magic_link, voir
-            // CozyProvisioner) : la famille se connecte la première fois via "connexion par lien
-            // magique" sur cette page, sans jamais avoir à taper de mot de passe.
-            header('Location: https://' . $cozyDomain . '/');
-            exit;
+            $connection = ['id' => $id, 'cozy_domain' => $cozyDomain, 'client_id' => null, 'status' => 'pending_onboarding'];
+            // On enchaîne directement sur l'autorisation OAuth ci-dessous : /auth/authorize de
+            // Cozy affiche lui-même l'écran de connexion (avec "connexion par lien magique",
+            // activée à la création — voir CozyProvisioner) à un visiteur non authentifié, puis
+            // enchaîne sur le consentement et revient tout seul vers FamilyBoard. Pas besoin
+            // d'un aller-retour séparé par https://$domain/.
         }
 
         if ($connection['status'] === 'connected') {
@@ -66,7 +66,7 @@ class CozyController extends BaseController
             exit;
         }
 
-        // Instance déjà créée (onboarding fait ou en cours) : lance/relance l'autorisation OAuth.
+        // Instance déjà créée (reste à se connecter/autoriser) : lance/relance l'autorisation OAuth.
         $redirectUri = self::absoluteBaseUrl() . '/cozy/oauth/callback';
         if (!$connection['client_id']) {
             $registered = CozyOAuthClient::registerClient($connection['cozy_domain'], $redirectUri);
