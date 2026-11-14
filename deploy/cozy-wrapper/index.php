@@ -1,10 +1,13 @@
 <?php
 /**
- * Relais HTTP minimal pour la création/suppression d'une instance Cozy Cloud — à déployer SUR LE
- * SERVEUR COZY STACK (jamais sur le serveur FamilyBoard). Nécessaire car l'API admin HTTP native
- * de Cozy Stack n'expose PAS la création/suppression d'instance (seule la commande CLI
- * `cozy-stack instances add|destroy`, exécutée localement, le permet) — ce script exécute cette
- * commande pour le compte de FamilyBoard, qui l'appelle par HTTP au lieu d'exiger un accès SSH.
+ * Relais HTTP minimal pour la création/suppression d'une instance Cozy Cloud et la génération de
+ * jeton OAuth — à déployer SUR LE SERVEUR COZY STACK (jamais sur le serveur FamilyBoard).
+ * Nécessaire car l'API admin HTTP native de Cozy Stack n'expose PAS la création/suppression
+ * d'instance ni la génération de jeton (seules les commandes CLI `cozy-stack instances
+ * add|destroy|token-oauth`, exécutées localement, le permettent) — ce script les exécute pour le
+ * compte de FamilyBoard, qui les appelle par HTTP au lieu d'exiger un accès SSH. La génération de
+ * jeton via token-oauth évite tout parcours navigateur (lien magique + consentement OAuth) côté
+ * famille : la connexion de FamilyBoard à l'instance est entièrement automatique.
  *
  * Aucune dépendance, un seul fichier. Voir README.md de ce dossier pour le déploiement
  * (nginx/php-fpm ou `php -S`, restriction réseau, jeton partagé).
@@ -85,24 +88,45 @@ if ($path === '/create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         respond(400, ['error' => 'domain ou email invalide.']);
     }
 
+    // Sans --passphrase, la commande attend un mot de passe sur l'entrée standard via un ioctl
+    // de terminal — impossible à satisfaire depuis un script (constaté en conditions réelles,
+    // même avec stdin explicitement fermé : la bibliothèque utilisée exige un vrai TTY, pas
+    // seulement une entrée vide). On fournit donc un mot de passe aléatoire jetable, jamais
+    // montré ni stocké nulle part, et --magic_link pour que la famille puisse se connecter sans
+    // jamais avoir à le connaître (lien de connexion envoyé par e-mail à sa première visite).
+    $throwawayPassphrase = bin2hex(random_bytes(16));
     $command = escapeshellarg($cozyStackBin) . ' instances add '
         . escapeshellarg($domain) . ' --email ' . escapeshellarg($email)
+        . ' --passphrase ' . escapeshellarg($throwawayPassphrase) . ' --magic_link'
         . ' --locale fr --tz Europe/Paris 2>&1';
     [$code, $output] = runCommand($command);
     if ($code !== 0) {
         respond(500, ['error' => "Échec de la création de l'instance : " . trim($output)]);
     }
+    respond(200, ['domain' => $domain, 'raw' => $output]);
+}
 
-    // Le format exact de la sortie n'a pas pu être vérifié contre une instance réelle avant
-    // déploiement (voir README.md) — on tente d'extraire une URL/un jeton d'onboarding si la
-    // commande en affiche un ("registerToken=..." dans une URL), sinon registerToken reste absent
-    // et FamilyBoard redirige simplement vers https://$domain/ (Cozy affichera alors son propre
-    // écran d'onboarding si l'instance n'a pas de mot de passe).
-    $registerToken = null;
-    if (preg_match('/registerToken=([a-f0-9]+)/i', $output, $m)) {
-        $registerToken = $m[1];
+if ($path === '/token' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $domain = strtolower(trim((string)($input['domain'] ?? '')));
+    $clientId = trim((string)($input['client_id'] ?? ''));
+    $scope = trim((string)($input['scope'] ?? ''));
+    if (!isValidDomain($domain) || $clientId === '' || $scope === '') {
+        respond(400, ['error' => 'domain, client_id ou scope invalide.']);
     }
-    respond(200, ['domain' => $domain, 'registerToken' => $registerToken, 'raw' => $output]);
+
+    // Génère le jeton directement côté serveur (CLI dédiée) — jamais via le parcours
+    // navigateur /auth/authorize, qui exigerait que la famille s'authentifie interactivement
+    // (lien magique + consentement). Durée volontairement longue (10 ans) : pas de notion de
+    // refresh token avec cette commande, on en régénère simplement un nouveau si besoin plutôt
+    // que de gérer un cycle de rafraîchissement.
+    $command = escapeshellarg($cozyStackBin) . ' instances token-oauth '
+        . escapeshellarg($domain) . ' ' . escapeshellarg($clientId) . ' ' . escapeshellarg($scope)
+        . ' --expire 87600h 2>&1';
+    [$code, $output] = runCommand($command);
+    if ($code !== 0) {
+        respond(500, ['error' => "Échec de la génération du jeton : " . trim($output)]);
+    }
+    respond(200, ['access_token' => trim($output)]);
 }
 
 if ($path === '/destroy' && $_SERVER['REQUEST_METHOD'] === 'POST') {

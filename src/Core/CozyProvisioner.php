@@ -4,12 +4,14 @@ namespace App\Core;
 use App\Models\CozySettings;
 
 /**
- * Crée/supprime une instance Cozy Cloud par famille, via un petit relais HTTP déployé sur le
- * serveur Cozy Stack (voir deploy/cozy-wrapper/index.php) — l'API admin HTTP native de Cozy Stack
- * n'expose PAS la création/suppression d'instance (seule la commande `cozy-stack instances
- * add|destroy` le permet, exécutée localement sur ce serveur), d'où ce relais minimal : il reçoit
- * un appel authentifié par jeton partagé et exécute la commande pour nous, pour que FamilyBoard
- * n'ait jamais besoin d'un accès SSH à ce serveur.
+ * Crée/supprime une instance Cozy Cloud par famille et génère son jeton d'accès, via un petit
+ * relais HTTP déployé sur le serveur Cozy Stack (voir deploy/cozy-wrapper/index.php) — l'API
+ * admin HTTP native de Cozy Stack n'expose aucune de ces trois opérations (seules les commandes
+ * `cozy-stack instances add|destroy|token-oauth`, exécutées localement, le permettent), d'où ce
+ * relais minimal : il reçoit un appel authentifié par jeton partagé et exécute la commande pour
+ * nous, pour que FamilyBoard n'ait jamais besoin d'un accès SSH à ce serveur. La génération de
+ * jeton via token-oauth (plutôt que le parcours navigateur /auth/authorize) rend toute la
+ * connexion entièrement automatique, sans la moindre interaction de la famille.
  */
 class CozyProvisioner
 {
@@ -64,12 +66,11 @@ class CozyProvisioner
     }
 
     /**
-     * @return array{ok:bool, registerToken?:string, error?:string} registerToken sert à
-     *  construire le lien d'onboarding (https://$domain/?registerToken=...) envoyé à la famille
-     *  pour qu'elle choisisse son mot de passe Cozy — voir CozyController::connect(). Le format
-     *  exact de la sortie de `cozy-stack instances add` n'a pas pu être vérifié contre une
-     *  instance réelle avant déploiement ; à valider en premier lors de la mise en service (voir
-     *  deploy/cozy-wrapper/README.md).
+     * Crée l'instance avec un mot de passe aléatoire jetable (généré et jeté côté relais, jamais
+     * transmis ici) et la connexion par lien magique activée — utile si la famille veut plus
+     * tard visiter elle-même son Cozy pour configurer un Konnector (voir CozyController), jamais
+     * utilisé pour la connexion de FamilyBoard lui-même (voir mintToken()).
+     * @return array{ok:bool, error?:string}
      */
     public static function createInstance(string $domain, string $email): array
     {
@@ -79,5 +80,15 @@ class CozyProvisioner
     public static function destroyInstance(string $domain): array
     {
         return self::request('/destroy', ['domain' => $domain]);
+    }
+
+    /**
+     * Génère un jeton d'accès OAuth directement côté serveur (cozy-stack instances token-oauth),
+     * sans le parcours navigateur /auth/authorize — aucune interaction de la famille nécessaire.
+     * @return array{ok:bool, access_token?:string, error?:string}
+     */
+    public static function mintToken(string $domain, string $clientId, string $scope): array
+    {
+        return self::request('/token', ['domain' => $domain, 'client_id' => $clientId, 'scope' => $scope]);
     }
 }

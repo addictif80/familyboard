@@ -78,13 +78,13 @@ curl -X POST http://<IP Tailscale de cette VM>:9000/create \
   -d '{"domain":"test.cozy.abhd.fr","email":"test@example.com"}'
 ```
 
-**Important** : le format exact de ce que `cozy-stack instances add` affiche sur sa sortie
-standard (notamment un éventuel lien/jeton d'onboarding `registerToken=...`) n'a pas pu être
-vérifié contre une instance réelle avant ce déploiement — regarde le champ `raw` de la réponse
-JSON pour voir la sortie brute de la commande, et ajuste la regex dans `index.php`
-(`registerToken=([a-f0-9]+)`) si le format diffère. Si aucun jeton n'est trouvé, FamilyBoard
-redirige simplement vers `https://test.cozy.abhd.fr/`, où Cozy proposera de toute façon son
-propre écran d'onboarding si l'instance n'a pas encore de mot de passe.
+L'instance est créée avec un mot de passe aléatoire jetable (généré par le relais, jamais montré
+ni stocké) et la connexion par lien magique activée (`--magic_link`) : ouvre
+`https://test.cozy.abhd.fr/` et utilise "connexion par lien magique" pour entrer sans jamais avoir
+à connaître ce mot de passe. Vérifié en conditions réelles — `cozy-stack instances add` sans
+`--passphrase` bloque indéfiniment en tentant de lire un mot de passe sur l'entrée standard via un
+ioctl de terminal, même avec l'entrée fermée proprement ; passer `--passphrase` directement est la
+seule façon fiable de créer une instance de façon non interactive.
 
 Nettoie ensuite l'instance de test :
 

@@ -9,123 +9,74 @@ use App\Models\Family;
 use App\Models\FamilyCozyConnection;
 
 /**
- * Parcours de connexion d'une famille à son instance Cozy Cloud (import automatique de
- * documents) : création de l'instance (via CozyProvisioner), onboarding (lien Cozy où la famille
- * choisit son mot de passe), puis autorisation OAuth2 (voir CozyOAuthClient) pour que FamilyBoard
- * puisse lire/nettoyer le dossier Administratif. Réservé à l'admin de famille.
+ * Connexion d'une famille à son instance Cozy Cloud (import automatique de documents) :
+ * création de l'instance si besoin (CozyProvisioner), enregistrement OAuth dynamique
+ * (CozyOAuthClient) puis génération directe du jeton d'accès côté serveur
+ * (CozyProvisioner::mintToken(), cozy-stack instances token-oauth) — aucune étape navigateur,
+ * aucune interaction de la famille. Réservé à l'admin de famille.
  */
 class CozyController extends BaseController
 {
-    /** Point d'entrée unique "Configurer mes factures automatiques" — avance la famille à
-     *  l'étape suivante selon l'état actuel de sa connexion. */
+    private const SCOPE = 'io.cozy.files';
+
+    /** "Configurer mes factures automatiques" — fait tout en un seul appel : crée l'instance si
+     *  besoin, l'enregistre comme client OAuth, génère son jeton d'accès. */
     public function connect(array $params): void
     {
         $this->requireAuth();
-        $user = Session::user();
-        if ($user['role'] !== 'admin') {
-            Session::flash('error', 'Seul un administrateur de famille peut configurer cette fonctionnalité.');
-            header('Location: ' . BASE_URL . '/settings');
-            exit;
-        }
-
-        $settings = CozySettings::get();
-        if (!$settings) {
-            Session::flash('error', "L'import automatique de factures n'est pas encore activé sur cette plateforme.");
-            header('Location: ' . BASE_URL . '/settings');
-            exit;
-        }
-
-        $familyId = (int)$user['family_id'];
-        $connection = FamilyCozyConnection::findByFamily($familyId);
-
-        if (!$connection) {
-            $family = Family::findById($familyId);
-            $cozyDomain = FamilyCozyConnection::generateDomain($family['name'] ?? ('famille-' . $familyId), $settings['domain']);
-
-            $created = CozyProvisioner::createInstance($cozyDomain, $user['email']);
-            if (!$created['ok']) {
-                Session::flash('error', "Création de l'instance Cozy échouée : " . ($created['error'] ?? 'erreur inconnue'));
-                header('Location: ' . BASE_URL . '/settings');
-                exit;
+        $this->json(function () {
+            $user = Session::user();
+            if ($user['role'] !== 'admin') {
+                return ['success' => false, 'error' => 'Seul un administrateur de famille peut configurer cette fonctionnalité.'];
             }
 
-            $id = FamilyCozyConnection::createProvisioning($familyId, $cozyDomain);
-            FamilyCozyConnection::markPendingOnboarding($id);
-
-            // Lien d'onboarding Cozy (la famille y choisit son mot de passe) — format non
-            // garanti avant vérification contre une instance réelle, voir CozyProvisioner.
-            $registerToken = $created['registerToken'] ?? null;
-            $onboardingUrl = 'https://' . $cozyDomain . ($registerToken ? '/?registerToken=' . urlencode($registerToken) : '/');
-            header('Location: ' . $onboardingUrl);
-            exit;
-        }
-
-        if ($connection['status'] === 'connected') {
-            Session::flash('success', 'Cozy est déjà connecté pour votre famille.');
-            header('Location: ' . BASE_URL . '/settings');
-            exit;
-        }
-
-        // Instance déjà créée (onboarding fait ou en cours) : lance/relance l'autorisation OAuth.
-        $redirectUri = self::absoluteBaseUrl() . '/cozy/oauth/callback';
-        if (!$connection['client_id']) {
-            $registered = CozyOAuthClient::registerClient($connection['cozy_domain'], $redirectUri);
-            if (!$registered['ok']) {
-                Session::flash('error', "Connexion OAuth à Cozy échouée : " . $registered['error']);
-                header('Location: ' . BASE_URL . '/settings');
-                exit;
+            $settings = CozySettings::get();
+            if (!$settings) {
+                return ['success' => false, 'error' => "L'import automatique de factures n'est pas encore activé sur cette plateforme."];
             }
-            FamilyCozyConnection::storeOAuthClient((int)$connection['id'], $registered['client_id'], $registered['client_secret']);
-            $connection['client_id'] = $registered['client_id'];
-        }
 
-        $state = bin2hex(random_bytes(16));
-        Session::set('cozy_oauth_state', $state);
-        Session::set('cozy_oauth_family_id', $familyId);
+            $familyId = (int)$user['family_id'];
+            $connection = FamilyCozyConnection::findByFamily($familyId);
 
-        header('Location: ' . CozyOAuthClient::authorizeUrl($connection['cozy_domain'], $connection['client_id'], $redirectUri, $state));
-        exit;
-    }
+            if ($connection && $connection['status'] === 'connected') {
+                return ['success' => true, 'already_connected' => true];
+            }
 
-    public function oauthCallback(array $params): void
-    {
-        $this->requireAuth();
-        $user = Session::user();
-        $familyId = (int)$user['family_id'];
+            if (!$connection) {
+                $family = Family::findById($familyId);
+                $cozyDomain = FamilyCozyConnection::generateDomain($family['name'] ?? ('famille-' . $familyId), $settings['domain']);
 
-        $expectedState = Session::get('cozy_oauth_state');
-        $expectedFamily = Session::get('cozy_oauth_family_id');
-        $state = $_GET['state'] ?? '';
-        $code = $_GET['code'] ?? '';
+                $created = CozyProvisioner::createInstance($cozyDomain, $user['email']);
+                if (!$created['ok']) {
+                    return ['success' => false, 'error' => "Création de l'instance Cozy échouée : " . ($created['error'] ?? 'erreur inconnue')];
+                }
 
-        if (!$code || !$state || $state !== $expectedState || $familyId !== (int)$expectedFamily) {
-            Session::flash('error', 'Autorisation Cozy invalide ou expirée — recommencez.');
-            header('Location: ' . BASE_URL . '/settings');
-            exit;
-        }
-        Session::delete('cozy_oauth_state');
-        Session::delete('cozy_oauth_family_id');
+                $id = FamilyCozyConnection::createProvisioning($familyId, $cozyDomain);
+                $connection = ['id' => $id, 'cozy_domain' => $cozyDomain, 'client_id' => null];
+            }
 
-        $connection = FamilyCozyConnection::findByFamily($familyId);
-        if (!$connection || !$connection['client_id'] || !$connection['client_secret']) {
-            Session::flash('error', 'Connexion Cozy introuvable — recommencez depuis les réglages.');
-            header('Location: ' . BASE_URL . '/settings');
-            exit;
-        }
+            // Un placeholder suffit : cette redirect_uri n'est jamais réellement utilisée (voir
+            // CozyProvisioner::mintToken(), qui génère le jeton sans aucun parcours navigateur) —
+            // seule l'API d'enregistrement dynamique de Cozy en exige une (RFC 7591).
+            if (!$connection['client_id']) {
+                $registered = CozyOAuthClient::registerClient($connection['cozy_domain'], self::absoluteBaseUrl() . '/');
+                if (!$registered['ok']) {
+                    FamilyCozyConnection::markError((int)$connection['id'], $registered['error']);
+                    return ['success' => false, 'error' => "Connexion OAuth à Cozy échouée : " . $registered['error']];
+                }
+                FamilyCozyConnection::storeOAuthClient((int)$connection['id'], $registered['client_id']);
+                $connection['client_id'] = $registered['client_id'];
+            }
 
-        $redirectUri = self::absoluteBaseUrl() . '/cozy/oauth/callback';
-        $r = CozyOAuthClient::exchangeCode($connection['cozy_domain'], $connection['client_id'], $connection['client_secret'], $code, $redirectUri);
-        if (!$r['ok']) {
-            FamilyCozyConnection::markError((int)$connection['id'], $r['error']);
-            Session::flash('error', "Échange du jeton Cozy échoué : " . $r['error']);
-            header('Location: ' . BASE_URL . '/settings');
-            exit;
-        }
+            $token = CozyProvisioner::mintToken($connection['cozy_domain'], $connection['client_id'], self::SCOPE);
+            if (!$token['ok']) {
+                FamilyCozyConnection::markError((int)$connection['id'], $token['error']);
+                return ['success' => false, 'error' => "Génération du jeton Cozy échouée : " . $token['error']];
+            }
+            FamilyCozyConnection::storeToken((int)$connection['id'], $token['access_token']);
 
-        FamilyCozyConnection::storeTokens((int)$connection['id'], $r['access_token'], $r['refresh_token'], $r['expires_in']);
-        Session::flash('success', 'Cozy est maintenant connecté : vos factures seront importées automatiquement dans Documents.');
-        header('Location: ' . BASE_URL . '/settings');
-        exit;
+            return ['success' => true];
+        });
     }
 
     public function disconnect(array $params): void
@@ -149,8 +100,9 @@ class CozyController extends BaseController
         });
     }
 
-    /** URL absolue (protocole+domaine+BASE_URL) — nécessaire pour redirect_uri OAuth, que Cozy
-     *  redirige depuis le navigateur de la famille (un chemin relatif n'aurait pas de sens). */
+    /** URL absolue (protocole+domaine+BASE_URL) — seulement pour l'enregistrement OAuth
+     *  dynamique (RFC 7591 exige une redirect_uri valide), jamais réellement utilisée en
+     *  pratique (voir mintToken()). */
     private static function absoluteBaseUrl(): string
     {
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
