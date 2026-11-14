@@ -48,7 +48,7 @@ class HelpGuide
             ['key' => 'finance',  'title' => 'Finances',                'icon' => '💰', 'items' => ['budget', 'deals', 'additions']],
             ['key' => 'health',   'title' => 'Santé & sécurité',        'icon' => '🏥', 'items' => ['health', 'medication', 'emergency', 'location']],
             ['key' => 'legal',    'title' => 'Juridique & administratif', 'icon' => '⚖️', 'items' => ['documents', 'warranties', 'letters', 'disputes', 'admin_procedures', 'vault', 'vault_passwords', 'school', 'employment', 'nanny', 'leave']],
-            ['key' => 'assets',   'title' => 'Biens & déplacements',    'icon' => '🏡', 'items' => ['vehicles', 'pets', 'meters', 'travels', 'projects']],
+            ['key' => 'assets',   'title' => 'Biens & déplacements',    'icon' => '🏡', 'items' => ['vehicles', 'pets', 'meters', 'loyalty_cards', 'travels', 'projects']],
             ['key' => 'platform', 'title' => 'Aller plus loin',         'icon' => '🧭', 'items' => ['recherche-alertes', 'stockage-abonnement', 'cloud', 'liens-publics', 'vie-privee', 'appli-mobile']],
         ];
     }
