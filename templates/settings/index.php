@@ -516,6 +516,44 @@ ob_start();
             </form>
         </div>
 
+        <?php if ($cozyEnabled && $user['role'] === 'admin'): ?>
+        <div class="invite-section" style="margin-top:.75rem;flex-direction:column;align-items:flex-start;gap:.5rem">
+            <strong>📂 Import automatique de factures (Cozy Cloud)</strong>
+            <?php if (!$cozyConnection): ?>
+                <p style="color:var(--text-muted);font-size:.85rem;margin:0">
+                    Non connecté. Une fois connecté, les factures récupérées par vos Konnectors Cozy
+                    (EDF, opérateurs, banques...) sont importées automatiquement dans Documents.
+                </p>
+                <a href="<?= BASE_URL ?>/cozy/connect" class="btn btn-secondary btn-sm">Configurer mes factures automatiques</a>
+            <?php elseif ($cozyConnection['status'] === 'connected'): ?>
+                <p style="color:var(--text-muted);font-size:.85rem;margin:0">
+                    Connecté — <?= $cozyConnection['last_sync_at'] ? 'dernier import le ' . date('d/m/Y à H:i', strtotime($cozyConnection['last_sync_at'])) : 'aucun import pour le moment' ?>.
+                </p>
+                <button type="button" class="btn btn-danger btn-sm" onclick="disconnectCozy()">Déconnecter</button>
+            <?php elseif ($cozyConnection['status'] === 'error'): ?>
+                <p style="color:var(--danger);font-size:.85rem;margin:0">
+                    Erreur : <?= htmlspecialchars($cozyConnection['last_error'] ?? 'motif inconnu') ?>
+                </p>
+                <a href="<?= BASE_URL ?>/cozy/connect" class="btn btn-secondary btn-sm">Reconnecter</a>
+            <?php else: ?>
+                <p style="color:var(--text-muted);font-size:.85rem;margin:0">Connexion en cours — terminez l'étape ouverte dans votre instance Cozy.</p>
+                <a href="<?= BASE_URL ?>/cozy/connect" class="btn btn-secondary btn-sm">Continuer</a>
+            <?php endif; ?>
+        </div>
+        <script>
+        async function disconnectCozy() {
+            if (!confirm('Déconnecter Cozy ? Votre instance sera supprimée et l\'import automatique de factures cessera.')) return;
+            try {
+                const res = await fetch(BASE_URL + '/cozy/disconnect', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const data = await res.json();
+                if (data.success) location.reload();
+                else alert(data.error || 'Échec de la déconnexion.');
+            } catch {
+                alert('Erreur réseau.');
+            }
+        }
+        </script>
+        <?php endif; ?>
 
         <!-- Familles amies -->
         <div id="friends" style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border)">

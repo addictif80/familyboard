@@ -39,6 +39,8 @@ class SettingsController extends BaseController
             $friendFamiliesIncoming = [];
             $friendFamiliesOutgoing = [];
             $vaultwardenEnabled = false;
+            $cozyEnabled = false;
+            $cozyConnection = null;
             $twoFactorMethod = TwoFactorAuth::getMethod($user['id']);
             $subPlans = [];
             $subSubscription = null;
@@ -84,6 +86,8 @@ class SettingsController extends BaseController
         $friendFamiliesIncoming = \App\Models\FamilyFriend::getPendingIncoming((int)$user['family_id']);
         $friendFamiliesOutgoing = \App\Models\FamilyFriend::getPendingOutgoing((int)$user['family_id']);
         $vaultwardenEnabled = \App\Models\VaultwardenSettings::get() !== null;
+        $cozyEnabled = \App\Models\CozySettings::get() !== null;
+        $cozyConnection = $cozyEnabled ? \App\Models\FamilyCozyConnection::findByFamily((int)$user['family_id']) : null;
         $familyTimers = ($user['role'] === 'admin') ? FamilyTimer::getByFamily($user['family_id']) : [];
 
         $subPlans           = \App\Models\Plan::getAll(true);

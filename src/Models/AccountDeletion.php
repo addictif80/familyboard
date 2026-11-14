@@ -258,6 +258,18 @@ class AccountDeletion
             error_log('Nextcloud group folder deletion failed for family ' . $familyId . ': ' . $e->getMessage());
         }
 
+        // Avant la cascade sur `families` ci-dessous (qui efface family_cozy_connections) :
+        // sans quoi l'instance Cozy de la famille resterait orpheline sur le serveur Cozy Stack
+        // pour toujours. Best-effort, jamais bloquant pour la suppression RGPD en cours.
+        $cozyConnection = \App\Models\FamilyCozyConnection::findByFamily($familyId);
+        if ($cozyConnection) {
+            try {
+                \App\Core\CozyProvisioner::destroyInstance($cozyConnection['cozy_domain']);
+            } catch (\Throwable $e) {
+                error_log('Cozy instance deletion failed for family ' . $familyId . ': ' . $e->getMessage());
+            }
+        }
+
         // Avant la suppression des lignes family_friends ci-dessous : referme la visibilité
         // Nextcloud croisée ouverte avec chaque famille amie (voir NextcloudVisibilityService) —
         // la cascade users.family_id va de toute façon effacer tous ses membres juste après, mais

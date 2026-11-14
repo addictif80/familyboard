@@ -74,6 +74,20 @@ async function testVaultwarden() {
     }
 }
 
+async function testCozy() {
+    const box = document.getElementById('cozy-test-result');
+    box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';
+    try {
+        const res = await fetch(BASE_URL + '/admin/cozy/test', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await res.json();
+        box.innerHTML = data.ok
+            ? '<p style="color:var(--success)">✅ Connexion réussie.</p>'
+            : '<p style="color:var(--danger)">❌ ' + escapeHtml(data.error || 'Échec du test.') + '</p>';
+    } catch {
+        box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
+    }
+}
+
 async function testOllama() {
     const box = document.getElementById('ollama-test-result');
     box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';
