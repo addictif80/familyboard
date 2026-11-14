@@ -264,6 +264,49 @@
             <div id="github-test-result" style="margin-top:.75rem"></div>
         </form>
 
+        <h2 style="margin-top:2rem">Import automatique de factures (Cozy Cloud)</h2>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Crée automatiquement, pour chaque famille qui active cette fonctionnalité dans ses
+            réglages, une instance Cozy Cloud dédiée (sur votre serveur Cozy Stack mutualisé) où
+            la famille configure ses Konnectors (EDF, opérateurs, banques...). Les documents
+            récupérés dans le dossier « Administratif » sont rapatriés automatiquement dans
+            Documents puis supprimés côté Cozy — qui ne sert que de sas de transit, jamais de
+            second entrepôt. La création/suppression d'instance passe par un petit relais HTTP à
+            déployer sur le serveur Cozy Stack (l'API admin native de Cozy Stack ne l'expose pas) —
+            voir <code>deploy/cozy-wrapper/</code>.
+        </p>
+        <form method="POST" action="<?= BASE_URL ?>/admin/cozy" class="card" style="padding:1.25rem;max-width:640px"><?= \App\Core\Csrf::field() ?>
+            <div class="form-group">
+                <label>Domaine des instances Cozy</label>
+                <input type="text" name="domain" value="<?= htmlspecialchars($cozySettings['domain'] ?? '') ?>" placeholder="cozy.abhd.fr">
+                <small style="color:var(--text-muted)">Chaque famille obtient un sous-domaine, ex. <code>dupont.cozy.abhd.fr</code>.</small>
+            </div>
+            <div class="form-group">
+                <label>URL du relais de provisioning</label>
+                <input type="url" name="wrapper_url" value="<?= htmlspecialchars($cozySettings['wrapper_url'] ?? '') ?>" placeholder="https://cozy.abhd.fr:9000">
+            </div>
+            <div class="form-group">
+                <label>Jeton du relais</label>
+                <?php if (!empty($cozySettings['wrapper_token'])): ?>
+                    <input type="text" value="•••••••••••••• <?= htmlspecialchars(substr($cozySettings['wrapper_token'], -4)) ?>" disabled>
+                    <input type="hidden" name="keep_existing" value="1">
+                    <details style="margin-top:.4rem">
+                        <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Changer ou désactiver le jeton</summary>
+                        <input type="text" name="wrapper_token" placeholder="Nouveau jeton (laisser vide pour désactiver)" autocomplete="off" style="margin-top:.5rem">
+                    </details>
+                <?php else: ?>
+                    <input type="text" name="wrapper_token" placeholder="Laisser vide pour désactiver cette fonctionnalité" autocomplete="off">
+                <?php endif; ?>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+                <button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+                <?php if (!empty($cozySettings['wrapper_token'])): ?>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="testCozy()">🔌 Tester la connexion</button>
+                <?php endif; ?>
+            </div>
+            <div id="cozy-test-result" style="margin-top:.75rem"></div>
+        </form>
+
         <h2 style="margin-top:2rem">Sécurité — Double authentification</h2>
         <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
             Si activé, tout utilisateur sans double authentification voit un message l'invitant à

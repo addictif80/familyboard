@@ -192,6 +192,20 @@ try {
     error_log('Nextcloud calendar sync error: ' . $e->getMessage());
 }
 
+// Import automatique de factures Cozy Cloud dans Documents (voir App\Core\CozyDocumentSync) —
+// sans effet tant qu'aucune famille n'a de connexion 'connected'. Throttlé (toutes les 20 min) :
+// les Konnectors eux-mêmes tournent sur leur propre fréquence côté Cozy, pas besoin de vérifier
+// plus souvent.
+try {
+    $lastCozySync = AppSetting::get('cozy_sync_last_run');
+    if (!$lastCozySync || strtotime($lastCozySync) <= time() - 20 * 60) {
+        \App\Core\CozyDocumentSync::syncAllFamilies();
+        AppSetting::set('cozy_sync_last_run', date('Y-m-d H:i:s'));
+    }
+} catch (\Throwable $e) {
+    error_log('Cozy document sync error: ' . $e->getMessage());
+}
+
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;
 
 // ──────────────────────────────────────────────────────────────────────────

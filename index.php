@@ -44,6 +44,7 @@ use App\Controllers\InvitationController;
 use App\Controllers\CoparentController;
 use App\Controllers\ContactController;
 use App\Controllers\WishlistController;
+use App\Controllers\CozyController;
 use App\Controllers\WishlistChildAccessController;
 use App\Controllers\PollController;
 use App\Controllers\PortalLinkController;
@@ -686,6 +687,8 @@ $router->post('/admin/ollama/test', [AdminController::class, 'testOllamaConnecti
 $router->post('/admin/ai-provider', [AdminController::class, 'updateAiProvider']);
 $router->post('/admin/onemin', [AdminController::class, 'updateOneMinSettings']);
 $router->post('/admin/onemin/test', [AdminController::class, 'testOneMinConnection']);
+$router->post('/admin/cozy', [AdminController::class, 'updateCozySettings']);
+$router->post('/admin/cozy/test', [AdminController::class, 'testCozyConnection']);
 $router->post('/admin/subscriptions/settings', [AdminController::class, 'updateSubscriptionSettings']);
 $router->post('/admin/subscriptions/stripe', [AdminController::class, 'updateStripeSettings']);
 $router->post('/admin/referrals/settings', [AdminController::class, 'updateReferralSettings']);
@@ -762,6 +765,9 @@ $router->post('/api/contacts/import-vcf', [ContactController::class, 'importVcf'
 // Liste de cadeaux
 $router->get('/wishlist', [WishlistController::class, 'index']);
 $router->get('/wishlist/:id/image', [WishlistController::class, 'serveImage']);
+$router->get('/cozy/connect', [CozyController::class, 'connect']);
+$router->get('/cozy/oauth/callback', [CozyController::class, 'oauthCallback']);
+$router->post('/cozy/disconnect', [CozyController::class, 'disconnect']);
 $router->post('/api/wishlist', [WishlistController::class, 'create']);
 $router->post('/api/wishlist/:id', [WishlistController::class, 'update']);
 $router->post('/api/wishlist/:id/delete', [WishlistController::class, 'delete']);
