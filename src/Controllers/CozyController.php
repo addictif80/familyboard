@@ -7,6 +7,7 @@ use App\Core\Session;
 use App\Models\CozySettings;
 use App\Models\Family;
 use App\Models\FamilyCozyConnection;
+use App\Models\User;
 
 /**
  * Connexion d'une famille à son instance Cozy Cloud (import automatique de documents) :
@@ -45,8 +46,9 @@ class CozyController extends BaseController
             if (!$connection) {
                 $family = Family::findById($familyId);
                 $cozyDomain = FamilyCozyConnection::generateDomain($family['name'] ?? ('famille-' . $familyId), $settings['domain']);
+                $founderEmail = User::getFounderEmail($familyId) ?? $user['email'];
 
-                $created = CozyProvisioner::createInstance($cozyDomain, $user['email']);
+                $created = CozyProvisioner::createInstance($cozyDomain, $founderEmail);
                 if (!$created['ok']) {
                     return ['success' => false, 'error' => "Création de l'instance Cozy échouée : " . ($created['error'] ?? 'erreur inconnue')];
                 }

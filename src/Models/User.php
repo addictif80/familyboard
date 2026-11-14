@@ -82,6 +82,18 @@ class User
         return Database::fetchAll('SELECT id, name, email, phone, role, avatar, color, created_at FROM users WHERE family_id = ? ORDER BY name', [$familyId]);
     }
 
+    /** E-mail du fondateur de la famille (voir users.is_founder, posé à l'inscription — voir
+     *  AuthController) — replie sur le plus ancien compte admin si le fondateur n'existe plus
+     *  (compte supprimé), pour toujours renvoyer une adresse exploitable. */
+    public static function getFounderEmail(int $familyId): ?string
+    {
+        $row = Database::fetch('SELECT email FROM users WHERE family_id = ? AND is_founder = 1 LIMIT 1', [$familyId]);
+        if ($row) return $row['email'];
+
+        $row = Database::fetch("SELECT email FROM users WHERE family_id = ? AND role = 'admin' ORDER BY id LIMIT 1", [$familyId]);
+        return $row['email'] ?? null;
+    }
+
     /**
      * Vérifie qu'un ID utilisateur reçu du client (ex. assigned_to, user_id) appartient bien à
      * la famille courante avant de s'en servir (assignation de tâche, notification...) — sans
