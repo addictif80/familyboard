@@ -46,13 +46,20 @@ if ($path === '/health') {
     respond(200, ['ok' => true]);
 }
 
-/** Exécute une commande déjà entièrement échappée et renvoie [code de sortie, stdout, stderr]. */
+/**
+ * Exécute une commande déjà entièrement échappée et renvoie [code de sortie, stdout, stderr].
+ * Entrée standard explicitement fermée tout de suite (EOF immédiat) : sans --passphrase,
+ * `cozy-stack instances add` essaie de lire un mot de passe sur stdin via un ioctl de terminal —
+ * sans ce pipe fermé proprement, l'appel plante avec "inappropriate ioctl for device" au lieu de
+ * recevoir l'EOF qui le fait basculer sur la génération d'un jeton d'inscription.
+ */
 function runCommand(string $command): array
 {
-    $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+    $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
     $process = proc_open($command, $descriptors, $pipes);
     if (!is_resource($process)) return [1, '', 'Impossible de lancer la commande.'];
 
+    fclose($pipes[0]);
     $stdout = stream_get_contents($pipes[1]);
     $stderr = stream_get_contents($pipes[2]);
     fclose($pipes[1]);
