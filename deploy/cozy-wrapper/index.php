@@ -98,10 +98,15 @@ if ($path === '/create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // montré ni stocké nulle part, et --magic_link pour que la famille puisse se connecter sans
     // jamais avoir à le connaître (lien de connexion envoyé par e-mail à sa première visite).
     $throwawayPassphrase = bin2hex(random_bytes(16));
+    // --apps : sans ça, aucune application n'est installée — le lien magique (qui redirige vers
+    // l'appli "home") échouerait avec "L'application n'existe pas" (constaté en conditions
+    // réelles). "home" héberge la gestion des Konnectors (factures) ; "store" permet d'en
+    // installer d'autres que les Konnectors préinstallés par défaut ; "settings" pour les
+    // réglages du compte.
     $command = escapeshellarg($cozyStackBin) . ' instances add '
         . escapeshellarg($domain) . ' --email ' . escapeshellarg($email)
         . ' --passphrase ' . escapeshellarg($throwawayPassphrase) . ' --magic_link'
-        . ' --locale fr --tz Europe/Paris 2>&1';
+        . ' --apps home,store,settings --locale fr --tz Europe/Paris 2>&1';
     [$code, $output] = runCommand($command);
     if ($code !== 0) {
         respond(500, ['error' => "Échec de la création de l'instance : " . trim($output)]);
