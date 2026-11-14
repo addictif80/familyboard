@@ -17,17 +17,21 @@ de service — ici avec un service systemd dédié) :
 openssl rand -hex 32   # → le jeton à coller aussi dans /admin côté FamilyBoard
 ```
 
-`/etc/systemd/system/cozy-wrapper.service` :
+`/etc/systemd/system/cozy-wrapper.service` — si le serveur FamilyBoard est sur le **même
+tailnet** (cas recommandé), fait écouter le relais uniquement sur l'IP Tailscale de cette VM :
+pas besoin de nginx, de TLS, ni de filtrage par IP devant, le tailnet s'en charge déjà (chiffré de
+bout en bout, aucune autre machine ne peut l'atteindre). Récupère l'IP Tailscale de cette VM avec
+`tailscale ip -4`.
 
 ```ini
 [Unit]
 Description=Relais de provisioning Cozy pour FamilyBoard
-After=network.target
+After=network.target tailscaled.service
 
 [Service]
 Environment=COZY_WRAPPER_TOKEN=<le jeton généré ci-dessus>
 Environment=COZY_STACK_BIN=/usr/local/bin/cozy-stack
-ExecStart=/usr/bin/php -S 127.0.0.1:9000 /opt/cozy-wrapper/index.php
+ExecStart=/usr/bin/php -S <IP Tailscale de cette VM>:9000 /opt/cozy-wrapper/index.php
 Restart=always
 User=cozy
 
@@ -40,9 +44,13 @@ systemctl daemon-reload
 systemctl enable --now cozy-wrapper
 ```
 
-Puis un reverse-proxy nginx (TLS) qui ne redirige vers `127.0.0.1:9000` QUE pour l'IP du serveur
-FamilyBoard (en plus du jeton, défense en profondeur — ce relais peut créer/supprimer des
-instances, à ne jamais exposer largement) :
+Côté FamilyBoard (`/admin`, onglet Notifications → section Cozy), renseigne :
+- **URL du relais** : `http://<IP Tailscale de cette VM>:9000` (HTTP simple suffit : le tailnet
+  chiffre déjà le transport, inutile d'ajouter un certificat TLS par-dessus)
+- **Jeton** : celui généré ci-dessus
+
+<details>
+<summary>Si FamilyBoard n'est PAS sur le même tailnet (alternative avec nginx + filtrage par IP)</summary>
 
 ```nginx
 server {
@@ -58,15 +66,14 @@ server {
     }
 }
 ```
-
-Côté FamilyBoard (`/admin`, onglet Notifications → section Cozy), renseigne :
-- **URL du relais** : `https://cozy-wrapper.abhd.fr`
-- **Jeton** : celui généré ci-dessus
+Dans ce cas, `ExecStart` écoute sur `127.0.0.1:9000` (pas l'IP Tailscale) et l'URL côté FamilyBoard
+devient `https://cozy-wrapper.abhd.fr`.
+</details>
 
 ## Vérification manuelle avant la première connexion d'une famille
 
 ```bash
-curl -X POST https://cozy-wrapper.abhd.fr/create \
+curl -X POST http://<IP Tailscale de cette VM>:9000/create \
   -H "Authorization: Bearer <jeton>" -H "Content-Type: application/json" \
   -d '{"domain":"test.cozy.abhd.fr","email":"test@example.com"}'
 ```
