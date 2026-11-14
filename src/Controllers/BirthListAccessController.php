@@ -23,6 +23,31 @@ class BirthListAccessController extends BaseController
         require BASE_PATH . '/templates/birth_list/view.php';
     }
 
+    /** Sert la photo d'un article — public comme le reste de cette liste (lien à jeton), jamais
+     *  de donnée sensible (simple photo de cadeau). Passe par FileStore::resolveLocalPath() :
+     *  image_path est un chemin brut (pas une route "/files/{id}"), potentiellement porté par
+     *  Nextcloud. */
+    public function serveImage(array $params): void
+    {
+        $item = BirthList::getItemById((int)$params['itemId']);
+        if (!$item || !$item['image_path']) {
+            http_response_code(404);
+            echo 'Introuvable.';
+            return;
+        }
+        $path = \App\Core\FileStore::resolveLocalPath($item['image_path']);
+        if (!$path) {
+            http_response_code(404);
+            echo 'Introuvable.';
+            return;
+        }
+        header('Content-Type: ' . (mime_content_type($path) ?: 'application/octet-stream'));
+        header('Content-Length: ' . filesize($path));
+        header('Cache-Control: public, max-age=86400');
+        readfile($path);
+        exit;
+    }
+
     public function reserve(array $params): void
     {
         $this->json(function () use ($params) {

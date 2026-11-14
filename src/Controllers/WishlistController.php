@@ -113,6 +113,32 @@ class WishlistController extends BaseController
         });
     }
 
+    /** Sert la photo d'un article — sans authentification : un souhait est déjà visible sans
+     *  compte via le lien public enfant (voir WishlistChildAccessController), et par les familles
+     *  amies en lecture seule ; jamais de donnée sensible (simple photo de cadeau). Passe par
+     *  FileStore::resolveLocalPath() : image_path est un chemin brut (pas une route "/files/{id}"),
+     *  potentiellement porté par Nextcloud. */
+    public function serveImage(array $params): void
+    {
+        $item = WishlistItem::getById((int)$params['id']);
+        if (!$item || !$item['image_path']) {
+            http_response_code(404);
+            echo 'Introuvable.';
+            return;
+        }
+        $path = \App\Core\FileStore::resolveLocalPath($item['image_path']);
+        if (!$path) {
+            http_response_code(404);
+            echo 'Introuvable.';
+            return;
+        }
+        header('Content-Type: ' . (mime_content_type($path) ?: 'application/octet-stream'));
+        header('Content-Length: ' . filesize($path));
+        header('Cache-Control: public, max-age=86400');
+        readfile($path);
+        exit;
+    }
+
     public function delete(array $params): void
     {
         $this->requireAuth();

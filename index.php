@@ -460,6 +460,7 @@ $router->post('/api/birth-list/items', [BirthListController::class, 'createItem'
 $router->post('/api/birth-list/items/:id', [BirthListController::class, 'updateItem']);
 $router->post('/api/birth-list/items/:id/delete', [BirthListController::class, 'deleteItem']);
 $router->get('/liste-naissance/:token', [BirthListAccessController::class, 'view']);
+$router->get('/liste-naissance/items/:itemId/image', [BirthListAccessController::class, 'serveImage']);
 $router->post('/liste-naissance/:token/items/:itemId/reserve', [BirthListAccessController::class, 'reserve']);
 $router->post('/liste-naissance/:token/items/:itemId/unreserve', [BirthListAccessController::class, 'unreserve']);
 $router->get('/ai-assistant', [AiAssistantController::class, 'index']);
@@ -760,6 +761,7 @@ $router->post('/api/contacts/import-vcf', [ContactController::class, 'importVcf'
 
 // Liste de cadeaux
 $router->get('/wishlist', [WishlistController::class, 'index']);
+$router->get('/wishlist/:id/image', [WishlistController::class, 'serveImage']);
 $router->post('/api/wishlist', [WishlistController::class, 'create']);
 $router->post('/api/wishlist/:id', [WishlistController::class, 'update']);
 $router->post('/api/wishlist/:id/delete', [WishlistController::class, 'delete']);
