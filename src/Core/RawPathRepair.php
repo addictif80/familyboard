@@ -14,10 +14,14 @@ use App\Models\StoredFile;
  * Pour chaque ligne dont la colonne ne correspond plus à aucune ligne stored_files (référence
  * cassée), cherche une ligne stored_files candidate sur la même famille + le même module, non
  * déjà réclamée par une autre ligne de la même table dans cette passe — en comparant le nom
- * original quand la table en garde un (file_original/audio_original), par élimination sinon
- * (wishlist_items/birth_list_items, qui ne stockent que l'image). Une correspondance ambiguë
- * (plusieurs candidats) n'est JAMAIS corrigée automatiquement — elle est seulement signalée, pour
- * une vérification manuelle. Simulation par défaut (rien n'est modifié) ; --apply pour appliquer.
+ * original quand la table en garde un (file_original/audio_original). Quand la table n'en garde
+ * pas (wishlist_items/birth_list_items, qui ne stockent que l'image) : rapprochement PAR ORDRE
+ * d'identifiant au sein de la même famille (la ligne et son fichier sont créés dans la même
+ * requête, donc dans le même ordre chronologique) — uniquement quand le nombre de lignes cassées
+ * égale exactement le nombre de fichiers orphelins disponibles pour cette famille, sinon jamais
+ * deviné. Une correspondance ambiguë (plusieurs candidats par nom, ou comptes différents par
+ * ordre) n'est JAMAIS corrigée automatiquement — elle est seulement signalée, pour une
+ * vérification manuelle. Simulation par défaut (rien n'est modifié) ; --apply pour appliquer.
  */
 class RawPathRepair
 {
@@ -65,36 +69,70 @@ class RawPathRepair
                 }
             }
 
-            foreach ($broken as $row) {
-                $params = [(int)$row['family_id'], $target['module']];
-                $sqlCandidates = 'SELECT * FROM stored_files WHERE family_id = ? AND module = ?';
-                if ($target['origCol']) {
-                    $sqlCandidates .= ' AND original_name <=> ?';
-                    $params[] = $row['orig_name'];
+            if ($target['origCol']) {
+                foreach ($broken as $row) {
+                    $candidates = array_values(array_filter(
+                        Database::fetchAll(
+                            'SELECT * FROM stored_files WHERE family_id = ? AND module = ? AND original_name <=> ?',
+                            [(int)$row['family_id'], $target['module'], $row['orig_name']]
+                        ),
+                        fn($c) => !isset($claimedStoredFileIds[(int)$c['id']])
+                    ));
+
+                    if (count($candidates) === 0) {
+                        $stats['no_candidate']++;
+                        $log[] = "AUCUNE CORRESPONDANCE : {$target['table']}#{$row['row_id']} (famille {$row['family_id']}) : {$row['path']}";
+                        continue;
+                    }
+                    if (count($candidates) > 1) {
+                        $stats['ambiguous']++;
+                        $log[] = "AMBIGU (" . count($candidates) . " candidats, non corrigé) : {$target['table']}#{$row['row_id']} : {$row['path']}";
+                        continue;
+                    }
+
+                    $newPath = $candidates[0]['path'];
+                    $claimedStoredFileIds[(int)$candidates[0]['id']] = true;
+                    if ($this->apply) {
+                        Database::execute("UPDATE `{$target['table']}` SET `{$target['pathCol']}` = ? WHERE id = ?", [$newPath, $row['row_id']]);
+                    }
+                    $stats['repaired']++;
+                    $log[] = ($this->apply ? 'OK' : '[simulation] corrigerait') . " {$target['table']}#{$row['row_id']} : {$row['path']} -> $newPath";
                 }
-                $candidates = array_values(array_filter(
-                    Database::fetchAll($sqlCandidates, $params),
+                continue;
+            }
+
+            // Pas de nom original à comparer (wishlist_items/birth_list_items) : rapprochement
+            // par ordre d'identifiant, séparément par famille, uniquement quand les deux comptes
+            // correspondent exactement pour cette famille.
+            $brokenByFamily = [];
+            foreach ($broken as $row) $brokenByFamily[(int)$row['family_id']][] = $row;
+
+            foreach ($brokenByFamily as $familyId => $familyBroken) {
+                $pool = array_values(array_filter(
+                    Database::fetchAll('SELECT * FROM stored_files WHERE family_id = ? AND module = ?', [$familyId, $target['module']]),
                     fn($c) => !isset($claimedStoredFileIds[(int)$c['id']])
                 ));
 
-                if (count($candidates) === 0) {
-                    $stats['no_candidate']++;
-                    $log[] = "AUCUNE CORRESPONDANCE : {$target['table']}#{$row['row_id']} (famille {$row['family_id']}) : {$row['path']}";
-                    continue;
-                }
-                if (count($candidates) > 1) {
-                    $stats['ambiguous']++;
-                    $log[] = "AMBIGU (" . count($candidates) . " candidats, non corrigé) : {$target['table']}#{$row['row_id']} : {$row['path']}";
+                if (count($pool) !== count($familyBroken)) {
+                    foreach ($familyBroken as $row) {
+                        $stats['ambiguous']++;
+                        $log[] = "AMBIGU (" . count($pool) . " candidats pour " . count($familyBroken) . " lignes, comptes différents, non corrigé) : {$target['table']}#{$row['row_id']} : {$row['path']}";
+                    }
                     continue;
                 }
 
-                $newPath = $candidates[0]['path'];
-                $claimedStoredFileIds[(int)$candidates[0]['id']] = true;
-                if ($this->apply) {
-                    Database::execute("UPDATE `{$target['table']}` SET `{$target['pathCol']}` = ? WHERE id = ?", [$newPath, $row['row_id']]);
+                usort($familyBroken, fn($a, $b) => $a['row_id'] <=> $b['row_id']);
+                usort($pool, fn($a, $b) => (int)$a['id'] <=> (int)$b['id']);
+
+                foreach ($familyBroken as $i => $row) {
+                    $newPath = $pool[$i]['path'];
+                    $claimedStoredFileIds[(int)$pool[$i]['id']] = true;
+                    if ($this->apply) {
+                        Database::execute("UPDATE `{$target['table']}` SET `{$target['pathCol']}` = ? WHERE id = ?", [$newPath, $row['row_id']]);
+                    }
+                    $stats['repaired']++;
+                    $log[] = ($this->apply ? 'OK (ordre)' : '[simulation, ordre] corrigerait') . " {$target['table']}#{$row['row_id']} : {$row['path']} -> $newPath";
                 }
-                $stats['repaired']++;
-                $log[] = ($this->apply ? 'OK' : '[simulation] corrigerait') . " {$target['table']}#{$row['row_id']} : {$row['path']} -> $newPath";
             }
         }
 
