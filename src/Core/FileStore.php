@@ -93,6 +93,42 @@ class FileStore
         return self::NEXTCLOUD_FOLDER_BY_MODULE[$module] ?? $module;
     }
 
+    /**
+     * Tables/colonnes qui référencent un fichier par CHEMIN BRUT plutôt que par route
+     * "/files/{id}" (voir AccountDeletion::OWNED_FILE_TABLES, registre jumeau pour la purge RGPD)
+     * — un module absent de cette liste (avatar, album, wall, baby...) est référencé par route et
+     * n'a donc jamais besoin d'être recorrigé ici : sa colonne contient un id stable, jamais le
+     * chemin réel. "voice" a deux tables (chat et journal parental) car les deux partagent le même
+     * module de stockage.
+     */
+    public const RAW_PATH_REFERENCES = [
+        'documents'  => [['documents', 'file_path']],
+        'warranties' => [['warranties', 'file_path']],
+        'deals'      => [['deals', 'file_path']],
+        'vault'      => [['vault_entries', 'file_path']],
+        'school'     => [['school_documents', 'file_path']],
+        'disputes'   => [['dispute_documents', 'file_path']],
+        'birth-list' => [['birth_list_items', 'image_path']],
+        'wishlist'   => [['wishlist_items', 'image_path']],
+        'voice'      => [['messages', 'audio_path'], ['comm_log_messages', 'audio_path']],
+    ];
+
+    /**
+     * À appeler systématiquement après tout changement du chemin RÉEL d'un fichier référencé par
+     * chemin brut (renommage sur Nextcloud, migration local -> Nextcloud) — répercute $newPath
+     * dans la/les colonnes du module qui tenaient $oldPath. Sans cet appel, resolveLocalPath()
+     * continue de chercher stored_files par l'ancienne valeur (toujours celle de la colonne du
+     * module) alors que stored_files.path a changé : la ligne devient introuvable malgré
+     * l'existence réelle du fichier (bug constaté en production — voir
+     * scripts/repair_raw_path_references.php pour le rattrapage des références déjà cassées).
+     */
+    public static function repointReference(string $module, string $oldPath, string $newPath): void
+    {
+        foreach (self::RAW_PATH_REFERENCES[$module] ?? [] as [$table, $column]) {
+            Database::execute("UPDATE `$table` SET `$column` = ? WHERE `$column` = ?", [$newPath, $oldPath]);
+        }
+    }
+
     // ── Cache local disposable (backend Nextcloud) ──────────────────────────
 
     private static function cacheDir(int $familyId): string

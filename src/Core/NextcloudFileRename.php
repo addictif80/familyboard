@@ -75,6 +75,7 @@ class NextcloudFileRename
             }
 
             StoredFile::markMigratedToNextcloud((int)$row['id'], $newPath, $move['etag']);
+            FileStore::repointReference($row['module'], $row['path'], $newPath);
             if ($currentDir !== $desiredDir && $currentDir !== '.') {
                 $oldFoldersToClean[$familyId . '|' . $currentDir] = [$groupFolder['mount_point'], $currentDir];
             }
