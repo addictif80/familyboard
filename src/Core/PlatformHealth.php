@@ -111,8 +111,11 @@ class PlatformHealth
             $applied = [];
         }
 
+        // "Appliqué" ne compte que les fichiers encore présents dans database/ : _migrations
+        // garde pour toujours les entrées d'anciens fichiers renommés/supprimés depuis, donc
+        // compter count($applied) brut peut dépasser le nombre de fichiers actuels (ex. 153/138).
         $pending = array_values(array_diff($files, $applied));
-        return ['total' => count($files), 'applied' => count($applied), 'pending' => $pending];
+        return ['total' => count($files), 'applied' => count($files) - count($pending), 'pending' => $pending];
     }
 
     public static function formatBytes(?int $bytes): string
