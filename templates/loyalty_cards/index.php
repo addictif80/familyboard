@@ -55,10 +55,7 @@ use App\Models\LoyaltyCard;
             <?php endif; ?>
 
             <script>
-            (function () {
-                var data = <?= json_encode(['value' => $selected['barcode_value'], 'format' => $selected['barcode_format']]) ?>;
-                LoyaltyCards.renderBarcode(data.value, data.format);
-            })();
+            var LOYALTY_SELECTED = <?= json_encode(['value' => $selected['barcode_value'], 'format' => $selected['barcode_format']]) ?>;
             </script>
         <?php else: ?>
             <p class="empty-state">Ajoutez votre première carte de fidélité.</p>

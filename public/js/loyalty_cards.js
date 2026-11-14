@@ -128,6 +128,9 @@ var LoyaltyCards = (function () {
     document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById('loyalty-card-scan-btn');
         if (btn && scannerSupported()) btn.style.display = 'inline-flex';
+        if (typeof LOYALTY_SELECTED !== 'undefined' && LOYALTY_SELECTED) {
+            renderBarcode(LOYALTY_SELECTED.value, LOYALTY_SELECTED.format);
+        }
     });
 
     return { save, renderBarcode, openScanner, closeScanner };
