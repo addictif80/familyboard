@@ -83,6 +83,24 @@ function isValidDomain(string $domain): bool
     return (bool)preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/', $domain);
 }
 
+/**
+ * Reproduit le hachage PBKDF2 fait côté client par le navigateur (et par l'appli Twake) avant
+ * l'envoi d'un mot de passe à cozy-stack (voir assets/scripts/password-helpers.js du dépôt
+ * cozy-stack, fonction jsHash) : cozy-stack ne stocke/compare jamais le mot de passe en clair,
+ * seulement cette empreinte. `instances set-passphrase` ne fait pas ce calcul lui-même — il
+ * faut donc le lui fournir déjà calculé, sinon le mot de passe qu'on montre à la famille ne
+ * correspondra jamais à ce que le client calculera réellement en le retapant (constaté en
+ * conditions réelles : 401 systématique sans ce calcul).
+ */
+function cozyClientPassphraseHash(string $password, string $domain): string
+{
+    $salt = 'me@' . $domain; // voir model/instance/instance.go PassphraseSalt()
+    $iterations = 650000;    // crypto.DefaultPBKDF2Iterations
+    $master = hash_pbkdf2('sha256', $password, $salt, $iterations, 32, true);
+    $hashed = hash_pbkdf2('sha256', $master, $password, 1, 32, true);
+    return base64_encode($hashed);
+}
+
 $input = json_decode(file_get_contents('php://input'), true) ?: [];
 $cozyStackBin = getenv('COZY_STACK_BIN') ?: 'cozy-stack';
 
@@ -128,7 +146,7 @@ if ($path === '/create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $passCommand = escapeshellarg($cozyStackBin) . ' instances set-passphrase '
-        . escapeshellarg($domain) . ' ' . escapeshellarg($passphrase) . ' 2>&1';
+        . escapeshellarg($domain) . ' ' . escapeshellarg(cozyClientPassphraseHash($passphrase, $domain)) . ' 2>&1';
     [$passCode, $passOutput] = runCommand($passCommand);
     if ($passCode !== 0) {
         respond(500, ['error' => "Instance créée mais échec de la définition du mot de passe : " . trim($passOutput)]);
