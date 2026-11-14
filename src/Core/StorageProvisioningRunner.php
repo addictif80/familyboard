@@ -19,8 +19,7 @@ use App\Models\User;
  * Le job 'deprovision' n'est volontairement pas traité ici : la contrainte
  * ON DELETE CASCADE de provisioning_jobs.user_id supprimerait le job dès que le compte est
  * effacé, avant qu'il ait pu tourner — la désinscription est donc faite en synchrone,
- * best-effort, directement dans AccountDeletion::deleteUser() (même convention que
- * Mailcow::syncFamily()).
+ * best-effort, directement dans AccountDeletion::deleteUser().
  */
 class StorageProvisioningRunner
 {

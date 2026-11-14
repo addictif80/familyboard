@@ -20,8 +20,7 @@ use App\Models\StorageSettings;
  * (storage_ldap_people_dn / storage_ldap_groups_dn, par défaut le DN de base lui-même).
  *
  * Utilise l'extension PHP ldap native (ext-ldap) — dégrade proprement (isAvailable()) si elle
- * n'est pas installée, comme les autres intégrations externes de cette appli (Mailcow,
- * Vaultwarden...).
+ * n'est pas installée, comme les autres intégrations externes de cette appli (Vaultwarden...).
  */
 
 /** uid LDAP attendu déjà pris par un compte d'un e-mail différent — voir

@@ -109,9 +109,8 @@ class Family
         return Database::fetch('SELECT * FROM families WHERE referral_code = ?', [$code]);
     }
 
-    /** Code de parrainage stable (voir Referral) — généré à la demande plutôt qu'à la création,
-     *  même principe que ensureMailAliasSlug() (auto-guérison pour les familles créées avant
-     *  l'ajout de cette fonctionnalité). */
+    /** Code de parrainage stable (voir Referral) — généré à la demande plutôt qu'à la création
+     *  (auto-guérison pour les familles créées avant l'ajout de cette fonctionnalité). */
     public static function ensureReferralCode(int $id): ?string
     {
         $family = self::findById($id);
@@ -135,10 +134,9 @@ class Family
     public static function create(string $name): int
     {
         $code = self::generateCode();
-        $slug = self::generateMailAliasSlug($name);
         return Database::insert(
-            'INSERT INTO families (name, invite_code, mail_alias_slug) VALUES (?, ?, ?)',
-            [$name, $code, $slug]
+            'INSERT INTO families (name, invite_code) VALUES (?, ?)',
+            [$name, $code]
         );
     }
 
@@ -217,39 +215,4 @@ class Family
         return $code;
     }
 
-    /** Attribue un slug à une famille créée avant l'ajout de cette fonctionnalité (auto-guérison,
-     *  même principe que KioskLink::ensureShortCode()). */
-    public static function ensureMailAliasSlug(int $id): ?string
-    {
-        $family = self::findById($id);
-        if (!$family) return null;
-        if (!empty($family['mail_alias_slug'])) return $family['mail_alias_slug'];
-        $slug = self::generateMailAliasSlug($family['name']);
-        Database::execute('UPDATE families SET mail_alias_slug=? WHERE id=? AND mail_alias_slug IS NULL', [$slug, $id]);
-        $row = Database::fetch('SELECT mail_alias_slug FROM families WHERE id=?', [$id]);
-        return $row['mail_alias_slug'] ?? $slug;
-    }
-
-    /**
-     * Slug stable pour l'alias e-mail famille (<slug>@<domaine configuré>, voir App\Core\Mailcow)
-     * — dérivé du nom au moment de la création puis jamais recalculé, y compris si la famille
-     * est renommée ensuite (cf. update() ci-dessus), pour ne jamais casser un alias déjà
-     * communiqué à des tiers. Un suffixe numérique désambiguïse les noms de famille identiques.
-     */
-    private static function generateMailAliasSlug(string $name): string
-    {
-        $base = strtolower((string)iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name));
-        $base = preg_replace('/[^a-z0-9]+/', '-', $base);
-        $base = trim((string)$base, '-');
-        if ($base === '') $base = 'famille';
-        $base = substr($base, 0, 60);
-
-        $slug = $base;
-        $i = 2;
-        while (Database::fetch('SELECT id FROM families WHERE mail_alias_slug = ?', [$slug])) {
-            $slug = $base . '-' . $i;
-            $i++;
-        }
-        return $slug;
-    }
 }
