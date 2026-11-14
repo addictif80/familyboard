@@ -13,8 +13,11 @@
  * (nginx/php-fpm ou `php -S`, restriction réseau, jeton partagé).
  *
  * Variables d'environnement requises :
- *   COZY_WRAPPER_TOKEN  jeton partagé (doit correspondre à celui saisi dans /admin côté FamilyBoard)
- *   COZY_STACK_BIN      chemin de l'exécutable cozy-stack (défaut: "cozy-stack", doit être dans le PATH)
+ *   COZY_WRAPPER_TOKEN   jeton partagé (doit correspondre à celui saisi dans /admin côté FamilyBoard)
+ *   COZY_STACK_BIN       chemin de l'exécutable cozy-stack (défaut: "cozy-stack", doit être dans le PATH)
+ *   COZY_ADMIN_PASSWORD  phrase de passe admin cozy-stack (celle choisie à l'installation du paquet) —
+ *                        requise pour /magic-link, qui appelle l'API admin HTTP plutôt que la CLI
+ *   COZY_ADMIN_URL       base de l'API admin HTTP (défaut: "http://127.0.0.1:6060")
  */
 
 header('Content-Type: application/json');
@@ -127,6 +130,42 @@ if ($path === '/token' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         respond(500, ['error' => "Échec de la génération du jeton : " . trim($output)]);
     }
     respond(200, ['access_token' => trim($output)]);
+}
+
+if ($path === '/magic-link' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $domain = strtolower(trim((string)($input['domain'] ?? '')));
+    if (!isValidDomain($domain)) {
+        respond(400, ['error' => 'domain invalide.']);
+    }
+
+    // Passe par l'API admin HTTP (pas la CLI) : POST /instances/:domain/magic_link génère un
+    // code à usage unique, consommé ensuite par GET /auth/magic_link?code=... sur l'instance
+    // elle-même — permet d'ouvrir un bouton "Ouvrir mon espace Cozy" connecté d'un seul clic,
+    // sans relever un e-mail. Authentification Basic : n'importe quel nom d'utilisateur, seul
+    // le mot de passe (COZY_ADMIN_PASSWORD) compte (vérifié dans le code source de cozy-stack).
+    $adminPassword = getenv('COZY_ADMIN_PASSWORD');
+    if (!$adminPassword) {
+        respond(500, ['error' => "COZY_ADMIN_PASSWORD n'est pas configuré côté serveur."]);
+    }
+    $adminUrl = getenv('COZY_ADMIN_URL') ?: 'http://127.0.0.1:6060';
+
+    $ch = curl_init(rtrim($adminUrl, '/') . '/instances/' . rawurlencode($domain) . '/magic_link');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 20,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => '',
+        CURLOPT_USERPWD        => 'admin:' . $adminPassword,
+    ]);
+    $response = curl_exec($ch);
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $data = json_decode((string)$response, true);
+    if ($status !== 200 || !is_array($data) || empty($data['code'])) {
+        respond(500, ['error' => "Échec de la génération du lien magique (HTTP $status) : " . trim((string)$response)]);
+    }
+    respond(200, ['login_url' => 'https://' . $domain . '/auth/magic_link?code=' . urlencode($data['code'])]);
 }
 
 if ($path === '/destroy' && $_SERVER['REQUEST_METHOD'] === 'POST') {
