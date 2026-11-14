@@ -91,6 +91,7 @@ class NextcloudFileMigration
             }
 
             StoredFile::markMigratedToNextcloud((int)$row['id'], $remotePath, $put['etag']);
+            FileStore::repointReference($row['module'], $row['path'], $remotePath);
             @unlink($abs);
 
             $stats['migrated']++;
