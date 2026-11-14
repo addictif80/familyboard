@@ -91,4 +91,16 @@ class CozyProvisioner
     {
         return self::request('/token', ['domain' => $domain, 'client_id' => $clientId, 'scope' => $scope]);
     }
+
+    /**
+     * Génère un lien de connexion directe à usage unique (API admin POST .../magic_link, voir
+     * deploy/cozy-wrapper/index.php) — pour que la famille ouvre son espace Cozy (configurer un
+     * Konnector, etc.) d'un clic, sans jamais relever d'e-mail ni connaître le mot de passe
+     * aléatoire jetable généré à la création de l'instance.
+     * @return array{ok:bool, login_url?:string, error?:string}
+     */
+    public static function createMagicLink(string $domain): array
+    {
+        return self::request('/magic-link', ['domain' => $domain]);
+    }
 }

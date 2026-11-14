@@ -523,7 +523,10 @@ ob_start();
                 <p style="color:var(--text-muted);font-size:.85rem;margin:0">
                     Connecté — <?= $cozyConnection['last_sync_at'] ? 'dernier import le ' . date('d/m/Y à H:i', strtotime($cozyConnection['last_sync_at'])) : 'aucun import pour le moment' ?>.
                 </p>
-                <button type="button" class="btn btn-danger btn-sm" onclick="disconnectCozy()">Déconnecter</button>
+                <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openCozy()">Ouvrir mon espace Cozy (configurer un Konnector)</button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="disconnectCozy()">Déconnecter</button>
+                </div>
             <?php else: ?>
                 <?php if ($cozyConnection && $cozyConnection['last_error']): ?>
                     <p style="color:var(--danger);font-size:.85rem;margin:0">
@@ -557,6 +560,17 @@ ob_start();
                 alert('Erreur réseau.');
                 btn.disabled = false;
                 btn.textContent = 'Configurer mes factures automatiques';
+            }
+        }
+
+        async function openCozy() {
+            try {
+                const res = await fetch(BASE_URL + '/cozy/open', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const data = await res.json();
+                if (data.success) window.open(data.login_url, '_blank');
+                else alert(data.error || "Échec de l'ouverture.");
+            } catch {
+                alert('Erreur réseau.');
             }
         }
 

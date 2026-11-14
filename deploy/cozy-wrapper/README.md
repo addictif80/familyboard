@@ -30,7 +30,8 @@ After=network.target tailscaled.service
 
 [Service]
 Environment=COZY_WRAPPER_TOKEN=<le jeton généré ci-dessus>
-Environment=COZY_STACK_BIN=/usr/local/bin/cozy-stack
+Environment=COZY_STACK_BIN=/usr/bin/cozy-stack
+Environment=COZY_ADMIN_PASSWORD=<la phrase de passe admin cozy-stack choisie à l'installation du paquet>
 ExecStart=/usr/bin/php -S <IP Tailscale de cette VM>:9000 /opt/cozy-wrapper/index.php
 Restart=always
 User=cozy
@@ -86,10 +87,19 @@ ni stocké) et la connexion par lien magique activée (`--magic_link`) : ouvre
 ioctl de terminal, même avec l'entrée fermée proprement ; passer `--passphrase` directement est la
 seule façon fiable de créer une instance de façon non interactive.
 
+Teste aussi la génération de lien magique (ouvre l'URL `login_url` retournée dans un navigateur
+pour vérifier qu'elle connecte bien directement, sans rien demander) :
+
+```bash
+curl -X POST http://<IP Tailscale de cette VM>:9000/magic-link \
+  -H "Authorization: Bearer <jeton>" -H "Content-Type: application/json" \
+  -d '{"domain":"test.cozy.abhd.fr"}'
+```
+
 Nettoie ensuite l'instance de test :
 
 ```bash
-curl -X POST https://cozy-wrapper.abhd.fr/destroy \
+curl -X POST http://<IP Tailscale de cette VM>:9000/destroy \
   -H "Authorization: Bearer <jeton>" -H "Content-Type: application/json" \
   -d '{"domain":"test.cozy.abhd.fr"}'
 ```

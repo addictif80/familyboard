@@ -79,6 +79,29 @@ class CozyController extends BaseController
         });
     }
 
+    /** "Ouvrir mon espace Cozy" — génère un lien de connexion directe à usage unique et y
+     *  redirige la famille, pour qu'elle configure un Konnector sans jamais avoir à relever un
+     *  e-mail ni connaître le mot de passe aléatoire jetable généré à la création de l'instance. */
+    public function openInstance(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            if ($user['role'] !== 'admin') return ['success' => false, 'error' => 'Réservé à un administrateur de famille.'];
+
+            $connection = FamilyCozyConnection::findByFamily((int)$user['family_id']);
+            if (!$connection || $connection['status'] !== 'connected') {
+                return ['success' => false, 'error' => 'Cozy n\'est pas encore connecté pour votre famille.'];
+            }
+
+            $link = CozyProvisioner::createMagicLink($connection['cozy_domain']);
+            if (!$link['ok']) {
+                return ['success' => false, 'error' => "Génération du lien de connexion échouée : " . ($link['error'] ?? 'erreur inconnue')];
+            }
+            return ['success' => true, 'login_url' => $link['login_url']];
+        });
+    }
+
     public function disconnect(array $params): void
     {
         $this->requireAuth();
