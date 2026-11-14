@@ -533,6 +533,7 @@ ob_start();
                     mobile Twake — le lien ci-dessus "Ouvrir mon espace Cozy" ne fonctionne que dans un
                     navigateur. Utilisez le mot de passe pour vous connecter dans l'appli mobile.
                 </p>
+                <div id="cozy-passphrase-box" style="display:none"></div>
             <?php else: ?>
                 <?php if ($cozyConnection && $cozyConnection['last_error']): ?>
                     <p style="color:var(--danger);font-size:.85rem;margin:0">
@@ -581,11 +582,18 @@ ob_start();
         }
 
         async function showCozyPassphrase() {
+            const box = document.getElementById('cozy-passphrase-box');
             try {
                 const res = await fetch(BASE_URL + '/cozy/passphrase', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
                 const data = await res.json();
-                if (data.success) alert('Mot de passe pour l\'appli mobile Twake :\n\n' + data.passphrase + '\n\nAdresse à saisir dans l\'appli : ' + data.domain);
-                else alert(data.error || "Échec de la récupération.");
+                if (!data.success) { alert(data.error || "Échec de la récupération."); return; }
+                box.innerHTML = `
+                    <div>Adresse à saisir dans l'appli : <strong>${escapeHtml(data.domain)}</strong></div>
+                    <div style="margin-top:.4rem">
+                        <code class="invite-code">${escapeHtml(data.passphrase)}</code>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="copyCode('${escapeHtml(data.passphrase)}')">📋 Copier</button>
+                    </div>`;
+                box.style.display = 'block';
             } catch {
                 alert('Erreur réseau.');
             }
