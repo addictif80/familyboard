@@ -987,6 +987,18 @@ textarea, input, select, button { font-family: inherit; font-size: inherit; }
 .btn:active { transform: scale(.95); }
 @media (prefers-reduced-motion: reduce) { .btn, .btn:hover, .btn:active { transform: none; } }
 
+/* État de chargement intégré (artefact Design System, Lot 3) : le texte disparaît au profit
+   d'un spin continu, le bouton se désactive — jamais de double-clic possible pendant une
+   requête. Garder le texte dans le DOM (color:transparent) préserve la largeur du bouton. */
+.btn-loading { position: relative; color: transparent !important; pointer-events: none; }
+.btn-loading::after {
+  content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; animation: fbSpin .7s linear infinite;
+}
+.btn-secondary.btn-loading::after, .btn-text.btn-loading::after { border-color: color-mix(in srgb, var(--text) 25%, transparent); border-top-color: var(--text); }
+@keyframes fbSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn-loading::after { animation-duration: 1.4s; } }
+
 .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; box-shadow: 0 3px 14px color-mix(in srgb, var(--primary) 38%, rgba(0,0,0,.18)), inset 0 1px 0 rgba(255,255,255,.32); }
 .btn-primary:hover { background: var(--primary-dark); }
 .btn-secondary { background: var(--card-bg); color: var(--text); border-color: var(--border); }
@@ -1258,6 +1270,13 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .comment-form { display: flex; gap: .5rem; margin-top: .5rem; }
 .comment-input { flex: 1; border-radius: 20px; padding: .4rem .85rem; border: 1px solid var(--border); background: var(--bg); }
 .empty-state-card { text-align: center; padding: 3rem; color: var(--text-muted); background: var(--card-bg); border-radius: var(--radius); }
+/* État vide illustré (artefact Design System, Lot 3) : icône + titre + texte + action
+   directe — jamais une phrase seule. .empty-state-icon/h4 sont facultatifs, ajoutés aux
+   empty-state-card existantes sans rien casser pour celles qui n'en ont pas encore. */
+.empty-state-icon { font-size: 2.2rem; margin-bottom: .6rem; opacity: .7; }
+.empty-state-card h4 { font-family: var(--font-display); color: var(--text); margin: 0 0 .4rem; }
+.empty-state-card p { margin: 0 0 1rem; }
+.empty-state-card p:last-child { margin-bottom: 0; }
 .load-more-container { text-align: center; margin-top: .5rem; }
 
 /* ---- Calendar ---- */

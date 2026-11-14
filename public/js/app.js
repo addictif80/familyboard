@@ -40,6 +40,23 @@ function fbConfetti(colors, count) {
     requestAnimationFrame(frame);
 }
 
+// ---- Skeletons (remplacent "Chargement…" — artefact Design System, Lot 3) ----
+// Mêmes dimensions approximatives que le contenu réel, pour qu'il n'y ait aucun saut de mise
+// en page quand les vraies données arrivent.
+function fbSkeletonRows(n) {
+    n = n || 3;
+    const widths = [90, 75, 60, 85, 70];
+    let html = '';
+    for (let i = 0; i < n; i++) html += '<div class="skel skel-text" style="width:' + widths[i % widths.length] + '%"></div>';
+    return html;
+}
+function fbSkeletonGrid(n) {
+    n = n || 4;
+    let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.5rem">';
+    for (let i = 0; i < n; i++) html += '<div class="skel" style="height:90px;border-radius:var(--radius-sm)"></div>';
+    return html + '</div>';
+}
+
 // ---- Bannière hors-ligne ----
 function updateOfflineBanner() {
     const banner = document.getElementById('offline-banner');
@@ -525,9 +542,9 @@ async function openNotifPreview(id, fallbackLink) {
     const fieldsEl = document.getElementById('notif-preview-fields');
     const linkEl = document.getElementById('notif-preview-link');
 
-    titleEl.textContent = 'Chargement…';
+    titleEl.innerHTML = '<span class="skel skel-title" style="width:140px;display:inline-block"></span>';
     timeEl.textContent = '';
-    fieldsEl.innerHTML = '';
+    fieldsEl.innerHTML = fbSkeletonRows(2);
     linkEl.style.display = 'none';
     openModal('notif-preview-modal');
 
@@ -582,9 +599,9 @@ async function openRecordPreview(type, id) {
     const fieldsEl = document.getElementById('notif-preview-fields');
     const linkEl = document.getElementById('notif-preview-link');
 
-    titleEl.textContent = 'Chargement…';
+    titleEl.innerHTML = '<span class="skel skel-title" style="width:140px;display:inline-block"></span>';
     timeEl.textContent = '';
-    fieldsEl.innerHTML = '';
+    fieldsEl.innerHTML = fbSkeletonRows(2);
     linkEl.style.display = 'none';
     openModal('notif-preview-modal');
 

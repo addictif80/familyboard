@@ -82,8 +82,11 @@ $totalDocs = array_sum($typeCounts);
         <!-- Document grid -->
         <div class="docs-grid" id="docs-grid">
             <?php if (empty($documents)): ?>
-                <div class="empty-state" style="grid-column:1/-1">
-                    Aucun document. Ajoutez vos pièces d'identité, justificatifs, contrats…
+                <div class="empty-state-card" style="grid-column:1/-1">
+                    <div class="empty-state-icon">🗂️</div>
+                    <h4>Aucun document</h4>
+                    <p>Ajoutez vos pièces d'identité, justificatifs, contrats…</p>
+                    <button class="btn btn-primary" onclick="openDocModal()">+ Ajouter un document</button>
                 </div>
             <?php else: ?>
             <?php foreach ($documents as $doc): ?>
