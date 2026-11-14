@@ -20,6 +20,8 @@ use App\Models\FamilyCozyConnection;
  */
 class CozyDocumentSync
 {
+    private const SCOPE = 'io.cozy.files';
+
     public static function syncAllFamilies(): void
     {
         foreach (FamilyCozyConnection::getConnected() as $connection) {
@@ -82,23 +84,23 @@ class CozyDocumentSync
         return $row ? (int)$row['id'] : null;
     }
 
-    /** Rafraîchit le jeton d'accès s'il expire dans moins de 5 minutes — renvoie la connexion
-     *  (avec le jeton à jour) prête à l'emploi, ou null si le rafraîchissement échoue (connexion
-     *  marquée en erreur, à reconnecter par la famille). */
+    /** Régénère le jeton d'accès s'il expire dans moins de 5 minutes (en pratique quasiment
+     *  jamais, le jeton étant généré avec une validité de 10 ans — voir
+     *  CozyProvisioner::mintToken()) — renvoie la connexion (avec le jeton à jour) prête à
+     *  l'emploi, ou null si la régénération échoue (connexion marquée en erreur, à reconnecter
+     *  par la famille). */
     private static function ensureFreshToken(array $connection): ?array
     {
         if ($connection['token_expires_at'] && strtotime($connection['token_expires_at']) > time() + 300) {
             return $connection;
         }
 
-        $r = CozyOAuthClient::refreshToken(
-            $connection['cozy_domain'], $connection['client_id'], $connection['client_secret'], $connection['refresh_token']
-        );
+        $r = CozyProvisioner::mintToken($connection['cozy_domain'], $connection['client_id'], self::SCOPE);
         if (!$r['ok']) {
-            FamilyCozyConnection::markError((int)$connection['id'], 'Rafraîchissement du jeton OAuth Cozy échoué : ' . $r['error']);
+            FamilyCozyConnection::markError((int)$connection['id'], 'Régénération du jeton Cozy échouée : ' . $r['error']);
             return null;
         }
-        FamilyCozyConnection::storeTokens((int)$connection['id'], $r['access_token'], $r['refresh_token'], $r['expires_in']);
+        FamilyCozyConnection::storeToken((int)$connection['id'], $r['access_token']);
         return FamilyCozyConnection::findByFamily((int)$connection['family_id']);
     }
 }

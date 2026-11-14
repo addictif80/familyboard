@@ -763,8 +763,7 @@ $router->post('/api/contacts/import-vcf', [ContactController::class, 'importVcf'
 // Liste de cadeaux
 $router->get('/wishlist', [WishlistController::class, 'index']);
 $router->get('/wishlist/:id/image', [WishlistController::class, 'serveImage']);
-$router->get('/cozy/connect', [CozyController::class, 'connect']);
-$router->get('/cozy/oauth/callback', [CozyController::class, 'oauthCallback']);
+$router->post('/cozy/connect', [CozyController::class, 'connect']);
 $router->post('/cozy/disconnect', [CozyController::class, 'disconnect']);
 $router->post('/api/wishlist', [WishlistController::class, 'create']);
 $router->post('/api/wishlist/:id', [WishlistController::class, 'update']);

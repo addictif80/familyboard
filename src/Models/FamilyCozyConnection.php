@@ -6,8 +6,10 @@ use App\Core\Database;
 
 /**
  * Connexion Cozy Cloud d'une famille (une instance par famille, voir App\Core\CozyProvisioner) —
- * client_id/client_secret/access_token/refresh_token chiffrés via App\Core\Crypto, jamais en
- * clair en base (même exigence que les mots de passe LDAP/Synology, voir StorageSettings).
+ * access_token chiffré via App\Core\Crypto, jamais en clair en base (même exigence que les mots
+ * de passe LDAP/Synology, voir StorageSettings). client_secret/refresh_token ne sont pas
+ * utilisés : le jeton est généré directement côté serveur (cozy-stack instances token-oauth,
+ * voir CozyProvisioner::mintToken()), jamais via le parcours OAuth navigateur habituel.
  */
 class FamilyCozyConnection
 {
@@ -28,9 +30,7 @@ class FamilyCozyConnection
 
     private static function decorate(array $row): array
     {
-        $row['client_secret']  = $row['client_secret']  ? Crypto::decrypt($row['client_secret'])  : null;
-        $row['access_token']   = $row['access_token']   ? Crypto::decrypt($row['access_token'])   : null;
-        $row['refresh_token']  = $row['refresh_token']  ? Crypto::decrypt($row['refresh_token'])  : null;
+        $row['access_token'] = $row['access_token'] ? Crypto::decrypt($row['access_token']) : null;
         return $row;
     }
 
@@ -64,28 +64,24 @@ class FamilyCozyConnection
         );
     }
 
-    public static function markPendingOnboarding(int $id): void
-    {
-        Database::execute("UPDATE family_cozy_connections SET status='pending_onboarding' WHERE id=?", [$id]);
-    }
-
-    public static function storeOAuthClient(int $id, string $clientId, string $clientSecret): void
+    public static function storeOAuthClient(int $id, string $clientId): void
     {
         Database::execute(
-            "UPDATE family_cozy_connections SET client_id=?, client_secret=?, status='pending_oauth' WHERE id=?",
-            [$clientId, Crypto::encrypt($clientSecret), $id]
+            "UPDATE family_cozy_connections SET client_id=?, status='pending_oauth' WHERE id=?",
+            [$clientId, $id]
         );
     }
 
-    public static function storeTokens(int $id, string $accessToken, ?string $refreshToken, ?int $expiresIn): void
+    /** Jeton généré via cozy-stack instances token-oauth --expire 87600h (10 ans, voir
+     *  CozyProvisioner::mintToken()) — pas de notion de rafraîchissement : un jeton expiré (ou
+     *  jamais obtenu) se régénère simplement en rappelant mintToken(), jamais via un
+     *  refresh_token OAuth classique. */
+    public static function storeToken(int $id, string $accessToken): void
     {
-        // expires_in absent de la réponse Cozy observée : on retombe sur 23h (le jeton est
-        // documenté valide 24h) pour toujours rafraîchir avec une marge de sécurité.
-        $expiresAt = date('Y-m-d H:i:s', time() + ($expiresIn ?: 23 * 3600));
+        $expiresAt = date('Y-m-d H:i:s', time() + 87600 * 3600);
         Database::execute(
-            "UPDATE family_cozy_connections SET access_token=?, refresh_token=COALESCE(?, refresh_token),
-             token_expires_at=?, status='connected', last_error=NULL WHERE id=?",
-            [Crypto::encrypt($accessToken), $refreshToken ? Crypto::encrypt($refreshToken) : null, $expiresAt, $id]
+            "UPDATE family_cozy_connections SET access_token=?, token_expires_at=?, status='connected', last_error=NULL WHERE id=?",
+            [Crypto::encrypt($accessToken), $expiresAt, $id]
         );
     }
 
