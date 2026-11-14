@@ -91,7 +91,20 @@ async function toggleTask(id) {
         if (item) {
             item.classList.toggle('completed', result.completed);
             const btn = item.querySelector('.task-check');
-            if (btn) btn.textContent = result.completed ? '✅' : '⬜';
+            if (btn) {
+                btn.textContent = result.completed ? '✅' : '⬜';
+                btn.classList.remove('just-toggled');
+                void btn.offsetWidth;
+                btn.classList.add('just-toggled');
+            }
+            // Dernière tâche de la liste à être cochée : petite fête, discrète (confettis verts,
+            // jamais pour un décochage accidentel ni quand il restait déjà des tâches avant).
+            if (result.completed) {
+                const list = item.closest('.task-list') || item.parentElement;
+                const items = list ? list.querySelectorAll('[data-task-id]') : [];
+                const allDone = items.length > 0 && Array.from(items).every(i => i.classList.contains('completed'));
+                if (allDone && typeof fbConfetti === 'function') fbConfetti(['#2BD4A8', '#7C5CFF'], 28);
+            }
         }
     }
 }

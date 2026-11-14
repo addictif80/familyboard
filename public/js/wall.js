@@ -142,6 +142,11 @@ async function toggleReaction(postId, btn) {
     if (data.success) {
         btn.classList.toggle('reacted', data.action === 'added');
         btn.querySelector('.reaction-count').textContent = data.count;
+        if (data.action === 'added') {
+            btn.classList.remove('pop');
+            void btn.offsetWidth;
+            btn.classList.add('pop');
+        }
     }
 }
 

@@ -89,6 +89,42 @@
   :root { --duration-1: 1ms; --duration-2: 1ms; --duration-3: 1ms; }
 }
 
+/* ============================================================
+   Lot 2 — Mouvement (artefact figé) : transitions de page, cascade.
+   ============================================================ */
+
+/* Transitions de page via l'API View Transitions (navigation croisée entre documents) :
+   ignorée par les navigateurs qui ne la supportent pas (repli automatique en navigation
+   classique, sans aucun code de secours à écrire). La topbar/sidebar/barre rapide gardent
+   un view-transition-name pour ne jamais être recapturées dans le fondu — seul le contenu
+   change, "sans rupture visible" du reste de l'interface. */
+@view-transition { navigation: auto; }
+
+.sidebar, .topbar, .bottom-nav { view-transition-name: fb-chrome-static; }
+
+::view-transition-group(root) { animation-duration: var(--duration-3); }
+::view-transition-old(root), ::view-transition-new(root) {
+  animation-duration: var(--duration-3);
+  animation-timing-function: var(--ease-out-soft);
+}
+/* L'élément nommé fb-chrome-static ne doit jamais crossfader avec lui-même : on neutralise
+   son animation de transition pour qu'il reste simplement immobile à l'écran. */
+::view-transition-old(fb-chrome-static), ::view-transition-new(fb-chrome-static) { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+
+/* Entrée en cascade générique — jusqu'à 5 éléments décalés de 40ms, au-delà tout apparaît
+   ensemble (évite qu'une longue liste mette plus d'une demi-seconde à finir d'apparaître). */
+.cascade > * { animation: fbFadeInUp var(--duration-3) var(--ease-out-soft) both; }
+.cascade > *:nth-child(1) { animation-delay: 0ms; }
+.cascade > *:nth-child(2) { animation-delay: 40ms; }
+.cascade > *:nth-child(3) { animation-delay: 80ms; }
+.cascade > *:nth-child(4) { animation-delay: 120ms; }
+.cascade > *:nth-child(5) { animation-delay: 160ms; }
+@media (prefers-reduced-motion: reduce) { .cascade > * { animation: none; } }
+
 @keyframes fbDrift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 @keyframes fbPop { from { transform: scale(.95) translateY(6px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 @keyframes fbFloat { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-4px) rotate(-3deg); } }
@@ -1048,7 +1084,7 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: fbPop .28s cubic-bezier(.2,1.4,.3,1) both;
+  animation: fbPop var(--duration-2) var(--ease-out-soft) both;
 }
 @media (prefers-reduced-motion: reduce) {
   .modal { animation: none; }
@@ -1208,6 +1244,10 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .post-footer { display: flex; gap: .75rem; padding-top: .5rem; border-top: 1px solid var(--border); }
 .reaction-btn { background: none; border: none; cursor: pointer; font-size: .875rem; padding: .3rem .6rem; border-radius: 20px; transition: all .15s; }
 .reaction-btn:hover, .reaction-btn.reacted { background: var(--danger-bg); }
+.reaction-btn .heart { display: inline-block; transform-origin: center; }
+.reaction-btn.pop .heart { animation: fbHeartPop var(--duration-2) var(--ease-spring) both; }
+@keyframes fbHeartPop { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .reaction-btn.pop .heart { animation: none; } }
 .comment-toggle-btn { background: none; border: none; cursor: pointer; font-size: .875rem; color: var(--text-muted); padding: .3rem .6rem; border-radius: 20px; transition: background .15s; }
 .comment-toggle-btn:hover { background: var(--bg); }
 .comments-section { margin-top: .75rem; border-top: 1px solid var(--border); padding-top: .75rem; }
@@ -1268,7 +1308,10 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .loyalty-card-barcode-wrap { background: #fff; border-radius: 12px; padding: 1rem; display: flex; align-items: center; justify-content: center; min-height: 100px; }
 .loyalty-card-barcode-wrap svg, .loyalty-card-barcode-wrap img { max-width: 100%; }
 .loyalty-card-number { margin-top: .9rem; font-family: var(--font-mono); font-size: .95rem; letter-spacing: .04em; }
-.task-check { background: none; border: none; font-size: 1.1rem; cursor: pointer; flex-shrink: 0; padding: 0; }
+.task-check { background: none; border: none; font-size: 1.1rem; cursor: pointer; flex-shrink: 0; padding: 0; display: inline-block; transform-origin: center; }
+.task-check.just-toggled { animation: fbCheckPop var(--duration-1) var(--ease-spring) both; }
+@keyframes fbCheckPop { 0% { transform: scale(1); } 45% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .task-check.just-toggled { animation: none; } }
 .task-body { flex: 1; cursor: pointer; }
 .task-title { font-size: .875rem; }
 .task-item.completed .task-title { text-decoration: line-through; }
@@ -2423,12 +2466,12 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .dash-stat-card {
   background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
   padding: 1rem 1.1rem; transition: transform .22s cubic-bezier(.2,1.4,.3,1), box-shadow .22s ease;
-  animation: fbFadeInUp .4s cubic-bezier(.2,1.4,.3,1) both;
+  animation: fbFadeInUp var(--duration-3) var(--ease-out-soft) both;
 }
-.dash-stats .dash-stat-card:nth-child(1) { animation-delay: .04s; }
-.dash-stats .dash-stat-card:nth-child(2) { animation-delay: .09s; }
-.dash-stats .dash-stat-card:nth-child(3) { animation-delay: .14s; }
-.dash-stats .dash-stat-card:nth-child(4) { animation-delay: .19s; }
+.dash-stats .dash-stat-card:nth-child(1) { animation-delay: 0ms; }
+.dash-stats .dash-stat-card:nth-child(2) { animation-delay: 40ms; }
+.dash-stats .dash-stat-card:nth-child(3) { animation-delay: 80ms; }
+.dash-stats .dash-stat-card:nth-child(4) { animation-delay: 120ms; }
 .dash-stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .dash-stat-head { display: flex; justify-content: space-between; align-items: center; font-size: .7rem; text-transform: uppercase; font-weight: 700; letter-spacing: .03em; color: var(--text-muted); }
 .dash-stat-val { font-family: var(--font-mono); font-size: 1.7rem; font-weight: 800; margin-top: .3rem; }
@@ -2440,11 +2483,11 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .dash-card {
   background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
   padding: 1.25rem; transition: transform .25s cubic-bezier(.2,1.4,.3,1), box-shadow .25s ease;
-  animation: fbFadeInUp .45s cubic-bezier(.2,1.4,.3,1) both;
+  animation: fbFadeInUp var(--duration-3) var(--ease-out-soft) both;
 }
-.dash-bento .dash-card:nth-child(1) { animation-delay: .22s; }
-.dash-bento .dash-card:nth-child(2) { animation-delay: .27s; }
-.dash-bento .dash-card:nth-child(3) { animation-delay: .32s; }
+.dash-bento .dash-card:nth-child(1) { animation-delay: 0ms; }
+.dash-bento .dash-card:nth-child(2) { animation-delay: 40ms; }
+.dash-bento .dash-card:nth-child(3) { animation-delay: 80ms; }
 .dash-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
 .dash-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .9rem; }
 .dash-card-head h2 { margin: 0; font-size: 1rem; font-weight: 700; }
@@ -2492,7 +2535,7 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .dash-sheet {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 161; background: var(--card-bg);
   border-radius: 24px 24px 0 0; padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
-  animation: fbSheetIn .32s cubic-bezier(.2,1,.3,1);
+  animation: fbSheetIn var(--duration-2) var(--ease-out-soft);
 }
 @keyframes fbSheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .dash-sheet-handle { width: 40px; height: 4px; border-radius: 4px; background: var(--border); margin: 0 auto 1rem; }

@@ -41,7 +41,7 @@
         <button class="reaction-btn <?= $post['user_reaction'] ? 'reacted' : '' ?>"
                 onclick="toggleReaction(<?= $post['id'] ?>, this)"
                 data-count="<?= $post['reaction_count'] ?>">
-            ❤️ <span class="reaction-count"><?= $post['reaction_count'] ?></span>
+            <span class="heart" aria-hidden="true">❤️</span> <span class="reaction-count"><?= $post['reaction_count'] ?></span>
         </button>
         <button class="comment-toggle-btn" onclick="toggleComments(<?= $post['id'] ?>)">
             💬 <?= $post['comment_count'] ?> commentaire<?= $post['comment_count'] != 1 ? 's' : '' ?>

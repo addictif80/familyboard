@@ -2,6 +2,44 @@
 // FamilyBoard - Core JS
 // ============================================
 
+// ---- Confettis (canvas natif, sans dépendance — artefact Mouvement, Lot 2) ----
+// Utilisé pour une liste de tâches entièrement cochée ; prévu pour d'autres déclencheurs
+// (ex. anniversaire du jour) le moment venu. Toujours silencieux sous mouvement réduit.
+function fbConfetti(colors, count) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    colors = colors || ['#7C5CFF', '#FF6B5B', '#2BD4A8', '#FFB84D'];
+    count = count || 32;
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9998';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    const parts = [];
+    for (let i = 0; i < count; i++) {
+        parts.push({
+            x: canvas.width / 2, y: canvas.height / 2,
+            vx: (Math.random() - .5) * 9, vy: (Math.random() - 1.4) * 9,
+            size: 4 + Math.random() * 5, color: colors[i % colors.length],
+            rot: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
+        });
+    }
+    let start = null;
+    function frame(ts) {
+        if (!start) start = ts;
+        const t = ts - start;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        parts.forEach(p => {
+            p.vy += .22; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+            ctx.fillStyle = p.color; ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * .6);
+            ctx.restore();
+        });
+        if (t < 1600) requestAnimationFrame(frame); else canvas.remove();
+    }
+    requestAnimationFrame(frame);
+}
+
 // ---- Bannière hors-ligne ----
 function updateOfflineBanner() {
     const banner = document.getElementById('offline-banner');
