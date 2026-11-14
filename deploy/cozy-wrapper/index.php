@@ -96,10 +96,16 @@ if ($path === '/create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // Sans --passphrase, la commande attend un mot de passe sur l'entrée standard via un ioctl
     // de terminal — impossible à satisfaire depuis un script (constaté en conditions réelles,
     // même avec stdin explicitement fermé : la bibliothèque utilisée exige un vrai TTY, pas
-    // seulement une entrée vide). On fournit donc un mot de passe aléatoire généré ici,
-    // renvoyé à FamilyBoard qui le stocke chiffré : certains Konnectors (EDF...) ne peuvent être
-    // configurés que depuis l'application mobile Twake, qui l'exige pour s'y connecter (la
-    // connexion par lien magique ne couvre que le web) — voir CozyController::showPassphrase().
+    // seulement une entrée vide). On fournit donc une valeur ici, MAIS avec --magic_link,
+    // cozy-stack l'ignore et la remplace en interne par une chaîne aléatoire inconnue de nous
+    // (voir model/instance/lifecycle/create.go : "If the password authentication is disabled,
+    // we force a random password. It won't be known by the user and cannot be used to
+    // authenticate.") — confirmé en conditions réelles (401 systématique au login avec la valeur
+    // qu'on avait fournie). Le vrai mot de passe utilisable est donc fixé juste après, via
+    // `instances set-passphrase` (--force), qui n'est pas concerné par ce contournement :
+    // nécessaire pour l'application mobile Twake, que certains Konnectors (EDF...) exigent pour
+    // se configurer (la connexion par lien magique ne couvre que le web) — voir
+    // CozyController::showPassphrase().
     $passphrase = bin2hex(random_bytes(16));
     // --apps : sans ça, aucune application n'est installée — le lien magique (qui redirige vers
     // l'appli "home") échouerait avec "L'application n'existe pas" (constaté en conditions
@@ -120,6 +126,14 @@ if ($path === '/create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($code !== 0) {
         respond(500, ['error' => "Échec de la création de l'instance : " . trim($output)]);
     }
+
+    $passCommand = escapeshellarg($cozyStackBin) . ' instances set-passphrase '
+        . escapeshellarg($domain) . ' ' . escapeshellarg($passphrase) . ' 2>&1';
+    [$passCode, $passOutput] = runCommand($passCommand);
+    if ($passCode !== 0) {
+        respond(500, ['error' => "Instance créée mais échec de la définition du mot de passe : " . trim($passOutput)]);
+    }
+
     respond(200, ['domain' => $domain, 'passphrase' => $passphrase, 'raw' => $output]);
 }
 
