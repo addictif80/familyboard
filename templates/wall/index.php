@@ -137,7 +137,7 @@ ob_start();
         </div>
         <div class="modal-body">
             <div class="album-photo-grid" id="wall-album-picker-grid">
-                <div class="skel" style="height:90px;border-radius:var(--radius-sm)"></div><div class="skel" style="height:90px;border-radius:var(--radius-sm)"></div><div class="skel" style="height:90px;border-radius:var(--radius-sm)"></div>
+                <div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div><div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div><div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div>
             </div>
         </div>
     </div>

@@ -40,7 +40,7 @@ ob_start();
     <div class="card settings-section">
         <h3>Où est la famille ?</h3>
         <div id="loc-current-list">
-            <div class="skel skel-text" style="width:70%"></div><div class="skel skel-text" style="width:50%"></div>
+            <div class="skel skel-text" aria-hidden="true" style="width:70%"></div><div class="skel skel-text" aria-hidden="true" style="width:50%"></div>
         </div>
     </div>
 

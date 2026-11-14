@@ -151,8 +151,9 @@
   background: transparent; pointer-events: none; overflow: hidden;
 }
 .fb-loadbar-fill {
-  position: absolute; inset: 0; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent));
-  transition: width var(--duration-3) var(--ease-out-soft), opacity var(--duration-2);
+  position: absolute; inset: 0; width: 100%; transform: scaleX(0); transform-origin: left;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transition: transform var(--duration-3) var(--ease-out-soft), opacity var(--duration-2);
 }
 .fb-loadbar.error .fb-loadbar-fill { background: var(--danger); }
 @media (prefers-reduced-motion: reduce) { .fb-loadbar-fill { transition: opacity var(--duration-2); } }

@@ -43,16 +43,18 @@ function fbConfetti(colors, count) {
 // ---- Skeletons (remplacent "Chargement…" — artefact Design System, Lot 3) ----
 // Mêmes dimensions approximatives que le contenu réel, pour qu'il n'y ait aucun saut de mise
 // en page quand les vraies données arrivent.
+// aria-hidden="true" (Lot 5) : un lecteur d'écran n'a rien à lire dans ces blocs purement
+// visuels — l'annonce utile est le vrai contenu, une fois arrivé.
 function fbSkeletonRows(n) {
     n = n || 3;
     const widths = [90, 75, 60, 85, 70];
     let html = '';
-    for (let i = 0; i < n; i++) html += '<div class="skel skel-text" style="width:' + widths[i % widths.length] + '%"></div>';
+    for (let i = 0; i < n; i++) html += '<div class="skel skel-text" aria-hidden="true" style="width:' + widths[i % widths.length] + '%"></div>';
     return html;
 }
 function fbSkeletonGrid(n) {
     n = n || 4;
-    let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.5rem">';
+    let html = '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.5rem">';
     for (let i = 0; i < n; i++) html += '<div class="skel" style="height:90px;border-radius:var(--radius-sm)"></div>';
     return html + '</div>';
 }
@@ -590,7 +592,7 @@ async function openNotifPreview(id, fallbackLink) {
     const fieldsEl = document.getElementById('notif-preview-fields');
     const linkEl = document.getElementById('notif-preview-link');
 
-    titleEl.innerHTML = '<span class="skel skel-title" style="width:140px;display:inline-block"></span>';
+    titleEl.innerHTML = '<span class="skel skel-title" aria-hidden="true" style="width:140px;display:inline-block"></span>';
     timeEl.textContent = '';
     fieldsEl.innerHTML = fbSkeletonRows(2);
     linkEl.style.display = 'none';
@@ -647,7 +649,7 @@ async function openRecordPreview(type, id) {
     const fieldsEl = document.getElementById('notif-preview-fields');
     const linkEl = document.getElementById('notif-preview-link');
 
-    titleEl.innerHTML = '<span class="skel skel-title" style="width:140px;display:inline-block"></span>';
+    titleEl.innerHTML = '<span class="skel skel-title" aria-hidden="true" style="width:140px;display:inline-block"></span>';
     timeEl.textContent = '';
     fieldsEl.innerHTML = fbSkeletonRows(2);
     linkEl.style.display = 'none';
@@ -1023,13 +1025,13 @@ const FbLoadBar = (function () {
         if (!b || !f) return;
         b.classList.remove('error');
         f.style.opacity = '1';
-        f.style.width = pct + '%';
+        f.style.transform = 'scaleX(' + (pct / 100) + ')';
     }
     function hide() {
         const f = fill();
         if (!f) return;
         f.style.opacity = '0';
-        setTimeout(() => { if (inFlight === 0) f.style.width = '0%'; }, 200);
+        setTimeout(() => { if (inFlight === 0) f.style.transform = 'scaleX(0)'; }, 200);
     }
 
     function requestStart() {

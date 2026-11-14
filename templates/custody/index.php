@@ -457,7 +457,7 @@ ob_start();
             <button onclick="closeModal('activity-log-modal')">✕</button>
         </div>
         <div class="modal-body">
-            <div id="activity-log-content"><div class="skel skel-text" style="width:90%"></div><div class="skel skel-text" style="width:75%"></div><div class="skel skel-text" style="width:60%"></div></div>
+            <div id="activity-log-content"><div class="skel skel-text" aria-hidden="true" style="width:90%"></div><div class="skel skel-text" aria-hidden="true" style="width:75%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div></div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('activity-log-modal')">Fermer</button>
