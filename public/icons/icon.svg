@@ -1,15 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Mark "Cercles" validé en Phase A (artefacts Splash + Design System) — violet/corail,
+       remplace l'ancien marine/or. Cluster de 4 cercles dans la zone de sécurité "maskable"
+       (cercle Ø80% centré) : rien n'est rogné par un launcher Android qui masque l'icône. -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#2E3650"/>
-      <stop offset="100%" stop-color="#181C29"/>
-    </linearGradient>
-    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#D9AE5E"/>
-      <stop offset="100%" stop-color="#A87D33"/>
+    <linearGradient id="fbMarkGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8F72FF"/>
+      <stop offset="100%" stop-color="#FF6B5B"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
-  <rect x="126" y="126" width="260" height="260" rx="56" fill="url(#mark)"/>
-  <text x="256" y="360" font-size="220" text-anchor="middle" font-family="system-ui,sans-serif" fill="white">🏠</text>
+  <rect width="100" height="100" rx="22" fill="url(#fbMarkGradient)"/>
+  <g fill="#fff" fill-opacity=".95">
+    <circle cx="40" cy="58" r="17"/>
+    <circle cx="62" cy="62" r="13"/>
+    <circle cx="66" cy="40" r="9"/>
+    <circle cx="48" cy="34" r="7"/>
+  </g>
 </svg>

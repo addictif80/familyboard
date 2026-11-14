@@ -96,6 +96,9 @@ const Dialog = (() => {
     .dlg-toast.success{background:var(--success,#27ae60)}
     .dlg-toast.error  {background:var(--danger,#e74c3c)}
     .dlg-toast.info   {background:var(--info,#3fb8e8)}
+    .dlg-toast-undo{display:flex;align-items:center;gap:.75rem}
+    .dlg-toast-undo-btn{background:rgba(255,255,255,.22);border:none;color:#fff;font-weight:700;font-size:.8rem;padding:.3rem .65rem;border-radius:6px;cursor:pointer}
+    .dlg-toast-undo-btn:hover{background:rgba(255,255,255,.34)}
     @media(max-width:768px){.dlg-overlay{align-items:flex-end;padding:0}.dlg-box{border-radius:var(--radius) var(--radius) 0 0;max-width:100%}}
     `;
     document.head.appendChild(s);
@@ -154,7 +157,42 @@ const Dialog = (() => {
         });
     }
 
-    return { toast, alert, confirm };
+    // Suppression avec annulation (Lot 4, artefact Mouvement) : pour les suppressions
+    // courantes/réversibles, jamais de confirm() bloquant — un toast "Annuler" de 5s avant
+    // d'appeler réellement onCommit(). Les actions irréversibles lourdes (compte, famille
+    // entière…) gardent Dialog.confirm().
+    function undoableRemove(message, onCommit, onCancel, duration = 5000) {
+        const t = document.createElement('div');
+        t.className = 'dlg-toast info dlg-toast-undo';
+        t.setAttribute('role', 'status');
+        let settled = false;
+        const label = document.createElement('span');
+        label.textContent = message;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dlg-toast-undo-btn';
+        btn.textContent = 'Annuler';
+        btn.addEventListener('click', () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            t.remove();
+            if (typeof onCancel === 'function') onCancel();
+        });
+        t.appendChild(label);
+        t.appendChild(btn);
+        getToastWrap().appendChild(t);
+        const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            t.style.transition = 'opacity .3s';
+            t.style.opacity = '0';
+            setTimeout(() => t.remove(), 300);
+            onCommit();
+        }, duration);
+    }
+
+    return { toast, alert, confirm, undoableRemove };
 })();
 
 /** Helper for forms with confirmation: <form onsubmit="return confirmSubmit(this,'msg')"> */
@@ -165,8 +203,18 @@ function confirmSubmit(form, msg) {
 
 // ---- Modal management ----
 function openModal(id) {
-    document.getElementById(id).style.display = 'flex';
+    const modal = document.getElementById(id);
+    modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    // Focus automatique (Lot 4) : le premier champ texte vide de la modale, pour pouvoir
+    // taper tout de suite sans avoir à cliquer dedans — jamais un champ déjà rempli (on ne
+    // vole pas le focus d'un formulaire de modification pré-rempli en sautant la relecture).
+    requestAnimationFrame(() => {
+        const candidates = modal.querySelectorAll('input[type="text"], input[type="email"], textarea');
+        for (const field of candidates) {
+            if (!field.value) { field.focus(); break; }
+        }
+    });
 }
 
 function closeModal(id) {
@@ -948,9 +996,136 @@ async function apiFetch(url, options = {}) {
     const defaults = {
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
     };
-    const res = await fetch(url, { ...defaults, ...options, headers: { ...defaults.headers, ...(options.headers || {}) } });
-    return res.json();
+    FbLoadBar.requestStart();
+    try {
+        const res = await fetch(url, { ...defaults, ...options, headers: { ...defaults.headers, ...(options.headers || {}) } });
+        if (!res.ok) FbLoadBar.requestError(); else FbLoadBar.requestEnd();
+        return await res.json();
+    } catch (e) {
+        FbLoadBar.requestError();
+        throw e;
+    }
 }
+
+// ---- Barre de chargement (Lot PWA, artefact "Barre épaisse" figé) ----
+// Un seul composant pour trois sources : navigation (clic sur un lien interne), requêtes
+// apiFetch (via requestStart/End/Error ci-dessus) et actualisation manuelle (tirer-pour-
+// actualiser). Respecte prefers-reduced-motion (le CSS ramène les durées à 1ms) et reste muet
+// à l'écran kiosque, qui n'inclut pas ce template.
+const FbLoadBar = (function () {
+    let inFlight = 0;
+    let doneTimer = null;
+    const bar = () => document.getElementById('fb-loadbar');
+    const fill = () => document.getElementById('fb-loadbar-fill');
+
+    function show(pct) {
+        const b = bar(), f = fill();
+        if (!b || !f) return;
+        b.classList.remove('error');
+        f.style.opacity = '1';
+        f.style.width = pct + '%';
+    }
+    function hide() {
+        const f = fill();
+        if (!f) return;
+        f.style.opacity = '0';
+        setTimeout(() => { if (inFlight === 0) f.style.width = '0%'; }, 200);
+    }
+
+    function requestStart() {
+        inFlight++;
+        clearTimeout(doneTimer);
+        if (inFlight === 1) show(15);
+        else show(Math.min(80, 15 + inFlight * 10));
+    }
+    function requestEnd() {
+        inFlight = Math.max(0, inFlight - 1);
+        if (inFlight === 0) {
+            show(100);
+            doneTimer = setTimeout(hide, 150);
+        }
+    }
+    function requestError() {
+        inFlight = Math.max(0, inFlight - 1);
+        const b = bar();
+        if (b) b.classList.add('error');
+        show(100);
+        doneTimer = setTimeout(hide, 500);
+    }
+    // Démarrage : la page vient de charger, dernier petit tronçon jusqu'à 100% puis disparition.
+    function pageStart() { show(20); }
+    function pageDone() {
+        show(100);
+        setTimeout(hide, 150);
+    }
+
+    return { requestStart, requestEnd, requestError, pageStart, pageDone };
+})();
+
+FbLoadBar.pageStart();
+window.addEventListener('load', () => setTimeout(FbLoadBar.pageDone, 50));
+
+// Navigation : un clic sur un lien interne lance tout de suite la barre (l'ancienne page va
+// disparaître avec elle au déchargement ; la nouvelle page la relance elle-même via pageStart).
+document.addEventListener('click', e => {
+    const a = e.target.closest('a[href]');
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (a.target === '_blank' || a.hasAttribute('download')) return;
+    if (a.origin !== window.location.origin) return;
+    FbLoadBar.requestStart();
+});
+
+// ---- Tirer pour actualiser (app installée uniquement, voir PWA_STANDALONE) ----
+(function () {
+    if (typeof window === 'undefined') return;
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    if (!standalone) return;
+
+    let ring = null, startY = null, pulling = false, refreshing = false;
+    function ensureRing() {
+        if (ring) return ring;
+        ring = document.createElement('div');
+        ring.className = 'fb-ptr-ring';
+        ring.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 3v12M6 9l6-6 6 6"/></svg>';
+        document.body.appendChild(ring);
+        return ring;
+    }
+    function setPull(px) {
+        const r = ensureRing();
+        const clamped = Math.max(0, Math.min(px, 90));
+        r.style.setProperty('--fb-ptr-pull', Math.round(clamped * 4));
+        r.style.setProperty('--fb-ptr-opacity', Math.min(1, clamped / 40));
+    }
+    function onStart(y) {
+        if (refreshing || window.scrollY > 0) return;
+        const main = document.querySelector('.main-content');
+        if (main && main.scrollTop > 0) return;
+        startY = y; pulling = true;
+    }
+    function onMove(y) {
+        if (!pulling || startY === null) return;
+        const dy = y - startY;
+        setPull(dy > 0 ? dy * .5 : 0);
+    }
+    function onEnd() {
+        if (!pulling) return;
+        pulling = false;
+        const r = ensureRing();
+        const dy = (parseFloat(getComputedStyle(r).getPropertyValue('--fb-ptr-pull')) || 0) / 4;
+        startY = null;
+        if (dy > 64) {
+            refreshing = true;
+            r.classList.add('refreshing');
+            FbLoadBar.requestStart();
+            setTimeout(() => window.location.reload(), 250);
+        } else {
+            setPull(0);
+        }
+    }
+    window.addEventListener('touchstart', e => onStart(e.touches[0].clientY), { passive: true });
+    window.addEventListener('touchmove', e => onMove(e.touches[0].clientY), { passive: true });
+    window.addEventListener('touchend', onEnd);
+})();
 
 // ---- Suivi de position (minuteurs — "quelqu'un est-il à la maison ?") ----
 // Actif uniquement si LOCATION_TRACKING_ENABLED (défini par layout.php : connecté + pas
