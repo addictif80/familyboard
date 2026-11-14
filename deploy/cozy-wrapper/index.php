@@ -85,24 +85,22 @@ if ($path === '/create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         respond(400, ['error' => 'domain ou email invalide.']);
     }
 
+    // Sans --passphrase, la commande attend un mot de passe sur l'entrée standard via un ioctl
+    // de terminal — impossible à satisfaire depuis un script (constaté en conditions réelles,
+    // même avec stdin explicitement fermé : la bibliothèque utilisée exige un vrai TTY, pas
+    // seulement une entrée vide). On fournit donc un mot de passe aléatoire jetable, jamais
+    // montré ni stocké nulle part, et --magic_link pour que la famille puisse se connecter sans
+    // jamais avoir à le connaître (lien de connexion envoyé par e-mail à sa première visite).
+    $throwawayPassphrase = bin2hex(random_bytes(16));
     $command = escapeshellarg($cozyStackBin) . ' instances add '
         . escapeshellarg($domain) . ' --email ' . escapeshellarg($email)
+        . ' --passphrase ' . escapeshellarg($throwawayPassphrase) . ' --magic_link'
         . ' --locale fr --tz Europe/Paris 2>&1';
     [$code, $output] = runCommand($command);
     if ($code !== 0) {
         respond(500, ['error' => "Échec de la création de l'instance : " . trim($output)]);
     }
-
-    // Le format exact de la sortie n'a pas pu être vérifié contre une instance réelle avant
-    // déploiement (voir README.md) — on tente d'extraire une URL/un jeton d'onboarding si la
-    // commande en affiche un ("registerToken=..." dans une URL), sinon registerToken reste absent
-    // et FamilyBoard redirige simplement vers https://$domain/ (Cozy affichera alors son propre
-    // écran d'onboarding si l'instance n'a pas de mot de passe).
-    $registerToken = null;
-    if (preg_match('/registerToken=([a-f0-9]+)/i', $output, $m)) {
-        $registerToken = $m[1];
-    }
-    respond(200, ['domain' => $domain, 'registerToken' => $registerToken, 'raw' => $output]);
+    respond(200, ['domain' => $domain, 'raw' => $output]);
 }
 
 if ($path === '/destroy' && $_SERVER['REQUEST_METHOD'] === 'POST') {

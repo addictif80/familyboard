@@ -52,11 +52,11 @@ class CozyController extends BaseController
             $id = FamilyCozyConnection::createProvisioning($familyId, $cozyDomain);
             FamilyCozyConnection::markPendingOnboarding($id);
 
-            // Lien d'onboarding Cozy (la famille y choisit son mot de passe) — format non
-            // garanti avant vérification contre une instance réelle, voir CozyProvisioner.
-            $registerToken = $created['registerToken'] ?? null;
-            $onboardingUrl = 'https://' . $cozyDomain . ($registerToken ? '/?registerToken=' . urlencode($registerToken) : '/');
-            header('Location: ' . $onboardingUrl);
+            // L'instance est créée avec un mot de passe aléatoire jetable (jamais connu de la
+            // famille) et la connexion par lien magique activée (--magic_link, voir
+            // CozyProvisioner) : la famille se connecte la première fois via "connexion par lien
+            // magique" sur cette page, sans jamais avoir à taper de mot de passe.
+            header('Location: https://' . $cozyDomain . '/');
             exit;
         }
 

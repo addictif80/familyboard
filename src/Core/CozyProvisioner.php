@@ -64,12 +64,11 @@ class CozyProvisioner
     }
 
     /**
-     * @return array{ok:bool, registerToken?:string, error?:string} registerToken sert à
-     *  construire le lien d'onboarding (https://$domain/?registerToken=...) envoyé à la famille
-     *  pour qu'elle choisisse son mot de passe Cozy — voir CozyController::connect(). Le format
-     *  exact de la sortie de `cozy-stack instances add` n'a pas pu être vérifié contre une
-     *  instance réelle avant déploiement ; à valider en premier lors de la mise en service (voir
-     *  deploy/cozy-wrapper/README.md).
+     * Crée l'instance avec un mot de passe aléatoire jetable (généré et jeté côté relais, jamais
+     * transmis ici) et la connexion par lien magique activée — la famille se connecte la
+     * première fois sans jamais avoir à connaître ce mot de passe (voir
+     * CozyController::connect(), qui redirige simplement vers https://$domain/).
+     * @return array{ok:bool, error?:string}
      */
     public static function createInstance(string $domain, string $email): array
     {
