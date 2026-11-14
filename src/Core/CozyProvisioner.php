@@ -66,11 +66,12 @@ class CozyProvisioner
     }
 
     /**
-     * Crée l'instance avec un mot de passe aléatoire jetable (généré et jeté côté relais, jamais
-     * transmis ici) et la connexion par lien magique activée — utile si la famille veut plus
-     * tard visiter elle-même son Cozy pour configurer un Konnector (voir CozyController), jamais
-     * utilisé pour la connexion de FamilyBoard lui-même (voir mintToken()).
-     * @return array{ok:bool, error?:string}
+     * Crée l'instance avec un mot de passe aléatoire généré côté relais (renvoyé ici, à stocker
+     * chiffré par l'appelant — voir FamilyCozyConnection::createProvisioning()) et la connexion
+     * par lien magique activée. Le mot de passe n'est jamais utilisé pour la connexion de
+     * FamilyBoard lui-même (voir mintToken()) — seulement nécessaire pour l'application mobile
+     * Twake, que certains Konnectors (EDF...) exigent pour se configurer (voir CozyController).
+     * @return array{ok:bool, passphrase?:string, error?:string}
      */
     public static function createInstance(string $domain, string $email): array
     {

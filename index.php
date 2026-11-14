@@ -767,6 +767,7 @@ $router->get('/wishlist', [WishlistController::class, 'index']);
 $router->get('/wishlist/:id/image', [WishlistController::class, 'serveImage']);
 $router->post('/cozy/connect', [CozyController::class, 'connect']);
 $router->post('/cozy/open', [CozyController::class, 'openInstance']);
+$router->post('/cozy/passphrase', [CozyController::class, 'showPassphrase']);
 $router->post('/cozy/disconnect', [CozyController::class, 'disconnect']);
 $router->post('/api/wishlist', [WishlistController::class, 'create']);
 $router->post('/api/wishlist/:id', [WishlistController::class, 'update']);
