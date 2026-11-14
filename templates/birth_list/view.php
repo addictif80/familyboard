@@ -24,7 +24,7 @@ ob_start();
             <?php $reserved = !empty($item['reserved_at']); ?>
             <div class="card" data-item-id="<?= $item['id'] ?>" style="padding:1rem;display:flex;flex-direction:column;gap:.5rem;animation:fbFadeInUp .4s cubic-bezier(.2,1.4,.3,1) both;<?= $reserved ? 'opacity:.6' : '' ?>">
                 <?php if ($item['image_path']): ?>
-                    <img src="<?= BASE_URL . htmlspecialchars($item['image_path']) ?>" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px">
+                    <img src="<?= BASE_URL ?>/liste-naissance/items/<?= (int)$item['id'] ?>/image" alt="" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px">
                 <?php endif; ?>
                 <strong><?= htmlspecialchars($item['title']) ?></strong>
                 <?php if ($item['price']): ?><div style="color:var(--text-muted);font-size:.85rem"><?= number_format((float)$item['price'], 2, ',', ' ') ?> €</div><?php endif; ?>

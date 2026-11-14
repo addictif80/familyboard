@@ -51,7 +51,7 @@ foreach ($friendItems as $it) {
     <div class="wishlist-grid">
         <?php foreach ($group['items'] as $it): ?>
         <div class="wishlist-card <?= !empty($it['is_purchased']) ? 'wishlist-purchased' : '' ?>" data-item-id="<?= (int)$it['id'] ?>">
-            <?php if ($it['image_path']): ?><img src="<?= BASE_URL . htmlspecialchars($it['image_path']) ?>" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;margin-bottom:.4rem"><?php endif; ?>
+            <?php if ($it['image_path']): ?><img src="<?= BASE_URL ?>/wishlist/<?= (int)$it['id'] ?>/image" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;margin-bottom:.4rem"><?php endif; ?>
             <div class="wishlist-card-head">
                 <strong><?= htmlspecialchars($it['title']) ?></strong>
                 <span class="badge-custom"><?= $priorityLabel[$it['priority']] ?? '' ?></span>
@@ -115,7 +115,7 @@ foreach ($friendItems as $it) {
         <div class="wishlist-grid">
             <?php foreach ($group['items'] as $it): ?>
             <div class="wishlist-card <?= !empty($it['is_purchased']) ? 'wishlist-purchased' : '' ?>" data-item-id="<?= (int)$it['id'] ?>">
-                <?php if ($it['image_path']): ?><img src="<?= BASE_URL . htmlspecialchars($it['image_path']) ?>" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;margin-bottom:.4rem"><?php endif; ?>
+                <?php if ($it['image_path']): ?><img src="<?= BASE_URL ?>/wishlist/<?= (int)$it['id'] ?>/image" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;margin-bottom:.4rem"><?php endif; ?>
                 <div class="wishlist-card-head">
                     <strong><?= htmlspecialchars($it['title']) ?></strong>
                     <span class="badge-custom"><?= $priorityLabel[$it['priority']] ?? '' ?></span>
@@ -183,7 +183,7 @@ foreach ($friendItems as $it) {
     <div class="wishlist-grid">
         <?php foreach ($childItems[$childId] as $it): ?>
         <div class="wishlist-card <?= !empty($it['is_purchased']) ? 'wishlist-purchased' : '' ?>" data-item-id="<?= (int)$it['id'] ?>">
-            <?php if ($it['image_path']): ?><img src="<?= BASE_URL . htmlspecialchars($it['image_path']) ?>" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;margin-bottom:.4rem"><?php endif; ?>
+            <?php if ($it['image_path']): ?><img src="<?= BASE_URL ?>/wishlist/<?= (int)$it['id'] ?>/image" alt="" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;margin-bottom:.4rem"><?php endif; ?>
             <div class="wishlist-card-head">
                 <strong><?= htmlspecialchars($it['title']) ?></strong>
                 <span class="badge-custom"><?= $priorityLabel[$it['priority']] ?? '' ?></span>
