@@ -40,7 +40,7 @@ const Dialog = (() => {
     @keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .dlg-toast.success{background:var(--success,#27ae60)}
     .dlg-toast.error  {background:var(--danger,#e74c3c)}
-    .dlg-toast.info   {background:var(--primary,#4a90d9)}
+    .dlg-toast.info   {background:var(--info,#3fb8e8)}
     @media(max-width:768px){.dlg-overlay{align-items:flex-end;padding:0}.dlg-box{border-radius:var(--radius) var(--radius) 0 0;max-width:100%}}
     `;
     document.head.appendChild(s);

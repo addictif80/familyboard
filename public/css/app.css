@@ -73,6 +73,20 @@
   --font-display: 'Baloo 2', 'Inter', sans-serif;
   --font-body: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  /* Mouvement — paliers figés (artefacts Design System + Mouvement, Phase A) :
+     120ms pour les micro-interactions, 200ms pour les composants, 320ms pour les
+     transitions de page/cascades. Deux courbes seulement : ease-out-soft pour tout ce
+     qui apparaît sans rebond, ease-spring pour tout ce qui réagit à une action directe. */
+  --duration-1: 120ms;
+  --duration-2: 200ms;
+  --duration-3: 320ms;
+  --ease-out-soft: cubic-bezier(.2,.9,.3,1);
+  --ease-spring: cubic-bezier(.3,1.5,.5,1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-1: 1ms; --duration-2: 1ms; --duration-3: 1ms; }
 }
 
 @keyframes fbDrift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
@@ -1265,6 +1279,22 @@ input[type="color"] { height: 38px; cursor: pointer; padding: .2rem; }
 .tag-medium { background: var(--warning-bg); }
 .tag-low { background: var(--success-bg); }
 .empty-state { padding: 2rem; text-align: center; color: var(--text-muted); }
+
+/* ---- Skeleton (états de chargement — artefact Design System, Phase A) ----
+   Remplace le texte "Chargement…" : même dimensions que le contenu réel, pour qu'il
+   n'y ait aucun saut de mise en page quand les vraies données arrivent (Lot 3). */
+.skel { position: relative; overflow: hidden; background: var(--border); border-radius: var(--radius-xs); }
+.skel::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--card-bg) 60%, transparent), transparent);
+  animation: fbShimmer 1.6s ease-in-out infinite;
+}
+@keyframes fbShimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .skel::after { animation: none; opacity: .5; } }
+.skel-text { height: .8rem; margin-bottom: .5rem; }
+.skel-title { height: 1.2rem; width: 60%; margin-bottom: 1rem; }
+.skel-avatar { width: 40px; height: 40px; border-radius: 50%; }
+.skel-card { height: 110px; border-radius: var(--radius); }
 
 /* ---- Chat ---- */
 .chat-container { display: flex; flex-direction: column; height: calc(100vh - var(--topbar-height) - 3rem); }
