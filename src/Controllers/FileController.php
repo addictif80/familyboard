@@ -1,6 +1,7 @@
 <?php
 namespace App\Controllers;
 
+use App\Core\FileStore;
 use App\Core\Session;
 use App\Models\StoredFile;
 
@@ -25,8 +26,8 @@ class FileController extends BaseController
             return;
         }
 
-        $path = BASE_PATH . $row['path'];
-        if (!file_exists($path)) {
+        $path = FileStore::resolveLocalPath(FileStore::ROUTE_PREFIX . $row['id']);
+        if (!$path) {
             http_response_code(404);
             echo 'Introuvable.';
             return;
