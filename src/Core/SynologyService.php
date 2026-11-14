@@ -9,7 +9,7 @@ use App\Models\StorageSettings;
  * (SYNO.Core.Quota) — jamais pour gérer des fichiers, cette appli n'écrit jamais directement
  * sur le NAS, seulement la comptabilité applicative (voir App\Core\FileStore) côté serveur web.
  *
- * Authentification par session DSM (SYNO.API.Auth), comme App\Core\Mailcow pour son API.
+ * Authentification par session DSM (SYNO.API.Auth).
  */
 class SynologyService
 {

@@ -90,7 +90,7 @@
             </div>
         <?php endif; ?>
         <?php if ($msg = ($_GET['msg'] ?? '')): ?>
-            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid','plan_saved_stripe_error','urssaf_send_failed','urssaf_no_admin_email','urssaf_stripe_not_configured']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','mailcow_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted','sub_settings_saved','stripe_saved','plan_saved','plan_deactivated','urssaf_settings_saved','urssaf_sent']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
+            <div class="alert alert-<?= in_array($msg, ['highlight_invalid','link_invalid','link_unreachable','delete_failed','delete_admin_blocked','report_resend_failed','nameday_invalid','roadmap_invalid','plan_saved_stripe_error','urssaf_send_failed','urssaf_no_admin_email','urssaf_stripe_not_configured']) ? 'error' : (in_array($msg, ['blocked','unblocked','user_deleted','report_resent','smtp_saved','email_saved','notification_sent','meteofrance_saved','vaultwarden_saved','2fa_policy_saved','highlight_saved','highlight_deleted','link_saved','link_deleted','nameday_added','roadmap_saved','roadmap_deleted','sub_settings_saved','stripe_saved','plan_saved','plan_deactivated','urssaf_settings_saved','urssaf_sent']) ? 'success' : 'info') ?>" style="margin-bottom:1rem">
                 <?= match($msg) {
                     'blocked'             => 'Utilisateur bloqué.',
                     'unblocked'           => 'Utilisateur débloqué.',
@@ -115,7 +115,6 @@
                     'link_unreachable'    => 'Ce lien n\'a pas pu être vérifié (adresse non autorisée ou site injoignable).',
                     'nameday_added'       => 'Fête ajoutée au calendrier des prénoms.',
                     'nameday_invalid'     => 'Prénom et date requis.',
-                    'mailcow_saved'       => 'Configuration Mailcow enregistrée — alias e-mail synchronisés.',
                     'roadmap_saved'       => 'Idée enregistrée.',
                     'roadmap_deleted'     => 'Idée supprimée.',
                     'roadmap_invalid'     => 'Titre et statut requis.',

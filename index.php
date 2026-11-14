@@ -683,8 +683,6 @@ $router->post('/admin/ollama/test', [AdminController::class, 'testOllamaConnecti
 $router->post('/admin/ai-provider', [AdminController::class, 'updateAiProvider']);
 $router->post('/admin/onemin', [AdminController::class, 'updateOneMinSettings']);
 $router->post('/admin/onemin/test', [AdminController::class, 'testOneMinConnection']);
-$router->post('/admin/mailcow', [AdminController::class, 'updateMailcowSettings']);
-$router->post('/admin/mailcow/test', [AdminController::class, 'testMailcowConnection']);
 $router->post('/admin/subscriptions/settings', [AdminController::class, 'updateSubscriptionSettings']);
 $router->post('/admin/subscriptions/stripe', [AdminController::class, 'updateStripeSettings']);
 $router->post('/admin/referrals/settings', [AdminController::class, 'updateReferralSettings']);

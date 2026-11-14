@@ -104,10 +104,6 @@ class InvitationController extends BaseController
                 // Recharger le compte : $existing contient encore l'ancien family_id/role, or
                 // Session::login() les copie tels quels dans la session.
                 $existing = User::findById((int)$existing['id']);
-                // L'alias mail de l'ancienne famille perd ce membre, celui de la nouvelle le
-                // gagne — les deux doivent être recalculés.
-                \App\Core\Mailcow::syncFamily($previousFamilyId);
-                \App\Core\Mailcow::syncFamily((int)$invitation['family_id']);
             }
             Invitation::markUsed($token);
             Session::login($existing);
@@ -131,8 +127,6 @@ class InvitationController extends BaseController
             }
             // Premier login (le compte vient d'être créé) : active le journal d'activité.
             CustodyActivityLog::activate($userId, $scheduleIds);
-        } else {
-            \App\Core\Mailcow::syncFamily((int)$invitation['family_id']);
         }
         Invitation::markUsed($token);
 

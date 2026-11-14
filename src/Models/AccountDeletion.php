@@ -76,17 +76,14 @@ class AccountDeletion
             \App\Core\FileStore::deleteByRoute($user['avatar']);
         }
 
-        // Désinscription LDAP + backends de quota — synchrone et best-effort (même convention
-        // que Mailcow::syncFamily()), jamais via la file provisioning_jobs : son user_id est en
-        // ON DELETE CASCADE, le job serait supprimé avant d'avoir pu tourner si le compte est
-        // déjà effacé au moment où le cron le traite.
+        // Désinscription LDAP + backends de quota — synchrone et best-effort, jamais via la
+        // file provisioning_jobs : son user_id est en ON DELETE CASCADE, le job serait supprimé
+        // avant d'avoir pu tourner si le compte est déjà effacé au moment où le cron le traite.
         if (!empty($user['ldap_username'])) {
             self::deprovisionStorage($user['ldap_username'], $userId, $familyId);
         }
 
         Database::execute('DELETE FROM users WHERE id=?', [$userId]);
-
-        \App\Core\Mailcow::syncFamily($familyId);
 
         // Doit avoir lieu APRÈS la suppression SQL : le groupe de visibilité (voir
         // NextcloudVisibilityService) est reconstruit depuis la liste actuelle des membres de la
@@ -246,7 +243,6 @@ class AccountDeletion
         // aussi, sans jointure à écrire ici, les pièces jointes de modules à table enfant
         // (litiges, école, coffre, photos de grossesse) dès qu'elles sont passées par FileStore.
         $storedFilePaths = \App\Models\StoredFile::deleteByFamily($familyId);
-        $mailAliasSlug = Database::fetch('SELECT mail_alias_slug FROM families WHERE id=?', [$familyId])['mail_alias_slug'] ?? null;
 
         // Désinscription LDAP + backends de quota de tous les membres — avant la cascade
         // users.family_id ON DELETE CASCADE ci-dessous, qui efface ces comptes sans jamais
@@ -287,8 +283,6 @@ class AccountDeletion
         Database::execute('DELETE FROM family_friends WHERE requester_family_id=? OR target_family_id=?', [$familyId, $familyId]);
 
         Database::execute('DELETE FROM families WHERE id=?', [$familyId]);
-
-        \App\Core\Mailcow::deleteFamilyAlias($mailAliasSlug);
 
         self::deleteFiles(array_merge($filePaths, $storedFilePaths));
         self::removeDirRecursive(BASE_PATH . '/storage/documents/' . $familyId);

@@ -6,7 +6,7 @@ use App\Core\Crypto;
 /**
  * Configuration globale LDAP/Synology/Nextcloud pour le provisioning du stockage perso —
  * renseignée une seule fois par l'administrateur système, jamais par un membre de famille.
- * Contrairement à MailcowSettings/VaultwardenSettings (clés stockées en clair en base), les
+ * Contrairement à VaultwardenSettings (clés stockées en clair en base), les
  * mots de passe sont chiffrés via App\Core\Crypto avant écriture : exigence explicite de la
  * mission stockage ("jamais en clair en base ni dans les logs").
  *

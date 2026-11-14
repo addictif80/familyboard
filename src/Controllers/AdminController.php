@@ -21,9 +21,7 @@ use App\Models\User;
 use App\Core\EmailLayout;
 use App\Core\Vaultwarden;
 use App\Models\VaultwardenSettings;
-use App\Core\Mailcow;
 use App\Core\StripeGateway;
-use App\Models\MailcowSettings;
 use App\Models\Plan;
 use App\Models\FamilySubscription;
 use App\Models\StorageProduct;
@@ -207,7 +205,6 @@ class AdminController extends BaseController
         $oneMinSettings = \App\Models\OneMinAiSettings::get();
         $aiProvider = \App\Core\AiProvider::get();
         $githubConfigured = \App\Core\GitHubPublisher::isConfigured();
-        $mailcowSettings = MailcowSettings::get();
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
         $customNameDays = NameDay::getCustomEntries();
@@ -877,45 +874,6 @@ class AdminController extends BaseController
         $this->json(fn() => \App\Core\OneMinAi::testConnection());
     }
 
-    // ── Mailcow (alias e-mail <slug-famille>@domaine, redirigé vers les membres) ────
-
-    public function updateMailcowSettings(array $params): void
-    {
-        $this->requireSuperAdmin();
-        $url = trim($_POST['url'] ?? '');
-        $domain = trim($_POST['domain'] ?? '');
-        $newKey = trim($_POST['api_key'] ?? '');
-        // Comme pour Vaultwarden / Météo-France : champ clé vide + keep_existing=1 veut dire
-        // "panneau non ouvert", pas "effacer la clé".
-        if ($newKey === '' && !empty($_POST['keep_existing'])) {
-            $existing = MailcowSettings::get();
-            $newKey = $existing['api_key'] ?? '';
-        }
-
-        $previousDomain = MailcowSettings::get()['domain'] ?? null;
-
-        if ($url && $newKey && $domain) {
-            MailcowSettings::save($url, $newKey, $domain);
-            // Domaine inchangé (ou toute première configuration) : synchronise simplement tous
-            // les alias contre le domaine courant. Domaine changé : supprime en plus les anciens
-            // alias, devenus orphelins, sur l'ex-domaine — c'est exactement ce qui permet de
-            // "basculer" plus tard vers familyboard.fr sans laisser de doublons sur board.abhd.fr.
-            $newDomain = strtolower(trim($domain));
-            Mailcow::resyncAllFamilies($previousDomain && $previousDomain !== $newDomain ? $previousDomain : null);
-        } else {
-            AppSetting::set('mailcow_url', '');
-            AppSetting::set('mailcow_api_key', '');
-            AppSetting::set('mailcow_domain', '');
-        }
-        $this->redirect('/admin?tab=notifications&msg=mailcow_saved');
-    }
-
-    public function testMailcowConnection(array $params): void
-    {
-        $this->requireSuperAdmin();
-        $this->json(fn() => Mailcow::testConnection());
-    }
-
     // ── Abonnements (Stripe Billing) ─────────────────────────────
 
     public function updateSubscriptionSettings(array $params): void
@@ -939,7 +897,7 @@ class AdminController extends BaseController
         $publishable = trim($_POST['stripe_publishable_key'] ?? '');
         $newSecret = trim($_POST['stripe_secret_key'] ?? '');
         $newWebhookSecret = trim($_POST['stripe_webhook_secret'] ?? '');
-        // Comme pour Vaultwarden/Mailcow : champ vide + keep_existing=1 veut dire "panneau non
+        // Comme pour Vaultwarden : champ vide + keep_existing=1 veut dire "panneau non
         // ouvert", pas "effacer la clé".
         if ($newSecret === '' && !empty($_POST['keep_existing_secret'])) {
             $newSecret = AppSetting::get('stripe_secret_key') ?? '';
@@ -1110,7 +1068,7 @@ class AdminController extends BaseController
 
     /** Identifiants LDAP/Synology pour le provisioning (Phase 4) — mots de passe chiffrés via
      *  App\Core\Crypto (StorageSettings::save), jamais en clair en base. Champ mot de passe vide
-     *  = non modifié (même convention que Vaultwarden/Mailcow : panneau non rouvert). */
+     *  = non modifié (même convention que Vaultwarden : panneau non rouvert). */
     public function updateStorageInfraSettings(array $params): void
     {
         $this->requireSuperAdmin();
