@@ -53,7 +53,7 @@ class CozyController extends BaseController
                     return ['success' => false, 'error' => "Création de l'instance Cozy échouée : " . ($created['error'] ?? 'erreur inconnue')];
                 }
 
-                $id = FamilyCozyConnection::createProvisioning($familyId, $cozyDomain);
+                $id = FamilyCozyConnection::createProvisioning($familyId, $cozyDomain, $created['passphrase']);
                 $connection = ['id' => $id, 'cozy_domain' => $cozyDomain, 'client_id' => null];
             }
 
@@ -101,6 +101,24 @@ class CozyController extends BaseController
                 return ['success' => false, 'error' => "Génération du lien de connexion échouée : " . ($link['error'] ?? 'erreur inconnue')];
             }
             return ['success' => true, 'login_url' => $link['login_url']];
+        });
+    }
+
+    /** "Afficher le mot de passe de mon espace Cozy" — nécessaire pour se connecter dans
+     *  l'application mobile Twake, que certains Konnectors (EDF...) exigent pour se configurer
+     *  (la connexion par lien magique ne couvre que le web, voir openInstance()). */
+    public function showPassphrase(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            if ($user['role'] !== 'admin') return ['success' => false, 'error' => 'Réservé à un administrateur de famille.'];
+
+            $connection = FamilyCozyConnection::findByFamily((int)$user['family_id']);
+            if (!$connection || !$connection['instance_passphrase']) {
+                return ['success' => false, 'error' => 'Mot de passe introuvable.'];
+            }
+            return ['success' => true, 'passphrase' => $connection['instance_passphrase'], 'domain' => $connection['cozy_domain']];
         });
     }
 

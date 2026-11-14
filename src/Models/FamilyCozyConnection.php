@@ -6,10 +6,13 @@ use App\Core\Database;
 
 /**
  * Connexion Cozy Cloud d'une famille (une instance par famille, voir App\Core\CozyProvisioner) —
- * access_token chiffré via App\Core\Crypto, jamais en clair en base (même exigence que les mots
- * de passe LDAP/Synology, voir StorageSettings). client_secret/refresh_token ne sont pas
- * utilisés : le jeton est généré directement côté serveur (cozy-stack instances token-oauth,
- * voir CozyProvisioner::mintToken()), jamais via le parcours OAuth navigateur habituel.
+ * access_token/instance_passphrase chiffrés via App\Core\Crypto, jamais en clair en base (même
+ * exigence que les mots de passe LDAP/Synology, voir StorageSettings). client_secret/
+ * refresh_token ne sont pas utilisés : le jeton est généré directement côté serveur (cozy-stack
+ * instances token-oauth, voir CozyProvisioner::mintToken()), jamais via le parcours OAuth
+ * navigateur habituel. instance_passphrase est le mot de passe aléatoire généré à la création —
+ * nécessaire pour l'application mobile Twake, que certains Konnectors (EDF...) exigent pour se
+ * configurer (la connexion par lien magique ne couvre que le web).
  */
 class FamilyCozyConnection
 {
@@ -31,6 +34,7 @@ class FamilyCozyConnection
     private static function decorate(array $row): array
     {
         $row['access_token'] = $row['access_token'] ? Crypto::decrypt($row['access_token']) : null;
+        $row['instance_passphrase'] = $row['instance_passphrase'] ? Crypto::decrypt($row['instance_passphrase']) : null;
         return $row;
     }
 
@@ -60,11 +64,11 @@ class FamilyCozyConnection
         return $slug . '.' . $suffix;
     }
 
-    public static function createProvisioning(int $familyId, string $cozyDomain): int
+    public static function createProvisioning(int $familyId, string $cozyDomain, string $instancePassphrase): int
     {
         return Database::insert(
-            "INSERT INTO family_cozy_connections (family_id, cozy_domain, status) VALUES (?, ?, 'provisioning')",
-            [$familyId, $cozyDomain]
+            "INSERT INTO family_cozy_connections (family_id, cozy_domain, instance_passphrase, status) VALUES (?, ?, ?, 'provisioning')",
+            [$familyId, $cozyDomain, Crypto::encrypt($instancePassphrase)]
         );
     }
 

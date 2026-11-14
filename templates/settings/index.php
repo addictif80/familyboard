@@ -525,8 +525,14 @@ ob_start();
                 </p>
                 <div style="display:flex;gap:.5rem;flex-wrap:wrap">
                     <button type="button" class="btn btn-secondary btn-sm" onclick="openCozy()">Ouvrir mon espace Cozy (configurer un Konnector)</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="showCozyPassphrase()">Mot de passe pour l'appli mobile Twake</button>
                     <button type="button" class="btn btn-danger btn-sm" onclick="disconnectCozy()">Déconnecter</button>
                 </div>
+                <p style="color:var(--text-muted);font-size:.8rem;margin:0">
+                    Certains Konnectors (ex. EDF) ne peuvent être configurés que depuis l'application
+                    mobile Twake — le lien ci-dessus "Ouvrir mon espace Cozy" ne fonctionne que dans un
+                    navigateur. Utilisez le mot de passe pour vous connecter dans l'appli mobile.
+                </p>
             <?php else: ?>
                 <?php if ($cozyConnection && $cozyConnection['last_error']): ?>
                     <p style="color:var(--danger);font-size:.85rem;margin:0">
@@ -569,6 +575,17 @@ ob_start();
                 const data = await res.json();
                 if (data.success) window.open(data.login_url, '_blank');
                 else alert(data.error || "Échec de l'ouverture.");
+            } catch {
+                alert('Erreur réseau.');
+            }
+        }
+
+        async function showCozyPassphrase() {
+            try {
+                const res = await fetch(BASE_URL + '/cozy/passphrase', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                const data = await res.json();
+                if (data.success) alert('Mot de passe pour l\'appli mobile Twake :\n\n' + data.passphrase + '\n\nAdresse à saisir dans l\'appli : ' + data.domain);
+                else alert(data.error || "Échec de la récupération.");
             } catch {
                 alert('Erreur réseau.');
             }

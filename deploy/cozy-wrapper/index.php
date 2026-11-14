@@ -96,10 +96,11 @@ if ($path === '/create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // Sans --passphrase, la commande attend un mot de passe sur l'entrée standard via un ioctl
     // de terminal — impossible à satisfaire depuis un script (constaté en conditions réelles,
     // même avec stdin explicitement fermé : la bibliothèque utilisée exige un vrai TTY, pas
-    // seulement une entrée vide). On fournit donc un mot de passe aléatoire jetable, jamais
-    // montré ni stocké nulle part, et --magic_link pour que la famille puisse se connecter sans
-    // jamais avoir à le connaître (lien de connexion envoyé par e-mail à sa première visite).
-    $throwawayPassphrase = bin2hex(random_bytes(16));
+    // seulement une entrée vide). On fournit donc un mot de passe aléatoire généré ici,
+    // renvoyé à FamilyBoard qui le stocke chiffré : certains Konnectors (EDF...) ne peuvent être
+    // configurés que depuis l'application mobile Twake, qui l'exige pour s'y connecter (la
+    // connexion par lien magique ne couvre que le web) — voir CozyController::showPassphrase().
+    $passphrase = bin2hex(random_bytes(16));
     // --apps : sans ça, aucune application n'est installée — le lien magique (qui redirige vers
     // l'appli "home") échouerait avec "L'application n'existe pas" (constaté en conditions
     // réelles). "home" héberge la gestion des Konnectors (factures) ; "store" permet d'en
@@ -112,14 +113,14 @@ if ($path === '/create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $diskQuota = getenv('COZY_DISK_QUOTA') ?: '500M';
     $command = escapeshellarg($cozyStackBin) . ' instances add '
         . escapeshellarg($domain) . ' --email ' . escapeshellarg($email)
-        . ' --passphrase ' . escapeshellarg($throwawayPassphrase) . ' --magic_link'
+        . ' --passphrase ' . escapeshellarg($passphrase) . ' --magic_link'
         . ' --disk-quota ' . escapeshellarg($diskQuota)
         . ' --apps home,store,settings --locale fr --tz Europe/Paris 2>&1';
     [$code, $output] = runCommand($command);
     if ($code !== 0) {
         respond(500, ['error' => "Échec de la création de l'instance : " . trim($output)]);
     }
-    respond(200, ['domain' => $domain, 'raw' => $output]);
+    respond(200, ['domain' => $domain, 'passphrase' => $passphrase, 'raw' => $output]);
 }
 
 if ($path === '/token' && $_SERVER['REQUEST_METHOD'] === 'POST') {
