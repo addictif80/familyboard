@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\Contact;
+use App\Models\Custody;
 use App\Models\NameDay;
 
 class ContactController extends BaseController
@@ -18,6 +19,8 @@ class ContactController extends BaseController
             $c['name_day'] = NameDay::forName($c['first_name']);
         }
         unset($c);
+        // Pour la case "Partager avec le co-parent".
+        $custodySchedules = Custody::getSchedules((int)$user['family_id']);
         require BASE_PATH . '/templates/contacts/index.php';
     }
 
@@ -29,6 +32,7 @@ class ContactController extends BaseController
             $data = $this->jsonInput();
             if (empty($data['first_name'])) return ['success' => false, 'error' => 'Prénom requis'];
             if (isset($data['color'])) $data['color'] = $this->safeColor($data['color']);
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), (int)$user['family_id']);
             $id = Contact::create($user['family_id'], $user['id'], $data);
             return ['success' => true, 'contact' => Contact::getById($id)];
         });
@@ -45,6 +49,7 @@ class ContactController extends BaseController
             if ($contact['is_system']) return ['success' => false, 'error' => 'Ce contact système ne peut pas être modifié.'];
             $data = $this->jsonInput();
             if (isset($data['color'])) $data['color'] = $this->safeColor($data['color']);
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), (int)$user['family_id']);
             Contact::update($id, $data);
             return ['success' => true, 'contact' => Contact::getById($id)];
         });

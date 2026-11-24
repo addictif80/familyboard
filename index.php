@@ -601,6 +601,7 @@ $router->get('/api/coparent/activity-log', [CoparentController::class, 'activity
 $router->get('/api/coparent/documents', [CoparentController::class, 'documentsList']);
 $router->post('/api/coparent/documents', [CoparentController::class, 'documentsUpload']);
 $router->get('/api/coparent/health', [CoparentController::class, 'healthList']);
+$router->get('/api/coparent/contacts', [CoparentController::class, 'contactsList']);
 $router->get('/api/coparent/events', [CoparentController::class, 'eventsList']);
 $router->post('/api/coparent/events', [CoparentController::class, 'eventsCreate']);
 $router->get('/api/coparent/albums', [CoparentController::class, 'albumsList']);

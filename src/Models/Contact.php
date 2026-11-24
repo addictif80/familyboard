@@ -51,8 +51,8 @@ class Contact
     {
         $color = $data['color'] ?? self::$COLORS[array_rand(self::$COLORS)];
         return Database::insert(
-            'INSERT INTO contacts (family_id, user_id, first_name, last_name, email, phone, phone2, address, birthday, notes, color)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO contacts (family_id, user_id, first_name, last_name, email, phone, phone2, address, birthday, notes, color, custody_schedule_ids)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId, $userId,
                 $data['first_name'],
@@ -64,14 +64,35 @@ class Contact
                 $data['birthday']   ?? null,
                 $data['notes']      ?? null,
                 $color,
+                self::encodeScheduleIds($data),
             ]
+        );
+    }
+
+    /** CSV de schedule_id (comme Document::encodeScheduleIds()), ou NULL si aucun enfant
+     *  sélectionné — rend le contact visible à l'accès co-parent de l'enfant choisi. */
+    private static function encodeScheduleIds(array $data): ?string
+    {
+        $ids = array_values(array_unique(array_map('intval', (array)($data['custody_schedule_ids'] ?? []))));
+        return $ids ? implode(',', $ids) : null;
+    }
+
+    /** Contacts tagués à l'un des plannings de garde donnés (vue co-parent restreint). */
+    public static function getForSchedules(array $scheduleIds): array
+    {
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        if (empty($scheduleIds)) return [];
+        $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, custody_schedule_ids)'));
+        return Database::fetchAll(
+            "SELECT * FROM contacts WHERE $ors ORDER BY last_name, first_name",
+            $scheduleIds
         );
     }
 
     public static function update(int $id, array $data): void
     {
         Database::execute(
-            'UPDATE contacts SET first_name=?, last_name=?, email=?, phone=?, phone2=?, address=?, birthday=?, notes=?, color=? WHERE id=?',
+            'UPDATE contacts SET first_name=?, last_name=?, email=?, phone=?, phone2=?, address=?, birthday=?, notes=?, color=?, custody_schedule_ids=? WHERE id=?',
             [
                 $data['first_name'],
                 $data['last_name']  ?? '',
@@ -82,6 +103,7 @@ class Contact
                 $data['birthday']   ?? null,
                 $data['notes']      ?? null,
                 $data['color']      ?? '#4A90D9',
+                self::encodeScheduleIds($data),
                 $id,
             ]
         );

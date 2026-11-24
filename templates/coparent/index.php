@@ -118,9 +118,13 @@ ob_start();
         </p>
         <div id="cp-health-entries-list"><div class="skel skel-text" aria-hidden="true" style="width:80%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div></div>
     </div>
-    <div class="card" style="padding:1.25rem">
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
         <h3 style="margin-top:0">Médecins</h3>
         <div id="cp-health-doctors-list"><div class="skel skel-text" aria-hidden="true" style="width:70%"></div></div>
+    </div>
+    <div class="card" style="padding:1.25rem">
+        <h3 style="margin-top:0">Contacts</h3>
+        <div id="cp-health-contacts-list"><div class="skel skel-text" aria-hidden="true" style="width:70%"></div></div>
     </div>
 </div>
 

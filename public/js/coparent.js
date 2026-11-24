@@ -480,6 +480,17 @@ async function cpLoadHealth() {
             ${d.address ? `<div style="font-size:.85rem">📍 ${escapeHtml(d.address)}</div>` : ''}
         </div>
     `).join('') : '<p style="color:var(--text-muted);font-size:.85rem">Aucun médecin partagé.</p>';
+
+    const contacts = await apiFetch(`${BASE_URL}/api/coparent/contacts?schedule_id=${cpCurrentScheduleId}`);
+    const contactsList = document.getElementById('cp-health-contacts-list');
+    contactsList.innerHTML = Array.isArray(contacts) && contacts.length ? contacts.map(c => `
+        <div class="cp-doc-item">
+            <strong>${escapeHtml(c.name)}</strong>
+            ${c.phone ? `<div style="font-size:.85rem">📞 ${escapeHtml(c.phone)}</div>` : ''}
+            ${c.email ? `<div style="font-size:.85rem">✉️ ${escapeHtml(c.email)}</div>` : ''}
+            ${c.address ? `<div style="font-size:.85rem">📍 ${escapeHtml(c.address)}</div>` : ''}
+        </div>
+    `).join('') : '<p style="color:var(--text-muted);font-size:.85rem">Aucun contact partagé.</p>';
 }
 
 async function cpUploadDocument() {

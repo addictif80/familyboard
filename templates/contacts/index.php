@@ -62,7 +62,7 @@ ob_start();
                 <?php endif; ?>
             </div>
             <div class="contact-info">
-                <div class="contact-name"><?= htmlspecialchars($fullName) ?></div>
+                <div class="contact-name"><?= htmlspecialchars($fullName) ?> <?php if (!empty($c['custody_schedule_ids'])): ?><span title="Partagé avec le co-parent">🔒</span><?php endif; ?></div>
                 <?php if ($c['phone']): ?>
                     <div class="contact-line">📞 <a href="tel:<?= htmlspecialchars($c['phone']) ?>" onclick="event.stopPropagation()"><?= htmlspecialchars($c['phone']) ?></a></div>
                 <?php endif; ?>
@@ -172,6 +172,23 @@ ob_start();
                 <label>Notes</label>
                 <textarea id="ce-notes" rows="2" placeholder="Informations complémentaires…"></textarea>
             </div>
+            <?php if (!empty($custodySchedules)): ?>
+            <div class="form-group">
+                <label class="radio-option" style="border:none;padding:0">
+                    <input type="checkbox" id="ce-custody-toggle" onchange="document.getElementById('ce-custody-select-wrap').style.display = this.checked ? '' : 'none'">
+                    <span>Garde alternée</span>
+                </label>
+                <div id="ce-custody-select-wrap" style="display:none;margin-top:.4rem">
+                    <?php foreach ($custodySchedules as $cs): ?>
+                        <label class="radio-option">
+                            <input type="checkbox" class="ce-custody-child-cb" value="<?= (int)$cs['id'] ?>">
+                            <span><?= htmlspecialchars($cs['child_name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                    <small class="form-hint">Ce contact sera visible par le(s) co-parent(s) à accès restreint des enfants sélectionnés.</small>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('contact-edit-modal')">Annuler</button>

@@ -9,6 +9,7 @@ use App\Models\AlbumPhoto;
 use App\Models\Custody;
 use App\Models\CustodyActivityLog;
 use App\Models\CommLogMessage;
+use App\Models\Contact;
 use App\Models\Document;
 use App\Models\Event;
 use App\Models\Family;
@@ -339,6 +340,27 @@ class CoparentController extends BaseController
                 'notes'                     => $d['notes'],
             ], Health::getDoctorsForSchedules([$scheduleId]));
             return ['entries' => $entries, 'doctors' => $doctors];
+        });
+    }
+
+    /** Contacts (médecin, professionnel de santé...) explicitement partagés pour ce planning —
+     *  lecture seule, même principe que healthList(). */
+    public function contactsList(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            $scheduleId = (int)($_GET['schedule_id'] ?? 0);
+            if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) return [];
+            return array_map(fn($c) => [
+                'id'        => (int)$c['id'],
+                'name'      => trim($c['first_name'] . ' ' . $c['last_name']),
+                'phone'     => $c['phone'],
+                'phone2'    => $c['phone2'],
+                'email'     => $c['email'],
+                'address'   => $c['address'],
+                'notes'     => $c['notes'],
+            ], Contact::getForSchedules([$scheduleId]));
         });
     }
 
