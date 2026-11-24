@@ -271,6 +271,25 @@ class NextcloudFileClient
         return $items;
     }
 
+    /** Crée un dossier (MKCOL, idempotent — 405 = déjà existant, pas une erreur) à la racine du
+     *  Group Folder, avec ses dossiers intermédiaires le cas échéant. Pour un dossier qui doit
+     *  exister AVANT toute écriture de fichier (ex. "a-rattacher", jamais écrit par FamilyBoard
+     *  lui-même — voir NextcloudInboxSync) : les dossiers de module (documents, garanties...)
+     *  n'ont pas besoin de ceci, créés à la volée par putFile(). */
+    public static function createFolder(string $mountPoint, string $remotePath): bool
+    {
+        $base = self::baseUrl($mountPoint);
+        if (!$base) return false;
+        $segments = array_map('rawurlencode', explode('/', trim($remotePath, '/')));
+        $path = '';
+        foreach ($segments as $segment) {
+            $path .= $segment . '/';
+            $r = self::request('MKCOL', $base . $path);
+            if (!$r['ok'] && $r['status'] !== 405) return false;
+        }
+        return true;
+    }
+
     public static function testConnection(string $mountPoint): array
     {
         $base = self::baseUrl($mountPoint);
