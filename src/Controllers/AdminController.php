@@ -874,6 +874,20 @@ class AdminController extends BaseController
         $this->json(fn() => \App\Core\OneMinAi::testConnection());
     }
 
+    // ── Mise à jour (git pull) ────────────────────────────────────
+
+    public function platformUpdateStatus(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\GitUpdater::status());
+    }
+
+    public function platformUpdate(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\GitUpdater::pull());
+    }
+
     // ── Abonnements (Stripe Billing) ─────────────────────────────
 
     public function updateSubscriptionSettings(array $params): void

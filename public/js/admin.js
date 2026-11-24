@@ -116,6 +116,53 @@ async function testGithub() {
     }
 }
 
+async function checkPlatformUpdate() {
+    const box = document.getElementById('platform-update-result');
+    const btn = document.getElementById('platform-update-btn');
+    btn.style.display = 'none';
+    box.innerHTML = '<p style="color:var(--text-muted)">⏳ Vérification en cours…</p>';
+    try {
+        const res = await fetch(BASE_URL + '/admin/platform/update-status', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await res.json();
+        if (data.fetch_error) {
+            box.innerHTML = '<p style="color:var(--danger)">❌ Impossible de contacter le dépôt distant : ' + escapeHtml(data.fetch_error) + '</p>';
+            return;
+        }
+        let html = '<p style="font-size:.85rem;color:var(--text-muted)">Branche <code>' + escapeHtml(data.branch || '?') + '</code> — ' + escapeHtml(data.commit || '?') + '</p>';
+        if (data.dirty) {
+            html += '<p style="color:var(--danger)">⚠️ Des modifications non commitées existent sur le serveur — la mise à jour sera refusée tant qu\'elles ne sont pas résolues.</p>';
+        } else if (data.behind > 0) {
+            html += '<p style="color:var(--warn,#b45309)">🔄 ' + data.behind + ' commit(s) en attente.</p>';
+            btn.style.display = '';
+        } else {
+            html += '<p style="color:var(--success)">✅ À jour.</p>';
+        }
+        box.innerHTML = html;
+    } catch {
+        box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
+    }
+}
+
+async function applyPlatformUpdate() {
+    if (!confirm('Mettre à jour le serveur maintenant (git pull) ? La page va potentiellement afficher du code différent après coup — relancez un test après coup.')) return;
+    const box = document.getElementById('platform-update-result');
+    const btn = document.getElementById('platform-update-btn');
+    btn.disabled = true;
+    box.innerHTML = '<p style="color:var(--text-muted)">⏳ Mise à jour en cours… (peut prendre jusqu\'à une minute si composer doit réinstaller des dépendances)</p>';
+    try {
+        const res = await fetch(BASE_URL + '/admin/platform/update', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await res.json();
+        box.innerHTML = (data.success
+            ? '<p style="color:var(--success)">✅ Mise à jour appliquée.</p>'
+            : '<p style="color:var(--danger)">❌ Échec de la mise à jour.</p>')
+            + '<pre style="white-space:pre-wrap;background:var(--bg-alt,#1e1e1e);color:#ddd;padding:.75rem;border-radius:6px;font-size:.78rem;max-height:300px;overflow:auto">' + escapeHtml(data.output || '') + '</pre>';
+    } catch {
+        box.innerHTML = '<p style="color:var(--danger)">Erreur réseau.</p>';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 async function testStorageConnection(kind) {
     const box = document.getElementById('storage-' + kind + '-test-result');
     box.innerHTML = '<p style="color:var(--text-muted)">⏳ Test en cours…</p>';
