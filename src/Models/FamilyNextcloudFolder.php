@@ -13,6 +13,13 @@ class FamilyNextcloudFolder
         return Database::fetch('SELECT * FROM family_nextcloud_folders WHERE family_id = ?', [$familyId]);
     }
 
+    /** Toutes les familles provisionnées — pour un job périodique qui doit les parcourir
+     *  (voir NextcloudInboxSync). */
+    public static function getAll(): array
+    {
+        return Database::fetchAll('SELECT * FROM family_nextcloud_folders');
+    }
+
     public static function create(int $familyId, string $group, int $groupFolderId, string $mountPoint): void
     {
         Database::execute(

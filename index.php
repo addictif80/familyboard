@@ -49,6 +49,7 @@ use App\Controllers\PollController;
 use App\Controllers\PortalLinkController;
 use App\Controllers\HighlightController;
 use App\Controllers\AdminController;
+use App\Controllers\NextcloudInboxController;
 use App\Controllers\SupportController;
 use App\Controllers\WarrantyController;
 use App\Controllers\MedicalTreatmentController;
@@ -746,6 +747,9 @@ $router->post('/admin/roadmap/:id', [AdminController::class, 'updateRoadmapItem'
 $router->post('/admin/roadmap/:id/delete', [AdminController::class, 'deleteRoadmapItem']);
 
 // Support (user-facing)
+$router->get('/nextcloud-inbox', [NextcloudInboxController::class, 'index']);
+$router->post('/api/nextcloud-inbox/attach', [NextcloudInboxController::class, 'attach']);
+$router->post('/api/nextcloud-inbox/:id/dismiss', [NextcloudInboxController::class, 'dismiss']);
 $router->get('/support', [SupportController::class, 'index']);
 $router->post('/support', [SupportController::class, 'create']);
 $router->get('/support/:id', [SupportController::class, 'show']);

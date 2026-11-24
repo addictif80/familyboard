@@ -192,6 +192,19 @@ try {
     error_log('Nextcloud calendar sync error: ' . $e->getMessage());
 }
 
+// Détection des fichiers déposés directement dans Nextcloud, hors FamilyBoard (voir
+// App\Core\NextcloudInboxSync) — throttlée (toutes les 3 min, plus serré que les autres synchros
+// Nextcloud car c'est ce qui se rapproche le plus d'un délai "instantané" sans webhook).
+try {
+    $lastInboxSync = AppSetting::get('nextcloud_inbox_sync_last_run');
+    if (!$lastInboxSync || strtotime($lastInboxSync) <= time() - 3 * 60) {
+        \App\Core\NextcloudInboxSync::syncAllFamilies();
+        AppSetting::set('nextcloud_inbox_sync_last_run', date('Y-m-d H:i:s'));
+    }
+} catch (\Throwable $e) {
+    error_log('Nextcloud inbox sync error: ' . $e->getMessage());
+}
+
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;
 
 // ──────────────────────────────────────────────────────────────────────────

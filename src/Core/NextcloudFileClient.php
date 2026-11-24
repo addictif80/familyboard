@@ -214,6 +214,63 @@ class NextcloudFileClient
         return $r['ok'] || $r['status'] === 404;
     }
 
+    /**
+     * Liste le contenu d'un dossier (PROPFIND Depth:1) — uniquement les fichiers (les
+     * sous-dossiers sont ignorés), avec propriétaire Nextcloud et identifiant stable : pour
+     * détecter les fichiers déposés directement depuis Nextcloud (voir NextcloudInboxSync), pas
+     * pour un usage général (pas de pagination, inadapté à un dossier avec des milliers
+     * d'entrées).
+     * @return array<int, array{name:string, path:string, owner:?string, file_id:?string, etag:?string, size:int, last_modified:?string}>|null null si erreur (dossier absent = tableau vide, pas null)
+     */
+    public static function listFolder(string $mountPoint, string $remotePath): ?array
+    {
+        $base = self::baseUrl($mountPoint);
+        if (!$base) return null;
+        $url = $base . implode('/', array_map('rawurlencode', explode('/', trim($remotePath, '/')))) . '/';
+
+        $body = '<?xml version="1.0"?>
+<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
+  <d:prop>
+    <d:resourcetype/>
+    <d:getetag/>
+    <d:getlastmodified/>
+    <d:getcontentlength/>
+    <oc:owner-id/>
+    <oc:fileid/>
+  </d:prop>
+</d:propfind>';
+        $r = self::request('PROPFIND', $url, $body, ['Depth: 1', 'Content-Type: application/xml']);
+        if ($r['status'] === 404) return [];
+        if (!$r['ok']) return null;
+
+        $dom = new \DOMDocument();
+        if ($r['body'] === '' || !@$dom->loadXML($r['body'])) return null;
+        $xpath = new \DOMXPath($dom);
+        $xpath->registerNamespace('d', 'DAV:');
+        $xpath->registerNamespace('oc', 'http://owncloud.org/ns');
+
+        $folder = trim($remotePath, '/');
+        $items = [];
+        foreach ($xpath->query('//d:response') as $response) {
+            if ($xpath->query('.//d:resourcetype/d:collection', $response)->length > 0) continue; // sous-dossier, ignoré
+
+            $href = rawurldecode((string)$xpath->evaluate('string(d:href)', $response));
+            $name = basename(rtrim($href, '/'));
+            if ($name === '') continue;
+
+            $items[] = [
+                'name'          => $name,
+                'path'          => $folder . '/' . $name,
+                'owner'         => (string)$xpath->evaluate('string(.//oc:owner-id)', $response) ?: null,
+                'file_id'       => (string)$xpath->evaluate('string(.//oc:fileid)', $response) ?: null,
+                'etag'          => trim((string)$xpath->evaluate('string(.//d:getetag)', $response), '"') ?: null,
+                'size'          => (int)$xpath->evaluate('string(.//d:getcontentlength)', $response),
+                'last_modified' => (string)$xpath->evaluate('string(.//d:getlastmodified)', $response) ?: null,
+            ];
+        }
+        return $items;
+    }
+
     public static function testConnection(string $mountPoint): array
     {
         $base = self::baseUrl($mountPoint);
