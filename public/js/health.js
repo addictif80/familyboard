@@ -69,6 +69,10 @@ async function addHealthEntry() {
         entry_date: document.getElementById('entry-date').value,
         reminder_date: document.getElementById('entry-reminder').value,
     };
+    const entryCustodyToggle = document.getElementById('entry-custody-toggle');
+    if (entryCustodyToggle && entryCustodyToggle.checked) {
+        payload.custody_schedule_ids = Array.from(document.querySelectorAll('.entry-custody-child-cb:checked')).map(cb => parseInt(cb.value, 10));
+    }
     const r = await apiFetch(`${BASE_URL}/api/health/entries`, { method: 'POST', body: JSON.stringify(payload) });
     if (r.success) window.location.reload();
     else Dialog.toast(r.error || 'Erreur.', 'error');
@@ -119,6 +123,12 @@ function openNewDoctorModal() {
     document.getElementById('doctor-next-appointment').value = '';
     document.getElementById('doctor-renewal').value = '';
     document.getElementById('doctor-notes').value = '';
+    const custodyToggle = document.getElementById('doctor-custody-toggle');
+    if (custodyToggle) {
+        custodyToggle.checked = false;
+        document.getElementById('doctor-custody-select-wrap').style.display = 'none';
+        document.querySelectorAll('.doctor-custody-child-cb').forEach(cb => { cb.checked = false; });
+    }
     openModal('doctor-modal');
 }
 
@@ -133,6 +143,15 @@ function openEditDoctorModal(doc) {
     document.getElementById('doctor-next-appointment').value = doc.next_appointment || '';
     document.getElementById('doctor-renewal').value = doc.prescription_renewal_date || '';
     document.getElementById('doctor-notes').value = doc.notes || '';
+    const custodyToggle = document.getElementById('doctor-custody-toggle');
+    if (custodyToggle) {
+        const csIds = (doc.custody_schedule_ids || '').toString().split(',').filter(Boolean).map(Number);
+        custodyToggle.checked = csIds.length > 0;
+        document.getElementById('doctor-custody-select-wrap').style.display = csIds.length ? '' : 'none';
+        document.querySelectorAll('.doctor-custody-child-cb').forEach(cb => {
+            cb.checked = csIds.includes(parseInt(cb.value, 10));
+        });
+    }
     openModal('doctor-modal');
 }
 
@@ -151,6 +170,10 @@ async function saveDoctor() {
         prescription_renewal_date: document.getElementById('doctor-renewal').value,
         notes: document.getElementById('doctor-notes').value,
     };
+    const doctorCustodyToggle = document.getElementById('doctor-custody-toggle');
+    if (doctorCustodyToggle && doctorCustodyToggle.checked) {
+        payload.custody_schedule_ids = Array.from(document.querySelectorAll('.doctor-custody-child-cb:checked')).map(cb => parseInt(cb.value, 10));
+    }
     const id = document.getElementById('doctor-id').value;
     const url = id ? `${BASE_URL}/api/health/doctors/${id}` : `${BASE_URL}/api/health/doctors`;
     const r = await apiFetch(url, { method: 'POST', body: JSON.stringify(payload) });

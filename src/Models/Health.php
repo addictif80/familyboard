@@ -49,14 +49,35 @@ class Health
     public static function addEntry(int $familyId, int $userId, array $d): int
     {
         return Database::insert(
-            'INSERT INTO health_entries (family_id, subject_type, subject_id, entry_type, title, description, entry_date, reminder_date, created_by) VALUES (?,?,?,?,?,?,?,?,?)',
-            [$familyId, $d['subject_type'], $d['subject_id'], $d['entry_type'], $d['title'], $d['description'], $d['entry_date'], $d['reminder_date'], $userId]
+            'INSERT INTO health_entries (family_id, subject_type, subject_id, entry_type, title, description, entry_date, reminder_date, created_by, custody_schedule_ids) VALUES (?,?,?,?,?,?,?,?,?,?)',
+            [$familyId, $d['subject_type'], $d['subject_id'], $d['entry_type'], $d['title'], $d['description'], $d['entry_date'], $d['reminder_date'], $userId, self::encodeScheduleIds($d)]
         );
     }
 
     public static function deleteEntry(int $id, int $familyId): void
     {
         Database::execute('DELETE FROM health_entries WHERE id=? AND family_id=?', [$id, $familyId]);
+    }
+
+    /** CSV de schedule_id (comme Document::encodeScheduleIds()), ou NULL si aucun enfant
+     *  sélectionné — rend la fiche visible à l'accès co-parent de l'enfant choisi. */
+    private static function encodeScheduleIds(array $d): ?string
+    {
+        $ids = array_values(array_unique(array_map('intval', (array)($d['custody_schedule_ids'] ?? []))));
+        return $ids ? implode(',', $ids) : null;
+    }
+
+    /** Entrées du carnet de santé taguées à l'un des plannings de garde donnés (vue co-parent
+     *  restreint) — voir Document::getForSchedules(), même principe. */
+    public static function getEntriesForSchedules(array $scheduleIds): array
+    {
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        if (empty($scheduleIds)) return [];
+        $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, custody_schedule_ids)'));
+        return Database::fetchAll(
+            "SELECT * FROM health_entries WHERE $ors ORDER BY entry_date DESC, id DESC",
+            $scheduleIds
+        );
     }
 
     // ── Croissance ───────────────────────────────────────────────
@@ -99,21 +120,34 @@ class Health
     public static function addDoctor(int $familyId, int $userId, array $d): int
     {
         return Database::insert(
-            'INSERT INTO health_doctors (family_id, subject_type, subject_id, name, specialty, phone, address, next_appointment, prescription_renewal_date, notes, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-            [$familyId, $d['subject_type'], $d['subject_id'], $d['name'], $d['specialty'], $d['phone'], $d['address'], $d['next_appointment'], $d['prescription_renewal_date'], $d['notes'], $userId]
+            'INSERT INTO health_doctors (family_id, subject_type, subject_id, name, specialty, phone, address, next_appointment, prescription_renewal_date, notes, created_by, custody_schedule_ids) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+            [$familyId, $d['subject_type'], $d['subject_id'], $d['name'], $d['specialty'], $d['phone'], $d['address'], $d['next_appointment'], $d['prescription_renewal_date'], $d['notes'], $userId, self::encodeScheduleIds($d)]
         );
     }
 
     public static function updateDoctor(int $id, int $familyId, array $d): void
     {
         Database::execute(
-            'UPDATE health_doctors SET subject_type=?, subject_id=?, name=?, specialty=?, phone=?, address=?, next_appointment=?, prescription_renewal_date=?, notes=? WHERE id=? AND family_id=?',
-            [$d['subject_type'], $d['subject_id'], $d['name'], $d['specialty'], $d['phone'], $d['address'], $d['next_appointment'], $d['prescription_renewal_date'], $d['notes'], $id, $familyId]
+            'UPDATE health_doctors SET subject_type=?, subject_id=?, name=?, specialty=?, phone=?, address=?, next_appointment=?, prescription_renewal_date=?, notes=?, custody_schedule_ids=? WHERE id=? AND family_id=?',
+            [$d['subject_type'], $d['subject_id'], $d['name'], $d['specialty'], $d['phone'], $d['address'], $d['next_appointment'], $d['prescription_renewal_date'], $d['notes'], self::encodeScheduleIds($d), $id, $familyId]
         );
     }
 
     public static function deleteDoctor(int $id, int $familyId): void
     {
         Database::execute('DELETE FROM health_doctors WHERE id=? AND family_id=?', [$id, $familyId]);
+    }
+
+    /** Médecins/professionnels de santé tagués à l'un des plannings de garde donnés (vue
+     *  co-parent restreint). */
+    public static function getDoctorsForSchedules(array $scheduleIds): array
+    {
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        if (empty($scheduleIds)) return [];
+        $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, custody_schedule_ids)'));
+        return Database::fetchAll(
+            "SELECT * FROM health_doctors WHERE $ors ORDER BY name",
+            $scheduleIds
+        );
     }
 }

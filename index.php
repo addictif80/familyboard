@@ -600,6 +600,7 @@ $router->get('/api/coparent/journal/:id/audio', [CoparentController::class, 'jou
 $router->get('/api/coparent/activity-log', [CoparentController::class, 'activityLog']);
 $router->get('/api/coparent/documents', [CoparentController::class, 'documentsList']);
 $router->post('/api/coparent/documents', [CoparentController::class, 'documentsUpload']);
+$router->get('/api/coparent/health', [CoparentController::class, 'healthList']);
 $router->get('/api/coparent/events', [CoparentController::class, 'eventsList']);
 $router->post('/api/coparent/events', [CoparentController::class, 'eventsCreate']);
 $router->get('/api/coparent/albums', [CoparentController::class, 'albumsList']);

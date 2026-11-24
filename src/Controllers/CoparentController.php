@@ -12,6 +12,7 @@ use App\Models\CommLogMessage;
 use App\Models\Document;
 use App\Models\Event;
 use App\Models\Family;
+use App\Models\Health;
 use App\Models\Notification;
 use App\Models\PortalLink;
 use App\Models\User;
@@ -301,6 +302,43 @@ class CoparentController extends BaseController
             $scheduleId = (int)($_GET['schedule_id'] ?? 0);
             if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) return [];
             return Document::getForSchedules([$scheduleId]);
+        });
+    }
+
+    /** Carnet de santé (entrées) + carnet médical (médecins), lecture seule — uniquement les
+     *  fiches explicitement partagées pour ce planning (case "Garde alternée", voir
+     *  HealthController). Jamais celles d'un autre enfant/membre de la famille. */
+    public function healthList(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            $scheduleId = (int)($_GET['schedule_id'] ?? 0);
+            if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) return ['entries' => [], 'doctors' => []];
+            $entries = array_map(function ($e) {
+                $type = Health::ENTRY_TYPES[$e['entry_type']] ?? ['icon' => '🏥', 'label' => $e['entry_type']];
+                return [
+                    'id'            => (int)$e['id'],
+                    'entry_type'    => $e['entry_type'],
+                    'type_icon'     => $type['icon'],
+                    'type_label'    => $type['label'],
+                    'title'         => $e['title'],
+                    'description'   => $e['description'],
+                    'entry_date'    => $e['entry_date'],
+                    'reminder_date' => $e['reminder_date'],
+                ];
+            }, Health::getEntriesForSchedules([$scheduleId]));
+            $doctors = array_map(fn($d) => [
+                'id'                        => (int)$d['id'],
+                'name'                      => $d['name'],
+                'specialty'                 => $d['specialty'],
+                'phone'                     => $d['phone'],
+                'address'                   => $d['address'],
+                'next_appointment'          => $d['next_appointment'],
+                'prescription_renewal_date' => $d['prescription_renewal_date'],
+                'notes'                     => $d['notes'],
+            ], Health::getDoctorsForSchedules([$scheduleId]));
+            return ['entries' => $entries, 'doctors' => $doctors];
         });
     }
 
