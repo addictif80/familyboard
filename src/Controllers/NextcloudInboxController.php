@@ -125,7 +125,10 @@ class NextcloudInboxController extends BaseController
         $title = trim((string)($data['title'] ?? '')) ?: ($file['name'] ?? 'Document');
         switch ($module) {
             case 'documents':
-                return Document::create($familyId, $userId, ['title' => $title, 'doc_type' => 'auto'], $file);
+                // 'ncinbox_pending' plutôt que 'auto' : un import brut doit rester repérable comme
+                // "à trier" tant que personne n'a confirmé/reclassé son vrai type — jamais deviné
+                // par l'OCR (voir OcrHelper::$types, keywords volontairement vide pour ce type).
+                return Document::create($familyId, $userId, ['title' => $title, 'doc_type' => 'ncinbox_pending'], $file);
 
             case 'warranties':
                 return Warranty::create($familyId, $userId, ['title' => $title], $file);
