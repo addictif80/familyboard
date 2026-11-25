@@ -43,7 +43,10 @@ class GitUpdater
     {
         $branch = trim(self::run('git rev-parse --abbrev-ref HEAD')['output']);
         $commit = trim(self::run("git log -1 --format='%h %s (%cr)'")['output']);
-        $dirty = trim(self::run('git status --porcelain')['output']) !== '';
+        // --untracked-files=no : un fichier non suivi (cache runtime, binaire local...) ne sera
+        // jamais écrasé par un `git pull --ff-only` — seules les modifications sur des fichiers
+        // DÉJÀ suivis par git représentent un risque de perte et doivent bloquer la mise à jour.
+        $dirty = trim(self::run('git status --porcelain --untracked-files=no')['output']) !== '';
 
         $behind = null;
         $fetchError = null;
