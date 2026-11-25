@@ -2,6 +2,7 @@
 namespace App\Core;
 
 use App\Models\AppSetting;
+use App\Models\Notification;
 use App\Models\PushSubscription;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\VAPID;
@@ -42,10 +43,14 @@ class Push
             ],
         ]);
 
+        // 'unread' alimente le badge natif de l'app (Badging API, voir sw.js) — compté ici,
+        // après l'insertion de cette notification (Notification::create() appelle sendToUser()
+        // une fois la ligne déjà en base), donc déjà à jour avec elle incluse.
         $payload = json_encode([
-            'title' => $title,
-            'body'  => $message,
-            'url'   => $link ?: '/',
+            'title'  => $title,
+            'body'   => $message,
+            'url'    => $link ?: '/',
+            'unread' => Notification::getUnreadCount($userId),
         ]);
 
         foreach ($subs as $sub) {
