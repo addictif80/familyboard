@@ -165,6 +165,10 @@ class AdminController extends BaseController
         $this->requireSuperAdmin();
         $tab = $_GET['tab'] ?? 'dashboard';
 
+        // Calculé sur chaque page admin (pas juste l'onglet Stockage) : un job bloqué doit être
+        // visible dès l'arrivée sur /admin, pas seulement si l'admin pense à aller le chercher.
+        $provisioningPermanentlyFailed = \App\Models\ProvisioningJob::countPermanentlyFailed();
+
         $stats = [
             'families'       => (int)(Database::fetch('SELECT COUNT(*) c FROM families')['c'] ?? 0),
             'families_month' => (int)(Database::fetch("SELECT COUNT(*) c FROM families WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')")['c'] ?? 0),

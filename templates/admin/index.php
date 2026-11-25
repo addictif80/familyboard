@@ -83,6 +83,13 @@
 
     <!-- Content -->
     <main class="admin-content">
+        <?php if ($provisioningPermanentlyFailed > 0): ?>
+            <div class="alert alert-error" style="margin-bottom:1rem">
+                ⚠️ <?= $provisioningPermanentlyFailed ?> job(s) de provisioning LDAP/Synology ont épuisé leurs tentatives
+                et restent bloqués sans intervention manuelle —
+                <a href="<?= BASE_URL ?>/admin?tab=storage&sub=storage-infra">voir la file de provisioning</a>.
+            </div>
+        <?php endif; ?>
         <?php if (\App\Models\AppSetting::get('admin_password_hash') === null && ADMIN_PASS === 'changeme'): ?>
             <div class="alert alert-error" style="margin-bottom:1rem">
                 ⚠️ Le mot de passe administrateur est encore la valeur par défaut (<code>changeme</code>).

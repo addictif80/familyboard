@@ -50,6 +50,7 @@ use App\Controllers\PortalLinkController;
 use App\Controllers\HighlightController;
 use App\Controllers\AdminController;
 use App\Controllers\NextcloudInboxController;
+use App\Controllers\ShareTargetController;
 use App\Controllers\SupportController;
 use App\Controllers\WarrantyController;
 use App\Controllers\MedicalTreatmentController;
@@ -750,6 +751,7 @@ $router->post('/admin/roadmap/:id/delete', [AdminController::class, 'deleteRoadm
 $router->get('/nextcloud-inbox', [NextcloudInboxController::class, 'index']);
 $router->post('/api/nextcloud-inbox/attach', [NextcloudInboxController::class, 'attach']);
 $router->post('/api/nextcloud-inbox/:id/dismiss', [NextcloudInboxController::class, 'dismiss']);
+$router->post('/share-target', [ShareTargetController::class, 'receive']);
 $router->get('/support', [SupportController::class, 'index']);
 $router->post('/support', [SupportController::class, 'create']);
 $router->get('/support/:id', [SupportController::class, 'show']);
