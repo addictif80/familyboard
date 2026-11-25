@@ -31,6 +31,9 @@ out/
 .DS_Store
 /vendor/
 /storage/app_key.bin
+/storage/nextcloud_cache/
+/storage/share_target/
+/composer.phar
 config/config.local.php
 public/uploads/*
 !public/uploads/.gitkeep
