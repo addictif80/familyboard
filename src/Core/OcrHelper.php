@@ -354,6 +354,16 @@ class OcrHelper
                 'siret' => 4, 'tva intra' => 7,
             ],
         ],
+        // Jamais deviné par l'OCR (keywords vide — classify() ne peut donc jamais lui attribuer
+        // de score) : posé explicitement par NextcloudInboxController lors d'un rattachement
+        // depuis le dossier "a-rattacher", pour repérer en un coup d'œil les imports encore à
+        // trier/retitrer/reclasser correctement.
+        'ncinbox_pending' => [
+            'label' => 'Imports à traiter',
+            'icon'  => '📥',
+            'color' => '#E67E22',
+            'keywords' => [],
+        ],
     ];
 
     /**
