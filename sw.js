@@ -138,7 +138,16 @@ self.addEventListener('push', e => {
         badge: '/public/icons/icon-192.png',
         data: { url: data.url || '/' },
     };
-    e.waitUntil(self.registration.showNotification(title, options));
+    // Badge natif sur l'icône de l'app (Badging API) — seul endroit qui tourne encore quand
+    // l'app n'est pas ouverte, donc le seul moyen fiable de le tenir à jour en arrière-plan.
+    // 'unread' vient de Push::sendToUser(), déjà compté après l'insertion de cette notification.
+    const badgeCount = Promise.resolve()
+        .then(() => {
+            if (!('setAppBadge' in self)) return;
+            return data.unread ? self.setAppBadge(data.unread) : self.clearAppBadge();
+        })
+        .catch(() => {});
+    e.waitUntil(Promise.all([self.registration.showNotification(title, options), badgeCount]));
 });
 
 // Chrome fait parfois tourner/invalider l'abonnement push en silence (rotation interne, nettoyage

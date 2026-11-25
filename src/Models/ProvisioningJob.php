@@ -98,4 +98,14 @@ class ProvisioningJob
         $row = Database::fetch("SELECT COUNT(*) AS c FROM provisioning_jobs WHERE status != 'done'");
         return (int)($row['c'] ?? 0);
     }
+
+    /** Jobs ayant épuisé leurs 3 tentatives : claimReady() ne les reprendra plus jamais tout
+     *  seul — seul un clic manuel sur "Réessayer" (resetForRetry()) les redébloque. Sans alerte
+     *  visible, un membre reste indéfiniment sans accès LDAP/Synology sans que personne ne s'en
+     *  rende compte (voir bannière globale /admin, AdminController::index). */
+    public static function countPermanentlyFailed(): int
+    {
+        $row = Database::fetch("SELECT COUNT(*) AS c FROM provisioning_jobs WHERE status != 'done' AND attempts >= ?", [self::MAX_TRIES]);
+        return (int)($row['c'] ?? 0);
+    }
 }

@@ -7,6 +7,9 @@ function ncinboxToggleFields(id) {
 }
 
 async function ncinboxAttach(id) {
+    const btn = document.querySelector('#ncinbox-item-' + id + ' .ncinbox-attach-btn');
+    // Un double-clic avant la réponse créerait deux enregistrements pour le même fichier.
+    if (btn) { if (btn.disabled) return; btn.disabled = true; }
     const module = document.getElementById('ncinbox-module-' + id).value;
     const data = { id, module };
     const titleInput = document.getElementById('ncinbox-title-' + id);
@@ -27,6 +30,7 @@ async function ncinboxAttach(id) {
         document.getElementById('ncinbox-item-' + id).remove();
         Dialog.toast('Fichier rattaché.', 'success');
     } else {
+        if (btn) btn.disabled = false;
         Dialog.toast(r.error || 'Erreur lors du rattachement.', 'error');
     }
 }

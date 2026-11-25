@@ -526,6 +526,19 @@ function toggleNotifications() {
     if (notifOpen) loadNotifications();
 }
 
+// Badge natif sur l'icône de l'app (Badging API) — non supporté partout (Firefox, Safari en
+// dehors d'iOS 16.4+...), toujours vérifié avant usage ; échec silencieux sinon (confort en
+// plus, jamais bloquant). Tenu à jour ici au chargement de la page, et depuis le service worker
+// à la réception d'un push (voir sw.js) pour rester juste même app fermée.
+function updateAppBadge(count) {
+    if (!('setAppBadge' in navigator)) return;
+    (count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge()).catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('notifications-panel')) loadNotifications();
+});
+
 // Un type par origine de notification, pour que l'utilisateur distingue au premier coup d'œil
 // une annonce système (tous utilisateurs), une annonce de son admin famille, et les
 // notifications automatiques de chaque module (icône + couleur + libellé de niveau).
@@ -554,6 +567,7 @@ function loadNotifications() {
             const badge = document.getElementById('notif-badge');
             if (badge) badge.textContent = data.unread || '';
             if (!data.unread) document.getElementById('notif-badge')?.remove();
+            updateAppBadge(data.unread || 0);
 
             // Only show unread notifications — once read (or after "Tout lire"),
             // they disappear from the panel. They stay marked read in the DB.
@@ -581,7 +595,7 @@ function loadNotifications() {
 }
 
 async function readNotif(id, link) {
-    apiFetch(BASE_URL + '/api/notifications/' + id + '/read', { method: 'POST' });
+    apiFetch(BASE_URL + '/api/notifications/' + id + '/read', { method: 'POST' }).then(() => loadNotifications());
     toggleNotifications();
     openNotifPreview(id, link);
 }

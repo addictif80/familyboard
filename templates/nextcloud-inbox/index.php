@@ -69,7 +69,7 @@ ob_start();
             <?php if (empty($students)): ?><p class="form-hint ncinbox-field-school" style="display:none;color:var(--danger)">Aucun élève enregistré dans le module Scolaire.</p><?php endif; ?>
             <?php if (empty($disputes)): ?><p class="form-hint ncinbox-field-disputes" style="display:none;color:var(--danger)">Aucun litige enregistré.</p><?php endif; ?>
 
-            <button class="btn btn-primary btn-sm" style="margin-top:.5rem" onclick="ncinboxAttach(<?= (int)$f['id'] ?>)">Rattacher</button>
+            <button class="btn btn-primary btn-sm ncinbox-attach-btn" style="margin-top:.5rem" onclick="ncinboxAttach(<?= (int)$f['id'] ?>)">Rattacher</button>
         </div>
         <?php endforeach; ?>
     </div>

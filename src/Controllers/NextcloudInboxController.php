@@ -59,11 +59,18 @@ class NextcloudInboxController extends BaseController
                 return ['success' => false, 'error' => 'Module invalide.'];
             }
 
-            $folder = FamilyNextcloudFolder::findByFamily($familyId);
-            if (!$folder) return ['success' => false, 'error' => "Espace Nextcloud introuvable."];
+            $isLocal = str_starts_with($inboxFile['remote_path'], 'local:');
+            $mountPoint = null;
+            if (!$isLocal) {
+                $folder = FamilyNextcloudFolder::findByFamily($familyId);
+                if (!$folder) return ['success' => false, 'error' => "Espace Nextcloud introuvable."];
+                $mountPoint = $folder['mount_point'];
+            }
 
-            $file = $this->downloadAsUploadedFile($folder['mount_point'], $inboxFile['remote_path'], $inboxFile['original_name']);
-            if (!$file) return ['success' => false, 'error' => 'Fichier introuvable sur Nextcloud (déjà déplacé ou supprimé ?).'];
+            $file = $isLocal
+                ? $this->readLocalUploadedFile($inboxFile['remote_path'], $inboxFile['original_name'])
+                : $this->downloadAsUploadedFile($mountPoint, $inboxFile['remote_path'], $inboxFile['original_name']);
+            if (!$file) return ['success' => false, 'error' => 'Fichier introuvable (déjà traité ou supprimé ?).'];
 
             try {
                 $recordId = $this->createRecord($module, $familyId, (int)$user['id'], $data, $file);
@@ -75,8 +82,12 @@ class NextcloudInboxController extends BaseController
 
             NextcloudInboxFile::markResolved((int)$inboxFile['id'], 'attached', $module, $recordId);
             // Le fichier d'origine est maintenant dupliqué dans le dossier du module — le
-            // retirer du dossier "à rattacher" pour qu'il ne s'accumule pas indéfiniment.
-            NextcloudFileClient::deleteFile($folder['mount_point'], $inboxFile['remote_path']);
+            // retirer de la file "à rattacher" pour qu'il ne s'accumule pas indéfiniment.
+            if ($isLocal) {
+                @unlink(BASE_PATH . substr($inboxFile['remote_path'], strlen('local:')));
+            } else {
+                NextcloudFileClient::deleteFile($mountPoint, $inboxFile['remote_path']);
+            }
 
             return ['success' => true];
         });
@@ -117,6 +128,22 @@ class NextcloudInboxController extends BaseController
             'tmp_name' => $tmp,
             'error'    => UPLOAD_ERR_OK,
             'size'     => filesize($tmp) ?: 0,
+        ];
+    }
+
+    /** Forme "$_FILES" pour un fichier reçu via le Web Share Target (voir ShareTargetController),
+     *  stocké localement sous storage/share_target/ plutôt que sur Nextcloud — même format de
+     *  retour que downloadAsUploadedFile() pour que createRecord() ne distingue pas les deux. */
+    private function readLocalUploadedFile(string $remotePath, string $originalName): ?array
+    {
+        $path = BASE_PATH . substr($remotePath, strlen('local:'));
+        if (!is_file($path)) return null;
+        return [
+            'name'     => $originalName,
+            'type'     => mime_content_type($path) ?: 'application/octet-stream',
+            'tmp_name' => $path,
+            'error'    => UPLOAD_ERR_OK,
+            'size'     => filesize($path) ?: 0,
         ];
     }
 
