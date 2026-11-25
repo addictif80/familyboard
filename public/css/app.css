@@ -100,16 +100,24 @@
    change, "sans rupture visible" du reste de l'interface. */
 @view-transition { navigation: auto; }
 
-.sidebar, .topbar, .bottom-nav { view-transition-name: fb-chrome-static; }
+/* Un nom distinct par élément : l'API rejette toute la transition ("Multiple elements found
+   with view-transition-name") dès que deux éléments partagent le même nom — ce qui arrivait ici
+   dès que sidebar et topbar étaient visibles simultanément (desktop), provoquant aussi les
+   échecs "Transition was aborted"/"Transition was skipped" vus sur d'autres pages juste après. */
+.sidebar    { view-transition-name: fb-chrome-sidebar; }
+.topbar     { view-transition-name: fb-chrome-topbar; }
+.bottom-nav { view-transition-name: fb-chrome-bottomnav; }
 
 ::view-transition-group(root) { animation-duration: var(--duration-3); }
 ::view-transition-old(root), ::view-transition-new(root) {
   animation-duration: var(--duration-3);
   animation-timing-function: var(--ease-out-soft);
 }
-/* L'élément nommé fb-chrome-static ne doit jamais crossfader avec lui-même : on neutralise
-   son animation de transition pour qu'il reste simplement immobile à l'écran. */
-::view-transition-old(fb-chrome-static), ::view-transition-new(fb-chrome-static) { animation: none; }
+/* Ces éléments ne doivent jamais crossfader avec eux-mêmes : on neutralise leur animation de
+   transition pour qu'ils restent simplement immobiles à l'écran. */
+::view-transition-old(fb-chrome-sidebar), ::view-transition-new(fb-chrome-sidebar),
+::view-transition-old(fb-chrome-topbar), ::view-transition-new(fb-chrome-topbar),
+::view-transition-old(fb-chrome-bottomnav), ::view-transition-new(fb-chrome-bottomnav) { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
