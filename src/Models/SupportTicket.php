@@ -41,6 +41,21 @@ class SupportTicket
         );
     }
 
+    /** Un accès co-parent appartient, en base, à la famille qui l'a invité (voir
+     *  InvitationController::accept()) — il ne doit voir/pouvoir répondre qu'à SES PROPRES
+     *  tickets, jamais ceux ouverts par les autres membres de cette famille. */
+    public static function getByFamilyAndUser(int $familyId, int $userId): array
+    {
+        return Database::fetchAll(
+            'SELECT t.*,
+             (SELECT COUNT(*) FROM support_messages m WHERE m.ticket_id=t.id) as msg_count
+             FROM support_tickets t
+             WHERE t.family_id=? AND t.user_id=?
+             ORDER BY t.updated_at DESC',
+            [$familyId, $userId]
+        );
+    }
+
     public static function getById(int $id): ?array
     {
         return Database::fetch(

@@ -9,11 +9,16 @@ class NannyController extends BaseController
 {
     public function index(array $params): void
     {
-        $this->requireAuth(true);
+        // Pas d'allowCoparent : nanny_hours.child_id référence nanny_children, sans lien
+        // structurel avec custody_schedules (identifié par un simple nom libre) — impossible de
+        // filtrer de façon fiable par enfant pour un accès co-parent (family_id en base est
+        // celui de la famille qui l'a invité, donc sans ce blocage il verrait les heures de
+        // TOUS les enfants de cette famille, pas seulement celui pour lequel il a un accès).
+        $this->requireAuth();
         $this->requireModule('nanny');
         $user = Session::user();
         $familyId = (int)$user['family_id'];
-        $isCoparent = $user['role'] === 'coparent';
+        $isCoparent = false;
 
         $year = (int)($_GET['year'] ?? date('Y'));
         $month = (int)($_GET['month'] ?? date('n'));
@@ -77,7 +82,7 @@ class NannyController extends BaseController
 
     public function monthlyPdf(array $params): void
     {
-        $this->requireAuth(true);
+        $this->requireAuth(); // voir le commentaire de index() : pas d'accès co-parent fiable ici
         $this->requireModule('nanny');
         $user = Session::user();
         $familyId = (int)$user['family_id'];
@@ -96,7 +101,7 @@ class NannyController extends BaseController
 
     public function annualPdf(array $params): void
     {
-        $this->requireAuth(true);
+        $this->requireAuth(); // voir le commentaire de index() : pas d'accès co-parent fiable ici
         $this->requireModule('nanny');
         $user = Session::user();
         $familyId = (int)$user['family_id'];

@@ -72,6 +72,23 @@ $subjectLabel = function ($type, $id) use ($subjects) {
                 <label>Détails</label>
                 <textarea id="entry-description" rows="2"></textarea>
             </div>
+            <?php if (!empty($custodySchedules)): ?>
+            <div class="form-group">
+                <label class="radio-option" style="border:none;padding:0">
+                    <input type="checkbox" id="entry-custody-toggle" onchange="document.getElementById('entry-custody-select-wrap').style.display = this.checked ? '' : 'none'">
+                    <span>Garde alternée</span>
+                </label>
+                <div id="entry-custody-select-wrap" style="display:none;margin-top:.4rem">
+                    <?php foreach ($custodySchedules as $cs): ?>
+                        <label class="radio-option">
+                            <input type="checkbox" class="entry-custody-child-cb" value="<?= (int)$cs['id'] ?>">
+                            <span><?= htmlspecialchars($cs['child_name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                    <small class="form-hint">Cette entrée sera visible par le(s) co-parent(s) à accès restreint des enfants sélectionnés.</small>
+                </div>
+            </div>
+            <?php endif; ?>
             <button class="btn btn-primary btn-sm" onclick="addHealthEntry()">+ Ajouter</button>
             <hr>
             <div style="margin-bottom:1rem">
@@ -100,7 +117,7 @@ $subjectLabel = function ($type, $id) use ($subjects) {
                         <td><?= $e['entry_date'] ? (new DateTime($e['entry_date']))->format('d/m/Y') : '—' ?></td>
                         <td><?= htmlspecialchars($s['name'] ?? '—') ?></td>
                         <td><?= $t['icon'] ?> <?= htmlspecialchars($t['label']) ?></td>
-                        <td><?= htmlspecialchars($e['title']) ?></td>
+                        <td><?= htmlspecialchars($e['title']) ?> <?php if (!empty($e['custody_schedule_ids'])): ?><span title="Partagé avec le co-parent">🔒</span><?php endif; ?></td>
                         <td><?= $e['reminder_date'] ? (new DateTime($e['reminder_date']))->format('d/m/Y') : '—' ?></td>
                         <td onclick="event.stopPropagation()"><button class="btn-icon" title="Supprimer" onclick="deleteHealthEntry(<?= $e['id'] ?>)">🗑</button></td>
                     </tr>
@@ -180,7 +197,7 @@ $subjectLabel = function ($type, $id) use ($subjects) {
                 <div class="card" style="padding:1rem">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start">
                         <div>
-                            <strong><?= htmlspecialchars($doc['name']) ?></strong>
+                            <strong><?= htmlspecialchars($doc['name']) ?></strong> <?php if (!empty($doc['custody_schedule_ids'])): ?><span title="Partagé avec le co-parent">🔒</span><?php endif; ?>
                             <?php if ($doc['specialty']): ?><div style="font-size:.8rem;color:var(--text-muted)"><?= htmlspecialchars($doc['specialty']) ?></div><?php endif; ?>
                         </div>
                         <div style="display:flex;gap:.3rem">
@@ -253,6 +270,23 @@ $subjectLabel = function ($type, $id) use ($subjects) {
                 <label>Notes</label>
                 <input type="text" id="doctor-notes">
             </div>
+            <?php if (!empty($custodySchedules)): ?>
+            <div class="form-group">
+                <label class="radio-option" style="border:none;padding:0">
+                    <input type="checkbox" id="doctor-custody-toggle" onchange="document.getElementById('doctor-custody-select-wrap').style.display = this.checked ? '' : 'none'">
+                    <span>Garde alternée</span>
+                </label>
+                <div id="doctor-custody-select-wrap" style="display:none;margin-top:.4rem">
+                    <?php foreach ($custodySchedules as $cs): ?>
+                        <label class="radio-option">
+                            <input type="checkbox" class="doctor-custody-child-cb" value="<?= (int)$cs['id'] ?>">
+                            <span><?= htmlspecialchars($cs['child_name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                    <small class="form-hint">Ce médecin sera visible par le(s) co-parent(s) à accès restreint des enfants sélectionnés.</small>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('doctor-modal')">Annuler</button>

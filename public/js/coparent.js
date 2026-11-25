@@ -29,6 +29,7 @@ function cpLoadAll() {
     cpLoadJournal();
     cpLoadAlbums();
     cpLoadDocuments();
+    cpLoadHealth();
     cpLoadEvents();
     cpLoadActivityLog();
     cpLoadLinks();
@@ -454,6 +455,42 @@ async function cpLoadDocuments() {
             ${d.file_path ? `<a href="${BASE_URL}/documents/file/${d.id}" target="_blank" class="btn-text" style="margin-left:.5rem">Voir</a>` : ''}
         </div>
     `).join('');
+}
+
+// ── Santé (lecture seule) ───────────────────────────────────────────────────
+
+async function cpLoadHealth() {
+    const r = await apiFetch(`${BASE_URL}/api/coparent/health?schedule_id=${cpCurrentScheduleId}`);
+    const entriesList = document.getElementById('cp-health-entries-list');
+    const entries = r.entries || [];
+    entriesList.innerHTML = entries.length ? entries.map(e => `
+        <div class="cp-doc-item">
+            ${e.type_icon} <strong>${escapeHtml(e.title)}</strong>
+            ${e.entry_date ? ` — ${new Date(e.entry_date + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''}
+            ${e.description ? `<div style="color:var(--text-muted);font-size:.85rem">${escapeHtml(e.description)}</div>` : ''}
+        </div>
+    `).join('') : '<p style="color:var(--text-muted);font-size:.85rem">Aucune entrée partagée.</p>';
+
+    const doctorsList = document.getElementById('cp-health-doctors-list');
+    const doctors = r.doctors || [];
+    doctorsList.innerHTML = doctors.length ? doctors.map(d => `
+        <div class="cp-doc-item">
+            <strong>${escapeHtml(d.name)}</strong>${d.specialty ? ` — ${escapeHtml(d.specialty)}` : ''}
+            ${d.phone ? `<div style="font-size:.85rem">📞 ${escapeHtml(d.phone)}</div>` : ''}
+            ${d.address ? `<div style="font-size:.85rem">📍 ${escapeHtml(d.address)}</div>` : ''}
+        </div>
+    `).join('') : '<p style="color:var(--text-muted);font-size:.85rem">Aucun médecin partagé.</p>';
+
+    const contacts = await apiFetch(`${BASE_URL}/api/coparent/contacts?schedule_id=${cpCurrentScheduleId}`);
+    const contactsList = document.getElementById('cp-health-contacts-list');
+    contactsList.innerHTML = Array.isArray(contacts) && contacts.length ? contacts.map(c => `
+        <div class="cp-doc-item">
+            <strong>${escapeHtml(c.name)}</strong>
+            ${c.phone ? `<div style="font-size:.85rem">📞 ${escapeHtml(c.phone)}</div>` : ''}
+            ${c.email ? `<div style="font-size:.85rem">✉️ ${escapeHtml(c.email)}</div>` : ''}
+            ${c.address ? `<div style="font-size:.85rem">📍 ${escapeHtml(c.address)}</div>` : ''}
+        </div>
+    `).join('') : '<p style="color:var(--text-muted);font-size:.85rem">Aucun contact partagé.</p>';
 }
 
 async function cpUploadDocument() {

@@ -11,7 +11,11 @@ class SupportController extends BaseController
     {
         $this->requireAuth(true);
         $user    = Session::user();
-        $tickets = SupportTicket::getByFamily($user['family_id']);
+        // Un co-parent appartient, en base, à la famille qui l'a invité : il ne doit voir que
+        // ses propres tickets, jamais ceux des autres membres de cette famille.
+        $tickets = $user['role'] === 'coparent'
+            ? SupportTicket::getByFamilyAndUser($user['family_id'], $user['id'])
+            : SupportTicket::getByFamily($user['family_id']);
         require BASE_PATH . '/templates/support/index.php';
     }
 
@@ -21,7 +25,7 @@ class SupportController extends BaseController
         $user   = Session::user();
         $id     = (int)$params['id'];
         $ticket = SupportTicket::getById($id);
-        if (!$ticket || $ticket['family_id'] !== $user['family_id']) {
+        if (!$this->ownsTicket($ticket, $user)) {
             header('Location: ' . BASE_URL . '/support');
             exit;
         }
@@ -51,7 +55,7 @@ class SupportController extends BaseController
         $user    = Session::user();
         $id      = (int)$params['id'];
         $ticket  = SupportTicket::getById($id);
-        if (!$ticket || $ticket['family_id'] !== $user['family_id']) {
+        if (!$this->ownsTicket($ticket, $user)) {
             header('Location: ' . BASE_URL . '/support');
             exit;
         }
@@ -61,5 +65,14 @@ class SupportController extends BaseController
         }
         header('Location: ' . BASE_URL . '/support/' . $id);
         exit;
+    }
+
+    private function ownsTicket(?array $ticket, array $user): bool
+    {
+        if (!$ticket || (int)$ticket['family_id'] !== (int)$user['family_id']) return false;
+        // Un co-parent (family_id = celui de la famille qui l'a invité) ne doit accéder qu'aux
+        // tickets qu'il a lui-même ouverts, jamais ceux des autres membres de cette famille.
+        if ($user['role'] === 'coparent' && (int)$ticket['user_id'] !== (int)$user['id']) return false;
+        return true;
     }
 }

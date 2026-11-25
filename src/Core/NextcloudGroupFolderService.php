@@ -148,6 +148,11 @@ class NextcloudGroupFolderService
             self::ensureReadableNaming($familyId, $existing);
             self::ensureAdminDelegationGroups($familyId, self::adminGroupName($familyId));
             self::ensureManageAcl($familyId, (int)$existing['groupfolder_id']);
+            // Revérifié à chaque appel comme le reste ci-dessus : une famille déjà provisionnée
+            // avant l'introduction de ce dossier (voir NextcloudInboxSync) doit le rattraper, pas
+            // seulement les nouvelles. Relit le mount_point à jour (ensureReadableNaming peut
+            // l'avoir changé juste au-dessus).
+            self::ensureInboxFolder((string)(FamilyNextcloudFolder::findByFamily($familyId)['mount_point'] ?? $existing['mount_point']));
             return $existing;
         }
 
@@ -202,8 +207,24 @@ class NextcloudGroupFolderService
         self::ensureAllMembersInGroup($familyId, $group);
         self::ensureAdminDelegationGroups($familyId, self::adminGroupName($familyId));
         self::ensureManageAcl($familyId, $folderId);
+        self::ensureInboxFolder($mountPoint);
 
         return FamilyNextcloudFolder::findByFamily($familyId);
+    }
+
+    /** Dossier où un membre dépose un fichier directement depuis Nextcloud pour le faire
+     *  remonter dans FamilyBoard (voir App\Core\NextcloudInboxSync) — doit exister AVANT tout
+     *  dépôt, jamais créé à la volée par une écriture de FamilyBoard (contrairement aux dossiers
+     *  de module). Best-effort : une erreur ici ne doit jamais empêcher le provisionnement du
+     *  Group Folder lui-même, seulement priver temporairement cette famille de cette
+     *  fonctionnalité (rattrapée au prochain appel, voir les deux call sites ci-dessus). */
+    private static function ensureInboxFolder(string $mountPoint): void
+    {
+        try {
+            NextcloudFileClient::createFolder($mountPoint, NextcloudInboxSync::INBOX_FOLDER);
+        } catch (\Throwable $e) {
+            error_log('NextcloudGroupFolderService: création du dossier "' . NextcloudInboxSync::INBOX_FOLDER . '" échouée : ' . $e->getMessage());
+        }
     }
 
     /**

@@ -26,6 +26,15 @@ class User
         Database::execute('UPDATE users SET tours_seen = ? WHERE id = ?', [json_encode($seen), $userId]);
     }
 
+    /** Résout un identifiant Nextcloud/LDAP (ex. "oc:owner-id" d'un fichier WebDAV) vers le
+     *  membre FamilyBoard correspondant — voir App\Core\NextcloudInboxSync. Scopé à une famille :
+     *  ldap_username est dérivé par famille (voir LdapService::deriveUsername()), jamais
+     *  ambigu entre deux familles différentes, mais autant rester explicite. */
+    public static function findByLdapUsername(string $ldapUsername, int $familyId): ?array
+    {
+        return Database::fetch('SELECT * FROM users WHERE ldap_username = ? AND family_id = ?', [$ldapUsername, $familyId]);
+    }
+
     public static function findByEmail(string $email): ?array
     {
         // Normalisé explicitement plutôt que de dépendre uniquement de la collation de la

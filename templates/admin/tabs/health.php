@@ -35,6 +35,21 @@
         <?php endif; ?>
 
         <div class="card settings-section" style="margin-top:1rem">
+            <h3>🔄 Mise à jour</h3>
+            <p style="color:var(--text-muted);font-size:.85rem">
+                Applique les derniers commits poussés sur le dépôt (<code>git pull --ff-only</code>) et, si
+                <code>composer.lock</code> a changé, réinstalle les dépendances. Refusé automatiquement si des
+                modifications non commitées existent sur le serveur. N'inclut ni redémarrage ni rechargement
+                d'OPcache — à faire manuellement si le serveur en a besoin.
+            </p>
+            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+                <button class="btn btn-secondary btn-sm" onclick="checkPlatformUpdate()">Vérifier les mises à jour</button>
+                <button class="btn btn-primary btn-sm" id="platform-update-btn" onclick="applyPlatformUpdate()" style="display:none">⬇️ Mettre à jour</button>
+            </div>
+            <div id="platform-update-result" style="margin-top:.75rem"></div>
+        </div>
+
+        <div class="card settings-section" style="margin-top:1rem">
             <h3>E-mails — 7 derniers jours</h3>
             <p>✅ <?= $emailStats['last_7d']['ok'] ?> envoyés · <?php if ($emailStats['last_7d']['fail']): ?><span style="color:var(--danger)">❌ <?= $emailStats['last_7d']['fail'] ?> échoués</span><?php else: ?>❌ 0 échoué<?php endif; ?></p>
         </div>

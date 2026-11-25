@@ -2,6 +2,7 @@
 namespace App\Controllers;
 
 use App\Core\Session;
+use App\Models\Custody;
 use App\Models\FamilyChild;
 use App\Models\Health;
 use App\Models\HealthShareLink;
@@ -21,6 +22,8 @@ class HealthController extends BaseController
         $children = FamilyChild::getByFamily($familyId);
         $selectedChildId = (int)($_GET['child_id'] ?? 0) ?: ($children[0]['id'] ?? null);
         $growth = $selectedChildId ? Health::getGrowth($familyId, (int)$selectedChildId) : [];
+        // Pour la case "Partager avec le co-parent" (entrées du carnet de santé + médecins).
+        $custodySchedules = Custody::getSchedules($familyId);
 
         // Liens de partage actifs, regroupés par sujet ("type:id") — pour l'afficher sous chaque
         // sujet du carnet plutôt que de refaire une requête par sujet dans le template.
@@ -75,8 +78,10 @@ class HealthController extends BaseController
         $this->requireAuth();
         $this->json(function () {
             $user = Session::user();
-            $d = $this->validatedEntry($this->jsonInput(), (int)$user['family_id']);
+            $data = $this->jsonInput();
+            $d = $this->validatedEntry($data, (int)$user['family_id']);
             if (!$d) return ['success' => false, 'error' => 'Sujet, titre et type requis.'];
+            $d['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), (int)$user['family_id']);
             $id = Health::addEntry((int)$user['family_id'], (int)$user['id'], $d);
             return ['success' => true, 'id' => $id];
         });
@@ -138,8 +143,10 @@ class HealthController extends BaseController
         $this->requireAuth();
         $this->json(function () {
             $user = Session::user();
-            $d = $this->validatedDoctor($this->jsonInput(), (int)$user['family_id']);
+            $data = $this->jsonInput();
+            $d = $this->validatedDoctor($data, (int)$user['family_id']);
             if (!$d) return ['success' => false, 'error' => 'Sujet et nom requis.'];
+            $d['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), (int)$user['family_id']);
             $id = Health::addDoctor((int)$user['family_id'], (int)$user['id'], $d);
             return ['success' => true, 'id' => $id];
         });
@@ -152,8 +159,10 @@ class HealthController extends BaseController
             $user = Session::user();
             $doctor = Health::getDoctorById((int)$params['id']);
             if (!$doctor || (int)$doctor['family_id'] !== (int)$user['family_id']) return ['success' => false, 'error' => 'Introuvable.'];
-            $d = $this->validatedDoctor($this->jsonInput(), (int)$user['family_id']);
+            $data = $this->jsonInput();
+            $d = $this->validatedDoctor($data, (int)$user['family_id']);
             if (!$d) return ['success' => false, 'error' => 'Sujet et nom requis.'];
+            $d['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), (int)$user['family_id']);
             Health::updateDoctor((int)$params['id'], (int)$user['family_id'], $d);
             return ['success' => true];
         });

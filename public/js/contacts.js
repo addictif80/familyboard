@@ -91,6 +91,16 @@ function openContactModal(contact) {
     document.getElementById('ce-color').value     = contact ? contact.color : '#4A90D9';
     document.getElementById('ce-avatar-file').value = '';
 
+    const custodyToggle = document.getElementById('ce-custody-toggle');
+    if (custodyToggle) {
+        const csIds = (contact && contact.custody_schedule_ids || '').toString().split(',').filter(Boolean).map(Number);
+        custodyToggle.checked = csIds.length > 0;
+        document.getElementById('ce-custody-select-wrap').style.display = csIds.length ? '' : 'none';
+        document.querySelectorAll('.ce-custody-child-cb').forEach(cb => {
+            cb.checked = csIds.includes(parseInt(cb.value, 10));
+        });
+    }
+
     const preview = document.getElementById('ce-avatar-preview');
     preview.style.background = contact ? contact.color : '#4A90D9';
 
@@ -138,6 +148,10 @@ async function saveContact() {
         notes:      document.getElementById('ce-notes').value.trim()   || null,
         color:      document.getElementById('ce-color').value,
     };
+    const custodyToggle = document.getElementById('ce-custody-toggle');
+    if (custodyToggle && custodyToggle.checked) {
+        data.custody_schedule_ids = Array.from(document.querySelectorAll('.ce-custody-child-cb:checked')).map(cb => parseInt(cb.value, 10));
+    }
 
     let result;
     if (id) {
@@ -200,7 +214,7 @@ function buildContactCard(c) {
     div.innerHTML = `
         <div class="contact-avatar" style="background:${safeColor(c.color)}">${avatarInner}</div>
         <div class="contact-info">
-            <div class="contact-name">${esc(fullName)}</div>
+            <div class="contact-name">${esc(fullName)} ${c.custody_schedule_ids ? '<span title="Partagé avec le co-parent">🔒</span>' : ''}</div>
             ${c.phone ? `<div class="contact-line">📞 <a href="tel:${esc(c.phone)}" onclick="event.stopPropagation()">${esc(c.phone)}</a></div>` : ''}
             ${c.email ? `<div class="contact-line">✉️ <a href="mailto:${esc(c.email)}" onclick="event.stopPropagation()">${esc(c.email)}</a></div>` : ''}
         </div>

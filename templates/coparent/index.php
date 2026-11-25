@@ -49,6 +49,7 @@ ob_start();
     <button class="coparent-tab" data-panel="cp-panel-journal" onclick="cpShowTab('cp-panel-journal')">📝 Journal parental</button>
     <button class="coparent-tab" data-panel="cp-panel-albums" onclick="cpShowTab('cp-panel-albums')">🖼️ Albums</button>
     <button class="coparent-tab" data-panel="cp-panel-documents" onclick="cpShowTab('cp-panel-documents')">🗂️ Documents</button>
+    <button class="coparent-tab" data-panel="cp-panel-health" onclick="cpShowTab('cp-panel-health')">🏥 Santé</button>
     <button class="coparent-tab" data-panel="cp-panel-events" onclick="cpShowTab('cp-panel-events')">📆 Évènements</button>
     <button class="coparent-tab" data-panel="cp-panel-activity" onclick="cpShowTab('cp-panel-activity')">📜 Journal d'activité</button>
     <button class="coparent-tab" data-panel="cp-panel-links" onclick="cpShowTab('cp-panel-links')">🔗 Liens utiles</button>
@@ -106,6 +107,24 @@ ob_start();
     <div class="card" style="padding:1.25rem">
         <h3 style="margin-top:0">Documents</h3>
         <div id="cp-documents-list"><div class="skel skel-text" aria-hidden="true" style="width:80%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div></div>
+    </div>
+</div>
+
+<div class="coparent-panel" id="cp-panel-health">
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+        <h3 style="margin-top:0">Carnet de santé</h3>
+        <p style="color:var(--text-muted);font-size:.8rem;margin-top:-.5rem;margin-bottom:1rem">
+            Seules les entrées explicitement partagées par l'administrateur de la famille apparaissent ici.
+        </p>
+        <div id="cp-health-entries-list"><div class="skel skel-text" aria-hidden="true" style="width:80%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div></div>
+    </div>
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+        <h3 style="margin-top:0">Médecins</h3>
+        <div id="cp-health-doctors-list"><div class="skel skel-text" aria-hidden="true" style="width:70%"></div></div>
+    </div>
+    <div class="card" style="padding:1.25rem">
+        <h3 style="margin-top:0">Contacts</h3>
+        <div id="cp-health-contacts-list"><div class="skel skel-text" aria-hidden="true" style="width:70%"></div></div>
     </div>
 </div>
 

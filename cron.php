@@ -192,18 +192,17 @@ try {
     error_log('Nextcloud calendar sync error: ' . $e->getMessage());
 }
 
-// Import automatique de factures Cozy Cloud dans Documents (voir App\Core\CozyDocumentSync) —
-// sans effet tant qu'aucune famille n'a de connexion 'connected'. Throttlé (toutes les 20 min) :
-// les Konnectors eux-mêmes tournent sur leur propre fréquence côté Cozy, pas besoin de vérifier
-// plus souvent.
+// Détection des fichiers déposés directement dans Nextcloud, hors FamilyBoard (voir
+// App\Core\NextcloudInboxSync) — throttlée (toutes les 3 min, plus serré que les autres synchros
+// Nextcloud car c'est ce qui se rapproche le plus d'un délai "instantané" sans webhook).
 try {
-    $lastCozySync = AppSetting::get('cozy_sync_last_run');
-    if (!$lastCozySync || strtotime($lastCozySync) <= time() - 20 * 60) {
-        \App\Core\CozyDocumentSync::syncAllFamilies();
-        AppSetting::set('cozy_sync_last_run', date('Y-m-d H:i:s'));
+    $lastInboxSync = AppSetting::get('nextcloud_inbox_sync_last_run');
+    if (!$lastInboxSync || strtotime($lastInboxSync) <= time() - 3 * 60) {
+        \App\Core\NextcloudInboxSync::syncAllFamilies();
+        AppSetting::set('nextcloud_inbox_sync_last_run', date('Y-m-d H:i:s'));
     }
 } catch (\Throwable $e) {
-    error_log('Cozy document sync error: ' . $e->getMessage());
+    error_log('Nextcloud inbox sync error: ' . $e->getMessage());
 }
 
 echo '[' . date('Y-m-d H:i:s') . '] Cron complete.' . PHP_EOL;

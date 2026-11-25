@@ -9,6 +9,13 @@ use App\Core\Session;
  * cliqué directement (widget du tableau de bord, ou une page de module), sans passer par une
  * notification. Même moteur que NotificationController::preview() (voir App\Core\RecordPreview)
  * et même modal côté front (openRecordPreview() réutilise notif-preview-modal).
+ *
+ * N'accepte PAS un accès co-parent (requireAuth() sans allowCoparent) : App\Core\RecordPreview
+ * ne filtre chaque type que par family_id, jamais par planning de garde — un co-parent (dont le
+ * family_id en base est celui de la famille qui l'a invité) pourrait sinon lire n'importe quel
+ * document/dossier santé/contact/etc. de toute cette famille en devinant un id, bien au-delà de
+ * l'enfant pour lequel il a un accès. L'interface co-parent n'appelle jamais cet endpoint
+ * (openRecordPreview() n'est utilisé que par le tableau de bord complet).
  */
 class RecordController extends BaseController
 {
@@ -23,7 +30,7 @@ class RecordController extends BaseController
 
     public function preview(array $params): void
     {
-        $this->requireAuth(true);
+        $this->requireAuth();
         $this->json(function () use ($params) {
             $user = Session::user();
             $type = $params['type'] ?? '';

@@ -44,12 +44,12 @@ use App\Controllers\InvitationController;
 use App\Controllers\CoparentController;
 use App\Controllers\ContactController;
 use App\Controllers\WishlistController;
-use App\Controllers\CozyController;
 use App\Controllers\WishlistChildAccessController;
 use App\Controllers\PollController;
 use App\Controllers\PortalLinkController;
 use App\Controllers\HighlightController;
 use App\Controllers\AdminController;
+use App\Controllers\NextcloudInboxController;
 use App\Controllers\SupportController;
 use App\Controllers\WarrantyController;
 use App\Controllers\MedicalTreatmentController;
@@ -603,6 +603,8 @@ $router->get('/api/coparent/journal/:id/audio', [CoparentController::class, 'jou
 $router->get('/api/coparent/activity-log', [CoparentController::class, 'activityLog']);
 $router->get('/api/coparent/documents', [CoparentController::class, 'documentsList']);
 $router->post('/api/coparent/documents', [CoparentController::class, 'documentsUpload']);
+$router->get('/api/coparent/health', [CoparentController::class, 'healthList']);
+$router->get('/api/coparent/contacts', [CoparentController::class, 'contactsList']);
 $router->get('/api/coparent/events', [CoparentController::class, 'eventsList']);
 $router->post('/api/coparent/events', [CoparentController::class, 'eventsCreate']);
 $router->get('/api/coparent/albums', [CoparentController::class, 'albumsList']);
@@ -687,8 +689,8 @@ $router->post('/admin/ollama/test', [AdminController::class, 'testOllamaConnecti
 $router->post('/admin/ai-provider', [AdminController::class, 'updateAiProvider']);
 $router->post('/admin/onemin', [AdminController::class, 'updateOneMinSettings']);
 $router->post('/admin/onemin/test', [AdminController::class, 'testOneMinConnection']);
-$router->post('/admin/cozy', [AdminController::class, 'updateCozySettings']);
-$router->post('/admin/cozy/test', [AdminController::class, 'testCozyConnection']);
+$router->post('/admin/platform/update-status', [AdminController::class, 'platformUpdateStatus']);
+$router->post('/admin/platform/update', [AdminController::class, 'platformUpdate']);
 $router->post('/admin/subscriptions/settings', [AdminController::class, 'updateSubscriptionSettings']);
 $router->post('/admin/subscriptions/stripe', [AdminController::class, 'updateStripeSettings']);
 $router->post('/admin/referrals/settings', [AdminController::class, 'updateReferralSettings']);
@@ -747,6 +749,9 @@ $router->post('/admin/roadmap/:id', [AdminController::class, 'updateRoadmapItem'
 $router->post('/admin/roadmap/:id/delete', [AdminController::class, 'deleteRoadmapItem']);
 
 // Support (user-facing)
+$router->get('/nextcloud-inbox', [NextcloudInboxController::class, 'index']);
+$router->post('/api/nextcloud-inbox/attach', [NextcloudInboxController::class, 'attach']);
+$router->post('/api/nextcloud-inbox/:id/dismiss', [NextcloudInboxController::class, 'dismiss']);
 $router->get('/support', [SupportController::class, 'index']);
 $router->post('/support', [SupportController::class, 'create']);
 $router->get('/support/:id', [SupportController::class, 'show']);
@@ -765,10 +770,6 @@ $router->post('/api/contacts/import-vcf', [ContactController::class, 'importVcf'
 // Liste de cadeaux
 $router->get('/wishlist', [WishlistController::class, 'index']);
 $router->get('/wishlist/:id/image', [WishlistController::class, 'serveImage']);
-$router->post('/cozy/connect', [CozyController::class, 'connect']);
-$router->post('/cozy/open', [CozyController::class, 'openInstance']);
-$router->post('/cozy/passphrase', [CozyController::class, 'showPassphrase']);
-$router->post('/cozy/disconnect', [CozyController::class, 'disconnect']);
 $router->post('/api/wishlist', [WishlistController::class, 'create']);
 $router->post('/api/wishlist/:id', [WishlistController::class, 'update']);
 $router->post('/api/wishlist/:id/delete', [WishlistController::class, 'delete']);

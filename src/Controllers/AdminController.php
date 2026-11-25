@@ -205,7 +205,6 @@ class AdminController extends BaseController
         $oneMinSettings = \App\Models\OneMinAiSettings::get();
         $aiProvider = \App\Core\AiProvider::get();
         $githubConfigured = \App\Core\GitHubPublisher::isConfigured();
-        $cozySettings = \App\Models\CozySettings::get();
         $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
         $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
         $customNameDays = NameDay::getCustomEntries();
@@ -875,35 +874,18 @@ class AdminController extends BaseController
         $this->json(fn() => \App\Core\OneMinAi::testConnection());
     }
 
-    // ── Cozy Cloud (import automatique de factures dans Documents) ──────────
+    // ── Mise à jour (git pull) ────────────────────────────────────
 
-    public function updateCozySettings(array $params): void
+    public function platformUpdateStatus(array $params): void
     {
         $this->requireSuperAdmin();
-        $domain = trim($_POST['domain'] ?? '');
-        $wrapperUrl = trim($_POST['wrapper_url'] ?? '');
-        $newToken = trim($_POST['wrapper_token'] ?? '');
-        // Comme pour Vaultwarden : champ jeton vide + keep_existing=1 veut dire "panneau non
-        // ouvert", pas "effacer le jeton".
-        if ($newToken === '' && !empty($_POST['keep_existing'])) {
-            $existing = \App\Models\CozySettings::get();
-            $newToken = $existing['wrapper_token'] ?? '';
-        }
-
-        if ($domain && $wrapperUrl && $newToken) {
-            \App\Models\CozySettings::save($domain, $wrapperUrl, $newToken);
-        } else {
-            AppSetting::set('cozy_stack_domain', '');
-            AppSetting::set('cozy_wrapper_url', '');
-            AppSetting::set('cozy_wrapper_token', '');
-        }
-        $this->redirect('/admin?tab=notifications&msg=cozy_saved');
+        $this->json(fn() => \App\Core\GitUpdater::status());
     }
 
-    public function testCozyConnection(array $params): void
+    public function platformUpdate(array $params): void
     {
         $this->requireSuperAdmin();
-        $this->json(fn() => \App\Core\CozyProvisioner::testConnection());
+        $this->json(fn() => \App\Core\GitUpdater::pull());
     }
 
     // ── Abonnements (Stripe Billing) ─────────────────────────────
