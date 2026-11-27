@@ -4,6 +4,7 @@ $extraJs = ['calendar.js'];
 ob_start();
 ?>
 <div class="calendar-container">
+    <div id="share-invitations-panel"></div>
     <div class="calendar-toolbar">
         <div class="calendar-filters">
             <?php foreach ($members as $member): ?>
@@ -62,7 +63,7 @@ ob_start();
                 <?php if ($source['last_sync']): ?>
                     <small>Sync: <?= \App\Core\DateHelper::fromUtc($source['last_sync'], 'd/m H:i') ?></small>
                 <?php endif; ?>
-                <button class="btn-icon-sm" onclick="syncCalDAV(<?= $source['id'] ?>)">🔄</button>
+                <button class="btn-icon-sm" onclick="syncCalDAV(<?= $source['id'] ?>, this)">🔄</button>
                 <button class="btn-icon-sm" onclick="deleteCalDAV(<?= $source['id'] ?>)">🗑</button>
             </div>
         <?php endforeach; ?>
@@ -79,6 +80,7 @@ ob_start();
         </div>
         <div class="modal-body">
             <input type="hidden" id="event-id">
+            <div id="event-share-status" style="display:none;margin-bottom:.75rem;font-size:.85rem"></div>
             <div class="form-group">
                 <label>Titre *</label>
                 <input type="text" id="event-title" required placeholder="Anniversaire, réunion…">
@@ -125,13 +127,51 @@ ob_start();
                     Garde alternée
                 </label>
                 <div id="event-custody-select-wrap" style="display:none;margin-top:.4rem">
-                    <select id="event-custody-schedule">
-                        <option value="">Sélectionner un enfant…</option>
-                        <?php foreach ($custodySchedules as $cs): ?>
-                            <option value="<?= (int)$cs['id'] ?>"><?= htmlspecialchars($cs['child_name']) ?></option>
+                    <?php foreach ($custodySchedules as $cs): ?>
+                        <label class="radio-option">
+                            <input type="checkbox" class="event-custody-child-cb" value="<?= (int)$cs['id'] ?>">
+                            <span><?= htmlspecialchars($cs['child_name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                    <small class="form-hint">Cet évènement sera visible par le(s) co-parent(s) à accès restreint des enfants sélectionnés.</small>
+                </div>
+            </div>
+            <?php endif; ?>
+            <?php if (!empty($employmentProfiles)): ?>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="event-employment-toggle" onchange="document.getElementById('event-employment-select-wrap').style.display = this.checked ? '' : 'none'">
+                    Congé / absence salarié
+                </label>
+                <div id="event-employment-select-wrap" style="display:none;margin-top:.4rem">
+                    <select id="event-employment-profile">
+                        <?php foreach ($employmentProfiles as $ep): ?>
+                            <option value="<?= (int)$ep['id'] ?>"><?= htmlspecialchars($ep['user_name']) ?><?= $ep['employer_name'] ? ' — ' . htmlspecialchars($ep['employer_name']) : '' ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <small class="form-hint">Cet évènement sera visible par le co-parent à accès restreint de cet enfant.</small>
+                    <select id="event-employment-leave-type" style="margin-top:.4rem">
+                        <option value="paid_leave">Congé payé</option>
+                        <option value="rtt">RTT</option>
+                        <option value="unpaid">Absence non payée</option>
+                    </select>
+                    <small class="form-hint">Cet événement sera compté dans le suivi salarié du profil choisi (module « Suivi salarié »).</small>
+                </div>
+            </div>
+            <?php endif; ?>
+            <?php if (!empty($friendFamilies)): ?>
+            <div class="form-group" id="event-share-wrap">
+                <label>
+                    <input type="checkbox" id="event-share-toggle" onchange="document.getElementById('event-share-select-wrap').style.display = this.checked ? '' : 'none'">
+                    Inviter une famille amie
+                </label>
+                <div id="event-share-select-wrap" style="display:none;margin-top:.4rem">
+                    <?php foreach ($friendFamilies as $ff): ?>
+                        <label class="radio-option">
+                            <input type="checkbox" class="event-share-family-cb" value="<?= (int)$ff['family_id'] ?>">
+                            <span><?= htmlspecialchars($ff['family_name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                    <small class="form-hint">La famille invitée devra accepter avant de voir cet événement. Uniquement à la création — pour inviter une famille amie à un événement déjà créé, recréez-le.</small>
                 </div>
             </div>
             <?php endif; ?>
@@ -163,6 +203,23 @@ ob_start();
             <button class="btn btn-secondary" onclick="closeModal('event-modal')">Annuler</button>
             <button class="btn btn-danger" id="event-delete-btn" style="display:none" onclick="deleteEvent()">Supprimer</button>
             <button class="btn btn-primary" onclick="saveEvent()">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Day details Modal — liste tous les événements d'une journée (desktop) -->
+<div class="modal-overlay" id="day-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="day-modal-title">Journée</h3>
+            <button onclick="closeModal('day-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="day-modal-list" class="cal-day-list"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('day-modal')">Fermer</button>
+            <button class="btn btn-primary" id="day-modal-add">+ Ajouter un événement</button>
         </div>
     </div>
 </div>

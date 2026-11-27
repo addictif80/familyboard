@@ -52,5 +52,7 @@ $formId = 'ec-' . $subjectType . '-' . $subjectId;
     <button type="button" class="btn btn-primary" onclick="saveEmergencyCard('<?= $subjectType ?>', <?= $subjectId ?>, '<?= $formId ?>')">Enregistrer</button>
     <?php if ($card): ?>
     <button type="button" class="btn btn-secondary" onclick="showEmergencyQr('<?= htmlspecialchars($card['public_token']) ?>')">📱 Voir le QR code</button>
+    <button type="button" class="btn btn-secondary" onclick="viewEmergencyAccessLog(<?= (int)$card['id'] ?>)">🕓 Journal d'accès</button>
+    <button type="button" class="btn btn-secondary" onclick="regenerateEmergencyLink(<?= (int)$card['id'] ?>)">🔄 Régénérer le lien</button>
     <?php endif; ?>
 </div>

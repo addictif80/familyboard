@@ -36,6 +36,11 @@ class InvitationController extends BaseController
     public function accept(array $params): void
     {
         $token = $params['token'] ?? '';
+        if (!\App\Core\Csrf::verify()) {
+            Session::flash('error', 'Session expirée, veuillez réessayer.');
+            header('Location: ' . BASE_URL . '/invite/' . $token);
+            exit;
+        }
         $invitation = Invitation::getByToken($token);
         if (!$invitation) {
             header('Location: ' . BASE_URL . '/login');
@@ -45,8 +50,14 @@ class InvitationController extends BaseController
         $name     = trim($_POST['name'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        if (!$name || strlen($password) < 6) {
-            Session::flash('error', 'Nom requis et mot de passe minimum 6 caractères.');
+        if (!$name || !$password) {
+            Session::flash('error', 'Nom et mot de passe requis.');
+            header('Location: ' . BASE_URL . '/invite/' . $token);
+            exit;
+        }
+
+        if (empty($_POST['accept_terms'])) {
+            Session::flash('error', 'Vous devez accepter les CGU et la politique de confidentialité.');
             header('Location: ' . BASE_URL . '/invite/' . $token);
             exit;
         }
@@ -59,6 +70,16 @@ class InvitationController extends BaseController
         // Check if email already has an account
         $existing = User::findByEmail($invitation['email']);
         if ($existing) {
+            // Le lien d'invitation ne prouve que la possession de la boîte mail, pas du mot de
+            // passe du compte existant — sans cette vérification, quiconque ouvre ce lien
+            // pourrait se connecter sur ce compte et déclencher la migration de famille
+            // ci-dessous sans jamais prouver qu'il en est le titulaire.
+            if (!password_verify($password, $existing['password'])) {
+                Session::flash('error', 'Un compte existe déjà avec cet email. Mot de passe incorrect.');
+                header('Location: ' . BASE_URL . '/invite/' . $token);
+                exit;
+            }
+
             if ($isCoparent) {
                 // Pont inter-familles : on ne touche pas à la famille/au rôle
                 // existants de ce compte, on ajoute seulement l'accès aux
@@ -71,11 +92,18 @@ class InvitationController extends BaseController
                 // compte existait déjà (rattaché à une autre famille).
                 CustodyActivityLog::activate((int)$existing['id'], $scheduleIds);
             } else {
-                // Move to this family
+                // Rejoint la famille en tant que membre à part entière : le rôle est
+                // explicitement remis à "member", sinon un administrateur de son ancienne
+                // famille garderait ce rôle et deviendrait automatiquement administrateur de
+                // la nouvelle famille qui l'invite.
+                $previousFamilyId = (int)$existing['family_id'];
                 \App\Core\Database::execute(
-                    'UPDATE users SET family_id=? WHERE id=?',
+                    "UPDATE users SET family_id=?, role='member' WHERE id=?",
                     [$invitation['family_id'], $existing['id']]
                 );
+                // Recharger le compte : $existing contient encore l'ancien family_id/role, or
+                // Session::login() les copie tels quels dans la session.
+                $existing = User::findById((int)$existing['id']);
             }
             Invitation::markUsed($token);
             Session::login($existing);
@@ -84,6 +112,11 @@ class InvitationController extends BaseController
         }
 
         // Create new account
+        if (strlen($password) < 8) {
+            Session::flash('error', 'Le mot de passe doit faire au moins 8 caractères.');
+            header('Location: ' . BASE_URL . '/invite/' . $token);
+            exit;
+        }
         $colors = ['#4A90D9', '#E74C3C', '#27AE60', '#F39C12', '#8E44AD', '#16A085'];
         $color = $colors[array_rand($colors)];
         $role = $isCoparent ? 'coparent' : 'member';
@@ -102,7 +135,9 @@ class InvitationController extends BaseController
         Session::flash('success', $isCoparent
             ? 'Accès restreint activé pour le suivi de garde partagée.'
             : 'Bienvenue dans la famille ' . $invitation['family_name'] . ' !');
-        header('Location: ' . BASE_URL . '/');
+        // Nouveau compte co-parent : présentation de ce qu'il peut faire avec son accès
+        // restreint avant de le laisser sur son espace — pas un configurateur, juste un tour.
+        header('Location: ' . BASE_URL . ($isCoparent ? '/coparent/welcome' : '/'));
         exit;
     }
 

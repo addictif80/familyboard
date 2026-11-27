@@ -65,6 +65,11 @@ class ErrorReporter
                 self::formatDetails($message, $context)
             );
             SupportTicket::markSource($ticketId, 'auto', $hash);
+            // Pour la correction assistée par IA (voir AiCodeFixer) : évite de reparser le texte
+            // libre du message pour retrouver où regarder.
+            if (!empty($context['file'])) {
+                SupportTicket::setErrorLocation($ticketId, (string)$context['file'], isset($context['line']) ? (int)$context['line'] : null);
+            }
         } catch (\Throwable) {
             // Le signalement d'erreur ne doit jamais lui-même faire échouer la requête.
         }

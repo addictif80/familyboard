@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Variante "monochrome" du mark Cercles : silhouette seule, sans dégradé ni fond, pour
+       les contextes où le système applique sa propre teinte (badge/notification Android). -->
+  <g fill="#000">
+    <circle cx="40" cy="58" r="17"/>
+    <circle cx="62" cy="62" r="13"/>
+    <circle cx="66" cy="40" r="9"/>
+    <circle cx="48" cy="34" r="7"/>
+  </g>
+</svg>

@@ -42,4 +42,11 @@ class LocationCheckin
             [$userId, $familyId]
         );
     }
+
+    /** RGPD (minimisation) : un check-in expiré n'a plus aucune utilité fonctionnelle une fois
+     *  passé son délai d'affichage — pas de raison de garder un historique de position en base. */
+    public static function purgeExpired(): int
+    {
+        return Database::execute('DELETE FROM location_checkins WHERE expires_at < NOW()');
+    }
 }

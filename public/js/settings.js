@@ -1,3 +1,113 @@
+// ---- Barre rapide (mobile) : limite le nombre de modules cochables ----
+document.addEventListener('DOMContentLoaded', () => {
+    const group = document.querySelector('[data-quick-nav-group]');
+    if (!group) return;
+    const max = parseInt(group.dataset.max, 10) || 3;
+    const hint = document.querySelector('[data-quick-nav-hint]');
+    const boxes = () => Array.from(group.querySelectorAll('input[type="checkbox"]'));
+
+    const refresh = () => {
+        const checked = boxes().filter(b => b.checked).length;
+        boxes().forEach(b => { if (!b.checked) b.disabled = checked >= max; });
+        if (hint) hint.textContent = checked >= max
+            ? `${max} sélectionnés sur ${max} maximum.`
+            : `${checked}/${max} sélectionnés.`;
+    };
+    group.addEventListener('change', refresh);
+    refresh();
+});
+
+// ---- Déconnexion de tous les appareils ----
+async function confirmLogoutAllDevices() {
+    const ok = await Dialog.confirm('Déconnecter tous les appareils, y compris celui-ci ? Vous devrez vous reconnecter.');
+    if (!ok) return;
+    const r = await apiFetch(BASE_URL + '/settings/logout-all-devices', { method: 'POST' });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+        return;
+    }
+    window.location.href = BASE_URL + '/logout';
+}
+
+// ---- Double authentification (2FA) ----
+function tfaShowStatus(mode) {
+    ['none', 'totp', 'email'].forEach(m => {
+        const el = document.getElementById('tfa-status-' + m);
+        if (el) el.style.display = m === mode ? 'block' : 'none';
+    });
+    document.getElementById('tfa-totp-setup').style.display = 'none';
+}
+
+async function startTfaTotpSetup() {
+    const r = await apiFetch(BASE_URL + '/settings/2fa/totp/start', { method: 'POST' });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+        return;
+    }
+    document.getElementById('tfa-totp-secret').textContent = r.secret;
+    document.getElementById('tfa-totp-code').value = '';
+    document.getElementById('tfa-totp-setup').style.display = 'block';
+
+    const qrEl = document.getElementById('tfa-totp-qrcode');
+    qrEl.innerHTML = '';
+    if (typeof qrcode === 'function') {
+        // La clé ne quitte jamais le navigateur : le QR code est généré localement,
+        // pas via un service tiers (qui verrait le secret 2FA en clair).
+        const qr = qrcode(0, 'M');
+        qr.addData(r.uri);
+        qr.make();
+        qrEl.innerHTML = qr.createSvgTag(5);
+    }
+}
+
+function cancelTfaTotpSetup() {
+    document.getElementById('tfa-totp-setup').style.display = 'none';
+}
+
+async function confirmTfaTotpSetup() {
+    const code = document.getElementById('tfa-totp-code').value.trim();
+    const r = await apiFetch(BASE_URL + '/settings/2fa/totp/confirm', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+    });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Code invalide.', 'error');
+        return;
+    }
+    Dialog.toast('Double authentification activée.', 'success');
+    tfaShowStatus('totp');
+}
+
+async function enableTfaEmail() {
+    const r = await apiFetch(BASE_URL + '/settings/2fa/email/enable', { method: 'POST' });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+        return;
+    }
+    Dialog.toast('Double authentification activée par email.', 'success');
+    tfaShowStatus('email');
+}
+
+function openTfaDisableModal() {
+    document.getElementById('tfa-disable-password').value = '';
+    openModal('tfa-disable-modal');
+}
+
+async function confirmTfaDisable() {
+    const password = document.getElementById('tfa-disable-password').value;
+    const r = await apiFetch(BASE_URL + '/settings/2fa/disable', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+    });
+    if (!r.success) {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+        return;
+    }
+    closeModal('tfa-disable-modal');
+    Dialog.toast('Double authentification désactivée.', 'success');
+    tfaShowStatus('none');
+}
+
 // ---- Push notifications toggle ----
 async function refreshPushStatus() {
     const btn = document.getElementById('push-toggle-btn');
@@ -80,14 +190,17 @@ async function createSitterLink() {
     const labelInput = document.getElementById('sitter-label');
     const label = labelInput.value.trim();
     const hours = parseInt(document.getElementById('sitter-hours').value, 10);
+    const instructionsInput = document.getElementById('sitter-instructions');
+    const instructions = instructionsInput.value.trim();
     const r = await apiFetch(BASE_URL + '/api/sitter/links', {
         method: 'POST',
-        body: JSON.stringify({ label, hours }),
+        body: JSON.stringify({ label, hours, instructions }),
     });
     if (!r.success) {
         Dialog.toast(r.error || 'Erreur.', 'error');
         return;
     }
+    instructionsInput.value = '';
 
     // Stays on screen (no auto-dismiss / no reload) so there's time to copy the link.
     document.getElementById('sitter-new-link').innerHTML = `
@@ -161,6 +274,7 @@ async function createKioskLink() {
             <strong>${escapeHtml(r.link.label)}</strong>
             <small>✅ Actif · créé le ${new Date(r.link.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('fr-FR')}</small>
         </div>
+        <button class="btn btn-secondary btn-sm" onclick="showKioskLinkModal('${r.link.token}', '${r.link.short_code}', '${escapeHtml(r.link.label).replace(/'/g, "\\'")}')">🔗 Voir le lien</button>
         <button class="btn btn-danger btn-sm" onclick="revokeKioskLink(${r.link.id})">Révoquer</button>
     `;
     list.prepend(div);
@@ -171,4 +285,142 @@ async function revokeKioskLink(id) {
     if (!ok) return;
     const r = await apiFetch(BASE_URL + '/api/kiosk/links/' + id + '/revoke', { method: 'POST' });
     if (r.success) window.location.reload();
+}
+
+function showKioskLinkModal(token, shortCode, label) {
+    const url = window.location.origin + BASE_URL + '/kiosk/' + token;
+    document.getElementById('kiosk-link-modal-title').textContent = 'Écran mural — ' + label;
+    const container = document.getElementById('kiosk-qr-container');
+    container.innerHTML = '';
+    const qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    container.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 4 });
+    document.getElementById('kiosk-qr-link').textContent = url;
+    document.getElementById('kiosk-qr-open-link').href = url;
+    document.getElementById('kiosk-qr-copy-btn').onclick = () => copyCode(url);
+    document.getElementById('kiosk-short-code').textContent = shortCode.replace(/(\d{3})(\d{3})/, '$1 $2');
+    openModal('kiosk-link-modal');
+}
+
+// ── Domicile (minuteurs) ────────────────────────────────────
+function setHomeLocation() {
+    const status = document.getElementById('home-location-status');
+    if (!('geolocation' in navigator)) {
+        status.textContent = "❌ La géolocalisation n'est pas supportée par ce navigateur.";
+        return;
+    }
+    status.textContent = '⏳ Localisation en cours…';
+    navigator.geolocation.getCurrentPosition(
+        async pos => {
+            const r = await apiFetch(BASE_URL + '/settings/home-location', {
+                method: 'POST',
+                body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            });
+            if (r.success) {
+                status.textContent = '✅ Domicile enregistré.';
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                status.textContent = '❌ ' + (r.error || 'Erreur.');
+            }
+        },
+        err => { status.textContent = '❌ Impossible d\'obtenir votre position : ' + err.message; },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
+}
+
+// ---- Enfants de la famille (registre central) ----
+
+function openEditFamilyChildForm(child) {
+    document.getElementById('family-child-id').value = child.id;
+    document.getElementById('family-child-name').value = child.name;
+    document.getElementById('family-child-birthdate').value = child.birth_date || '';
+    document.getElementById('family-child-color').value = child.color || '#4A90D9';
+    document.getElementById('family-child-form-cancel').style.display = '';
+    document.getElementById('family-child-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetFamilyChildForm() {
+    document.getElementById('family-child-id').value = '';
+    document.getElementById('family-child-name').value = '';
+    document.getElementById('family-child-birthdate').value = '';
+    document.getElementById('family-child-color').value = '#4A90D9';
+    document.getElementById('family-child-form-cancel').style.display = 'none';
+}
+
+async function saveFamilyChild() {
+    const name = document.getElementById('family-child-name').value.trim();
+    if (!name) { Dialog.toast('Le nom est requis.', 'error'); return; }
+    const payload = {
+        name,
+        birth_date: document.getElementById('family-child-birthdate').value,
+        color: document.getElementById('family-child-color').value,
+    };
+    const id = document.getElementById('family-child-id').value;
+    const url = id ? `${BASE_URL}/api/children/${id}` : `${BASE_URL}/api/children`;
+    const r = await apiFetch(url, { method: 'POST', body: JSON.stringify(payload) });
+    if (r.success) {
+        window.location.reload();
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}
+
+async function deleteFamilyChild(id) {
+    const ok = await Dialog.confirm('Supprimer cet enfant du registre familial ? Les données déjà saisies dans les modules (scolaire, nounou, garde alternée, bébé) sont conservées, seulement dépliées de cette fiche.');
+    if (!ok) return;
+    const r = await apiFetch(`${BASE_URL}/api/children/${id}/delete`, { method: 'POST' });
+    if (r.success) window.location.reload();
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+// ---- Synchronisation du calendrier avec le téléphone ----
+
+function renderCalendarSync(url) {
+    document.getElementById('calendar-sync-url').value = url;
+    const qrEl = document.getElementById('calendar-sync-qr');
+    qrEl.innerHTML = '';
+    const qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    qrEl.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2 });
+    document.getElementById('calendar-sync-result').style.display = '';
+}
+
+async function showCalendarSync() {
+    const r = await apiFetch(BASE_URL + '/api/calendar-feed/token', { method: 'POST' });
+    if (r.success) renderCalendarSync(r.url);
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+async function regenerateCalendarSync() {
+    const ok = await Dialog.confirm("Régénérer le lien ? L'ancien arrêtera immédiatement de se mettre à jour sur tout appareil déjà abonné.");
+    if (!ok) return;
+    const r = await apiFetch(BASE_URL + '/api/calendar-feed/regenerate', { method: 'POST' });
+    if (r.success) { renderCalendarSync(r.url); Dialog.toast('Nouveau lien généré.', 'success'); }
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+function copyCalendarSyncUrl() {
+    const input = document.getElementById('calendar-sync-url');
+    input.select();
+    navigator.clipboard?.writeText(input.value);
+    Dialog.toast('Lien copié.', 'success');
+}
+
+async function submitTestimonial() {
+    const content = document.getElementById('testimonial-content').value.trim();
+    if (!content) { Dialog.toast('Un témoignage est requis.', 'error'); return; }
+    const payload = {
+        content,
+        author_role: document.getElementById('testimonial-role').value,
+        rating: document.getElementById('testimonial-rating').value,
+    };
+    const r = await apiFetch(`${BASE_URL}/settings/testimonial`, { method: 'POST', body: JSON.stringify(payload) });
+    if (r.success) {
+        Dialog.toast('Merci pour votre témoignage !', 'success');
+        window.location.reload();
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
 }

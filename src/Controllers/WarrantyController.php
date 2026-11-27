@@ -28,7 +28,7 @@ class WarrantyController extends BaseController
             $file     = $_FILES['file'] ?? null;
             $id = Warranty::create($user['family_id'], $user['id'], $data, $file);
             Notification::notifyFamily($user['family_id'], $user['id'], 'warranties', 'Nouvelle garantie',
-                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/warranties');
+                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/warranties', null, 'warranty', $id);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -40,7 +40,7 @@ class WarrantyController extends BaseController
             $user     = Session::user();
             $data     = $_POST ?: $this->jsonInput();
             $file     = $_FILES['file'] ?? null;
-            Warranty::update((int)$params['id'], $user['family_id'], $data, $file);
+            Warranty::update((int)$params['id'], $user['family_id'], $data, $file, (int)$user['id']);
             return ['success' => true];
         });
     }
@@ -68,8 +68,8 @@ class WarrantyController extends BaseController
             return;
         }
 
-        $path = BASE_PATH . $warranty['file_path'];
-        if (!file_exists($path)) {
+        $path = \App\Core\FileStore::resolveLocalPath($warranty['file_path']);
+        if (!$path) {
             http_response_code(404);
             echo 'Fichier introuvable.';
             return;
@@ -80,7 +80,7 @@ class WarrantyController extends BaseController
 
         header('Content-Type: ' . $mime);
         header('Content-Length: ' . filesize($path));
-        header('Content-Disposition: inline; filename="' . addslashes($name) . '"');
+        header($this->contentDispositionHeader($name));
         header('Cache-Control: private, max-age=3600');
         readfile($path);
         exit;
@@ -117,7 +117,7 @@ class WarrantyController extends BaseController
             return;
         }
 
-        echo json_encode(['success' => true, 'text' => $text]);
+        echo json_encode(['success' => true, 'text' => $text, 'expiry_date' => \App\Core\OcrHelper::extractExpiryDate($text)]);
     }
 
     /** OCR diagnostic endpoint — returns binary paths and PHP config */

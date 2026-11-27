@@ -8,87 +8,109 @@ use App\Core\DateHelper;
 
 $totalDocs = array_sum($typeCounts);
 ?>
-<div class="docs-container">
-
-    <!-- Toolbar -->
-    <div class="docs-toolbar">
-        <div class="docs-search-wrap">
-            <input type="search" id="docs-search" class="docs-search"
-                   placeholder="🔍 Rechercher dans vos documents…"
-                   value="<?= htmlspecialchars($search) ?>"
-                   oninput="searchDocs(this.value)">
+<div class="tasks-container">
+    <div class="tasks-sidebar">
+        <div class="tasks-sidebar-header">
+            <h3>Types</h3>
         </div>
-        <button class="btn btn-primary" onclick="openDocModal()">+ Ajouter un document</button>
+        <ul class="lists-menu">
+            <li class="list-item <?= $filterType === '' ? 'active' : '' ?>">
+                <a href="javascript:void(0)" class="list-link" onclick="filterByType('')">
+                    <span class="list-name">📁 Tous</span>
+                    <span class="list-count"><?= $totalDocs ?></span>
+                </a>
+            </li>
+            <?php foreach ($allTypes as $tKey => $tDef): ?>
+                <?php $cnt = $typeCounts[$tKey] ?? 0; if ($cnt === 0 && $filterType !== $tKey) continue; ?>
+                <li class="list-item <?= $filterType === $tKey ? 'active' : '' ?>">
+                    <a href="javascript:void(0)" class="list-link" onclick="filterByType('<?= $tKey ?>')">
+                        <span class="list-dot" style="background:<?= htmlspecialchars($tDef['color']) ?>"></span>
+                        <span class="list-name"><?= $tDef['icon'] ?> <?= htmlspecialchars($tDef['label']) ?></span>
+                        <?php if ($cnt > 0): ?><span class="list-count"><?= $cnt ?></span><?php endif; ?>
+                    </a>
+                </li>
+            <?php endforeach; ?>
+        </ul>
     </div>
 
-    <!-- Expiry alert -->
-    <?php if (!empty($expiring)): ?>
-    <div class="warranty-alert-strip" style="margin-bottom:1rem">
-        ⚠️ <strong><?= count($expiring) ?> document<?= count($expiring) > 1 ? 's' : '' ?> expire<?= count($expiring) > 1 ? 'nt' : '' ?> dans les 90 jours :</strong>
-        <?php foreach ($expiring as $d): ?>
-            <span class="warranty-alert-chip <?= $d['expiry_status'] === 'critical' ? 'w-critical' : 'w-soon' ?>">
-                <?= htmlspecialchars($d['title']) ?>
-                (<?= $d['days_until_expiry'] ?>j)
-            </span>
-        <?php endforeach; ?>
-    </div>
-    <?php endif; ?>
-
-    <!-- Type filter chips -->
-    <div class="docs-type-filters" id="docs-type-filters">
-        <button class="doc-filter-chip <?= $filterType === '' ? 'active' : '' ?>"
-                onclick="filterByType('')">
-            📁 Tous <span class="doc-filter-count"><?= $totalDocs ?></span>
-        </button>
-        <?php foreach ($allTypes as $tKey => $tDef): ?>
-            <?php $cnt = $typeCounts[$tKey] ?? 0; if ($cnt === 0 && $filterType !== $tKey) continue; ?>
-            <button class="doc-filter-chip <?= $filterType === $tKey ? 'active' : '' ?>"
-                    onclick="filterByType('<?= $tKey ?>')"
-                    style="--type-color:<?= htmlspecialchars($tDef['color']) ?>">
-                <?= $tDef['icon'] ?> <?= htmlspecialchars($tDef['label']) ?>
-                <span class="doc-filter-count"><?= $cnt ?></span>
-            </button>
-        <?php endforeach; ?>
-    </div>
-
-    <!-- Member filter (if >1 member) -->
-    <?php if (count($members) > 1): ?>
-    <div class="docs-member-filters">
-        <span style="font-size:.8rem;color:var(--text-muted);margin-right:.5rem">Membre :</span>
-        <button class="doc-filter-chip small <?= $filterUser === 0 ? 'active' : '' ?>" onclick="filterByUser(0)">Tous</button>
-        <?php foreach ($members as $m): ?>
-            <button class="doc-filter-chip small <?= $filterUser === (int)$m['id'] ? 'active' : '' ?>"
-                    onclick="filterByUser(<?= $m['id'] ?>)">
-                <span class="user-avatar-xs" style="background:<?= htmlspecialchars($m['color']) ?>"><?= mb_substr($m['name'],0,1) ?></span>
-                <?= htmlspecialchars($m['name']) ?>
-            </button>
-        <?php endforeach; ?>
-    </div>
-    <?php endif; ?>
-
-    <!-- Document grid -->
-    <div class="docs-grid" id="docs-grid">
-        <?php if (empty($documents)): ?>
-            <div class="empty-state" style="grid-column:1/-1">
-                Aucun document. Ajoutez vos pièces d'identité, justificatifs, contrats…
+    <div class="tasks-main">
+        <div class="docs-page-head">
+            <div>
+                <h2 class="docs-page-title">Documents</h2>
+                <p class="docs-page-sub"><strong id="docs-count-anim" data-count="<?= $totalDocs ?>">0</strong> document<?= $totalDocs > 1 ? 's' : '' ?></p>
             </div>
-        <?php else: ?>
-        <?php foreach ($documents as $doc): ?>
+        </div>
+        <!-- Toolbar -->
+        <div class="docs-toolbar">
+            <div class="docs-search-wrap">
+                <input type="search" id="docs-search" class="docs-search"
+                       placeholder="🔍 Rechercher dans vos documents…"
+                       value="<?= htmlspecialchars($search) ?>"
+                       oninput="searchDocs(this.value)">
+            </div>
+            <button class="btn btn-primary" onclick="openDocModal()">+ Ajouter un document</button>
+        </div>
+
+        <!-- Expiry alert -->
+        <?php if (!empty($expiring)): ?>
+        <div class="warranty-alert-strip" style="margin-bottom:1rem">
+            ⚠️ <strong><?= count($expiring) ?> document<?= count($expiring) > 1 ? 's' : '' ?> expire<?= count($expiring) > 1 ? 'nt' : '' ?> dans les 90 jours :</strong>
+            <?php foreach ($expiring as $d): ?>
+                <span class="warranty-alert-chip <?= $d['expiry_status'] === 'critical' ? 'w-critical' : 'w-soon' ?>">
+                    <?= htmlspecialchars($d['title']) ?>
+                    (<?= $d['days_until_expiry'] ?>j)
+                </span>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Member filter (if >1 member) -->
+        <?php if (count($members) > 1): ?>
+        <div class="docs-member-filters">
+            <span style="font-size:.8rem;color:var(--text-muted);margin-right:.5rem">Membre :</span>
+            <button class="doc-filter-chip small <?= $filterUser === 0 ? 'active' : '' ?>" onclick="filterByUser(0)">Tous</button>
+            <?php foreach ($members as $m): ?>
+                <button class="doc-filter-chip small <?= $filterUser === (int)$m['id'] ? 'active' : '' ?>"
+                        onclick="filterByUser(<?= $m['id'] ?>)">
+                    <?= \App\Core\Avatar::html($m['avatar'] ?? null, $m['color'], $m['name'], 'user-avatar-xs') ?>
+                    <?= htmlspecialchars($m['name']) ?>
+                </button>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Document grid -->
+        <div class="docs-grid" id="docs-grid">
+            <?php if (empty($documents)): ?>
+                <div class="empty-state-card" style="grid-column:1/-1">
+                    <div class="empty-state-icon">🗂️</div>
+                    <h4>Aucun document</h4>
+                    <p>Ajoutez vos pièces d'identité, justificatifs, contrats…</p>
+                    <button class="btn btn-primary" onclick="openDocModal()">+ Ajouter un document</button>
+                </div>
+            <?php else: ?>
+            <?php foreach ($documents as $doc): ?>
         <div class="doc-card" data-id="<?= $doc['id'] ?>" data-type="<?= htmlspecialchars($doc['doc_type']) ?>"
+             style="border-left:4px solid <?= htmlspecialchars($doc['type_color']) ?>"
              onclick="openDocDetail(<?= htmlspecialchars(json_encode($doc)) ?>)">
 
-            <!-- Colored type header -->
-            <div class="doc-card-head" style="background:<?= htmlspecialchars($doc['type_color']) ?>">
-                <span class="doc-card-icon"><?= $doc['type_icon'] ?></span>
-                <span class="doc-card-type"><?= htmlspecialchars($doc['type_label']) ?></span>
+            <div class="doc-card-head">
+                <span class="doc-card-icon-badge" style="background:color-mix(in srgb, <?= htmlspecialchars($doc['type_color']) ?> 16%, var(--card-bg))"><?= $doc['type_icon'] ?></span>
+                <?php if (in_array($doc['expiry_status'] ?? '', ['critical', 'soon'], true)): ?>
+                    <span class="doc-expiring-pill">expire bientôt</span>
+                <?php endif; ?>
                 <div class="doc-card-actions" onclick="event.stopPropagation()">
-                    <button class="btn-icon-sm light" onclick="openEditDocModal(<?= htmlspecialchars(json_encode($doc)) ?>)" title="Modifier">✏️</button>
-                    <button class="btn-icon-sm light" onclick="deleteDoc(<?= $doc['id'] ?>)" title="Supprimer">🗑</button>
+                    <button class="btn-icon-sm" onclick="openEditDocModal(<?= htmlspecialchars(json_encode($doc)) ?>)" title="Modifier">✏️</button>
+                    <button class="btn-icon-sm" onclick="deleteDoc(<?= $doc['id'] ?>)" title="Supprimer">🗑</button>
                 </div>
             </div>
 
             <div class="doc-card-body">
-                <div class="doc-card-title"><?= htmlspecialchars($doc['title']) ?></div>
+                <div class="doc-card-title">
+                    <?= htmlspecialchars($doc['title']) ?>
+                    <?php if (!empty($doc['custody_schedule_ids'])): ?><span title="Partagé avec le co-parent">🔒</span><?php endif; ?>
+                </div>
+                <div class="doc-card-type-label"><?= htmlspecialchars($doc['type_label']) ?></div>
 
                 <div class="doc-card-meta">
                     <?php if ($doc['issuer']): ?>
@@ -114,12 +136,13 @@ $totalDocs = array_sum($typeCounts);
                 <div class="doc-card-footer">
                     <div class="doc-card-members">
                         <?php foreach ($doc['members'] as $m): ?>
-                            <div class="user-avatar-xs" style="background:<?= htmlspecialchars($m['color']) ?>"
-                                 title="<?= htmlspecialchars($m['name']) ?>"><?= mb_substr($m['name'],0,1) ?></div>
+                            <?= \App\Core\Avatar::html($m['avatar'] ?? null, $m['color'], $m['name'], 'user-avatar-xs', $m['name']) ?>
                         <?php endforeach; ?></div>
                     <?php if ($doc['file_path']): ?>
                         <a href="<?= BASE_URL ?>/documents/file/<?= $doc['id'] ?>" target="_blank"
                            class="doc-file-badge" onclick="event.stopPropagation()">📎 Voir</a>
+                        <a href="<?= BASE_URL ?>/documents/file/<?= $doc['id'] ?>?download=1"
+                           class="doc-file-badge" onclick="event.stopPropagation()" title="Télécharger">⬇️</a>
                     <?php endif; ?>
                     <?php if ($doc['tags']): ?>
                         <?php foreach (array_slice(explode(',', $doc['tags']), 0, 3) as $tag): ?>
@@ -131,6 +154,7 @@ $totalDocs = array_sum($typeCounts);
         </div>
         <?php endforeach; ?>
         <?php endif; ?>
+        </div>
     </div>
 </div>
 
@@ -193,7 +217,7 @@ $totalDocs = array_sum($typeCounts);
                         <?php foreach ($members as $m): ?>
                         <label class="member-pick-item">
                             <input type="checkbox" class="doc-member-cb" value="<?= (int)$m['id'] ?>">
-                            <span class="user-avatar-xs" style="background:<?= htmlspecialchars($m['color']) ?>"><?= mb_substr($m['name'],0,1) ?></span>
+                            <?= \App\Core\Avatar::html($m['avatar'] ?? null, $m['color'], $m['name'], 'user-avatar-xs') ?>
                             <?= htmlspecialchars($m['name']) ?>
                         </label>
                         <?php endforeach; ?>
@@ -243,13 +267,13 @@ $totalDocs = array_sum($typeCounts);
                     <span>Garde alternée</span>
                 </label>
                 <div id="doc-custody-select-wrap" style="display:none;margin-top:.4rem">
-                    <select id="doc-custody-schedule">
-                        <option value="">Sélectionner un enfant…</option>
-                        <?php foreach ($custodySchedules as $cs): ?>
-                            <option value="<?= (int)$cs['id'] ?>"><?= htmlspecialchars($cs['child_name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <small class="form-hint">Ce document sera visible par le co-parent à accès restreint de cet enfant.</small>
+                    <?php foreach ($custodySchedules as $cs): ?>
+                        <label class="radio-option">
+                            <input type="checkbox" class="doc-custody-child-cb" value="<?= (int)$cs['id'] ?>">
+                            <span><?= htmlspecialchars($cs['child_name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                    <small class="form-hint">Ce document sera visible par le(s) co-parent(s) à accès restreint des enfants sélectionnés.</small>
                 </div>
             </div>
             <?php endif; ?>
@@ -315,11 +339,49 @@ $totalDocs = array_sum($typeCounts);
     </div>
 </div>
 
+<!-- ── Duplicate detection Modal ────────────────────────────────────────── -->
+<div class="modal-overlay" id="duplicate-doc-modal" style="display:none">
+    <div class="modal modal-sm">
+        <div class="modal-header">
+            <h3>Document similaire trouvé</h3>
+            <button onclick="closeModal('duplicate-doc-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p>
+                Un document au titre proche existe déjà : <strong id="duplicate-doc-title"></strong>
+                (ajouté le <span id="duplicate-doc-date"></span>).
+            </p>
+            <p style="color:var(--text-muted);font-size:.85rem">
+                « Remplacer » garde l'ancien en archive (retiré de la liste, mais consultable depuis
+                l'historique du nouveau document) — ou gardez les deux comme documents distincts.
+            </p>
+        </div>
+        <div class="modal-footer" style="flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="closeModal('duplicate-doc-modal')">Annuler</button>
+            <button class="btn btn-secondary" onclick="resolveDuplicateDoc('keep')">Garder les deux</button>
+            <button class="btn btn-primary" onclick="resolveDuplicateDoc('replace')">Remplacer</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const DOC_TYPES = <?= json_encode(array_map(fn($k, $v) => ['key'=>$k,'label'=>$v['label'],'icon'=>$v['icon'],'color'=>$v['color']], array_keys($allTypes), $allTypes)) ?>;
 const DOC_CURRENT_FILTER_TYPE = <?= json_encode($filterType) ?>;
 const DOC_CURRENT_FILTER_USER = <?= json_encode($filterUser) ?>;
 const DOC_CURRENT_USER_ID = <?= json_encode((int)($_SESSION['user_id'] ?? 0)) ?>;
+(function () {
+    var el = document.getElementById('docs-count-anim');
+    if (!el) return;
+    var target = parseInt(el.dataset.count, 10) || 0;
+    if (!target) { el.textContent = '0'; return; }
+    var start = Date.now(), duration = 700;
+    (function step() {
+        var t = Math.min(1, (Date.now() - start) / duration);
+        var eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(target * eased);
+        if (t < 1) requestAnimationFrame(step);
+    })();
+})();
 </script>
 <?php
 $content = ob_get_clean();

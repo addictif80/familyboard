@@ -70,7 +70,7 @@ class Project
     public static function getTasks(int $projectId): array
     {
         return Database::fetchAll(
-            'SELECT pt.*, u.name as creator_name, a.name as assigned_name, a.color as assigned_color
+            'SELECT pt.*, u.name as creator_name, a.name as assigned_name, a.color as assigned_color, a.avatar as assigned_avatar
              FROM project_tasks pt
              JOIN users u ON u.id=pt.user_id
              LEFT JOIN users a ON a.id=pt.assigned_to

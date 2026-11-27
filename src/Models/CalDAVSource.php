@@ -47,8 +47,14 @@ class CalDAVSource
         $url = preg_replace('/^webcals?:\/\//i', 'https://', $url);
         $url = preg_replace('/^webcal:\/\//i', 'http://', $url);
 
+        // Un calendrier CalDAV est un service externe (Google, iCloud, Nextcloud...), jamais une
+        // adresse interne : on refuse tout ce qui ne résout pas vers une IP publique, pour éviter
+        // qu'une URL de calendrier ne serve à faire sonder le réseau local par le serveur (SSRF).
+        $pinnedIp = self::safePublicIp($url);
+        if ($pinnedIp === null) return [];
+
         if (function_exists('curl_init')) {
-            $data = self::curlGet($url, $source['username'] ?? null, $source['password'] ?? null);
+            $data = self::curlGet($url, $source['username'] ?? null, $source['password'] ?? null, $pinnedIp);
         } else {
             $ctx = stream_context_create([
                 'http' => [
@@ -57,7 +63,7 @@ class CalDAVSource
                         ? 'Authorization: Basic ' . base64_encode($source['username'] . ':' . $source['password']) . "\r\n"
                         : '',
                 ],
-                'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
+                'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
             ]);
             $data = @file_get_contents($url, false, $ctx);
         }
@@ -67,17 +73,46 @@ class CalDAVSource
         return self::parseICAL($data, $source['color'] ?? '#4A90D9');
     }
 
-    private static function curlGet(string $url, ?string $user, ?string $pass): string|false
+    /** Rejette les schémas non-HTTP(S) et toute résolution DNS vers une plage privée/loopback/
+     *  link-local, et retourne l'IP publique validée (ou null si le contrôle échoue). Le
+     *  résultat est ensuite épinglé sur la requête réelle (CURLOPT_RESOLVE, voir curlGet()) :
+     *  sans ça, un domaine attaquant avec un TTL DNS très court pourrait présenter une IP
+     *  publique à ce moment précis, puis une IP interne au moment de curl_exec() (DNS
+     *  rebinding) — refaire la résolution DNS dans curl_init($url) n'offrirait aucune garantie
+     *  que c'est la même IP qui a été validée ici. */
+    private static function safePublicIp(string $url): ?string
     {
+        $parts = parse_url($url);
+        if (!$parts || !in_array($parts['scheme'] ?? '', ['http', 'https'], true) || empty($parts['host'])) {
+            return null;
+        }
+        $host = $parts['host'];
+        $ip = filter_var($host, FILTER_VALIDATE_IP) ? $host : (gethostbyname($host) !== $host ? gethostbyname($host) : null);
+        if ($ip === null) return null;
+        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false ? $ip : null;
+    }
+
+    private static function curlGet(string $url, ?string $user, ?string $pass, string $pinnedIp): string|false
+    {
+        $parts = parse_url($url);
+        $scheme = $parts['scheme'] ?? 'https';
+        $port = $parts['port'] ?? ($scheme === 'https' ? 443 : 80);
+        $host = $parts['host'];
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS      => 5,
+            // Pas de redirection automatique : une redirection HTTP pourrait pointer vers une
+            // adresse interne alors que l'URL d'origine, elle, a passé la vérification
+            // safePublicIp() — on préfère ne pas suivre plutôt que rouvrir la faille.
+            CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_TIMEOUT        => 20,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_USERAGENT      => 'FamilyBoard/1.0',
+            // Épingle la connexion sur l'IP déjà validée par safePublicIp() plutôt que de
+            // laisser curl refaire sa propre résolution DNS (fenêtre de DNS rebinding).
+            CURLOPT_RESOLVE        => ["$host:$port:$pinnedIp"],
         ]);
         if ($user) {
             curl_setopt($ch, CURLOPT_USERPWD, $user . ':' . ($pass ?? ''));

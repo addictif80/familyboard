@@ -4,14 +4,28 @@ namespace App\Controllers;
 use App\Core\Database;
 use App\Core\Mail;
 use App\Core\Session;
+use App\Models\AbhdHighlight;
+use App\Models\AccountDeletion;
+use App\Models\PortalLink;
+use App\Models\RoadmapItem;
 use App\Models\AppSetting;
 use App\Models\EmailContent;
+use App\Models\LegalContent;
+use App\Core\OfficialAlertFeed;
 use App\Models\ImpersonationLog;
+use App\Models\NameDay;
 use App\Models\Notification;
 use App\Models\SmtpSettings;
 use App\Models\SupportTicket;
 use App\Models\User;
 use App\Core\EmailLayout;
+use App\Core\Vaultwarden;
+use App\Models\VaultwardenSettings;
+use App\Core\StripeGateway;
+use App\Models\Plan;
+use App\Models\FamilySubscription;
+use App\Models\StorageProduct;
+use App\Models\StorageSettings;
 
 class AdminController extends BaseController
 {
@@ -67,6 +81,7 @@ class AdminController extends BaseController
 
         if ($ok) {
             \App\Models\LoginAttempt::clear('admin', $ip);
+            session_regenerate_id(true); // anti-fixation, cf. App\Core\Session::login()
             $_SESSION['admin_logged_in'] = true;
             header('Location: ' . BASE_URL . '/admin');
         } else {
@@ -83,6 +98,7 @@ class AdminController extends BaseController
     {
         $this->requireSuperAdmin();
         $adminUsername = AppSetting::get('admin_username') ?? ADMIN_USER;
+        $adminEmail    = AppSetting::get('admin_email') ?? '';
         require BASE_PATH . '/templates/admin/profile.php';
     }
 
@@ -92,6 +108,7 @@ class AdminController extends BaseController
 
         $currentPass = $_POST['current_password'] ?? '';
         $newUser     = trim($_POST['username'] ?? '');
+        $newEmail    = trim($_POST['email'] ?? '');
         $newPass     = $_POST['new_password'] ?? '';
         $confirmPass = $_POST['confirm_password'] ?? '';
 
@@ -112,6 +129,12 @@ class AdminController extends BaseController
         if ($newUser !== '') {
             AppSetting::set('admin_username', $newUser);
         }
+
+        if ($newEmail !== '' && !filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
+            $this->redirect('/admin/profile?error=invalid_email');
+            return;
+        }
+        AppSetting::set('admin_email', $newEmail);
 
         if ($newPass !== '') {
             if ($newPass !== $confirmPass) {
@@ -142,20 +165,176 @@ class AdminController extends BaseController
         $this->requireSuperAdmin();
         $tab = $_GET['tab'] ?? 'dashboard';
 
+        // Calculé sur chaque page admin (pas juste l'onglet Stockage) : un job bloqué doit être
+        // visible dès l'arrivée sur /admin, pas seulement si l'admin pense à aller le chercher.
+        $provisioningPermanentlyFailed = \App\Models\ProvisioningJob::countPermanentlyFailed();
+
         $stats = [
-            'families'    => (int)(Database::fetch('SELECT COUNT(*) c FROM families')['c'] ?? 0),
-            'users'       => (int)(Database::fetch('SELECT COUNT(*) c FROM users')['c'] ?? 0),
-            'blocked'     => (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE blocked_at IS NOT NULL")['c'] ?? 0),
-            'tickets'     => SupportTicket::countOpen(),
+            'families'       => (int)(Database::fetch('SELECT COUNT(*) c FROM families')['c'] ?? 0),
+            'families_month' => (int)(Database::fetch("SELECT COUNT(*) c FROM families WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')")['c'] ?? 0),
+            'users'          => (int)(Database::fetch('SELECT COUNT(*) c FROM users')['c'] ?? 0),
+            'users_month'    => (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')")['c'] ?? 0),
+            'blocked'        => (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE blocked_at IS NOT NULL")['c'] ?? 0),
+            'tickets'        => SupportTicket::countOpen(),
+            'storage_bytes'  => (int)(Database::fetch('SELECT COALESCE(SUM(size_bytes),0) b FROM stored_files')['b'] ?? 0),
         ];
+        $recentFamilies = Database::fetchAll(
+            'SELECT f.*, p.name as plan_name
+             FROM families f
+             LEFT JOIN family_subscriptions fs ON fs.family_id = f.id AND fs.status = "active"
+             LEFT JOIN plans p ON p.id = fs.plan_id
+             ORDER BY f.created_at DESC LIMIT 3'
+        );
         $families     = Database::fetchAll('SELECT f.*, COUNT(u.id) as member_count FROM families f LEFT JOIN users u ON u.family_id=f.id GROUP BY f.id ORDER BY f.created_at DESC');
-        $users        = Database::fetchAll('SELECT u.*, f.name as family_name FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC');
+        // Colonnes explicites (jamais SELECT u.*) : évite qu'un futur ajout de colonne sensible
+        // (mot de passe, secret TOTP...) ne se retrouve exposé sans y penser dans ce tableau.
+        $users        = Database::fetchAll(
+            'SELECT u.id, u.family_id, u.name, u.email, u.role, u.blocked_at, u.blocked_reason, u.storage_quota_unlimited, u.created_at, u.last_login_at, f.name as family_name
+             FROM users u JOIN families f ON f.id=u.family_id ORDER BY u.blocked_at IS NULL DESC, u.created_at DESC'
+        );
         $blockedIps   = Database::fetchAll('SELECT * FROM blocked_ips ORDER BY created_at DESC');
         $tickets      = SupportTicket::getAll();
         $smtp         = SmtpSettings::get();
         $emailContents = EmailContent::getAll();
+        $highlights = AbhdHighlight::getAll();
+        $certifiedLinks = PortalLink::getCertified();
+        $legalPrivacy = LegalContent::get('privacy');
+        $legalTerms   = LegalContent::get('terms');
+        $legalPrivacyIsCustom = LegalContent::isCustom('privacy');
+        $legalTermsIsCustom   = LegalContent::isCustom('terms');
+        $deletedUsers = AccountDeletion::getDeletedUsers();
+        $meteoFranceApiKey = AppSetting::get('meteofrance_api_key') ?? '';
+        $vaultwardenSettings = VaultwardenSettings::get();
+        $ollamaSettings = \App\Models\OllamaSettings::get();
+        $oneMinSettings = \App\Models\OneMinAiSettings::get();
+        $aiProvider = \App\Core\AiProvider::get();
+        $githubConfigured = \App\Core\GitHubPublisher::isConfigured();
+        $require2faAll     = (bool)(int)(AppSetting::get('require_2fa_all') ?? '0');
+        $require2faGraceDays = (int)(AppSetting::get('require_2fa_grace_days') ?? '7');
+        $customNameDays = NameDay::getCustomEntries();
+        $roadmapItems = RoadmapItem::getAll();
+        $subBillingEnabled = FamilySubscription::billingEnabled();
+        $subTrialDays = (int)(AppSetting::get('sub_trial_days') ?? '14');
+        $subGraceDays = (int)(AppSetting::get('sub_grace_days') ?? '30');
+        $subAnnualDiscount = (int)(AppSetting::get('sub_annual_discount_pct') ?? '20');
+        $subFreeModules = FamilySubscription::freeModules();
+        $stripePublishableKey = AppSetting::get('stripe_publishable_key') ?? '';
+        $stripeSecretKey = AppSetting::get('stripe_secret_key') ?? '';
+        $stripeWebhookSecret = AppSetting::get('stripe_webhook_secret') ?? '';
+        $urssafReportEnabled = (bool)(int)(AppSetting::get('urssaf_report_enabled') ?? '0');
+        $urssafReportDay = (int)(AppSetting::get('urssaf_report_day') ?? '5');
+        $urssafReportLastSent = AppSetting::get('urssaf_report_last_sent') ?: null;
+        $urssafAdminEmail = AppSetting::get('admin_email') ?? '';
+        $plans = Plan::getAll();
+        $familySubscriptions = Database::fetchAll(
+            'SELECT fs.*, f.name as family_name, p.name as plan_name
+             FROM family_subscriptions fs JOIN families f ON f.id=fs.family_id LEFT JOIN plans p ON p.id=fs.plan_id
+             WHERE fs.status != "none" OR fs.manual = 1 ORDER BY fs.updated_at DESC'
+        );
+        $premiumDataPurges = Database::fetchAll('SELECT id, family_id, family_name, modules_purged, purged_at FROM premium_data_purges ORDER BY purged_at DESC LIMIT 200');
+        $referralEnabled = (bool)(int)(AppSetting::get('referral_enabled') ?? '0');
+        $publicSignupBannerEnabled = AppSetting::get('public_signup_banner_enabled', '1') !== '0';
+        $referralRewardPlanId = (int)(AppSetting::get('referral_reward_plan_id') ?? '0');
+        $referralRewardDays = (int)(AppSetting::get('referral_reward_days') ?? '30');
+        $referrals = \App\Models\Referral::getAll();
+        $announcements = \App\Models\Announcement::getAll();
+        $editingAnnouncement = ($tab === 'announcements' && !empty($_GET['edit']))
+            ? \App\Models\Announcement::getById((int)$_GET['edit']) : null;
+        $testimonials = \App\Models\Testimonial::getAll();
+
+        $storageBillingEnabled = \App\Core\StorageQuota::billingEnabled();
+        $storageFreeQuotaGb = \App\Core\StorageQuota::freeQuotaGb();
+        $storageFamilyQuotaGb = \App\Core\StorageQuota::familyQuotaGb();
+        $storageFamilyQuotaUnlimited = \App\Core\StorageQuota::familyQuotaUnlimited();
+        $storageNextcloudFilesEnabled = \App\Core\FileStore::nextcloudFilesEnabled();
+        $nextcloudFileMigrationReport = \App\Core\Session::get('admin_nextcloud_file_migration_report');
+        \App\Core\Session::delete('admin_nextcloud_file_migration_report');
+        $nextcloudGroupResyncReport = \App\Core\Session::get('admin_nextcloud_group_resync_report');
+        \App\Core\Session::delete('admin_nextcloud_group_resync_report');
+        $nextcloudFileRenameReport = \App\Core\Session::get('admin_nextcloud_file_rename_report');
+        \App\Core\Session::delete('admin_nextcloud_file_rename_report');
+        $ldapMigrationReport = \App\Core\Session::get('admin_ldap_migration_report');
+        \App\Core\Session::delete('admin_ldap_migration_report');
+        $ldapAuditReport = \App\Core\Session::get('admin_ldap_audit_report');
+        \App\Core\Session::delete('admin_ldap_audit_report');
+        $ldapRoleResyncReport = \App\Core\Session::get('admin_ldap_role_resync_report');
+        \App\Core\Session::delete('admin_ldap_role_resync_report');
+        $nextcloudVisibilityResyncReport = \App\Core\Session::get('admin_nextcloud_visibility_resync_report');
+        \App\Core\Session::delete('admin_nextcloud_visibility_resync_report');
+        $legacyLdapUserCount = (int)(Database::fetch("SELECT COUNT(*) c FROM users WHERE ldap_username IS NULL AND blocked_at IS NULL")['c'] ?? 0);
+        $ldapDirectory = $tab === 'ldap-directory' ? $this->buildLdapDirectory() : null;
+        $storageMemberAddonCapGb = (int)(AppSetting::get('storage_member_addon_cap_gb') ?? '1024');
+        $storageGraceDays = \App\Core\StorageQuota::gracePeriodDays();
+        $storageCapacityThresholdPct = \App\Core\StorageQuota::capacityAlertThresholdPct();
+        $storageProducts = \App\Models\StorageProduct::getAll();
+        $storageSettings = \App\Models\StorageSettings::get();
+        $storageExcludedModules = implode(', ', \App\Core\FileStore::excludedModules());
+        // Rapport du dernier rattrapage lancé depuis ce panneau (voir runStorageBackfill) —
+        // affiché une seule fois, consommé à la lecture comme un flash.
+        $storageBackfillReport = \App\Core\Session::get('admin_storage_backfill_report');
+        \App\Core\Session::delete('admin_storage_backfill_report');
+        $storageProvisioningReport = \App\Core\Session::get('admin_storage_provisioning_report');
+        \App\Core\Session::delete('admin_storage_provisioning_report');
+        $storageLdapEnabled = \App\Core\StorageProvisionerFactory::ldapEnabled();
+        $storageLdapGroup = AppSetting::get('storage_ldap_group', 'familyboard');
+        $storageLdapPeopleDn = AppSetting::get('storage_ldap_people_dn', '') ?? '';
+        $storageLdapGroupsDn = AppSetting::get('storage_ldap_groups_dn', '') ?? '';
+        $storageQuotaBackends = array_filter(array_map('trim', explode(',', AppSetting::get('storage_quota_backends', '') ?: '')));
+        $storageOutstandingJobs = $tab === 'storage' ? \App\Models\ProvisioningJob::getOutstanding(100) : [];
+        $nextcloudCalendarSyncEnabled = \App\Core\NextcloudCalendarSync::isEnabled();
+        $nextcloudCalendarSyncReport = \App\Core\Session::get('admin_nextcloud_calendar_sync_report');
+        \App\Core\Session::delete('admin_nextcloud_calendar_sync_report');
+        $storageLdapMigrationReport = \App\Core\Session::get('admin_storage_ldap_migration_report');
+        \App\Core\Session::delete('admin_storage_ldap_migration_report');
+
+        // Coûteux (agrégat sur toutes les familles) : calculé uniquement pour l'onglet Stockage.
+        $familyStorageUsage = [];
+        if ($tab === 'storage') {
+            $excluded = \App\Core\FileStore::excludedModules();
+            foreach (Database::fetchAll('SELECT id, name FROM families ORDER BY name') as $fam) {
+                $usedBytes = \App\Models\StoredFile::totalBytesForFamily((int)$fam['id'], $excluded);
+                if ($usedBytes <= 0) continue;
+                $breakdown = \App\Models\StoredFile::breakdownByModuleForFamily((int)$fam['id']);
+                $familyUnlimited = \App\Core\StorageQuota::familyQuotaUnlimited((int)$fam['id']);
+                // Par famille (pas une valeur globale) : inclut ses propres abonnements d'add-on
+                // familiaux (voir FamilyStorageSubscription), différents d'une famille à l'autre.
+                $quotaBytes = \App\Core\StorageQuota::familyQuotaGb((int)$fam['id']) * 1024 * 1024 * 1024;
+                $familyStorageUsage[] = [
+                    'family_id'   => $fam['id'],
+                    'family_name' => $fam['name'],
+                    'used_bytes'  => $usedBytes,
+                    'unlimited'   => $familyUnlimited,
+                    'pct'         => (!$familyUnlimited && $quotaBytes > 0) ? min(999, round($usedBytes / $quotaBytes * 100)) : 0,
+                    'breakdown'   => $breakdown,
+                ];
+            }
+            usort($familyStorageUsage, fn($a, $b) => $b['used_bytes'] <=> $a['used_bytes']);
+        }
+
+        // Coûteux (SUM sur information_schema, appel `du`) : calculé uniquement quand l'onglet
+        // est effectivement consulté, pas à chaque chargement du panneau admin.
+        $cronStatus = $errorStats = $emailStats = $dbSizeBytes = $storageSizeBytes = $migrationStatus = null;
+        if ($tab === 'health') {
+            $cronStatus = \App\Core\PlatformHealth::cronStatus();
+            $errorStats = \App\Core\PlatformHealth::errorStats();
+            $emailStats = \App\Core\PlatformHealth::emailStats();
+            $dbSizeBytes = \App\Core\PlatformHealth::dbSizeBytes();
+            $storageSizeBytes = \App\Core\PlatformHealth::storageSizeBytes();
+            $migrationStatus = \App\Core\PlatformHealth::migrationStatus();
+        }
 
         require BASE_PATH . '/templates/admin/index.php';
+    }
+
+    // ── Politique de sécurité globale : 2FA obligatoire ────────────
+
+    public function updateTwoFactorPolicy(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('require_2fa_all', !empty($_POST['require_2fa_all']) ? '1' : '0');
+        $days = max(0, (int)($_POST['require_2fa_grace_days'] ?? 7));
+        AppSetting::set('require_2fa_grace_days', (string)$days);
+        $this->redirect('/admin?tab=notifications&msg=2fa_policy_saved');
     }
 
     // ── Contenu des emails (global, système) ──────────────────────
@@ -209,11 +388,17 @@ class AdminController extends BaseController
     public function updateSmtp(array $params): void
     {
         $this->requireSuperAdmin();
+        // Le mot de passe n'est jamais réaffiché dans le formulaire (il ne doit pas apparaître en
+        // clair dans le code source de la page) — champ vide = conserver le mot de passe actuel.
+        $password = $_POST['smtp_pass'] ?? '';
+        if ($password === '') {
+            $password = SmtpSettings::get()['password'] ?? '';
+        }
         SmtpSettings::save([
             'host'       => $_POST['smtp_host'] ?? '',
             'port'       => (int)($_POST['smtp_port'] ?? 587),
             'username'   => $_POST['smtp_user'] ?? '',
-            'password'   => $_POST['smtp_pass'] ?? '',
+            'password'   => $password,
             'from_email' => $_POST['smtp_from_email'] ?? '',
             'from_name'  => $_POST['smtp_from_name'] ?? '',
             'encryption' => $_POST['smtp_encryption'] ?? 'tls',
@@ -268,6 +453,80 @@ class AdminController extends BaseController
         $id = (int)$params['id'];
         Database::execute('UPDATE users SET blocked_at=NULL, blocked_reason=NULL WHERE id=?', [$id]);
         $this->redirect('/admin?tab=users&msg=unblocked');
+    }
+
+    /** Quota de stockage perso illimité (Go/Synology/Nextcloud) pour ce membre — voir
+     *  App\Models\User::setStorageUnlimited, qui repousse aussi le quota aux backends actifs. */
+    public function setUserStorageUnlimited(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\User::setStorageUnlimited((int)$params['id'], !empty($_POST['enabled']));
+        $this->redirect('/admin?tab=users&msg=storage_unlimited_updated');
+    }
+
+    /**
+     * Suppression d'un compte membre ou co-parent par l'administrateur système, avec motif
+     * obligatoire. AccountDeletion::deleteUser() capture un instantané des données personnelles
+     * (page HTML, voir DataExport::buildHtmlPage()) et le motif avant toute anonymisation ; cet
+     * instantané sert à envoyer l'e-mail de suppression ci-dessous, et reste disponible pour un
+     * renvoi ultérieur (voir resendDeletedUserReport()) même après une purge définitive du
+     * contenu si "Tout supprimer" est coché.
+     * Volontairement limité aux rôles membre/co-parent : supprimer un compte administrateur de
+     * famille nécessite de transférer son rôle ou de supprimer toute la famille (choix qui
+     * appartient à cette famille, pas à un administrateur système agissant seul).
+     */
+    public function deleteUserAccount(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)$params['id'];
+        $reason = trim($_POST['reason'] ?? '');
+        $purgeAll = !empty($_POST['purge_all']);
+        $target = User::findById($id);
+
+        if (!$target || $reason === '') {
+            $this->redirect('/admin?tab=users&msg=delete_failed');
+            return;
+        }
+        if ($target['role'] === 'admin') {
+            $this->redirect('/admin?tab=users&msg=delete_admin_blocked');
+            return;
+        }
+
+        if ($target['role'] === 'coparent') {
+            AccountDeletion::deleteCoparent($id, 'system_admin', $reason);
+        } else {
+            AccountDeletion::deleteUser($id, (int)$target['family_id'], 'system_admin', $reason);
+        }
+
+        $deletedRow = Database::fetch('SELECT * FROM deleted_users WHERE original_user_id=? ORDER BY id DESC LIMIT 1', [$id]);
+        if ($deletedRow) {
+            AccountDeletion::resendDeletionReport($deletedRow);
+            if ($purgeAll) AccountDeletion::purgeDeletedUserData((int)$deletedRow['id']);
+        }
+
+        $this->redirect('/admin?tab=users&msg=user_deleted');
+    }
+
+    /** Renvoie le rapport de suppression (motif + export de données, si disponibles) à un
+     *  compte déjà supprimé — fonctionne même après une purge définitive du contenu. */
+    public function resendDeletedUserReport(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)$params['id'];
+        $row = Database::fetch('SELECT * FROM deleted_users WHERE id=?', [$id]);
+        $ok = $row && AccountDeletion::resendDeletionReport($row);
+        $this->redirect('/admin?tab=deleted-accounts&msg=' . ($ok ? 'report_resent' : 'report_resend_failed'));
+    }
+
+    /**
+     * Purge définitive des données conservées d'un compte supprimé (membre classique ou
+     * co-parent, quel que soit qui a initié la suppression) — action irréversible.
+     */
+    public function purgeDeletedUser(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AccountDeletion::purgeDeletedUserData((int)$params['id']);
+        $this->redirect('/admin?tab=deleted-accounts&msg=purged');
     }
 
     /**
@@ -349,6 +608,27 @@ class AdminController extends BaseController
         $this->redirect('/admin?tab=ips');
     }
 
+    // ── Calendrier des prénoms (éphéméride) ────────────────────────
+
+    public function addNameDay(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $name = trim($_POST['name'] ?? '');
+        // <input type="date"> renvoie AAAA-MM-JJ ; seuls le mois et le jour sont pertinents
+        // pour une fête, qui revient chaque année.
+        $date = trim($_POST['name_day'] ?? '');
+        $mmdd = preg_match('/^\d{4}-(\d{2}-\d{2})$/', $date, $m) ? $m[1] : '';
+        $ok   = $name && $mmdd && NameDay::addCustom($name, $mmdd);
+        $this->redirect('/admin?tab=namedays' . ($ok ? '&msg=nameday_added' : '&msg=nameday_invalid'));
+    }
+
+    public function deleteNameDay(array $params): void
+    {
+        $this->requireSuperAdmin();
+        NameDay::deleteCustom((int)$params['id']);
+        $this->redirect('/admin?tab=namedays');
+    }
+
     // ── Support tickets ──────────────────────────────────────────
 
     public function viewTicket(array $params): void
@@ -391,17 +671,1215 @@ class AdminController extends BaseController
         $this->redirect('/admin/tickets/' . $id);
     }
 
-    // ── Notifications système (broadcast à tous les utilisateurs) ─
+    // ── Correction assistée par IA (voir App\Core\AiCodeFixer / GitHubPublisher) ──────
+
+    public function analyzeTicketWithAi(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () use ($params) {
+            $id = (int)$params['id'];
+            $ticket = SupportTicket::getById($id);
+            if (!$ticket) return ['success' => false, 'error' => 'Ticket introuvable.'];
+            if (empty($ticket['error_file'])) {
+                return ['success' => false, 'error' => 'Aucun fichier identifié pour ce ticket.'];
+            }
+            // Le sujet est tronqué à 80 caractères (voir ErrorReporter::report()) — le premier
+            // message du ticket contient le message d'erreur complet ("Détails : …").
+            $firstMessage = SupportTicket::getMessages($id)[0]['message'] ?? '';
+            $errorMessage = preg_match('/Détails\s*:\s*(.+)/u', $firstMessage, $m) ? trim($m[1]) : $ticket['subject'];
+            $result = \App\Core\AiCodeFixer::proposeFix($errorMessage, $ticket['error_file'], $ticket['error_line'] ? (int)$ticket['error_line'] : null);
+            if (!$result['ok']) {
+                SupportTicket::saveAiFixError($id, $result['error']);
+                return ['success' => false, 'error' => $result['error']];
+            }
+            SupportTicket::saveAiFixProposal($id, $result['diagnosis'], $result['relative_path'], $result['original_content'], $result['proposed_content']);
+            return ['success' => true];
+        });
+    }
+
+    public function publishTicketFix(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () use ($params) {
+            $id = (int)$params['id'];
+            $ticket = SupportTicket::getById($id);
+            if (!$ticket || $ticket['ai_fix_status'] !== 'proposed') {
+                return ['success' => false, 'error' => 'Aucune proposition en attente pour ce ticket.'];
+            }
+            $result = \App\Core\GitHubPublisher::openFixPr(
+                $id,
+                $ticket['ai_fix_relative_path'],
+                $ticket['ai_fix_proposed_content'],
+                $ticket['ai_fix_diagnosis'],
+                $ticket['subject']
+            );
+            if (!$result['ok']) {
+                SupportTicket::saveAiFixError($id, $result['error']);
+                return ['success' => false, 'error' => $result['error']];
+            }
+            SupportTicket::saveAiFixPrUrl($id, $result['pr_url']);
+            return ['success' => true, 'pr_url' => $result['pr_url']];
+        });
+    }
+
+    public function rejectTicketFix(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () use ($params) {
+            SupportTicket::clearAiFixProposal((int)$params['id']);
+            return ['success' => true];
+        });
+    }
+
+    /** Champ mot de passe laissé vide = ne pas changer le jeton existant (évite de le vider par
+     *  erreur en rouvrant le formulaire, puisqu'il n'est jamais réaffiché en clair). */
+    public function updateGithubSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $token = trim($_POST['github_pat'] ?? '');
+        if ($token !== '') AppSetting::set('github_pat', $token);
+        $this->redirect('/admin?tab=notifications&msg=ollama_saved');
+    }
+
+    public function testGithubConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\GitHubPublisher::testConnection());
+    }
+
+    // ── Notifications système (à tous les utilisateurs, ou ciblée) ─
 
     public function sendSystemNotification(array $params): void
     {
         $this->requireSuperAdmin();
-        $title   = trim($_POST['title'] ?? '');
-        $message = trim($_POST['message'] ?? '');
-        if ($title && $message && mb_strlen($title) <= 150 && mb_strlen($message) <= 2000) {
-            Notification::broadcastToAll($title, $message);
+        $title      = trim($_POST['title'] ?? '');
+        $shortText  = trim($_POST['short_text'] ?? '');
+        $contentHtml = $this->sanitizeHtml(trim($_POST['content'] ?? ''));
+        $contentIsEmpty = trim(strip_tags($contentHtml)) === '';
+        $recipients = ($_POST['recipients'] ?? 'all') === 'specific' ? 'specific' : 'all';
+
+        if ($title && $shortText && !$contentIsEmpty && mb_strlen($title) <= 150 && mb_strlen($shortText) <= 300) {
+            if ($recipients === 'specific') {
+                $userIds = array_map('intval', (array)($_POST['user_ids'] ?? []));
+                Notification::sendToUsers($userIds, $title, $shortText, $contentHtml);
+            } else {
+                Notification::broadcastToAll($title, $shortText, $contentHtml);
+            }
         }
         $this->redirect('/admin?tab=notifications&msg=notification_sent');
+    }
+
+    // ── Veille informationnelle : clé API Météo-France Vigilance (optionnelle) ────
+
+    public function updateMeteoFranceKey(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $newKey = trim($_POST['api_key'] ?? '');
+        // Le champ vide + keep_existing=1 signifie "le panneau de modification n'a pas été
+        // ouvert", pas "désactiver la clé" — sinon recharger la page suffirait à l'effacer.
+        if ($newKey === '' && !empty($_POST['keep_existing'])) {
+            $this->redirect('/admin?tab=notifications&msg=meteofrance_saved');
+            return;
+        }
+        AppSetting::set('meteofrance_api_key', $newKey);
+        $this->redirect('/admin?tab=notifications&msg=meteofrance_saved');
+    }
+
+    public function testMeteoFranceKey(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(function () {
+            $apiKey = AppSetting::get('meteofrance_api_key');
+            if (!$apiKey) {
+                return ['ok' => false, 'error' => 'Aucune clé API enregistrée.'];
+            }
+            $data = OfficialAlertFeed::fetchVigilanceData($apiKey);
+            if ($data === null) {
+                return ['ok' => false, 'error' => "Échec de l'appel à l'API Vigilance — clé invalide, expirée, ou service injoignable."];
+            }
+            return ['ok' => true];
+        });
+    }
+
+    // ── Vaultwarden (coffre-fort de mots de passe, réservé aux membres non co-parent) ──
+
+    public function updateVaultwardenSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $url = trim($_POST['url'] ?? '');
+        $newToken = trim($_POST['admin_token'] ?? '');
+        // Comme pour la clé Météo-France : champ jeton vide + keep_existing=1 veut dire "panneau
+        // non ouvert", pas "effacer le jeton" — sinon recharger la page suffirait à le vider.
+        if ($newToken === '' && !empty($_POST['keep_existing'])) {
+            $existing = VaultwardenSettings::get();
+            $newToken = $existing['token'] ?? '';
+        }
+        if ($url && $newToken) {
+            VaultwardenSettings::save($url, $newToken);
+        } else {
+            AppSetting::set('vaultwarden_url', '');
+            AppSetting::set('vaultwarden_admin_token', '');
+        }
+        $this->redirect('/admin?tab=notifications&msg=vaultwarden_saved');
+    }
+
+    public function testVaultwardenConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => Vaultwarden::testConnection());
+    }
+
+    // ── Assistant IA (Ollama auto-hébergé) ──────────────────────────
+
+    public function updateOllamaSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $url = trim($_POST['url'] ?? '');
+        $model = trim($_POST['model'] ?? '');
+        if ($url && $model) {
+            \App\Models\OllamaSettings::save($url, $model);
+        } else {
+            AppSetting::set('ollama_url', '');
+            AppSetting::set('ollama_model', '');
+        }
+        $this->redirect('/admin?tab=notifications&msg=ollama_saved');
+    }
+
+    public function testOllamaConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\Ollama::testConnection());
+    }
+
+    public function updateAiProvider(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Core\AiProvider::set(trim($_POST['provider'] ?? ''));
+        $this->redirect('/admin?tab=notifications&msg=ollama_saved');
+    }
+
+    public function updateOneMinSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $apiKey = trim($_POST['api_key'] ?? '');
+        $model = trim($_POST['model'] ?? '');
+        if ($apiKey) {
+            \App\Models\OneMinAiSettings::save($apiKey, $model);
+        } else {
+            AppSetting::set('onemin_api_key', '');
+            AppSetting::set('onemin_model', '');
+        }
+        $this->redirect('/admin?tab=notifications&msg=ollama_saved');
+    }
+
+    public function testOneMinConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\OneMinAi::testConnection());
+    }
+
+    // ── Mise à jour (git pull) ────────────────────────────────────
+
+    public function platformUpdateStatus(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\GitUpdater::status());
+    }
+
+    public function platformUpdate(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\GitUpdater::pull());
+    }
+
+    // ── Abonnements (Stripe Billing) ─────────────────────────────
+
+    public function updateSubscriptionSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('sub_billing_enabled', !empty($_POST['sub_billing_enabled']) ? '1' : '0');
+        AppSetting::set('sub_trial_days', (string)max(0, (int)($_POST['sub_trial_days'] ?? 14)));
+        AppSetting::set('sub_grace_days', (string)max(0, (int)($_POST['sub_grace_days'] ?? 30)));
+        AppSetting::set('sub_annual_discount_pct', (string)max(0, min(90, (int)($_POST['sub_annual_discount_pct'] ?? 20))));
+        $freeModules = array_values(array_intersect(
+            array_map('trim', (array)($_POST['sub_free_modules'] ?? [])),
+            array_keys(\App\Models\Family::MODULES)
+        ));
+        AppSetting::set('sub_free_modules', implode(',', $freeModules));
+        $this->redirect('/admin?tab=subscriptions&msg=sub_settings_saved');
+    }
+
+    public function updateStripeSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $publishable = trim($_POST['stripe_publishable_key'] ?? '');
+        $newSecret = trim($_POST['stripe_secret_key'] ?? '');
+        $newWebhookSecret = trim($_POST['stripe_webhook_secret'] ?? '');
+        // Comme pour Vaultwarden : champ vide + keep_existing=1 veut dire "panneau non
+        // ouvert", pas "effacer la clé".
+        if ($newSecret === '' && !empty($_POST['keep_existing_secret'])) {
+            $newSecret = AppSetting::get('stripe_secret_key') ?? '';
+        }
+        if ($newWebhookSecret === '' && !empty($_POST['keep_existing_webhook'])) {
+            $newWebhookSecret = AppSetting::get('stripe_webhook_secret') ?? '';
+        }
+        AppSetting::set('stripe_publishable_key', $publishable);
+        AppSetting::set('stripe_secret_key', $newSecret);
+        AppSetting::set('stripe_webhook_secret', $newWebhookSecret);
+        $this->redirect('/admin?tab=subscriptions&msg=stripe_saved');
+    }
+
+    /** Rapport mensuel de chiffre d'affaires (déclaration URSSAF) — voir App\Core\UrssafReport
+     *  et cron.php::sendUrssafReport(). Chiffre d'affaires de la PLATEFORME (paiements Stripe
+     *  encaissés auprès des familles), sans rapport avec le module Budget d'une famille. */
+    public function updateUrssafSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('urssaf_report_enabled', !empty($_POST['urssaf_report_enabled']) ? '1' : '0');
+        AppSetting::set('urssaf_report_day', (string)max(1, min(28, (int)($_POST['urssaf_report_day'] ?? 5))));
+        $this->redirect('/admin?tab=subscriptions&msg=urssaf_settings_saved');
+    }
+
+    /** Génère et envoie immédiatement le rapport du mois civil précédent — pour vérifier la
+     *  configuration sans attendre le jour programmé. Met aussi à jour urssaf_report_last_sent
+     *  pour que le cron du jour programmé ne le renvoie pas une seconde fois le même mois. */
+    public function sendUrssafReportNow(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $adminEmail = AppSetting::get('admin_email') ?? '';
+        if (!$adminEmail) {
+            $this->redirect('/admin?tab=subscriptions&msg=urssaf_no_admin_email');
+            return;
+        }
+        if (!\App\Core\StripeGateway::isConfigured()) {
+            $this->redirect('/admin?tab=subscriptions&msg=urssaf_stripe_not_configured');
+            return;
+        }
+        $prevMonth = new \DateTimeImmutable('first day of last month');
+        try {
+            $sent = \App\Core\UrssafReport::sendForMonth((int)$prevMonth->format('Y'), (int)$prevMonth->format('n'), $adminEmail);
+        } catch (\Throwable $e) {
+            error_log('URSSAF manual report error: ' . $e->getMessage());
+            $sent = false;
+        }
+        if ($sent) {
+            AppSetting::set('urssaf_report_last_sent', date('Y-m'));
+        }
+        $this->redirect('/admin?tab=subscriptions&msg=' . ($sent ? 'urssaf_sent' : 'urssaf_send_failed'));
+    }
+
+    // ── Gestion des témoignages ────────────────────────────────────
+
+    public function createTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $authorName = trim($_POST['author_name'] ?? '');
+        $content = trim($_POST['content'] ?? '');
+        if ($authorName === '' || $content === '') {
+            $this->redirect('/admin?tab=testimonials&msg=testimonial_invalid');
+            return;
+        }
+        $authorRole = trim($_POST['author_role'] ?? '') ?: null;
+        $rating = (int)($_POST['rating'] ?? 0);
+        $rating = ($rating >= 1 && $rating <= 5) ? $rating : null;
+        \App\Models\Testimonial::createManual($authorName, $authorRole, $content, $rating, !empty($_POST['approve_now']));
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_saved');
+    }
+
+    public function approveTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::approve((int)$params['id']);
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_approved');
+    }
+
+    public function rejectTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::reject((int)$params['id']);
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_rejected');
+    }
+
+    public function updateTestimonialOrder(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::updateSortOrder((int)$params['id'], max(0, (int)($_POST['sort_order'] ?? 0)));
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_saved');
+    }
+
+    public function deleteTestimonial(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Testimonial::delete((int)$params['id']);
+        $this->redirect('/admin?tab=testimonials&msg=testimonial_deleted');
+    }
+
+    // ── Centre d'annonces système ─────────────────────────────────
+
+    public function createAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title = trim($_POST['title'] ?? '');
+        $content = trim($_POST['content'] ?? '');
+        $type = array_key_exists($_POST['type'] ?? '', \App\Models\Announcement::TYPES) ? $_POST['type'] : 'info';
+        if ($title === '' || $content === '') {
+            $this->redirect('/admin?tab=announcements&msg=announcement_invalid');
+            return;
+        }
+        \App\Models\Announcement::create($title, $content, $type, !empty($_POST['publish_now']));
+        $this->redirect('/admin?tab=announcements&msg=announcement_saved');
+    }
+
+    public function updateAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)$params['id'];
+        $title = trim($_POST['title'] ?? '');
+        $content = trim($_POST['content'] ?? '');
+        $type = array_key_exists($_POST['type'] ?? '', \App\Models\Announcement::TYPES) ? $_POST['type'] : 'info';
+        if ($title === '' || $content === '') {
+            $this->redirect('/admin?tab=announcements&msg=announcement_invalid');
+            return;
+        }
+        \App\Models\Announcement::update($id, $title, $content, $type);
+        $this->redirect('/admin?tab=announcements&msg=announcement_saved');
+    }
+
+    public function publishAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Announcement::publish((int)$params['id']);
+        $this->redirect('/admin?tab=announcements&msg=announcement_published');
+    }
+
+    public function unpublishAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Announcement::unpublish((int)$params['id']);
+        $this->redirect('/admin?tab=announcements&msg=announcement_unpublished');
+    }
+
+    public function deleteAnnouncement(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\Announcement::delete((int)$params['id']);
+        $this->redirect('/admin?tab=announcements&msg=announcement_deleted');
+    }
+
+    // ── Stockage perso payant (voir add_storage_billing.sql) ──────
+
+    public function updateStorageSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('storage_billing_enabled', !empty($_POST['storage_billing_enabled']) ? '1' : '0');
+        AppSetting::set('storage_free_quota_gb', (string)max(0, (int)($_POST['storage_free_quota_gb'] ?? 5)));
+        AppSetting::set('storage_family_quota_gb', (string)max(0, (int)($_POST['storage_family_quota_gb'] ?? 50)));
+        AppSetting::set('storage_family_quota_unlimited', !empty($_POST['storage_family_quota_unlimited']) ? '1' : '0');
+        AppSetting::set('storage_nextcloud_files_enabled', !empty($_POST['storage_nextcloud_files_enabled']) ? '1' : '0');
+        AppSetting::set('storage_member_addon_cap_gb', (string)max(0, (int)($_POST['storage_member_addon_cap_gb'] ?? 1024)));
+        AppSetting::set('storage_grace_days', (string)max(0, (int)($_POST['storage_grace_days'] ?? 30)));
+        AppSetting::set('storage_capacity_alert_threshold_pct', (string)max(1, min(100, (int)($_POST['storage_capacity_alert_threshold_pct'] ?? 70))));
+        $excludedModules = array_values(array_filter(array_map('trim', explode(',', $_POST['storage_quota_excluded_modules'] ?? 'avatar'))));
+        AppSetting::set('storage_quota_excluded_modules', implode(',', $excludedModules ?: ['avatar']));
+        $this->redirect('/admin?tab=storage&msg=storage_settings_saved');
+    }
+
+    /** Identifiants LDAP/Synology pour le provisioning (Phase 4) — mots de passe chiffrés via
+     *  App\Core\Crypto (StorageSettings::save), jamais en clair en base. Champ mot de passe vide
+     *  = non modifié (même convention que Vaultwarden : panneau non rouvert). */
+    public function updateStorageInfraSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        StorageSettings::save([
+            'ldap_host' => $_POST['ldap_host'] ?? '',
+            'ldap_bind_dn' => $_POST['ldap_bind_dn'] ?? '',
+            'ldap_base_dn' => $_POST['ldap_base_dn'] ?? '',
+            'ldap_bind_password' => $_POST['ldap_bind_password'] ?? '',
+            'synology_url' => $_POST['synology_url'] ?? '',
+            'synology_username' => $_POST['synology_username'] ?? '',
+            'synology_password' => $_POST['synology_password'] ?? '',
+            'synology_shared_folder' => $_POST['synology_shared_folder'] ?? '',
+            'nextcloud_url' => $_POST['nextcloud_url'] ?? '',
+            'nextcloud_admin_user' => $_POST['nextcloud_admin_user'] ?? '',
+            'nextcloud_admin_password' => $_POST['nextcloud_admin_password'] ?? '',
+        ]);
+        AppSetting::set('storage_ldap_group', trim($_POST['storage_ldap_group'] ?? '') ?: 'familyboard');
+        AppSetting::set('storage_ldap_people_dn', trim($_POST['storage_ldap_people_dn'] ?? ''));
+        AppSetting::set('storage_ldap_groups_dn', trim($_POST['storage_ldap_groups_dn'] ?? ''));
+        AppSetting::set('storage_ldap_enabled', !empty($_POST['storage_ldap_enabled']) ? '1' : '0');
+        // Les comptes dépendent toujours du Serveur LDAP Synology ; le(s) backend(s) de quota
+        // (Synology et/ou Nextcloud) sont indépendants et peuvent être actifs simultanément.
+        $quotaBackends = array_values(array_intersect(
+            (array)($_POST['storage_quota_backends'] ?? []),
+            ['synology', 'nextcloud']
+        ));
+        AppSetting::set('storage_quota_backends', implode(',', $quotaBackends));
+        AppSetting::set('nextcloud_calendar_sync_enabled', !empty($_POST['nextcloud_calendar_sync_enabled']) ? '1' : '0');
+        $this->redirect('/admin?tab=storage&msg=storage_infra_saved');
+    }
+
+    /** Déclenche immédiatement une réconciliation calendrier → Nextcloud pour tous les membres
+     *  éligibles (voir App\Core\NextcloudCalendarSync) — sans attendre le prochain passage
+     *  throttlé du cron. Aucun accès SSH requis. */
+    public function runNextcloudCalendarSync(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $totals = \App\Core\NextcloudCalendarSync::syncAllMembers();
+        \App\Core\Session::set('admin_nextcloud_calendar_sync_report', $totals);
+        $this->redirect('/admin?tab=storage&msg=nextcloud_calendar_sync_done');
+    }
+
+    public function testStorageLdapConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\LdapService::testConnection());
+    }
+
+    /** Diagnostic "tester un compte" : recherche un uid LDAP donné et rapporte s'il existe —
+     *  vérifie bind + recherche + groupe de bout en bout sans dépendre du mot de passe de ce
+     *  compte, comme demandé explicitement pour valider le provisioning avant mise en prod. */
+    public function testStorageLdapAccount(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $username = trim($_POST['username'] ?? '');
+        $this->json(fn() => $username !== ''
+            ? \App\Core\LdapService::lookupUser($username)
+            : ['ok' => false, 'found' => false, 'error' => 'Nom de compte requis.']);
+    }
+
+    public function testStorageNextcloudConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\NextcloudService::testConnection());
+    }
+
+    /** Teste l'accès DAV (calendrier), distinct de l'API OCS ci-dessus — les deux protocoles
+     *  peuvent échouer indépendamment (ex. app Calendrier Nextcloud désactivée). */
+    public function testStorageNextcloudCalDavConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\NextcloudCalDavClient::testConnection());
+    }
+
+    /**
+     * Simulation de la migration LDAP des membres créés avant cette intégration : pour chacun
+     * (ldap_username IS NULL), calcule le uid qu'il recevrait et détecte les conflits (uid déjà
+     * pris par un e-mail différent) — n'écrit rien, voir App\Core\LdapService::analyzeExistingAccount().
+     * Le mot de passe LDAP lui-même n'est jamais posé ici : il ne peut l'être qu'à la prochaine
+     * connexion réussie du membre (voir User::enqueueLdapProvisioningOnLoginIfMissing).
+     */
+    public function analyzeStorageLdapMigration(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $report = [];
+        foreach (\App\Models\User::getWithoutLdapUsername() as $user) {
+            $analysis = \App\Core\LdapService::analyzeExistingAccount($user['email']);
+            $report[] = array_merge($user, $analysis);
+        }
+        \App\Core\Session::set('admin_storage_ldap_migration_report', $report);
+        $this->redirect('/admin?tab=storage&msg=storage_ldap_migration_analyzed');
+    }
+
+    /** Décision admin pour un conflit de uid détecté par analyzeStorageLdapMigration() :
+     *  "adopter" le compte LDAP existant (même e-mail suppose déjà fait automatiquement, donc
+     *  ici c'est toujours un choix explicite malgré l'e-mail différent) ou utiliser un uid
+     *  alternatif fourni. Ne touche jamais le mot de passe LDAP — seulement la cible que la
+     *  prochaine connexion du membre utilisera (voir ldap_resolved_username). */
+    public function resolveStorageLdapMigration(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $userId = (int)$params['id'];
+        $username = trim($_POST['adopt_username'] ?? '') ?: trim($_POST['ldap_username'] ?? '');
+        if ($username !== '') {
+            \App\Models\User::setLdapResolvedUsername($userId, $username);
+        }
+        $this->redirect('/admin?tab=storage&msg=storage_ldap_migration_resolved');
+    }
+
+    public function testStorageSynologyConnection(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $this->json(fn() => \App\Core\SynologyService::testConnection());
+    }
+
+    /** Traite immédiatement la file provisioning_jobs (voir App\Core\StorageProvisioningRunner)
+     *  — aucun accès SSH requis, utile pour ne pas attendre le prochain passage du cron après
+     *  avoir activé/corrigé le backend. */
+    public function runStorageProvisioning(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $stats = \App\Core\StorageProvisioningRunner::processOutstanding();
+        \App\Core\Session::set('admin_storage_provisioning_report', $stats);
+        $this->redirect('/admin?tab=storage&msg=storage_provisioning_done');
+    }
+
+    /** Un job ayant épuisé ses 3 tentatives n'est plus jamais repris par "Traiter la file
+     *  maintenant" et garde pour toujours le message de son dernier échec — ce bouton le remet
+     *  à zéro puis relance immédiatement le traitement, sans accès SSH. */
+    public function retryStorageProvisioningJob(array $params): void
+    {
+        $this->requireSuperAdmin();
+        \App\Models\ProvisioningJob::resetForRetry((int)$params['id']);
+        $stats = \App\Core\StorageProvisioningRunner::processOutstanding();
+        \App\Core\Session::set('admin_storage_provisioning_report', $stats);
+        $this->redirect('/admin?tab=storage&msg=storage_provisioning_retried');
+    }
+
+    public function saveStorageProduct(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)($_POST['id'] ?? 0);
+        $existing = $id ? StorageProduct::findById($id) : null;
+        $name = trim($_POST['name'] ?? '') ?: '+100 Go';
+        $d = [
+            'id' => $id ?: null,
+            'code' => preg_replace('/[^a-z0-9_]/', '', strtolower(trim($_POST['code'] ?? ''))) ?: ('storage_' . time()),
+            'name' => $name,
+            'quota_gb' => max(1, (int)($_POST['quota_gb'] ?? 100)),
+            'scope' => in_array($_POST['scope'] ?? '', ['member', 'family'], true) ? $_POST['scope'] : 'member',
+            'price_monthly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_monthly'] ?? '0')) * 100)),
+            'sort_order' => (int)($_POST['sort_order'] ?? 0),
+            'active' => !empty($_POST['active']),
+        ];
+        $id = StorageProduct::save($d);
+
+        $msg = 'storage_product_saved';
+        if (StripeGateway::isConfigured()) {
+            try {
+                $stripe = StripeGateway::syncSingleProduct(
+                    $name,
+                    $d['price_monthly_cents'],
+                    $existing['stripe_product_id'] ?? null,
+                    $existing['stripe_price_id_monthly'] ?? null,
+                    $existing['price_monthly_cents'] ?? null
+                );
+                StorageProduct::setStripeIds($id, $stripe['stripe_product_id'], $stripe['stripe_price_id_monthly']);
+            } catch (\RuntimeException $e) {
+                $msg = 'storage_product_saved_stripe_error';
+            }
+        }
+        $this->redirect('/admin?tab=storage&msg=' . $msg);
+    }
+
+    public function deactivateStorageProduct(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $product = StorageProduct::findById((int)$params['id']);
+        if ($product) {
+            $product['active'] = 0;
+            StorageProduct::save($product);
+        }
+        $this->redirect('/admin?tab=storage&msg=storage_product_deactivated');
+    }
+
+    /** Rattrapage stored_files (voir App\Core\StorageBackfill) directement depuis le panneau
+     *  admin — aucun accès SSH requis. Exécuté de façon synchrone (pas de file d'attente dans
+     *  cette appli) : le temps max d'exécution est relevé en conséquence, et le rapport est
+     *  affiché une seule fois (Session, consommé à la lecture) sur l'onglet Stockage perso. */
+    public function runStorageBackfill(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+        $apply = !empty($_POST['apply']);
+        $result = (new \App\Core\StorageBackfill($apply))->run();
+        \App\Core\Session::set('admin_storage_backfill_report', $result);
+        $this->redirect('/admin?tab=storage&msg=storage_backfill_done');
+    }
+
+    /** Migration des fichiers déjà stockés localement vers le Group Folder Nextcloud de leur
+     *  famille (voir App\Core\NextcloudFileMigration) — simulation puis application, même
+     *  convention que runStorageBackfill() ci-dessus. */
+    public function runNextcloudFileMigration(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(600);
+        $apply = !empty($_POST['apply']);
+        $result = (new \App\Core\NextcloudFileMigration($apply))->run();
+        \App\Core\Session::set('admin_nextcloud_file_migration_report', $result);
+        $this->redirect('/admin?tab=storage&msg=nextcloud_file_migration_done');
+    }
+
+    /** Renomme sur le Group Folder lui-même (voir App\Core\NextcloudFileRename) les fichiers déjà
+     *  migrés vers Nextcloud sous un nom aléatoire illisible (avant l'introduction de
+     *  FileStore::nextcloudFilename) — simulation puis application, même convention que
+     *  runNextcloudFileMigration() ci-dessus. */
+    public function runNextcloudFileRename(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(600);
+        $apply = !empty($_POST['apply']);
+        $result = (new \App\Core\NextcloudFileRename($apply))->run();
+        \App\Core\Session::set('admin_nextcloud_file_rename_report', $result);
+        $this->redirect('/admin?tab=storage&msg=nextcloud_file_rename_done');
+    }
+
+    /** Rattrape immédiatement les membres déjà provisionnés LDAP mais jamais ajoutés au groupe
+     *  Nextcloud de leur famille (ex. provisionnés avant l'activation du backend fichiers, ou
+     *  avant le correctif de NextcloudGroupFolderService::ensureFamilyFolder qui ne revérifiait
+     *  l'appartenance qu'à la toute première création du Group Folder) — sans attendre qu'un
+     *  document soit enregistré, qui aurait fini par déclencher le même rattrapage de lui-même. */
+    public function resyncNextcloudGroups(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+        $errors = [];
+        $count = 0;
+        foreach (Database::fetchAll('SELECT id FROM families') as $fam) {
+            $error = null;
+            if (\App\Core\NextcloudGroupFolderService::ensureFamilyFolder((int)$fam['id'], $error)) {
+                $count++;
+            } elseif ($error) {
+                $errors[] = "famille #{$fam['id']} : $error";
+            }
+        }
+        \App\Core\Session::set('admin_nextcloud_group_resync_report', ['count' => $count, 'errors' => $errors]);
+        $this->redirect('/admin?tab=storage&msg=nextcloud_group_resync_done');
+    }
+
+    /**
+     * Force la réinitialisation du mot de passe de tout compte créé avant l'intégration LDAP
+     * (ldap_username encore NULL) — leur mot de passe FamilyBoard actuel est irrécupérable
+     * (hash bcrypt, voir User::enqueueLdapProvisioningOnLoginIfMissing), donc la seule façon de
+     * provisionner leur compte LDAP/Nextcloud avec un vrai mot de passe connu de l'utilisateur
+     * est de lui en faire choisir un nouveau. Invalide toute session/« se souvenir de moi » en
+     * cours (comme un changement de mot de passe volontaire) et envoie le même e-mail que
+     * "mot de passe oublié" — la connexion suivante déclenchera le provisioning LDAP normal
+     * (voir AuthController::resetPassword -> User::updatePassword).
+     */
+    public function migrateLegacyUsersToLdap(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+
+        $users = Database::fetchAll(
+            "SELECT id, name, email, family_id FROM users WHERE ldap_username IS NULL AND blocked_at IS NULL"
+        );
+        $sent = [];
+        $failed = [];
+        foreach ($users as $u) {
+            try {
+                Database::execute('UPDATE users SET force_logout_at = ? WHERE id = ?', [gmdate('Y-m-d H:i:s'), $u['id']]);
+                \App\Models\AuthToken::deleteForUser((int)$u['id']);
+
+                $token = \App\Models\PasswordReset::create((int)$u['id']);
+                $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $resetUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . BASE_URL . '/reset-password/' . $token;
+
+                $rendered = EmailContent::render('password_reset', ['user_name' => $u['name']]);
+                $html = EmailLayout::render($rendered['subject'], $rendered['message_html'], [
+                    'label' => 'Réinitialiser mon mot de passe',
+                    'url'   => $resetUrl,
+                ]);
+                Mail::send((int)$u['family_id'], $u['email'], $u['name'], $rendered['subject'], $html, 'security');
+                $sent[] = $u['name'] . ' (' . $u['email'] . ')';
+            } catch (\Throwable $e) {
+                error_log('migrateLegacyUsersToLdap failed for user ' . $u['id'] . ': ' . $e->getMessage());
+                $failed[] = $u['name'] . ' (' . $u['email'] . ') : ' . $e->getMessage();
+            }
+        }
+
+        Session::set('admin_ldap_migration_report', ['sent' => $sent, 'failed' => $failed]);
+        $this->redirect('/admin?tab=users&msg=ldap_migration_done');
+    }
+
+    /**
+     * Annuaire restreint aux groupes/comptes LDAP gérés par FamilyBoard (familyboard,
+     * familyboard_admins, family_N, family_N_admins) — lecture seule, pour vérifier visuellement
+     * la correspondance famille ↔ groupe et qui en est membre, sans avoir à se connecter en SSH.
+     * Résout chaque uid LDAP vers le compte FamilyBoard correspondant quand c'est possible
+     * (sinon affiché tel quel — ex. un compte LDAP créé hors FamilyBoard).
+     */
+    private function buildLdapDirectory(): array
+    {
+        if (!\App\Core\LdapService::isAvailable()) {
+            return ['available' => false];
+        }
+
+        $byLdapUsername = [];
+        foreach (Database::fetchAll("SELECT name, email, ldap_username FROM users WHERE ldap_username IS NOT NULL") as $row) {
+            $byLdapUsername[mb_strtolower($row['ldap_username'])] = $row;
+        }
+        $resolve = function (array $uids) use ($byLdapUsername): array {
+            return array_map(function (string $uid) use ($byLdapUsername) {
+                $match = $byLdapUsername[mb_strtolower($uid)] ?? null;
+                return $match ? "{$match['name']} ({$match['email']}) — uid $uid" : "$uid (compte LDAP sans correspondance FamilyBoard)";
+            }, $uids);
+        };
+
+        $globalGroups = [];
+        foreach (['familyboard', \App\Core\LdapService::nextcloudDelegationGroupNamePublic()] as $g) {
+            $globalGroups[] = ['name' => $g, 'members' => $resolve(\App\Core\LdapService::listGroupMembers($g))];
+        }
+
+        $families = [];
+        foreach (Database::fetchAll('SELECT id, name FROM families ORDER BY name') as $f) {
+            $group = \App\Core\LdapService::familyGroupNamePublic((int)$f['id']);
+            $adminGroup = \App\Core\LdapService::familyAdminGroupNamePublic((int)$f['id']);
+            $families[] = [
+                'family_id'          => (int)$f['id'],
+                'family_name'        => $f['name'],
+                'group'              => $group,
+                'group_members'      => $resolve(\App\Core\LdapService::listGroupMembers($group)),
+                'admin_group'        => $adminGroup,
+                'admin_group_members'=> $resolve(\App\Core\LdapService::listGroupMembers($adminGroup)),
+            ];
+        }
+
+        return ['available' => true, 'global_groups' => $globalGroups, 'families' => $families];
+    }
+
+    /**
+     * Rattrape, pour tout compte déjà provisionné LDAP (ldap_username renseigné) AVANT
+     * l'introduction des groupes family_N_admins/familyboard_admins, son appartenance aux bons
+     * groupes selon son rôle actuel (voir LdapService::syncFamilyRole) — un compte déjà admin
+     * avant cette fonctionnalité ne déclenche sinon ce rattrapage qu'à sa prochaine
+     * promotion/rétrogradation (qui peut ne jamais arriver s'il est admin depuis toujours).
+     * Idempotent, sans effet sur le mot de passe ni aucune autre donnée.
+     */
+    public function resyncLdapRoles(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+
+        $users = Database::fetchAll("SELECT id, ldap_username, family_id, role FROM users WHERE ldap_username IS NOT NULL");
+        $count = 0;
+        $errors = [];
+        $syncedFamilies = [];
+        foreach ($users as $u) {
+            try {
+                \App\Core\LdapService::syncFamilyRole($u['ldap_username'], (int)$u['family_id'], $u['role'] === 'admin');
+                $count++;
+            } catch (\Throwable $e) {
+                $errors[] = $u['ldap_username'] . ' : ' . $e->getMessage();
+            }
+            // Un seul passage par famille suffit (parcourt tous ses membres à chaque appel) —
+            // évite de refaire N fois le même travail pour une famille à plusieurs admins.
+            if (!isset($syncedFamilies[$u['family_id']])) {
+                $syncedFamilies[$u['family_id']] = true;
+                try {
+                    \App\Core\NextcloudGroupFolderService::syncAdminDelegation((int)$u['family_id']);
+                } catch (\Throwable $e) {
+                    $errors[] = 'famille #' . $u['family_id'] . ' (délégation Nextcloud) : ' . $e->getMessage();
+                }
+            }
+        }
+
+        Session::set('admin_ldap_role_resync_report', ['count' => $count, 'errors' => $errors]);
+        $this->redirect('/admin?tab=users&msg=ldap_role_resync_done');
+    }
+
+    /**
+     * Rattrape, pour toute paire de familles déjà amies (family_friends, status='accepted')
+     * AVANT l'introduction des groupes de visibilité croisée, la création/le peuplement du
+     * groupe Nextcloud correspondant (voir NextcloudVisibilityService) — une amitié acceptée
+     * avant cette fonctionnalité ne déclenche sinon jamais ce rattrapage (accept()/remove() ne
+     * tournent qu'au moment du changement de lien, pas pour l'historique déjà en base).
+     * Idempotent, sans effet sur les groupes family_N/family_N_admins (accès au Group Folder).
+     */
+    public function resyncNextcloudVisibility(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+
+        $pairs = Database::fetchAll("SELECT requester_family_id, target_family_id FROM family_friends WHERE status='accepted'");
+        $count = 0;
+        $errors = [];
+        foreach ($pairs as $p) {
+            try {
+                \App\Core\NextcloudVisibilityService::syncLink((int)$p['requester_family_id'], (int)$p['target_family_id'], true);
+                $count++;
+            } catch (\Throwable $e) {
+                $errors[] = 'familles #' . $p['requester_family_id'] . '/#' . $p['target_family_id'] . ' : ' . $e->getMessage();
+            }
+        }
+
+        Session::set('admin_nextcloud_visibility_resync_report', ['count' => $count, 'errors' => $errors]);
+        $this->redirect('/admin?tab=users&msg=nextcloud_visibility_resync_done');
+    }
+
+    /**
+     * Vérifie, pour chaque compte déjà migré (ldap_username renseigné), que le compte LDAP
+     * existe réellement, est bien membre du groupe de sa famille, et — s'il est admin — bien
+     * membre du sous-groupe admin de sa famille (voir LdapService::checkFamilyMembership) :
+     * rien n'écrit, juste un rapport des écarts constatés, pour repérer un provisioning qui
+     * aurait échoué silencieusement ou un rôle qui n'aurait pas été resynchronisé.
+     */
+    public function auditLdapConsistency(array $params): void
+    {
+        $this->requireSuperAdmin();
+        @set_time_limit(300);
+
+        $issues = [];
+        $checked = 0;
+        $users = Database::fetchAll(
+            "SELECT id, name, email, family_id, role, ldap_username FROM users WHERE ldap_username IS NOT NULL"
+        );
+        foreach ($users as $u) {
+            $checked++;
+            $label = $u['name'] . ' (' . $u['email'] . ', famille #' . $u['family_id'] . ')';
+
+            $lookup = \App\Core\LdapService::lookupUser($u['ldap_username']);
+            if (!$lookup['ok']) {
+                $issues[] = "$label : connexion LDAP impossible (" . ($lookup['error'] ?: 'erreur inconnue') . ")";
+                continue;
+            }
+            if (!$lookup['found']) {
+                $issues[] = "$label : compte LDAP \"{$u['ldap_username']}\" introuvable (supprimé côté serveur ?)";
+                continue;
+            }
+
+            $membership = \App\Core\LdapService::checkFamilyMembership($u['ldap_username'], (int)$u['family_id']);
+            if (!$membership['ok']) {
+                $issues[] = "$label : vérification du groupe famille impossible (" . ($membership['error'] ?: 'erreur inconnue') . ")";
+                continue;
+            }
+            if (!$membership['inFamilyGroup']) {
+                $issues[] = "$label : absent du groupe LDAP de sa famille";
+            }
+            if ($u['role'] === 'admin' && !$membership['inAdminGroup']) {
+                $issues[] = "$label : admin de famille mais absent du sous-groupe admin LDAP";
+            }
+            if ($u['role'] !== 'admin' && $membership['inAdminGroup']) {
+                $issues[] = "$label : n'est plus admin mais encore membre du sous-groupe admin LDAP";
+            }
+            if ($u['role'] === 'admin' && !$membership['inDelegationGroup']) {
+                $issues[] = "$label : admin de famille mais absent du groupe familyboard_admins (délégation Nextcloud)";
+            }
+            if ($u['role'] !== 'admin' && $membership['inDelegationGroup']) {
+                $issues[] = "$label : n'est plus admin mais encore membre du groupe familyboard_admins (délégation Nextcloud)";
+            }
+        }
+
+        Session::set('admin_ldap_audit_report', ['checked' => $checked, 'issues' => $issues]);
+        $this->redirect('/admin?tab=users&msg=ldap_audit_done');
+    }
+
+    // ── Programme de parrainage ───────────────────────────────────
+
+    public function updateReferralSettings(array $params): void
+    {
+        $this->requireSuperAdmin();
+        AppSetting::set('referral_enabled', !empty($_POST['referral_enabled']) ? '1' : '0');
+        $planId = (int)($_POST['referral_reward_plan_id'] ?? 0);
+        AppSetting::set('referral_reward_plan_id', $planId ? (string)$planId : '');
+        AppSetting::set('referral_reward_days', (string)max(1, (int)($_POST['referral_reward_days'] ?? 30)));
+        AppSetting::set('public_signup_banner_enabled', !empty($_POST['public_signup_banner_enabled']) ? '1' : '0');
+        $this->redirect('/admin?tab=referrals&msg=referral_settings_saved');
+    }
+
+    public function savePlan(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $id = (int)($_POST['id'] ?? 0);
+        $existing = $id ? Plan::getById($id) : null;
+        $name = trim($_POST['name'] ?? '') ?: 'Premium';
+        $d = [
+            'code' => preg_replace('/[^a-z0-9_]/', '', strtolower(trim($_POST['code'] ?? ''))) ?: ('plan_' . time()),
+            'name' => $name,
+            'member_limit' => ($_POST['member_limit'] ?? '') === '' ? null : max(1, (int)$_POST['member_limit']),
+            'price_monthly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_monthly'] ?? '0')) * 100)),
+            'price_yearly_cents' => max(0, (int)round(((float)str_replace(',', '.', $_POST['price_yearly'] ?? '0')) * 100)),
+            'stripe_product_id' => $existing['stripe_product_id'] ?? null,
+            'stripe_price_id_monthly' => $existing['stripe_price_id_monthly'] ?? null,
+            'stripe_price_id_yearly' => $existing['stripe_price_id_yearly'] ?? null,
+            'sort_order' => (int)($_POST['sort_order'] ?? 0),
+            'active' => !empty($_POST['active']),
+        ];
+        // Crée/rafraîchit automatiquement le Produit et les Prix Stripe correspondants — l'admin
+        // n'a plus besoin de gérer quoi que ce soit dans le dashboard Stripe. Si Stripe n'est pas
+        // configuré ou en cas d'erreur API, le palier est quand même enregistré (sans blocage).
+        $msg = 'plan_saved';
+        if (StripeGateway::isConfigured()) {
+            try {
+                $stripe = StripeGateway::syncPlanPrices(
+                    $name,
+                    $d['price_monthly_cents'],
+                    $d['price_yearly_cents'],
+                    $d['stripe_product_id'],
+                    $d['stripe_price_id_monthly'],
+                    $d['stripe_price_id_yearly'],
+                    $existing['price_monthly_cents'] ?? null,
+                    $existing['price_yearly_cents'] ?? null
+                );
+                $d['stripe_product_id'] = $stripe['stripe_product_id'];
+                $d['stripe_price_id_monthly'] = $stripe['stripe_price_id_monthly'];
+                $d['stripe_price_id_yearly'] = $stripe['stripe_price_id_yearly'];
+            } catch (\RuntimeException $e) {
+                $msg = 'plan_saved_stripe_error';
+            }
+        }
+        if ($id) {
+            Plan::update($id, $d);
+        } else {
+            $id = Plan::create($d);
+        }
+        $this->redirect('/admin?tab=subscriptions&msg=' . $msg);
+    }
+
+    public function deactivatePlan(array $params): void
+    {
+        $this->requireSuperAdmin();
+        Plan::deactivate((int)$params['id']);
+        $this->redirect('/admin?tab=subscriptions&msg=plan_deactivated');
+    }
+
+    /** Geste commercial/support : attribue ou retire un palier à une famille sans passer par
+     *  Stripe (aucune carte, aucun prélèvement — utile pour un partenariat, un dédommagement...). */
+    public function grantManualSubscription(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $familyId = (int)$params['id'];
+        $planId = (int)($_POST['plan_id'] ?? 0);
+        $until = trim($_POST['until'] ?? '');
+        $plan = Plan::getById($planId);
+        if ($plan) {
+            FamilySubscription::grantManual($familyId, $planId, $until !== '' ? $until . ' 23:59:59' : null);
+        }
+        $this->redirect('/admin?tab=families&family=' . $familyId);
+    }
+
+    /** Quota familial partagé illimité pour CETTE famille uniquement — distinct du réglage admin
+     *  global storage_family_quota_unlimited (qui s'applique à toutes les familles en même
+     *  temps). Répercute le quota natif Nextcloud dans la foulée si déjà provisionné. */
+    public function setFamilyStorageUnlimited(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $familyId = (int)$params['id'];
+        $unlimited = !empty($_POST['enabled']);
+        Database::execute('UPDATE families SET storage_quota_unlimited = ? WHERE id = ?', [$unlimited ? 1 : 0, $familyId]);
+        if (\App\Models\FamilyNextcloudFolder::findByFamily($familyId)) {
+            \App\Core\NextcloudGroupFolderService::applyFamilyQuota($familyId);
+        }
+        $this->redirect('/admin?tab=families&msg=family_storage_unlimited_updated');
+    }
+
+    public function revokeManualSubscription(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $familyId = (int)$params['id'];
+        FamilySubscription::revokeManual($familyId);
+        $this->redirect('/admin?tab=families&family=' . $familyId);
+    }
+
+    /** Instantané HTML des données premium collecté juste avant leur suppression définitive
+     *  (voir PremiumDataPurge::exportHtml(), appelé depuis cron.php) — consultable en cas de
+     *  réclamation, jamais accessible à la famille elle-même. */
+    public function viewPremiumPurgeExport(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $row = Database::fetch('SELECT export_html FROM premium_data_purges WHERE id=?', [(int)$params['id']]);
+        if (!$row || !$row['export_html']) { http_response_code(404); echo 'Introuvable.'; return; }
+        header('Content-Type: text/html; charset=UTF-8');
+        echo $row['export_html'];
+    }
+
+    // ── Mises en avant ABHD (jamais "publicité" dans le code/l'UI) ─────────────
+
+    public function createHighlight(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title = trim($_POST['title'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        if (!$title || !filter_var($url, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $url)) {
+            $this->redirect('/admin?tab=highlights&msg=highlight_invalid');
+            return;
+        }
+        $image = $this->uploadImage('image');
+        AbhdHighlight::create([
+            'title'             => $title,
+            'description'       => trim($_POST['description'] ?? ''),
+            'url'               => $url,
+            'image_path'        => $image,
+            'show_dashboard'    => !empty($_POST['show_dashboard']),
+            'show_module_pages' => !empty($_POST['show_module_pages']),
+            'show_email'        => !empty($_POST['show_email']),
+            'show_coparent'     => !empty($_POST['show_coparent']),
+            'show_modal'        => !empty($_POST['show_modal']),
+            'is_active'         => !empty($_POST['is_active']),
+        ]);
+        $this->redirect('/admin?tab=highlights&msg=highlight_saved');
+    }
+
+    public function updateHighlight(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $highlight = AbhdHighlight::getById((int)($params['id'] ?? 0));
+        if (!$highlight) { $this->redirect('/admin?tab=highlights'); return; }
+
+        $title = trim($_POST['title'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        if (!$title || !filter_var($url, FILTER_VALIDATE_URL) || !preg_match('#^https?://#i', $url)) {
+            $this->redirect('/admin?tab=highlights&msg=highlight_invalid');
+            return;
+        }
+        $image = $this->uploadImage('image');
+        AbhdHighlight::update($highlight['id'], [
+            'title'             => $title,
+            'description'       => trim($_POST['description'] ?? ''),
+            'url'               => $url,
+            'image_path'        => $image,
+            'show_dashboard'    => !empty($_POST['show_dashboard']),
+            'show_module_pages' => !empty($_POST['show_module_pages']),
+            'show_email'        => !empty($_POST['show_email']),
+            'show_coparent'     => !empty($_POST['show_coparent']),
+            'show_modal'        => !empty($_POST['show_modal']),
+            'is_active'         => !empty($_POST['is_active']),
+        ]);
+        if ($image && $highlight['image_path']) @unlink(BASE_PATH . $highlight['image_path']);
+        $this->redirect('/admin?tab=highlights&msg=highlight_saved');
+    }
+
+    public function deleteHighlight(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $highlight = AbhdHighlight::getById((int)($params['id'] ?? 0));
+        if ($highlight) {
+            if ($highlight['image_path']) @unlink(BASE_PATH . $highlight['image_path']);
+            AbhdHighlight::delete($highlight['id']);
+        }
+        $this->redirect('/admin?tab=highlights&msg=highlight_deleted');
+    }
+
+    // ── Liens certifiés (portail de liens de TOUTES les familles) ──────────────
+
+    public function createCertifiedLink(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title = trim($_POST['title'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        if (!$url) {
+            $this->redirect('/admin?tab=links&msg=link_invalid');
+            return;
+        }
+
+        $preview = \App\Core\LinkPreview::fetch($url);
+        if (!$preview['ok']) {
+            $this->redirect('/admin?tab=links&msg=link_unreachable');
+            return;
+        }
+        if (!$title) $title = $preview['title'];
+
+        PortalLink::createCertified([
+            'title'               => $title,
+            'url'                 => $url,
+            'description'         => trim($_POST['description'] ?? ''),
+            'image_path'          => $preview['image_path'],
+            'visible_to_coparent' => !empty($_POST['visible_to_coparent']),
+        ]);
+        $this->redirect('/admin?tab=links&msg=link_saved');
+    }
+
+    public function updateCertifiedLink(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $link = PortalLink::getById((int)($params['id'] ?? 0));
+        if (!$link || empty($link['certified'])) { $this->redirect('/admin?tab=links'); return; }
+
+        $title = trim($_POST['title'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        if (!$title || !$url) {
+            $this->redirect('/admin?tab=links&msg=link_invalid');
+            return;
+        }
+        PortalLink::updateCertified($link['id'], [
+            'title'               => $title,
+            'url'                 => $url,
+            'description'         => trim($_POST['description'] ?? ''),
+            'visible_to_coparent' => !empty($_POST['visible_to_coparent']),
+        ]);
+        $this->redirect('/admin?tab=links&msg=link_saved');
+    }
+
+    public function deleteCertifiedLink(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $link = PortalLink::getById((int)($params['id'] ?? 0));
+        if ($link && !empty($link['certified'])) {
+            if ($link['image_path']) @unlink(BASE_PATH . $link['image_path']);
+            PortalLink::delete($link['id']);
+        }
+        $this->redirect('/admin?tab=links&msg=link_deleted');
+    }
+
+    /** Relance la vérification/aperçu (titre + image) d'un lien certifié déjà ajouté — utile
+     *  pour les liens créés avant l'amélioration de la détection d'image. */
+    public function refreshCertifiedLinkPreview(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $link = PortalLink::getById((int)($params['id'] ?? 0));
+        if (!$link || empty($link['certified'])) { $this->redirect('/admin?tab=links'); return; }
+
+        $preview = \App\Core\LinkPreview::fetch($link['url']);
+        if (!$preview['ok'] || !$preview['image_path']) {
+            $this->redirect('/admin?tab=links&msg=link_unreachable');
+            return;
+        }
+        if ($link['image_path']) @unlink(BASE_PATH . $link['image_path']);
+        PortalLink::updatePreviewImage($link['id'], $preview['image_path']);
+        $this->redirect('/admin?tab=links&msg=link_saved');
+    }
+
+    // ── Politique de confidentialité / CGU (éditable, texte brut) ──────────────
+
+    public function updateLegalContent(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $type = $_POST['type'] ?? '';
+        if (!isset(LegalContent::TYPES[$type])) {
+            $this->redirect('/admin?tab=legal');
+            return;
+        }
+        LegalContent::set($type, trim($_POST['content'] ?? ''));
+        $this->redirect('/admin?tab=legal&msg=legal_saved');
+    }
+
+    public function resetLegalContent(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $type = $params['type'] ?? '';
+        if (isset(LegalContent::TYPES[$type])) {
+            LegalContent::set($type, '');
+        }
+        $this->redirect('/admin?tab=legal&msg=legal_reset');
+    }
+
+    // ── Roadmap interne (idées de développement, usage sysadmin uniquement) ────
+
+    public function createRoadmapItem(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $title = trim($_POST['title'] ?? '');
+        $status = $_POST['status'] ?? 'idea';
+        if ($title === '' || !in_array($status, ['idea', 'in_progress', 'done'], true)) {
+            $this->redirect('/admin?tab=roadmap&msg=roadmap_invalid');
+            return;
+        }
+        RoadmapItem::create($title, trim($_POST['description'] ?? '') ?: null, $status);
+        $this->redirect('/admin?tab=roadmap&msg=roadmap_saved');
+    }
+
+    public function updateRoadmapItem(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $item = RoadmapItem::getById((int)($params['id'] ?? 0));
+        if (!$item) { $this->redirect('/admin?tab=roadmap'); return; }
+
+        $title = trim($_POST['title'] ?? '');
+        $status = $_POST['status'] ?? 'idea';
+        if ($title === '' || !in_array($status, ['idea', 'in_progress', 'done'], true)) {
+            $this->redirect('/admin?tab=roadmap&msg=roadmap_invalid');
+            return;
+        }
+        RoadmapItem::update($item['id'], $title, trim($_POST['description'] ?? '') ?: null, $status);
+        $this->redirect('/admin?tab=roadmap&msg=roadmap_saved');
+    }
+
+    public function deleteRoadmapItem(array $params): void
+    {
+        $this->requireSuperAdmin();
+        $item = RoadmapItem::getById((int)($params['id'] ?? 0));
+        if ($item) RoadmapItem::delete($item['id']);
+        $this->redirect('/admin?tab=roadmap&msg=roadmap_deleted');
     }
 
     // ── Helpers ──────────────────────────────────────────────────

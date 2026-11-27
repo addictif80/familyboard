@@ -2,6 +2,7 @@
 namespace App\Core;
 
 use App\Models\AppSetting;
+use App\Models\Notification;
 use App\Models\PushSubscription;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\VAPID;
@@ -42,10 +43,14 @@ class Push
             ],
         ]);
 
+        // 'unread' alimente le badge natif de l'app (Badging API, voir sw.js) — compté ici,
+        // après l'insertion de cette notification (Notification::create() appelle sendToUser()
+        // une fois la ligne déjà en base), donc déjà à jour avec elle incluse.
         $payload = json_encode([
-            'title' => $title,
-            'body'  => $message,
-            'url'   => $link ?: '/',
+            'title'  => $title,
+            'body'   => $message,
+            'url'    => $link ?: '/',
+            'unread' => Notification::getUnreadCount($userId),
         ]);
 
         foreach ($subs as $sub) {
@@ -60,9 +65,16 @@ class Push
         }
 
         foreach ($webPush->flush() as $report) {
-            if (!$report->isSuccess() && $report->isSubscriptionExpired()) {
+            if ($report->isSuccess()) continue;
+            if ($report->isSubscriptionExpired()) {
                 PushSubscription::deleteByEndpoint($report->getEndpoint());
+                continue;
             }
+            // Échec non lié à l'expiration (timeout, erreur serveur du service de push...) :
+            // on ne supprime pas l'abonnement (il peut redevenir valide), mais on trace
+            // l'échec pour qu'un problème récurrent (ex. mauvaise config VAPID) soit visible
+            // dans les logs plutôt que silencieusement avalé.
+            error_log('[Push] Envoi échoué vers ' . $report->getEndpoint() . ' : ' . $report->getReason());
         }
     }
 }

@@ -2,12 +2,14 @@
 namespace App\Controllers;
 
 use App\Core\Session;
-use App\Models\Camera;
 use App\Models\Event;
 use App\Models\Custody;
 use App\Models\TaskList;
 use App\Models\Budget;
 use App\Models\Family;
+use App\Models\NameDay;
+use App\Models\FamilyTimer;
+use App\Core\DarkSchedule;
 
 class FamilyWallController extends BaseController
 {
@@ -19,12 +21,9 @@ class FamilyWallController extends BaseController
         $familyId = $user['family_id'];
         $family   = Family::findById($familyId);
         $weatherCity = $family['weather_city'] ?? '';
-
-        // RTSP cameras available for the wall panel
-        $wallCameras = array_values(array_filter(
-            Camera::getByFamily($familyId),
-            fn($c) => $c['stream_type'] === 'rtsp' && !empty($c['stream_url'])
-        ));
+        $todayNameDay = NameDay::today();
+        $timers = FamilyTimer::getForWall($familyId);
+        $isDark = DarkSchedule::isDarkNow($family ?? []);
 
         [
             'byDate'         => $byDate,
@@ -44,6 +43,39 @@ class FamilyWallController extends BaseController
         $this->json(function () {
             $familyId = Session::user()['family_id'];
             return ['success' => true] + $this->buildData($familyId);
+        });
+    }
+
+    /** Poll léger (toutes les ~15s) pour refléter rapidement un held_for_return relâché par le
+     *  cron (quelqu'un vient de rentrer) sans attendre le rechargement complet de la page (5 min). */
+    public function timersStatus(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $familyId = Session::user()['family_id'];
+            return ['success' => true, 'timers' => FamilyTimer::getForWall($familyId)];
+        });
+    }
+
+    public function startTimer(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $runId = FamilyTimer::start((int)$params['timerId'], (int)$user['family_id'], (int)$user['id']);
+            if (!$runId) return ['success' => false];
+            $run = \App\Core\Database::fetch('SELECT ends_at FROM family_timer_runs WHERE id=?', [$runId]);
+            return ['success' => true, 'run_id' => $runId, 'ends_at' => $run['ends_at']];
+        });
+    }
+
+    public function stopTimer(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            FamilyTimer::stop((int)$params['timerId'], (int)$user['family_id']);
+            return ['success' => true];
         });
     }
 

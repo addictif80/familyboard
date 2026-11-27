@@ -5,7 +5,8 @@ ob_start();
 ?>
 <div class="content-header">
     <h2>🍽️ Planification des repas</h2>
-    <div style="display:flex;gap:.5rem">
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="addWeekIngredientsToShoppingList('<?= $start ?>')">🛒 Ajouter les ingrédients à la liste de courses</button>
         <a href="<?= BASE_URL ?>/meals?start=<?= $prevWeek ?>" class="btn btn-secondary btn-sm">← Semaine préc.</a>
         <a href="<?= BASE_URL ?>/meals?start=<?= $nextWeek ?>" class="btn btn-secondary btn-sm">Semaine suiv. →</a>
     </div>
@@ -138,8 +139,8 @@ ob_start();
 </div>
 
 <style>
-.meal-cell { min-height: 2.2rem; padding: .3rem .5rem; cursor: pointer; border-radius: 6px; font-size: .82rem; }
-.meal-cell:hover { background: var(--bg); }
+.meal-cell { min-height: 2.2rem; padding: .3rem .5rem; cursor: pointer; border-radius: 6px; font-size: .82rem; transition: background .15s, transform .15s cubic-bezier(.3,1.5,.5,1); }
+.meal-cell:hover { background: var(--bg); transform: scale(1.03); }
 .table-scroll { overflow-x: auto; }
 </style>
 

@@ -44,6 +44,22 @@ ob_start();
     </div>
 </div>
 
+<!-- Journal d'accès modal -->
+<div class="modal-overlay" id="emergency-log-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Journal d'accès à la fiche</h3>
+            <button onclick="closeModal('emergency-log-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="color:var(--text-muted);font-size:.8rem;margin-bottom:.75rem">
+                Chaque consultation du lien public (sans compte) est journalisée ici — 50 dernières consultations.
+            </p>
+            <div id="emergency-log-body"></div>
+        </div>
+    </div>
+</div>
+
 <?php
 $content = ob_get_clean();
 require __DIR__ . '/../layout.php';

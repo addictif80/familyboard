@@ -4,6 +4,9 @@ namespace App\Controllers;
 use App\Core\Session;
 use App\Models\Custody;
 use App\Models\CustodyActivityLog;
+use App\Models\CustodyChecklist;
+use App\Models\Family;
+use App\Models\FamilyChild;
 use App\Models\User;
 use App\Models\Notification;
 use App\Models\EmailContent;
@@ -17,8 +20,79 @@ class CustodyController extends BaseController
         $this->requireModule('custody');
         $user = Session::user();
         $schedules = Custody::getSchedules($user['family_id']);
+        $familyChildren = FamilyChild::getByFamily($user['family_id']);
+        // Pour le raccourci "Partager une dépense" (voir Additions) — regroupé par schedule_id
+        // plutôt que par utilisateur, l'inverse de Custody::getCoparentUsersForFamily().
+        $coparentsBySchedule = [];
+        foreach (Custody::getCoparentUsersForFamily($user['family_id']) as $cp) {
+            foreach ($cp['schedule_ids'] as $sid) $coparentsBySchedule[$sid][] = $cp;
+        }
+        $family = Family::findById((int)$user['family_id']);
+        $additionsEnabled = $family && !in_array('additions', Family::getDisabledModules($family), true);
         $members = User::getByFamily($user['family_id']);
+        $checklistItems = CustodyChecklist::getItemsForFamily($user['family_id']);
+
+        // Plannings dont le transfert (début d'un bloc de garde) tombe aujourd'hui — c'est là,
+        // et seulement là, que la checklist a un sens ; elle reste hors de vue le reste du temps
+        // pour ne pas être un rappel permanent et fini par être ignorée.
+        $today = date('Y-m-d');
+        $todayEvents = Custody::getAllEventsForFamily($user['family_id'], $today, $today);
+        $handoffScheduleIds = array_values(array_unique(array_map(
+            fn($e) => (int)$e['schedule_id'],
+            array_filter($todayEvents, fn($e) => $e['start_date'] === $today)
+        )));
+        $handoffChecklists = [];
+        foreach ($handoffScheduleIds as $sid) {
+            $handoffChecklists[$sid] = CustodyChecklist::getForSchedule($sid, $user['family_id'], $today);
+        }
+
         require BASE_PATH . '/templates/custody/index.php';
+    }
+
+    // ── Checklist "à ne pas oublier" ─────────────────────────────────
+
+    public function addChecklistItem(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            $label = trim($this->jsonInput()['label'] ?? '');
+            $scheduleId = (int)($this->jsonInput()['schedule_id'] ?? 0) ?: null;
+            if ($label === '') return ['success' => false, 'error' => 'Libellé requis.'];
+            if ($scheduleId) {
+                $schedule = Custody::getScheduleById($scheduleId);
+                if (!$schedule || $schedule['family_id'] !== $user['family_id']) {
+                    return ['success' => false, 'error' => 'Planning invalide.'];
+                }
+            }
+            $id = CustodyChecklist::create($user['family_id'], $scheduleId, $label, (int)$user['id']);
+            return ['success' => true, 'id' => $id];
+        });
+    }
+
+    public function deleteChecklistItem(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            CustodyChecklist::delete((int)$params['id'], $user['family_id']);
+            return ['success' => true];
+        });
+    }
+
+    public function toggleChecklistItem(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $date = $data['date'] ?? date('Y-m-d');
+            $itemId = (int)$params['id'];
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) return ['success' => false];
+            if (!CustodyChecklist::itemBelongsToFamily($itemId, $user['family_id'])) return ['success' => false];
+            CustodyChecklist::setChecked($itemId, $date, !empty($data['checked']), (int)$user['id']);
+            return ['success' => true];
+        });
     }
 
     public function apiEvents(array $params): void
@@ -29,25 +103,28 @@ class CustodyController extends BaseController
             $start = $_GET['start'] ?? date('Y-m-01');
             $end = $_GET['end'] ?? date('Y-m-t');
             $events = Custody::getAllEventsForFamily($user['family_id'], $start, $end);
-            return array_map(fn($e) => [
-                'id'              => 'custody_' . $e['id'],
-                'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
-                'start'           => $e['start_date'],
-                'end'             => date('Y-m-d', strtotime($e['end_date'] . ' +1 day')),
-                'allDay'          => true,
-                'color'           => $e['parent_color'],
-                'backgroundColor' => $e['schedule_color'],
-                'borderColor'     => $e['parent_color'],
-                'extendedProps'   => [
-                    'child_name'     => $e['child_name'],
-                    'parent_name'    => $e['parent_name'],
-                    'arrival_time'   => $e['arrival_time'],
-                    'departure_time' => $e['departure_time'],
-                    'notes'          => $e['notes'],
-                    'is_recurring'   => !empty($e['is_recurring']),
-                    'type'           => 'custody',
-                ],
-            ], $events);
+            return array_map(function ($e) {
+                $range = Custody::toDisplayRange($e);
+                return [
+                    'id'              => 'custody_' . $e['id'],
+                    'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
+                    'start'           => $range['start'],
+                    'end'             => $range['end'],
+                    'allDay'          => false,
+                    'color'           => $e['parent_color'],
+                    'backgroundColor' => $e['schedule_color'],
+                    'borderColor'     => $e['parent_color'],
+                    'extendedProps'   => [
+                        'child_name'     => $e['child_name'],
+                        'parent_name'    => $e['parent_name'],
+                        'arrival_time'   => $e['arrival_time'],
+                        'departure_time' => $e['departure_time'],
+                        'notes'          => $e['notes'],
+                        'is_recurring'   => !empty($e['is_recurring']),
+                        'type'           => 'custody',
+                    ],
+                ];
+            }, $events);
         });
     }
 
@@ -57,19 +134,37 @@ class CustodyController extends BaseController
         $this->json(function () {
             $user = Session::user();
             $data = $this->jsonInput();
+            $familyId = (int)$user['family_id'];
+
+            // L'enfant est identifié via le registre familial central (voir App\Models\
+            // FamilyChild) : soit une fiche déjà existante, soit un nouveau nom (enregistré
+            // dans le registre en même temps) — le planning garde ensuite son propre nom/
+            // couleur, modifiables indépendamment par la suite.
+            $newChildName = trim($data['new_child_name'] ?? '');
+            $familyChildId = (int)($data['family_child_id'] ?? 0) ?: null;
+            if ($newChildName !== '') {
+                $familyChildId = FamilyChild::findOrCreateByName($familyId, (int)$user['id'], $newChildName, $data['color'] ?? '#E67E22');
+            } elseif ($familyChildId) {
+                $fc = FamilyChild::getById($familyChildId);
+                if (!$fc || (int)$fc['family_id'] !== $familyId) $familyChildId = null;
+            }
+            if (!$familyChildId) return ['success' => false, 'error' => 'Choisissez un enfant ou saisissez le nom d\'un nouvel enfant.'];
+            $childName = FamilyChild::getById($familyChildId)['name'];
+
             $recurrence = [
                 'type'             => $data['recurrence_type'] ?? 'none',
                 'start'            => $data['recurrence_start'] ?? null,
                 'handover_weekday' => $data['handover_weekday'] ?? null,
                 'extra_weekday'    => $data['extra_weekday'] ?? null,
-                'parent1_id'       => $data['recurrence_parent1_id'] ?? null,
-                'parent2_id'       => $data['recurrence_parent2_id'] ?? null,
+                'handover_time'    => $data['handover_time'] ?? null,
+                'parent1_id'       => $this->resolveScheduleParentId($data['recurrence_parent1_id'] ?? null, $user['family_id']),
+                'parent2_id'       => $this->resolveScheduleParentId($data['recurrence_parent2_id'] ?? null, $user['family_id']),
                 'parent1_label'    => $data['recurrence_parent1_label'] ?? null,
                 'parent1_color'    => $data['recurrence_parent1_color'] ?? '#4A90D9',
                 'parent2_label'    => $data['recurrence_parent2_label'] ?? null,
                 'parent2_color'    => $data['recurrence_parent2_color'] ?? '#E74C3C',
             ];
-            $id = Custody::createSchedule($user['family_id'], $data['child_name'], $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence);
+            $id = Custody::createSchedule($familyId, $childName, $data['color'] ?? '#E67E22', $data['notes'] ?? '', $recurrence, $familyChildId);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -88,8 +183,9 @@ class CustodyController extends BaseController
                 'start'            => $data['recurrence_start'] ?? null,
                 'handover_weekday' => $data['handover_weekday'] ?? null,
                 'extra_weekday'    => $data['extra_weekday'] ?? null,
-                'parent1_id'       => $data['recurrence_parent1_id'] ?? null,
-                'parent2_id'       => $data['recurrence_parent2_id'] ?? null,
+                'handover_time'    => $data['handover_time'] ?? null,
+                'parent1_id'       => $this->resolveScheduleParentId($data['recurrence_parent1_id'] ?? null, $user['family_id'], $id),
+                'parent2_id'       => $this->resolveScheduleParentId($data['recurrence_parent2_id'] ?? null, $user['family_id'], $id),
                 'parent1_label'    => $data['recurrence_parent1_label'] ?? null,
                 'parent1_color'    => $data['recurrence_parent1_color'] ?? '#4A90D9',
                 'parent2_label'    => $data['recurrence_parent2_label'] ?? null,
@@ -123,9 +219,10 @@ class CustodyController extends BaseController
             $data = $this->jsonInput();
             $schedule = Custody::getScheduleById((int)$data['schedule_id']);
             if (!$schedule || $schedule['family_id'] !== $user['family_id']) return ['success' => false];
-            $id = Custody::createEvent($data['schedule_id'], $data['parent_user_id'] ?? $user['id'], $data);
+            $parentUserId = $this->resolveCustodyParent($data['parent_user_id'] ?? null, $user, (int)$data['schedule_id']);
+            $id = Custody::createEvent($data['schedule_id'], $parentUserId, $data);
             CustodyActivityLog::record((int)$data['schedule_id'], $user['id'], 'custody_event_created', $data['notes'] ?? null);
-            Notification::notifyFamily($user['family_id'], $user['id'], 'custody', 'Garde mise à jour', 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.', BASE_URL . '/custody');
+            Notification::notifyFamily($user['family_id'], $user['id'], 'custody', 'Garde mise à jour', 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.', BASE_URL . '/custody', (int)$data['schedule_id'], 'custody_event', $id);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -138,10 +235,45 @@ class CustodyController extends BaseController
             $id = (int)$params['id'];
             $event = Custody::getEvent($id);
             if (!$event || $event['family_id'] !== $user['family_id']) return ['success' => false];
-            Custody::updateEvent($id, $this->jsonInput());
+            $data = $this->jsonInput();
+            if (isset($data['parent_user_id'])) {
+                $data['parent_user_id'] = $this->resolveCustodyParent($data['parent_user_id'], $user, (int)$event['schedule_id']);
+            }
+            Custody::updateEvent($id, $data);
             CustodyActivityLog::record((int)$event['schedule_id'], $user['id'], 'custody_event_updated');
             return ['success' => true];
         });
+    }
+
+    /**
+     * Valide le parent assigné à un évènement de garde : soit un membre de la famille, soit un
+     * co-parent explicitement autorisé sur ce planning via custody_access (cas normal d'un
+     * parent séparé rattaché à un autre compte famille) — jamais un ID arbitraire fourni par le
+     * client sans lien avec ce planning.
+     */
+    /**
+     * Valide le parent1_id/parent2_id d'un planning (garde partagée) : soit un membre de la
+     * famille, soit (à l'édition d'un planning existant) un co-parent déjà autorisé via
+     * custody_access — jamais un ID arbitraire, qui exposerait le nom/couleur d'un utilisateur
+     * d'une autre famille dans ce planning. Retourne null si non fourni ou invalide (au lieu de
+     * imposer une valeur par défaut : ce champ est optionnel).
+     */
+    private function resolveScheduleParentId(mixed $parentId, int $familyId, ?int $scheduleId = null): ?int
+    {
+        if ($parentId === null || $parentId === '') return null;
+        $id = (int)$parentId;
+        if (User::belongsToFamily($id, $familyId)) return $id;
+        if ($scheduleId !== null && Custody::userHasAccessToSchedule($id, $scheduleId)) return $id;
+        return null;
+    }
+
+    private function resolveCustodyParent(mixed $parentUserId, array $user, int $scheduleId): int
+    {
+        $id = (int)($parentUserId ?? $user['id']);
+        if ($id === $user['id']) return $id;
+        if (User::belongsToFamily($id, $user['family_id'])) return $id;
+        if (Custody::userHasAccessToSchedule($id, $scheduleId)) return $id;
+        return $user['id'];
     }
 
     public function deleteEvent(array $params): void
@@ -181,7 +313,7 @@ class CustodyController extends BaseController
                 $user['family_id'], $user['id'], 'custody',
                 'Proposition de garde appliquée',
                 'Le planning de garde de ' . $schedule['child_name'] . ' a été mis à jour.',
-                BASE_URL . '/custody'
+                BASE_URL . '/custody', $scheduleId, 'custody_schedule', $scheduleId
             );
 
             return ['success' => true, 'created' => $created];
@@ -271,7 +403,7 @@ class CustodyController extends BaseController
     /** Invite un co-parent à accès restreint (garde + journal + docs/évènements tagués) pour un ou plusieurs enfants. */
     public function inviteCoparent(array $params): void
     {
-        $this->requireAuth();
+        $this->requireAdmin();
         $this->json(function () use ($params) {
             $user = Session::user();
             $anchorSchedule = Custody::getScheduleById((int)$params['id']);

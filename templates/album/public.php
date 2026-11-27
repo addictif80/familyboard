@@ -4,7 +4,12 @@ $publicToken = $params['token'] ?? '';
 $extraJs = ['album-public.js'];
 ob_start();
 ?>
-<div class="card album-public-card">
+<!-- .auth-wrapper (layout.php, visiteur non connecté) est un flex-row pensé pour une seule
+     carte centrée : ce wrapper column permet d'empiler la carte principale et la bannière
+     promo en dessous plutôt qu'à côté. -->
+<div style="display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%;margin-top:2rem">
+<?php if ($album): $bannerFamilyId = (int)$album['family_id']; require BASE_PATH . '/templates/partials/public_signup_banner.php'; endif; ?>
+<div class="card album-public-card" style="margin:0 auto">
 <?php if (!$album): ?>
     <h2>⛔ Lien invalide ou révoqué</h2>
     <p style="color:var(--text-muted)">Ce lien de partage d'album n'est plus valable. Demandez-en un nouveau à la famille.</p>
@@ -43,13 +48,20 @@ ob_start();
     </div>
 <?php endif; ?>
 </div>
+</div>
 
 <style>
 .album-public-card { max-width: 900px; margin: 2rem auto; padding: 1.5rem; }
 .album-public-upload { display:flex; align-items:flex-end; gap:1rem; flex-wrap:wrap; margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border); }
 .album-photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.75rem; }
-.album-photo { border-radius:10px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border); }
+.album-photo {
+    border-radius:10px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border);
+    animation: fbFadeInUp .4s cubic-bezier(.2,1.4,.3,1) both;
+    transition: transform .2s cubic-bezier(.2,1.4,.3,1), box-shadow .2s ease;
+}
+.album-photo:hover { transform: translateY(-3px) scale(1.02); box-shadow: var(--shadow-lg); }
 .album-photo img { width:100%; aspect-ratio:1; object-fit:cover; cursor:pointer; display:block; }
+@media (prefers-reduced-motion: reduce) { .album-photo { animation: none; } }
 .album-photo-meta { padding:.35rem .5rem; font-size:.72rem; color:var(--text-muted); }
 #ap-lightbox { background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; }
 .album-meta { font-size:.8rem; color:var(--text-muted); }

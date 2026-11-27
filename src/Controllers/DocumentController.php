@@ -38,17 +38,55 @@ class DocumentController extends BaseController
             $user   = Session::user();
             $data   = $_POST ?: $this->jsonInput();
             $file   = $_FILES['file'] ?? null;
+            // Document::processFile() ignore silencieusement un fichier en échec d'envoi (elle
+            // ne traite que UPLOAD_ERR_OK) — sans ce contrôle, le document serait créé SANS le
+            // fichier, sans jamais prévenir l'utilisateur de la vraie raison (taille, coupure...).
+            if ($file && $file['error'] !== UPLOAD_ERR_OK && $file['error'] !== UPLOAD_ERR_NO_FILE) {
+                $message = match ($file['error']) {
+                    UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE =>
+                        'Fichier trop volumineux pour la configuration actuelle du serveur.',
+                    UPLOAD_ERR_PARTIAL =>
+                        "Envoi interrompu (connexion coupée en cours d'envoi) — réessayez.",
+                    UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE =>
+                        "Erreur serveur : impossible d'écrire le fichier temporaire.",
+                    default => "Erreur d'envoi du fichier (code {$file['error']}).",
+                };
+                return ['success' => false, 'error' => $message];
+            }
+            // Détection de doublon : sauf si l'utilisateur a déjà tranché (remplacer / garder
+            // les deux), un titre proche d'un document existant (même famille, même type)
+            // suspend la création et renvoie le document trouvé pour confirmation côté client.
+            $replaceId        = (int)($data['replace_document_id'] ?? 0);
+            $confirmDuplicate = !empty($data['confirm_duplicate']);
+            if (!$replaceId && !$confirmDuplicate) {
+                $similar = Document::findSimilar($user['family_id'], $data['title'] ?? '', $data['doc_type'] ?? '');
+                if ($similar) {
+                    return ['success' => false, 'duplicate' => $similar];
+                }
+            }
+
+            $familyMemberIds = array_map('intval', array_column(User::getByFamily($user['family_id']), 'id'));
             $userId = (int)($data['user_id'] ?? $user['id']);
-            if (!empty($data['custody_schedule_id'])) {
-                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
-                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
+            if (!in_array($userId, $familyMemberIds, true)) $userId = $user['id'];
+            if (isset($data['member_ids'])) {
+                $data['member_ids'] = array_values(array_filter(
+                    array_map('intval', (array)$data['member_ids']),
+                    fn($id) => in_array($id, $familyMemberIds, true)
+                ));
             }
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), $user['family_id']);
             $id     = Document::create($user['family_id'], $userId, $data, $file);
-            if (!empty($data['custody_schedule_id'])) {
-                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'document_uploaded', $data['title'] ?? null);
+            foreach ($data['custody_schedule_ids'] as $scheduleId) {
+                CustodyActivityLog::record($scheduleId, $user['id'], 'document_uploaded', $data['title'] ?? null);
             }
+
+            if ($replaceId) {
+                $old = Document::findById($replaceId, $user['family_id']);
+                if ($old) Document::archiveAndReplace($replaceId, $id, $user['family_id']);
+            }
+
             Notification::notifyFamily($user['family_id'], $user['id'], 'documents', 'Nouveau document',
-                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/documents');
+                $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/documents', null, 'document', $id);
             return ['success' => true, 'id' => $id];
         });
     }
@@ -60,16 +98,46 @@ class DocumentController extends BaseController
             $user = Session::user();
             $data = $_POST ?: $this->jsonInput();
             $file = $_FILES['file'] ?? null;
-            if (isset($data['user_id'])) $data['user_id'] = (int)$data['user_id'];
-            if (!empty($data['custody_schedule_id'])) {
-                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
-                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
+            if ($file && $file['error'] !== UPLOAD_ERR_OK && $file['error'] !== UPLOAD_ERR_NO_FILE) {
+                $message = match ($file['error']) {
+                    UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE =>
+                        'Fichier trop volumineux pour la configuration actuelle du serveur.',
+                    UPLOAD_ERR_PARTIAL =>
+                        "Envoi interrompu (connexion coupée en cours d'envoi) — réessayez.",
+                    UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE =>
+                        "Erreur serveur : impossible d'écrire le fichier temporaire.",
+                    default => "Erreur d'envoi du fichier (code {$file['error']}).",
+                };
+                return ['success' => false, 'error' => $message];
             }
-            Document::update((int)$params['id'], $user['family_id'], $data, $file);
-            if (!empty($data['custody_schedule_id'])) {
-                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'document_updated', $data['title'] ?? null);
+            $familyMemberIds = array_map('intval', array_column(User::getByFamily($user['family_id']), 'id'));
+            if (isset($data['user_id'])) {
+                $data['user_id'] = (int)$data['user_id'];
+                if (!in_array($data['user_id'], $familyMemberIds, true)) unset($data['user_id']);
+            }
+            if (isset($data['member_ids'])) {
+                $data['member_ids'] = array_values(array_filter(
+                    array_map('intval', (array)$data['member_ids']),
+                    fn($id) => in_array($id, $familyMemberIds, true)
+                ));
+            }
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), $user['family_id']);
+            Document::update((int)$params['id'], $user['family_id'], $data, $file, (int)$user['id']);
+            foreach ($data['custody_schedule_ids'] as $scheduleId) {
+                CustodyActivityLog::record($scheduleId, $user['id'], 'document_updated', $data['title'] ?? null);
             }
             return ['success' => true];
+        });
+    }
+
+    public function history(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $id   = (int)$params['id'];
+            if (!Document::findById($id, $user['family_id'])) return ['success' => false];
+            return ['success' => true, 'items' => Document::getPredecessors($id, $user['family_id'])];
         });
     }
 
@@ -91,15 +159,16 @@ class DocumentController extends BaseController
 
         if (!$doc || !$doc['file_path']) { http_response_code(404); echo 'Introuvable.'; return; }
 
-        $path = BASE_PATH . $doc['file_path'];
-        if (!file_exists($path)) { http_response_code(404); echo 'Introuvable.'; return; }
+        $path = \App\Core\FileStore::resolveLocalPath($doc['file_path']);
+        if (!$path) { http_response_code(404); echo 'Introuvable.'; return; }
 
         $mime = $doc['file_mime'] ?: mime_content_type($path);
         $name = $doc['file_original'] ?: basename($path);
 
+        $disposition = !empty($_GET['download']) ? 'attachment' : 'inline';
         header('Content-Type: ' . $mime);
         header('Content-Length: ' . filesize($path));
-        header('Content-Disposition: inline; filename="' . addslashes($name) . '"');
+        header($this->contentDispositionHeader($name, $disposition));
         header('Cache-Control: private, max-age=3600');
         readfile($path);
         exit;
@@ -138,9 +207,10 @@ class DocumentController extends BaseController
         $classified = OcrHelper::classify($text);
 
         echo json_encode([
-            'success'    => true,
-            'text'       => $text,
-            'classified' => $classified,
+            'success'     => true,
+            'text'        => $text,
+            'classified'  => $classified,
+            'expiry_date' => OcrHelper::extractExpiryDate($text),
         ]);
     }
 

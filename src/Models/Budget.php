@@ -11,6 +11,14 @@ class Budget
         return Database::fetchAll('SELECT * FROM budget_categories WHERE family_id=? ORDER BY name', [$familyId]);
     }
 
+    /** À valider avant d'accepter un category_id reçu du client (transaction, item récurrent) —
+     *  sinon une famille peut faire pointer sa propre transaction vers la catégorie d'une autre
+     *  famille et en afficher le nom/icône/couleur dans sa propre vue budget. */
+    public static function categoryBelongsToFamily(int $categoryId, int $familyId): bool
+    {
+        return (bool)Database::fetch('SELECT 1 FROM budget_categories WHERE id=? AND family_id=?', [$categoryId, $familyId]);
+    }
+
     public static function createCategory(int $familyId, string $name, string $color = '#4A90D9', string $icon = '💰'): int
     {
         return Database::insert('INSERT INTO budget_categories (family_id, name, color, icon) VALUES (?,?,?,?)', [$familyId, $name, $color, $icon]);
@@ -122,7 +130,7 @@ class Budget
     public static function getRecurring(int $familyId): array
     {
         return Database::fetchAll(
-            'SELECT br.*, u.name as user_name, u.color as user_color,
+            'SELECT br.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar,
                     bc.name as category_name, bc.icon as category_icon, bc.color as category_color
              FROM budget_recurring br
              JOIN users u ON u.id = br.user_id
@@ -139,25 +147,36 @@ class Budget
 
     public static function createRecurring(int $familyId, int $userId, array $data): int
     {
+        [$frequency, $renewalMonth] = self::normalizeFrequency($data);
         return Database::insert(
-            'INSERT INTO budget_recurring (family_id, user_id, title, amount, type, category_id, day_of_month, alert_days_before, is_active, notes)
-             VALUES (?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO budget_recurring (family_id, user_id, title, amount, type, category_id, day_of_month, alert_days_before, is_active, notes, frequency, renewal_month, provider)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [$familyId, $userId, $data['title'], $data['amount'], $data['type'],
              $data['category_id'] ?? null, (int)$data['day_of_month'], (int)($data['alert_days_before'] ?? 3),
              isset($data['is_active']) ? (int)$data['is_active'] : 1,
-             $data['notes'] ?? null]
+             $data['notes'] ?? null, $frequency, $renewalMonth, trim((string)($data['provider'] ?? '')) ?: null]
         );
     }
 
     public static function updateRecurring(int $id, array $data): void
     {
+        [$frequency, $renewalMonth] = self::normalizeFrequency($data);
         Database::execute(
-            'UPDATE budget_recurring SET title=?, amount=?, type=?, category_id=?, day_of_month=?, alert_days_before=?, user_id=?, is_active=?, notes=? WHERE id=?',
+            'UPDATE budget_recurring SET title=?, amount=?, type=?, category_id=?, day_of_month=?, alert_days_before=?, user_id=?, is_active=?, notes=?, frequency=?, renewal_month=?, provider=? WHERE id=?',
             [$data['title'], $data['amount'], $data['type'], $data['category_id'] ?? null,
              (int)$data['day_of_month'], (int)($data['alert_days_before'] ?? 3), (int)$data['user_id'],
              isset($data['is_active']) ? (int)$data['is_active'] : 1,
-             $data['notes'] ?? null, $id]
+             $data['notes'] ?? null, $frequency, $renewalMonth, trim((string)($data['provider'] ?? '')) ?: null, $id]
         );
+    }
+
+    /** @return array{0:string,1:?int} [frequency, renewal_month] */
+    private static function normalizeFrequency(array $data): array
+    {
+        $frequency = ($data['frequency'] ?? 'monthly') === 'yearly' ? 'yearly' : 'monthly';
+        if ($frequency !== 'yearly') return ['monthly', null];
+        $month = (int)($data['renewal_month'] ?? 0);
+        return ['yearly', $month >= 1 && $month <= 12 ? $month : (int)date('n')];
     }
 
     public static function deleteRecurring(int $id): void

@@ -69,6 +69,27 @@ class AlbumController extends BaseController
         });
     }
 
+    /** Affiche/retire un album de l'onglet "Photos" du mur, avec sa portée — propriétaire ou admin famille. */
+    public function setWallScope(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user  = Session::user();
+            $album = Album::getById((int)$params['id']);
+            if (!$album || (int)$album['family_id'] !== (int)$user['family_id']) {
+                return ['success' => false, 'error' => 'Album introuvable.'];
+            }
+            if (!$this->canManageAlbum($album, $user)) return ['success' => false, 'error' => 'Non autorisé.'];
+
+            $scope = $this->jsonInput()['scope'] ?? null;
+            if ($scope !== null && !in_array($scope, ['personal', 'family', 'network'], true)) {
+                return ['success' => false, 'error' => 'Portée invalide.'];
+            }
+            Album::setWallScope($album['id'], $scope);
+            return ['success' => true];
+        });
+    }
+
     public function delete(array $params): void
     {
         $this->requireAuth();
@@ -99,16 +120,14 @@ class AlbumController extends BaseController
                 return ['success' => false, 'error' => 'Album introuvable.'];
             }
 
-            $scheduleId = (int)($this->jsonInput()['schedule_id'] ?? 0);
-            if ($scheduleId > 0) {
+            $scheduleIds = array_values(array_unique(array_map('intval', (array)($this->jsonInput()['schedule_ids'] ?? []))));
+            foreach ($scheduleIds as $scheduleId) {
                 $schedule = Custody::getScheduleById($scheduleId);
                 if (!$schedule || (int)$schedule['family_id'] !== (int)$user['family_id']) {
                     return ['success' => false, 'error' => 'Planning introuvable.'];
                 }
-                Album::setCustodySchedule($album['id'], $scheduleId);
-            } else {
-                Album::setCustodySchedule($album['id'], null);
             }
+            Album::setCustodySchedules($album['id'], $scheduleIds);
             return ['success' => true];
         });
     }
@@ -124,9 +143,9 @@ class AlbumController extends BaseController
             exit;
         }
 
-        $imagePath = $this->uploadImage('image');
+        $imagePath = $this->uploadFamilyImage('image', 'album');
         if (!$imagePath) {
-            Session::flash('error', "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement).");
+            Session::flash('error', $this->lastUploadError ?: "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement).");
             header('Location: ' . BASE_URL . '/albums/' . $album['id']);
             exit;
         }
@@ -233,9 +252,13 @@ class AlbumController extends BaseController
             $album = Album::getById((int)$link['album_id']);
             if (!$album) return ['success' => false, 'error' => 'Album introuvable.'];
 
-            $imagePath = $this->uploadImage('image');
+            // Lien d'invité public, sans session (voir AlbumShareLink) : pas de Session::user()
+            // disponible, on passe donc la famille de l'album directement à FileStore.
+            $lastUploadError = null;
+            $result = \App\Core\FileStore::saveImage('image', 'album', (int)$album['family_id'], null, $lastUploadError);
+            $imagePath = $result['route'] ?? null;
             if (!$imagePath) {
-                return ['success' => false, 'error' => "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement)."];
+                return ['success' => false, 'error' => $lastUploadError ?: "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement)."];
             }
 
             $uploaderName = trim($_POST['uploader_name'] ?? '') ?: null;
@@ -251,9 +274,7 @@ class AlbumController extends BaseController
 
     private function deletePhotoFile(?string $path): void
     {
-        if ($path && file_exists(BASE_PATH . $path)) {
-            @unlink(BASE_PATH . $path);
-        }
+        \App\Core\FileStore::deleteByRoute($path);
     }
 
     private function originUrl(): string

@@ -12,8 +12,12 @@ ob_start();
     <?php if ($error): ?>
         <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
+    <?php if ($success): ?>
+        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+    <?php endif; ?>
 
     <form method="POST" action="<?= BASE_URL ?>/login" class="auth-form">
+        <?= \App\Core\Csrf::field() ?>
         <div class="form-group">
             <label>Email</label>
             <input type="email" name="email" required autofocus placeholder="votre@email.fr">
@@ -25,7 +29,9 @@ ob_start();
         <button type="submit" class="btn btn-primary btn-full">Se connecter</button>
     </form>
 
+    <p class="auth-link"><a href="<?= BASE_URL ?>/forgot-password">Mot de passe oublié ?</a></p>
     <p class="auth-link">Pas encore de compte ? <a href="<?= BASE_URL ?>/register">Créer une famille</a></p>
+    <p class="auth-link"><a href="<?= BASE_URL ?>/compte-supprime">Compte supprimé ? Redemander mes données</a></p>
 </div>
 <?php
 $content = ob_get_clean();

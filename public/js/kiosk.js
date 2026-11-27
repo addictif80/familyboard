@@ -34,6 +34,9 @@ async function fetchKioskData() {
         const res = await fetch(BASE_URL + '/kiosk/' + KIOSK_TOKEN + '/data');
         const data = await res.json();
         if (!data.success) return;
+        if (typeof data.dark === 'boolean') {
+            document.documentElement.setAttribute('data-theme', data.dark ? 'dark' : 'light');
+        }
         if (data.sitter_active) {
             renderKioskPrivacy(data.sitter_url);
         } else {
@@ -87,6 +90,7 @@ function renderKioskBoard(data) {
                 <h1>🏠 ${kioskEscape(data.family_name)}</h1>
                 <div class="kiosk-date" id="kiosk-date"></div>
             </div>
+            ${data.name_day ? `<div class="kiosk-nameday">🎉 Fête : ${kioskEscape(data.name_day)}</div>` : ''}
             <div class="kiosk-clock" id="kiosk-clock"></div>
         </div>
 
@@ -109,9 +113,16 @@ function renderKioskBoard(data) {
             <h2>📒 Contacts</h2>
             ${renderKioskContacts(data.contacts)}
         </div>
+
+        ${data.timers && data.timers.length ? `
+        <div class="kiosk-section kiosk-timers-section">
+            <h2>⏰ Minuteurs</h2>
+            ${renderKioskTimers(data.timers)}
+        </div>` : ''}
     `;
 
     updateKioskClock();
+    _kioskTimersTick();
 
     Object.entries(pendingInputs).forEach(([listId, val]) => {
         const inp = board.querySelector(`.kiosk-add-row input[data-list-id="${listId}"]`);
@@ -172,6 +183,126 @@ function renderKioskContacts(contacts) {
     `).join('');
 }
 
+function renderKioskTimers(timers) {
+    return `<div class="kiosk-timers">` + timers.map(t => `
+        <div class="kiosk-timer${t.run_id ? ' running' : ''}" id="kiosk-timer-${t.id}"
+             data-timer-id="${t.id}" data-duration-min="${t.duration_minutes}" data-label="${kioskEscape(t.label)}"
+             ${t.run_id ? `data-run-id="${t.run_id}" data-ends-at="${kioskEscape(t.ends_at)}" data-held="${t.held_for_return ? '1' : '0'}"` : ''}>
+            <span class="kiosk-timer-label">${kioskEscape(t.label)}</span>
+            <span class="kiosk-timer-value">${t.run_id ? '--:--' : t.duration_minutes + ' min'}</span>
+            <button type="button" class="kiosk-timer-btn kiosk-timer-start" onclick="kioskStartTimer(${t.id})" ${t.run_id ? 'style="display:none"' : ''}>▶</button>
+            <button type="button" class="kiosk-timer-btn kiosk-timer-stop" onclick="kioskStopTimer(${t.id})" ${t.run_id ? '' : 'style="display:none"'}>⏹</button>
+        </div>
+    `).join('') + `</div>`;
+}
+
+// L'échéance ("alarming") se déduit localement de data-ends-at à chaque tick — jamais un état
+// serveur —, ce qui garde écran mural et kiosque cohérents sans synchronisation particulière.
+// held_for_return (personne à la maison), lui, vient du serveur (cron.php) et est simplement
+// relu à chaque rafraîchissement du tableau (toutes les 20s).
+let _kioskAlarmCtx = null;
+let _kioskAlarmInterval = null;
+
+function _kioskBeep() {
+    try {
+        _kioskAlarmCtx = _kioskAlarmCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const osc = _kioskAlarmCtx.createOscillator();
+        const gain = _kioskAlarmCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.25, _kioskAlarmCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, _kioskAlarmCtx.currentTime + 0.4);
+        osc.connect(gain).connect(_kioskAlarmCtx.destination);
+        osc.start();
+        osc.stop(_kioskAlarmCtx.currentTime + 0.4);
+    } catch (_) {}
+}
+
+function _kioskShowAlarmOverlay(label) {
+    const overlay = document.getElementById('kioskAlarmOverlay');
+    if (!overlay) return;
+    document.getElementById('kioskAlarmLabel').textContent = label;
+    overlay.style.display = 'flex';
+}
+
+function _kioskHideAlarmOverlay() {
+    const overlay = document.getElementById('kioskAlarmOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function _kioskDismissAllAlarms() {
+    document.querySelectorAll('.kiosk-timer.alarming').forEach(el => kioskStopTimer(el.dataset.timerId));
+    _kioskHideAlarmOverlay();
+    clearInterval(_kioskAlarmInterval);
+    _kioskAlarmInterval = null;
+}
+
+function _kioskTimersTick() {
+    const els = document.querySelectorAll('.kiosk-timer[data-run-id]');
+    let anyAlarming = false;
+    let alarmLabel = '';
+    els.forEach(el => {
+        const held = el.dataset.held === '1';
+        const endsAt = new Date(el.dataset.endsAt.replace(' ', 'T') + 'Z').getTime();
+        const remaining = Math.round((endsAt - Date.now()) / 1000);
+        const valueEl = el.querySelector('.kiosk-timer-value');
+        if (remaining > 0) {
+            const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+            const s = String(remaining % 60).padStart(2, '0');
+            if (valueEl) valueEl.textContent = `${m}:${s}`;
+            el.classList.remove('alarming');
+        } else if (held) {
+            if (valueEl) valueEl.textContent = '🏃 absent';
+            el.classList.remove('alarming');
+        } else {
+            if (valueEl) valueEl.textContent = '00:00';
+            el.classList.add('alarming');
+            anyAlarming = true;
+            alarmLabel = el.dataset.label || '';
+        }
+    });
+    if (anyAlarming) {
+        if (!_kioskAlarmInterval) {
+            _kioskBeep();
+            _kioskAlarmInterval = setInterval(_kioskBeep, 1200);
+        }
+        _kioskShowAlarmOverlay(alarmLabel);
+    } else {
+        clearInterval(_kioskAlarmInterval);
+        _kioskAlarmInterval = null;
+        _kioskHideAlarmOverlay();
+    }
+}
+
+async function kioskStartTimer(id) {
+    const res = await fetch(BASE_URL + '/kiosk/' + KIOSK_TOKEN + '/timers/' + id + '/start', { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) return;
+    const el = document.getElementById('kiosk-timer-' + id);
+    if (!el) return;
+    el.dataset.runId = data.run_id;
+    el.dataset.endsAt = data.ends_at;
+    el.dataset.held = '0';
+    el.classList.add('running');
+    el.querySelector('.kiosk-timer-start').style.display = 'none';
+    el.querySelector('.kiosk-timer-stop').style.display = '';
+    _kioskTimersTick();
+}
+
+async function kioskStopTimer(id) {
+    await fetch(BASE_URL + '/kiosk/' + KIOSK_TOKEN + '/timers/' + id + '/stop', { method: 'POST' });
+    const el = document.getElementById('kiosk-timer-' + id);
+    if (!el) return;
+    delete el.dataset.runId;
+    delete el.dataset.endsAt;
+    delete el.dataset.held;
+    el.classList.remove('running', 'alarming');
+    el.querySelector('.kiosk-timer-value').textContent = el.dataset.durationMin + ' min';
+    el.querySelector('.kiosk-timer-start').style.display = '';
+    el.querySelector('.kiosk-timer-stop').style.display = 'none';
+    _kioskTimersTick();
+}
+
 async function kioskAddTask(listId, input) {
     const title = input.value.trim();
     if (!title) return;
@@ -192,3 +323,30 @@ async function kioskToggleTask(taskId) {
 fetchKioskData();
 setInterval(fetchKioskData, KIOSK_REFRESH_SECONDS * 1000);
 setInterval(updateKioskClock, 1000);
+setInterval(_kioskTimersTick, 1000);
+
+// Plein écran (masque barre d'adresse/d'état du navigateur TV) : la plupart
+// des navigateurs n'autorisent l'appel qu'à la suite d'une interaction
+// utilisateur (clic, tap, touche de la télécommande) — un appel automatique
+// au chargement échoue silencieusement sur beaucoup de navigateurs TV
+// (Tizen, webOS…), donc on l'arme sur la première interaction et on
+// n'insiste plus ensuite, avec ou sans succès.
+(function () {
+    function requestKioskFullscreen() {
+        const el = document.documentElement;
+        const request = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+        if (request) {
+            try { request.call(el); } catch (e) { /* refusé par ce navigateur, tant pis */ }
+        }
+        document.removeEventListener('click', requestKioskFullscreen);
+        document.removeEventListener('touchend', requestKioskFullscreen);
+        document.removeEventListener('keydown', requestKioskFullscreen);
+    }
+    if (!document.fullscreenElement) {
+        document.addEventListener('click', requestKioskFullscreen);
+        document.addEventListener('touchend', requestKioskFullscreen);
+        document.addEventListener('keydown', requestKioskFullscreen);
+    }
+})();
+
+document.getElementById('kioskAlarmOverlay')?.addEventListener('click', _kioskDismissAllAlarms);

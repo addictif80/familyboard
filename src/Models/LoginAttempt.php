@@ -32,4 +32,15 @@ class LoginAttempt
     {
         return self::WINDOW_MINUTES;
     }
+
+    /**
+     * Clé stable et courte pour verrouiller par compte plutôt que par IP (un attaquant
+     * distribué sur plusieurs IP garde sinon un quota de 5 tentatives par IP, donc un budget
+     * de tentatives illimité sur un compte précis). Le hash évite de stocker l'email en clair
+     * dans cette table technique.
+     */
+    public static function accountKey(string $email): string
+    {
+        return 'acct:' . substr(hash('sha256', strtolower(trim($email))), 0, 32);
+    }
 }

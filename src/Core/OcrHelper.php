@@ -73,19 +73,8 @@ class OcrHelper
 
     public static function saveUploadedFile(array $file, string $subDir, int $familyId, ?array $allowedMimes = null, int $maxSize = 20 * 1024 * 1024): array
     {
-        $allowedMimes ??= ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
-        // Blobs from MediaRecorder report a type like "audio/webm;codecs=opus" — compare on the base mime only.
-        $mimeBase = strtolower(trim(explode(';', $file['type'])[0]));
-        if (!in_array($mimeBase, $allowedMimes, true)) {
-            throw new \RuntimeException('Type de fichier non autorisé.');
-        }
-        if ($file['size'] > $maxSize) {
-            throw new \RuntimeException('Fichier trop volumineux (max ' . round($maxSize / 1024 / 1024) . ' Mo).');
-        }
+        [$mimeBase, $ext] = self::validateUpload($file, $allowedMimes, $maxSize);
 
-        // Le Content-Type et le nom envoyés par le client sont falsifiables : on ne
-        // dérive jamais l'extension stockée du nom de fichier fourni par le client.
-        $ext      = self::extensionForMime($mimeBase);
         $filename = bin2hex(random_bytes(16)) . '.' . $ext;
         $dir      = BASE_PATH . '/storage/' . $subDir . '/' . $familyId;
         if (!is_dir($dir)) mkdir($dir, 0755, true);
@@ -102,6 +91,74 @@ class OcrHelper
         ];
     }
 
+    /**
+     * Valide un $_FILES uploadé (type déclaré autorisé, taille, contenu réel conforme au type
+     * déclaré — jamais de confiance aveugle dans le Content-Type fourni par le client) sans
+     * encore l'écrire nulle part — factorisé hors de saveUploadedFile() pour être réutilisable
+     * par App\Core\FileStore côté backend Nextcloud (écriture WebDAV, pas move_uploaded_file()).
+     * @return array{0:string,1:string} [mime de base, extension à utiliser pour le nom stocké]
+     * @throws \RuntimeException motif exact, affichable directement à l'utilisateur
+     */
+    public static function validateUpload(array $file, ?array $allowedMimes = null, int $maxSize = 20 * 1024 * 1024): array
+    {
+        $allowedMimes ??= ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+        // Blobs from MediaRecorder report a type like "audio/webm;codecs=opus" — compare on the base mime only.
+        $mimeBase = strtolower(trim(explode(';', $file['type'])[0]));
+        if (!in_array($mimeBase, $allowedMimes, true)) {
+            throw new \RuntimeException('Type de fichier non autorisé.');
+        }
+        if ($file['size'] > $maxSize) {
+            throw new \RuntimeException('Fichier trop volumineux (max ' . round($maxSize / 1024 / 1024) . ' Mo).');
+        }
+        // Le Content-Type déclaré par le client n'est qu'un en-tête de requête, entièrement
+        // falsifiable — on vérifie le contenu réel du fichier avant de lui faire confiance.
+        if (!self::realMimeMatches($file['tmp_name'], $mimeBase)) {
+            throw new \RuntimeException('Le contenu du fichier ne correspond pas au type annoncé.');
+        }
+        // Le Content-Type et le nom envoyés par le client sont falsifiables : on ne
+        // dérive jamais l'extension stockée du nom de fichier fourni par le client.
+        return [$mimeBase, self::extensionForMime($mimeBase)];
+    }
+
+    /**
+     * Vérifie le contenu réel du fichier via mime_content_type() (libmagic) plutôt que de faire
+     * confiance au Content-Type déclaré par le client. Tolérance pour les conteneurs ambigus
+     * (webm/ogg/mp4 audio-only sont parfois rapportés sans le préfixe audio/ selon la version de
+     * libmagic) et vérification supplémentaire par getimagesize() pour les images.
+     */
+    private static function realMimeMatches(string $tmpPath, string $declaredMime): bool
+    {
+        $real = @mime_content_type($tmpPath) ?: '';
+        if (str_starts_with($declaredMime, 'image/')) {
+            return $real === $declaredMime && @getimagesize($tmpPath) !== false;
+        }
+        if ($declaredMime === 'application/pdf') {
+            return $real === 'application/pdf';
+        }
+        $mimeEquivalences = [
+            'audio/webm'  => ['audio/webm', 'video/webm'],
+            'audio/ogg'   => ['audio/ogg', 'application/ogg', 'video/ogg'],
+            'audio/mp4'   => ['audio/mp4', 'video/mp4'],
+            'audio/x-m4a' => ['audio/mp4', 'video/mp4', 'audio/x-m4a'],
+            'audio/mpeg'  => ['audio/mpeg'],
+            'audio/wav'   => ['audio/wav', 'audio/x-wav', 'audio/vnd.wave'],
+            'audio/x-wav' => ['audio/wav', 'audio/x-wav', 'audio/vnd.wave'],
+            'audio/aac'   => ['audio/aac', 'audio/x-aac'],
+            // Bureautique/e-mail : tolérance similaire — un .docx/.xlsx est un ZIP, parfois
+            // reconnu comme "application/zip" par une base libmagic ancienne ; un .doc/.xls est
+            // un conteneur OLE2 générique ; un .eml est du texte brut, parfois reconnu comme
+            // "text/plain" plutôt que le type message/rfc822 exact.
+            'application/msword' => ['application/msword', 'application/x-ole-storage', 'application/CDFV2', 'application/vnd.ms-office'],
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =>
+                ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip'],
+            'application/vnd.ms-excel' => ['application/vnd.ms-excel', 'application/x-ole-storage', 'application/CDFV2', 'application/vnd.ms-office'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' =>
+                ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip'],
+            'message/rfc822' => ['message/rfc822', 'text/plain'],
+        ];
+        return in_array($real, $mimeEquivalences[$declaredMime] ?? [$declaredMime], true);
+    }
+
     private static function extensionForMime(string $mime): string
     {
         return match ($mime) {
@@ -116,6 +173,11 @@ class OcrHelper
             'image/webp' => 'webp',
             'image/gif'  => 'gif',
             'application/pdf' => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            'application/vnd.ms-excel' => 'xls',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'message/rfc822' => 'eml',
             default      => 'bin',
         };
     }
@@ -124,6 +186,17 @@ class OcrHelper
     public const VOICE_MIMES = [
         'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
         'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/aac',
+    ];
+
+    /** MIME whitelist for dossier attachments (pdf/word/excel/image/email — voir DisputeCase). */
+    public const DISPUTE_DOC_MIMES = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'message/rfc822',
+        'image/jpeg', 'image/png', 'image/webp', 'image/gif',
     ];
 
     // ── Document classifier ──────────────────────────────────────────────────
@@ -281,6 +354,16 @@ class OcrHelper
                 'siret' => 4, 'tva intra' => 7,
             ],
         ],
+        // Jamais deviné par l'OCR (keywords vide — classify() ne peut donc jamais lui attribuer
+        // de score) : posé explicitement par NextcloudInboxController lors d'un rattachement
+        // depuis le dossier "a-rattacher", pour repérer en un coup d'œil les imports encore à
+        // trier/retitrer/reclasser correctement.
+        'ncinbox_pending' => [
+            'label' => 'Imports à traiter',
+            'icon'  => '📥',
+            'color' => '#E67E22',
+            'keywords' => [],
+        ],
     ];
 
     /**
@@ -346,5 +429,52 @@ class OcrHelper
     private static function unknown(): array
     {
         return ['type' => 'other', 'label' => 'Autre', 'icon' => '📄', 'color' => '#95A5A6', 'confidence' => 0.0, 'score' => 0];
+    }
+
+    // ── Date d'expiration ─────────────────────────────────────────────────────
+
+    /** Mots-clés à proximité desquels une date trouvée est probablement une échéance (plutôt
+     *  qu'une date de naissance, d'émission...). Cherchés dans le texte OCR brut (accents
+     *  conservés), pas dans la version normalisée servant à classify(). */
+    private const EXPIRY_KEYWORDS = [
+        "date d'expiration", 'date d\'expiration', 'expire le', 'expire fin',
+        "valable jusqu'au", "valable jusqu'en", 'date de validité', 'date limite de validité',
+        'fin de validité', 'expiry date', 'valid until', "date d'échéance", 'échéance le',
+        "à renouveler avant", 'renouvellement avant',
+    ];
+
+    /**
+     * Cherche une date d'échéance dans un texte OCR, à proximité d'un mot-clé connu
+     * (contrairement à la première date dd/mm/yyyy trouvée n'importe où, qui est bien plus
+     * souvent une date de naissance ou d'émission). Renvoie 'Y-m-d' ou null si rien de fiable.
+     */
+    public static function extractExpiryDate(string $text): ?string
+    {
+        if (trim($text) === '') return null;
+        $lower = mb_strtolower($text);
+        $datePattern = '(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})';
+
+        foreach (self::EXPIRY_KEYWORDS as $kw) {
+            $pos = mb_strpos($lower, mb_strtolower($kw));
+            if ($pos === false) continue;
+            // La date suit presque toujours le mot-clé sur la même ligne, à quelques mots —
+            // une fenêtre de 80 caractères après le mot-clé couvre ce cas sans déborder sur la
+            // ligne suivante d'un document dense.
+            $window = mb_substr($text, $pos, mb_strlen($kw) + 80);
+            if (preg_match('/' . $datePattern . '/', $window, $m)) {
+                $date = self::normalizeDateParts($m[1], $m[2], $m[3]);
+                if ($date) return $date;
+            }
+        }
+        return null;
+    }
+
+    private static function normalizeDateParts(string $d, string $m, string $y): ?string
+    {
+        if (strlen($y) === 2) $y = ((int)$y < 50 ? '20' : '19') . $y;
+        $d = str_pad($d, 2, '0', STR_PAD_LEFT);
+        $m = str_pad($m, 2, '0', STR_PAD_LEFT);
+        if (!checkdate((int)$m, (int)$d, (int)$y)) return null;
+        return "$y-$m-$d";
     }
 }

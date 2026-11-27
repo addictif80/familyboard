@@ -171,14 +171,28 @@ function custodyNextMonth() { custodyCurrentDate.setMonth(custodyCurrentDate.get
 
 // ---- Schedule modal ----
 
+function onScheduleChildSelect() {
+    const select = document.getElementById('schedule-child-select');
+    const isNew = select.value === '__new__';
+    document.getElementById('schedule-child-name-group').style.display = isNew ? '' : 'none';
+    if (!isNew) {
+        const color = select.options[select.selectedIndex]?.dataset.color;
+        if (color) document.getElementById('schedule-color').value = color;
+    }
+}
+
 function openScheduleModal() {
     document.getElementById('schedule-modal-title').textContent = 'Ajouter un enfant';
     document.getElementById('schedule-id').value = '';
+    document.getElementById('schedule-child-select-group').style.display = '';
+    document.getElementById('schedule-child-select').value = '__new__';
     document.getElementById('schedule-child-name').value = '';
     document.getElementById('schedule-color').value = '#E67E22';
+    onScheduleChildSelect();
     document.getElementById('schedule-notes').value = '';
     document.getElementById('schedule-recurrence-type').value = 'none';
     document.getElementById('schedule-recurrence-start').value = '';
+    document.getElementById('schedule-handover-time').value = '18:00';
     document.getElementById('schedule-handover-weekday').value = '';
     document.getElementById('schedule-extra-weekday').value = '';
     document.getElementById('schedule-parent1-label').value = '';
@@ -194,6 +208,8 @@ function openScheduleModal() {
 function openEditScheduleModal(schedule) {
     document.getElementById('schedule-modal-title').textContent = 'Modifier le planning';
     document.getElementById('schedule-id').value = schedule.id;
+    document.getElementById('schedule-child-select-group').style.display = 'none';
+    document.getElementById('schedule-child-name-group').style.display = '';
     document.getElementById('schedule-child-name').value = schedule.child_name;
     document.getElementById('schedule-color').value = schedule.color;
     document.getElementById('schedule-notes').value = schedule.notes || '';
@@ -201,6 +217,7 @@ function openEditScheduleModal(schedule) {
     const recType = schedule.recurrence_type || 'none';
     document.getElementById('schedule-recurrence-type').value = recType;
     document.getElementById('schedule-recurrence-start').value = schedule.recurrence_start || '';
+    document.getElementById('schedule-handover-time').value = (schedule.handover_time || '18:00:00').slice(0, 5);
     document.getElementById('schedule-handover-weekday').value = schedule.handover_weekday || '';
     document.getElementById('schedule-extra-weekday').value = schedule.extra_weekday || '';
 
@@ -228,8 +245,20 @@ function fillParentFromMember(num, select) {
 }
 
 async function saveSchedule() {
-    const childName = document.getElementById('schedule-child-name').value.trim();
-    if (!childName) { Dialog.toast('Prénom requis.', 'error'); return; }
+    const id = document.getElementById('schedule-id').value;
+    let childName = null, familyChildId = null, newChildName = null;
+    if (id) {
+        childName = document.getElementById('schedule-child-name').value.trim();
+        if (!childName) { Dialog.toast('Prénom requis.', 'error'); return; }
+    } else {
+        const childSelect = document.getElementById('schedule-child-select').value;
+        if (childSelect === '__new__') {
+            newChildName = document.getElementById('schedule-child-name').value.trim();
+            if (!newChildName) { Dialog.toast('Prénom requis.', 'error'); return; }
+        } else {
+            familyChildId = childSelect;
+        }
+    }
 
     const recType = document.getElementById('schedule-recurrence-type').value;
     const recStart = document.getElementById('schedule-recurrence-start').value;
@@ -244,10 +273,13 @@ async function saveSchedule() {
 
     const data = {
         child_name: childName,
+        family_child_id: familyChildId,
+        new_child_name: newChildName,
         color: document.getElementById('schedule-color').value,
         notes: document.getElementById('schedule-notes').value,
         recurrence_type: recType,
         recurrence_start: recType !== 'none' ? recStart : null,
+        handover_time: document.getElementById('schedule-handover-time').value || null,
         handover_weekday: document.getElementById('schedule-handover-weekday').value || null,
         extra_weekday: document.getElementById('schedule-extra-weekday').value || null,
         recurrence_parent1_id: document.getElementById('schedule-parent1-id').value || null,
@@ -258,7 +290,6 @@ async function saveSchedule() {
         recurrence_parent2_color: document.getElementById('schedule-parent2-color').value,
     };
 
-    const id = document.getElementById('schedule-id').value;
     const url = id ? `${BASE_URL}/api/custody/schedule/${id}` : `${BASE_URL}/api/custody/schedule`;
     const result = await apiFetch(url, { method: 'POST', body: JSON.stringify(data) });
     if (result.success) { closeModal('schedule-modal'); location.reload(); }
@@ -800,7 +831,7 @@ async function openVacationModal(scheduleId, childName) {
 
 async function loadVacationPeriods(scheduleId) {
     const list = document.getElementById('vacation-list');
-    list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>';
+    list.innerHTML = fbSkeletonRows(3);
     const schedule = SCHEDULES.find(s => s.id == scheduleId);
     const data = await apiFetch(`${BASE_URL}/api/custody/schedule/${scheduleId}/vacation-list`);
     vacationPeriodsCache = Array.isArray(data) ? data : (data.periods || []);
@@ -916,10 +947,42 @@ async function sendCoparentInvite() {
 
 async function openActivityLogModal(scheduleId, childName) {
     document.getElementById('activity-log-title').textContent = `Journal d'activité — ${childName}`;
-    document.getElementById('activity-log-content').innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>';
+    document.getElementById('activity-log-content').innerHTML = fbSkeletonRows(4);
     openModal('activity-log-modal');
     const data = await apiFetch(`${BASE_URL}/api/custody/schedule/${scheduleId}/activity-log`);
     document.getElementById('activity-log-content').innerHTML = renderActivityLogHtml(data);
+}
+
+// ---- Checklist "à ne pas oublier" ----
+
+async function toggleCustodyChecklistItem(id, checked) {
+    await apiFetch(`${BASE_URL}/api/custody/checklist/${id}/toggle`, {
+        method: 'POST',
+        body: JSON.stringify({ checked }),
+    });
+}
+
+async function deleteCustodyChecklistItem(id) {
+    const ok = await Dialog.confirm('Retirer cet élément de la checklist (pour tous les prochains transferts) ?');
+    if (!ok) return;
+    await apiFetch(`${BASE_URL}/api/custody/checklist/${id}/delete`, { method: 'POST', body: '{}' });
+    window.location.reload();
+}
+
+async function addCustodyChecklistItem() {
+    const input = document.getElementById('custody-checklist-new-label');
+    const label = input.value.trim();
+    if (!label) return;
+    const scheduleId = document.getElementById('custody-checklist-new-schedule').value;
+    const r = await apiFetch(`${BASE_URL}/api/custody/checklist`, {
+        method: 'POST',
+        body: JSON.stringify({ label, schedule_id: scheduleId || null }),
+    });
+    if (r.success) {
+        window.location.reload();
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
 }
 
 // Init

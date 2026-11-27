@@ -22,4 +22,9 @@ CREATE TABLE IF NOT EXISTS album_share_links (
 ALTER TABLE album_photos MODIFY COLUMN user_id INT NULL;
 ALTER TABLE album_photos ADD COLUMN IF NOT EXISTS uploader_name VARCHAR(100) NULL DEFAULT NULL;
 ALTER TABLE album_photos ADD COLUMN IF NOT EXISTS share_link_id INT NULL DEFAULT NULL;
+-- Deux instructions séparées (jamais combinées en un seul ALTER) : MariaDB ne supporte pas
+-- "ADD CONSTRAINT IF NOT EXISTS ... FOREIGN KEY", et combiner DROP+ADD dans un seul ALTER TABLE
+-- échoue aussi sur un second passage (la contrainte existante entre en collision avec la
+-- nouvelle avant d'être réellement supprimée) — seules deux ALTER TABLE distincts sont idempotents.
+ALTER TABLE album_photos DROP FOREIGN KEY IF EXISTS fk_album_photos_share_link;
 ALTER TABLE album_photos ADD CONSTRAINT fk_album_photos_share_link FOREIGN KEY (share_link_id) REFERENCES album_share_links(id) ON DELETE SET NULL;

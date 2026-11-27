@@ -47,7 +47,6 @@ ob_start();
 
 <script>
 const LAST_MSG_ID = <?= json_encode($lastId) ?>;
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const CURRENT_USER_ID = <?= json_encode($user['id']) ?>;
 </script>
 <?php

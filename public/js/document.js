@@ -67,7 +67,7 @@ function openDocModal() {
     if (custodyToggle) {
         custodyToggle.checked = false;
         document.getElementById('doc-custody-select-wrap').style.display = 'none';
-        document.getElementById('doc-custody-schedule').value = '';
+        document.querySelectorAll('.doc-custody-child-cb').forEach(cb => { cb.checked = false; });
     }
     document.getElementById('doc-ocr-text').value = '';
     document.getElementById('doc-ocr-details').style.display = 'none';
@@ -95,9 +95,12 @@ function openEditDocModal(item) {
     const custodyToggle = document.getElementById('doc-custody-toggle');
     if (custodyToggle) {
         const wrap = document.getElementById('doc-custody-select-wrap');
-        custodyToggle.checked = !!item.custody_schedule_id;
-        wrap.style.display = item.custody_schedule_id ? '' : 'none';
-        document.getElementById('doc-custody-schedule').value = item.custody_schedule_id || '';
+        const csIds = (item.custody_schedule_ids || '').toString().split(',').filter(Boolean).map(Number);
+        custodyToggle.checked = csIds.length > 0;
+        wrap.style.display = csIds.length ? '' : 'none';
+        document.querySelectorAll('.doc-custody-child-cb').forEach(cb => {
+            cb.checked = csIds.includes(parseInt(cb.value, 10));
+        });
     }
     // Check member checkboxes based on item.members array
     const memberIds = new Set((item.members || []).map(m => parseInt(m.id)));
@@ -197,7 +200,11 @@ async function runDocOcr(file) {
 
     let data;
     try {
-        const resp = await fetch(`${BASE_URL}/api/documents/ocr`, { method: 'POST', body: fd });
+        const resp = await fetch(`${BASE_URL}/api/documents/ocr`, {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
         data = await resp.json();
     } catch(e) {
         status.textContent = '⚠️ Erreur lors de l\'OCR.';
@@ -227,6 +234,12 @@ async function runDocOcr(file) {
 
     // Auto-fill fields from OCR text
     parseDocOcrFields(data.text, data.classified);
+
+    // Date d'échéance trouvée près d'un mot-clé ("expire le", "valable jusqu'au"...) — bien plus
+    // fiable que la première date du texte, souvent une date de naissance ou d'émission.
+    if (data.expiry_date && !document.getElementById('doc-expiry-date').value) {
+        document.getElementById('doc-expiry-date').value = data.expiry_date;
+    }
 
     // Auto-apply detected type if selector is on 'auto'
     if (document.getElementById('doc-type').value === 'auto' && data.classified?.type) {
@@ -276,7 +289,7 @@ function parseDocOcrFields(text) {
 
 // ── Save / Delete ─────────────────────────────────────────────────────────
 
-async function saveDoc() {
+async function saveDoc(duplicateChoice) {
     const title = document.getElementById('doc-title').value.trim();
     if (!title) { Dialog.toast('L\'intitulé est obligatoire.', 'error'); return; }
 
@@ -296,23 +309,66 @@ async function saveDoc() {
     fd.append('ocr_text',    document.getElementById('doc-ocr-text').value);
     const custodyToggle = document.getElementById('doc-custody-toggle');
     if (custodyToggle && custodyToggle.checked) {
-        fd.append('custody_schedule_id', document.getElementById('doc-custody-schedule').value);
+        document.querySelectorAll('.doc-custody-child-cb:checked').forEach(cb => {
+            fd.append('custody_schedule_ids[]', cb.value);
+        });
     }
     document.querySelectorAll('.doc-member-cb:checked').forEach(cb => {
         fd.append('member_ids[]', cb.value);
     });
     if (_docFile) fd.append('file', _docFile);
+    if (duplicateChoice === 'replace') fd.append('replace_document_id', _duplicateCandidate.id);
+    if (duplicateChoice === 'keep')    fd.append('confirm_duplicate', '1');
 
     const url = id ? `${BASE_URL}/api/documents/${id}` : `${BASE_URL}/api/documents`;
+    const fail = msg => { Dialog.toast(msg, 'error'); btn.disabled = false; btn.textContent = 'Enregistrer'; };
+
+    let res;
     try {
-        const res  = await fetch(url, { method: 'POST', body: fd });
-        const data = await res.json();
-        if (data.success) { closeModal('doc-modal'); location.reload(); }
-        else { Dialog.toast(data.error || 'Erreur.', 'error'); btn.disabled = false; btn.textContent = 'Enregistrer'; }
-    } catch(e) {
-        Dialog.toast('Erreur réseau.', 'error');
-        btn.disabled = false; btn.textContent = 'Enregistrer';
+        res = await fetch(url, {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+    } catch (e) {
+        // fetch() ne rejette que si la requête n'a jamais atteint le serveur (coupure réseau,
+        // DNS...) — c'est le seul cas où "Erreur réseau" est le bon diagnostic.
+        fail('Erreur réseau — vérifiez votre connexion et réessayez.');
+        return;
     }
+    if (res.status === 413) {
+        fail('Fichier trop volumineux pour le serveur. Essayez un fichier plus léger.');
+        return;
+    }
+    let data;
+    try {
+        data = await res.json();
+    } catch (e) {
+        // Le serveur a répondu, mais pas en JSON (erreur PHP, page d'erreur du serveur web...) —
+        // ce n'est pas un problème de réseau, mais côté serveur.
+        fail(`Erreur serveur (code ${res.status}). Réessayez ou signalez le problème si ça persiste.`);
+        return;
+    }
+    if (data.success) { closeModal('doc-modal'); location.reload(); return; }
+    if (data.duplicate) {
+        // Titre proche d'un document existant : suspendu côté serveur en attente du choix de
+        // l'utilisateur (remplacer / garder les deux), plutôt que refusé ou créé en doublon silencieux.
+        btn.disabled = false;
+        btn.textContent = 'Enregistrer';
+        _duplicateCandidate = data.duplicate;
+        document.getElementById('duplicate-doc-title').textContent = data.duplicate.title;
+        document.getElementById('duplicate-doc-date').textContent = fmtDate(data.duplicate.created_at.slice(0, 10));
+        openModal('duplicate-doc-modal');
+        return;
+    }
+    fail(data.error || 'Erreur.');
+}
+
+let _duplicateCandidate = null;
+
+function resolveDuplicateDoc(choice) {
+    closeModal('duplicate-doc-modal');
+    saveDoc(choice);
 }
 
 async function deleteDoc(id) {
@@ -342,7 +398,7 @@ function openDocDetail(item) {
         item.issue_date  && ['Émis le',     fmtDate(item.issue_date)],
         item.expiry_date && ['Expire le',   fmtDate(item.expiry_date) + expiryBadge(item)],
         (item.members && item.members.length) && ['Appartient à', item.members.map(m =>
-            `<span class="user-avatar-xs" style="background:${escapeHtml(m.color)}" title="${escapeHtml(m.name)}">${escapeHtml(m.name.charAt(0))}</span> ${escapeHtml(m.name)}`
+            `${avatarHtml(m.avatar, m.color, m.name, 'user-avatar-xs', m.name)} ${escapeHtml(m.name)}`
         ).join('&nbsp; ')],
         item.tags        && ['Tags',        escapeHtml(item.tags)],
         item.notes       && ['Notes',       escapeHtml(item.notes)],
@@ -353,7 +409,10 @@ function openDocDetail(item) {
             ${rows.map(([k,v]) => `<tr><th>${escapeHtml(k)}</th><td>${v}</td></tr>`).join('')}
         </table>
         ${item.file_path ? `
-        <div style="margin-top:1rem;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-height:500px">
+        <div style="margin-top:1rem;display:flex;justify-content:flex-end">
+            <a href="${BASE_URL}/documents/file/${item.id}?download=1" class="btn btn-sm btn-secondary">⬇️ Télécharger</a>
+        </div>
+        <div style="margin-top:.5rem;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-height:500px">
             ${item.file_mime && item.file_mime.startsWith('image/')
                 ? `<img src="${BASE_URL}/documents/file/${item.id}" style="width:100%;max-height:480px;object-fit:contain">`
                 : `<iframe src="${BASE_URL}/documents/file/${item.id}" style="width:100%;height:480px;border:none"></iframe>`
@@ -364,10 +423,32 @@ function openDocDetail(item) {
             <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Texte OCR extrait</summary>
             <pre style="font-size:.72rem;white-space:pre-wrap;margin-top:.4rem;background:var(--bg);padding:.75rem;border-radius:var(--radius)">${escapeHtml(item.ocr_text)}</pre>
         </details>` : ''}
+        <div id="doc-detail-history"></div>
     `;
 
     document.getElementById('doc-detail-edit-btn').onclick = () => openEditDocModal(item);
     openModal('doc-detail-modal');
+    loadDocHistory(item.id);
+}
+
+async function loadDocHistory(id) {
+    const container = document.getElementById('doc-detail-history');
+    if (!container) return;
+    const res = await apiFetch(`${BASE_URL}/api/documents/${id}/history`);
+    if (!res || !res.success || !res.items || !res.items.length) return;
+    container.innerHTML = `
+        <details style="margin-top:.75rem">
+            <summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">🕓 Versions précédentes (${res.items.length})</summary>
+            <ul style="list-style:none;margin:.5rem 0 0;padding:0;font-size:.82rem">
+                ${res.items.map(v => `
+                    <li style="padding:.4rem 0;border-top:1px solid var(--border)">
+                        ${escapeHtml(v.title)} — ajouté le ${fmtDate(v.created_at.slice(0,10))}
+                        ${v.file_path ? `<a href="${BASE_URL}/documents/file/${v.id}" target="_blank" rel="noopener" style="margin-left:.4rem">Voir le fichier</a>` : ''}
+                    </li>
+                `).join('')}
+            </ul>
+        </details>
+    `;
 }
 
 function fmtDate(d) {

@@ -9,11 +9,15 @@ use App\Models\AlbumPhoto;
 use App\Models\Custody;
 use App\Models\CustodyActivityLog;
 use App\Models\CommLogMessage;
+use App\Models\Contact;
 use App\Models\Document;
 use App\Models\Event;
 use App\Models\Family;
+use App\Models\Health;
 use App\Models\Notification;
+use App\Models\PortalLink;
 use App\Models\User;
+use App\Core\LinkPreview;
 
 /**
  * Vue dédiée pour un accès "garde partagée" restreint : soit un compte
@@ -27,6 +31,18 @@ class CoparentController extends BaseController
 {
     private const MAX_VOICE_SIZE = 15 * 1024 * 1024;
 
+    /**
+     * Le fuseau horaire global du process (index.php) est fixé sur la famille du COMPTE
+     * connecté — correct pour un membre classique, faux pour un accès co-parent qui consulte
+     * un planning appartenant à une AUTRE famille (fuseau potentiellement différent). Les
+     * calculs de date relatifs ("ce mois-ci" par défaut, etc.) doivent utiliser le fuseau de
+     * la famille propriétaire du planning, pas celui du compte du co-parent.
+     */
+    private function applyScheduleTimezone(array $schedule): void
+    {
+        date_default_timezone_set(Family::getTimezone((int)$schedule['family_id']));
+    }
+
     public function index(array $params): void
     {
         $this->requireAuth(true);
@@ -36,7 +52,40 @@ class CoparentController extends BaseController
             header('Location: ' . BASE_URL . '/');
             exit;
         }
+
+        // Un co-parent ne gère jamais la facturation — il garde son accès pendant le délai de
+        // rétention (voir FamilySubscription/PremiumDataPurge), avec juste un bandeau
+        // d'avertissement si la famille du planning est en défaut de paiement. Si plusieurs
+        // plannings sont concernés (familles différentes), on affiche l'échéance la plus proche.
+        $subscriptionWarning = null;
+        foreach (array_unique(array_column($schedules, 'family_id')) as $famId) {
+            $sub = \App\Models\FamilySubscription::getByFamily((int)$famId);
+            if (!$sub || !in_array($sub['status'], ['past_due', 'canceled'], true) || !$sub['grace_ends_at'] || $sub['data_purged_at']) continue;
+            if (!$subscriptionWarning || $sub['grace_ends_at'] < $subscriptionWarning['grace_ends_at']) {
+                $subscriptionWarning = $sub;
+            }
+        }
+
         require BASE_PATH . '/templates/coparent/index.php';
+    }
+
+    /** Présentation (pas un configurateur) de ce qu'un accès "Garde partagée" permet de faire —
+     *  affichée une fois après la création d'un nouveau compte co-parent (voir
+     *  InvitationController::accept()), et réaccessible depuis les réglages. */
+    public function welcome(array $params): void
+    {
+        $this->requireAuth(true);
+        require BASE_PATH . '/templates/coparent/welcome.php';
+    }
+
+    public function dismissWelcome(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            Database::execute('UPDATE users SET coparent_welcome_seen_at = NOW() WHERE id = ?', [(int)$user['id']]);
+            return ['success' => true];
+        });
     }
 
     /**
@@ -61,7 +110,7 @@ class CoparentController extends BaseController
             }
 
             $familyId = Family::create($familyName);
-            Database::execute('UPDATE users SET family_id=?, role=? WHERE id=?', [$familyId, 'admin', $user['id']]);
+            Database::execute('UPDATE users SET family_id=?, role=?, is_founder=1 WHERE id=?', [$familyId, 'admin', $user['id']]);
             Session::login(User::findById($user['id']));
 
             return ['success' => true];
@@ -75,24 +124,29 @@ class CoparentController extends BaseController
             $user = Session::user();
             $scheduleId = (int)($_GET['schedule_id'] ?? 0);
             if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) return [];
+            $schedule = Custody::getScheduleById($scheduleId);
+            if ($schedule) $this->applyScheduleTimezone($schedule);
             $start = $_GET['start'] ?? date('Y-m-01');
             $end = $_GET['end'] ?? date('Y-m-t');
             $events = Custody::getAllEventsForSchedules([$scheduleId], $start, $end);
-            return array_map(fn($e) => [
-                'id'              => 'custody_' . $e['id'],
-                'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
-                'start'           => $e['start_date'],
-                'end'             => date('Y-m-d', strtotime($e['end_date'] . ' +1 day')),
-                'allDay'          => true,
-                'color'           => $e['parent_color'],
-                'backgroundColor' => $e['schedule_color'],
-                'borderColor'     => $e['parent_color'],
-                'extendedProps'   => [
-                    'parent_name'  => $e['parent_name'],
-                    'notes'        => $e['notes'],
-                    'is_recurring' => !empty($e['is_recurring']),
-                ],
-            ], $events);
+            return array_map(function ($e) {
+                $range = Custody::toDisplayRange($e);
+                return [
+                    'id'              => 'custody_' . $e['id'],
+                    'title'           => $e['child_name'] . ' chez ' . $e['parent_name'],
+                    'start'           => $range['start'],
+                    'end'             => $range['end'],
+                    'allDay'          => false,
+                    'color'           => $e['parent_color'],
+                    'backgroundColor' => $e['schedule_color'],
+                    'borderColor'     => $e['parent_color'],
+                    'extendedProps'   => [
+                        'parent_name'  => $e['parent_name'],
+                        'notes'        => $e['notes'],
+                        'is_recurring' => !empty($e['is_recurring']),
+                    ],
+                ];
+            }, $events);
         });
     }
 
@@ -117,7 +171,7 @@ class CoparentController extends BaseController
                 (int)$schedule['family_id'], $user['id'], 'custody',
                 'Proposition de garde reçue',
                 $user['name'] . ' a proposé des jours de garde pour ' . $schedule['child_name'] . '.',
-                BASE_URL . '/custody'
+                BASE_URL . '/custody', $scheduleId, 'custody_schedule', $scheduleId
             );
 
             return ['success' => true, 'created' => $created];
@@ -156,12 +210,13 @@ class CoparentController extends BaseController
             if (mb_strlen($content) > 4000) return ['success' => false, 'error' => 'Message trop long'];
 
             $schedule = Custody::getScheduleById($scheduleId);
+            $this->applyScheduleTimezone($schedule);
 
             $audioPath = $audioOriginal = $audioMime = $duration = null;
             if ($audioFile) {
                 try {
                     [$audioPath, $audioOriginal, $audioMime] =
-                        OcrHelper::saveUploadedFile($audioFile, 'voice', (int)$schedule['family_id'], OcrHelper::VOICE_MIMES, self::MAX_VOICE_SIZE);
+                        \App\Core\FileStore::save('voice', (int)$schedule['family_id'], (int)$user['id'], $audioFile, OcrHelper::VOICE_MIMES, self::MAX_VOICE_SIZE);
                 } catch (\RuntimeException $e) {
                     return ['success' => false, 'error' => $e->getMessage()];
                 }
@@ -173,7 +228,7 @@ class CoparentController extends BaseController
 
             Notification::notifyFamily((int)$schedule['family_id'], $user['id'], 'comm_log',
                 'Journal parental', $user['name'] . ' a ajouté ' . ($audioPath ? 'un message vocal' : 'un message') . ' au sujet de ' . $schedule['child_name'] . '.',
-                BASE_URL . '/comm-log');
+                BASE_URL . '/comm-log', $scheduleId, 'comm_log', $id);
 
             return [
                 'success' => true,
@@ -204,12 +259,12 @@ class CoparentController extends BaseController
             http_response_code(404); echo 'Introuvable.'; return;
         }
 
-        $path = BASE_PATH . $msg['audio_path'];
-        if (!file_exists($path)) { http_response_code(404); echo 'Introuvable.'; return; }
+        $path = \App\Core\FileStore::resolveLocalPath($msg['audio_path']);
+        if (!$path) { http_response_code(404); echo 'Introuvable.'; return; }
 
         header('Content-Type: ' . ($msg['audio_mime'] ?: 'audio/webm'));
         header('Content-Length: ' . filesize($path));
-        header('Content-Disposition: inline; filename="' . addslashes($msg['audio_original'] ?: basename($path)) . '"');
+        header($this->contentDispositionHeader($msg['audio_original'] ?: basename($path)));
         header('Cache-Control: private, max-age=3600');
         header('Accept-Ranges: bytes');
         readfile($path);
@@ -251,6 +306,64 @@ class CoparentController extends BaseController
         });
     }
 
+    /** Carnet de santé (entrées) + carnet médical (médecins), lecture seule — uniquement les
+     *  fiches explicitement partagées pour ce planning (case "Garde alternée", voir
+     *  HealthController). Jamais celles d'un autre enfant/membre de la famille. */
+    public function healthList(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            $scheduleId = (int)($_GET['schedule_id'] ?? 0);
+            if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) return ['entries' => [], 'doctors' => []];
+            $entries = array_map(function ($e) {
+                $type = Health::ENTRY_TYPES[$e['entry_type']] ?? ['icon' => '🏥', 'label' => $e['entry_type']];
+                return [
+                    'id'            => (int)$e['id'],
+                    'entry_type'    => $e['entry_type'],
+                    'type_icon'     => $type['icon'],
+                    'type_label'    => $type['label'],
+                    'title'         => $e['title'],
+                    'description'   => $e['description'],
+                    'entry_date'    => $e['entry_date'],
+                    'reminder_date' => $e['reminder_date'],
+                ];
+            }, Health::getEntriesForSchedules([$scheduleId]));
+            $doctors = array_map(fn($d) => [
+                'id'                        => (int)$d['id'],
+                'name'                      => $d['name'],
+                'specialty'                 => $d['specialty'],
+                'phone'                     => $d['phone'],
+                'address'                   => $d['address'],
+                'next_appointment'          => $d['next_appointment'],
+                'prescription_renewal_date' => $d['prescription_renewal_date'],
+                'notes'                     => $d['notes'],
+            ], Health::getDoctorsForSchedules([$scheduleId]));
+            return ['entries' => $entries, 'doctors' => $doctors];
+        });
+    }
+
+    /** Contacts (médecin, professionnel de santé...) explicitement partagés pour ce planning —
+     *  lecture seule, même principe que healthList(). */
+    public function contactsList(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            $scheduleId = (int)($_GET['schedule_id'] ?? 0);
+            if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) return [];
+            return array_map(fn($c) => [
+                'id'        => (int)$c['id'],
+                'name'      => trim($c['first_name'] . ' ' . $c['last_name']),
+                'phone'     => $c['phone'],
+                'phone2'    => $c['phone2'],
+                'email'     => $c['email'],
+                'address'   => $c['address'],
+                'notes'     => $c['notes'],
+            ], Contact::getForSchedules([$scheduleId]));
+        });
+    }
+
     public function documentsUpload(array $params): void
     {
         $this->requireAuth(true);
@@ -263,10 +376,87 @@ class CoparentController extends BaseController
             }
             $schedule = Custody::getScheduleById($scheduleId);
             $file = $_FILES['file'] ?? null;
-            $data['custody_schedule_id'] = $scheduleId;
+            $data['custody_schedule_ids'] = [$scheduleId];
             $id = Document::create((int)$schedule['family_id'], $user['id'], $data, $file);
             CustodyActivityLog::record($scheduleId, $user['id'], 'document_uploaded', $data['title'] ?? null);
             return ['success' => true, 'id' => $id];
+        });
+    }
+
+    /** Portail de liens : uniquement ceux marqués visibles pour un accès co-parent, sur les
+     *  familles dont l'utilisateur a effectivement accès à au moins un planning de garde. */
+    public function linksList(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            $schedules = Custody::getSchedulesForUser((int)$user['id']);
+            $scheduleIds = array_column($schedules, 'id');
+            $familyIds = array_values(array_unique(array_map('intval', array_column($schedules, 'family_id'))));
+            // Respecte la désactivation du module par une famille même pour cet accès restreint —
+            // sans quoi désactiver "Portail de liens" côté famille n'aurait aucun effet ici.
+            $familyIds = array_values(array_filter($familyIds, function ($fid) {
+                $f = Family::findById($fid);
+                return $f && !in_array('links', Family::getDisabledModules($f), true);
+            }));
+            return ['links' => PortalLink::getCoparentVisibleForFamilies($familyIds, $scheduleIds)];
+        });
+    }
+
+    /** Additions/cagnottes où ce co-parent est participant — en tant qu'entité indépendante,
+     *  jamais au nom d'une famille (il peut être invité par plusieurs familles différentes). */
+    public function additionsList(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            return ['additions' => \App\Models\AdditionParticipant::getForUser((int)$user['id'])];
+        });
+    }
+
+    /** Un accès co-parent peut proposer un lien pour la famille du planning concerné — la
+     *  proposition part toujours en attente de validation par un admin de cette famille, et
+     *  est automatiquement marquée visible pour les accès co-parent (sans quoi elle n'aurait
+     *  jamais d'intérêt pour la personne qui la propose). */
+    public function linksPropose(array $params): void
+    {
+        $this->requireAuth(true);
+        $this->json(function () {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $scheduleId = (int)($data['schedule_id'] ?? 0);
+            if (!Custody::userHasAccessToSchedule((int)$user['id'], $scheduleId)) {
+                return ['success' => false, 'error' => 'Accès non autorisé.'];
+            }
+            $schedule = Custody::getScheduleById($scheduleId);
+            $family = Family::findById((int)$schedule['family_id']);
+            if (!$family || in_array('links', Family::getDisabledModules($family), true)) {
+                return ['success' => false, 'error' => 'Le portail de liens est désactivé pour cette famille.'];
+            }
+            $title = trim($data['title'] ?? '');
+            $url = trim($data['url'] ?? '');
+            if (!$url) {
+                return ['success' => false, 'error' => 'Le lien est requis.'];
+            }
+
+            $preview = LinkPreview::fetch($url);
+            if (!$preview['ok']) {
+                return ['success' => false, 'error' => $preview['error']];
+            }
+            if (!$title) $title = $preview['title'];
+
+            // Restreint au planning depuis lequel c'est proposé — pas d'intérêt à la rendre
+            // visible aux accès co-parent d'un autre enfant de la même famille par défaut.
+            PortalLink::create((int)$schedule['family_id'], (int)$user['id'], [
+                'title'                 => $title,
+                'url'                   => $url,
+                'description'           => trim($data['description'] ?? ''),
+                'image_path'            => $preview['image_path'],
+                'visible_to_coparent'   => true,
+                'coparent_schedule_ids' => [$scheduleId],
+            ], 'pending');
+
+            return ['success' => true];
         });
     }
 
@@ -277,6 +467,8 @@ class CoparentController extends BaseController
             $user = Session::user();
             $scheduleId = (int)($_GET['schedule_id'] ?? 0);
             if (!Custody::userHasAccessToSchedule($user['id'], $scheduleId)) return [];
+            $schedule = Custody::getScheduleById($scheduleId);
+            if ($schedule) $this->applyScheduleTimezone($schedule);
             $start = $_GET['start'] ?? date('Y-m-01') . ' 00:00:00';
             $end = $_GET['end'] ?? date('Y-m-t') . ' 23:59:59';
             return Event::getForSchedules([$scheduleId], $start, $end);
@@ -296,7 +488,7 @@ class CoparentController extends BaseController
             $schedule = Custody::getScheduleById($scheduleId);
             $data['family_id'] = (int)$schedule['family_id'];
             $data['user_id'] = $user['id'];
-            $data['custody_schedule_id'] = $scheduleId;
+            $data['custody_schedule_ids'] = [$scheduleId];
             $id = Event::create($data);
             CustodyActivityLog::record($scheduleId, $user['id'], 'event_created', $data['title'] ?? null);
             return ['success' => true, 'id' => $id];
@@ -340,16 +532,16 @@ class CoparentController extends BaseController
             $album = Album::getForSchedulesById((int)$params['id'], $scheduleIds);
             if (!$album) return ['success' => false, 'error' => 'Accès non autorisé'];
 
-            $imagePath = $this->uploadImage('image');
+            $imagePath = $this->uploadFamilyImage('image', 'album');
             if (!$imagePath) {
-                return ['success' => false, 'error' => "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement)."];
+                return ['success' => false, 'error' => $this->lastUploadError ?: "L'image est trop volumineuse (max 20 Mo) ou dans un format non supporté (JPEG, PNG, GIF, WebP uniquement)."];
             }
 
             $photoId = AlbumPhoto::create($album['id'], $user['id'], $imagePath, trim($_POST['caption'] ?? ''));
             Notification::notifyFamily(
                 (int)$album['family_id'], $user['id'], 'albums', 'Nouvelle photo',
                 $user['name'] . ' a ajouté une photo à l\'album "' . $album['title'] . '".',
-                BASE_URL . '/albums/' . $album['id']
+                BASE_URL . '/albums/' . $album['id'], null, 'album_photo', $photoId
             );
 
             return ['success' => true, 'id' => $photoId, 'image_path' => $imagePath, 'user_name' => $user['name'], 'user_color' => $user['color']];

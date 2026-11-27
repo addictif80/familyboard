@@ -7,6 +7,8 @@ var Dashboard = (() => {
         if (idx >= 0) widgetState[idx].enabled = enabled;
         const el = document.getElementById('widget-' + slug);
         if (el) el.classList.toggle('widget-hidden', !enabled);
+        const managerItem = document.querySelector('.widget-manager-item[data-slug="' + slug + '"]');
+        if (managerItem) managerItem.classList.toggle('widget-manager-item-on', enabled);
     }
 
     function openWidgetManager() {
@@ -30,11 +32,11 @@ var Dashboard = (() => {
 
         fetch(_baseUrl + '/api/dashboard/widgets', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({ widgets: ordered }),
         })
-        .then(r => r.json())
-        .then(() => closeWidgetManager())
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(() => location.reload())
         .catch(e => alert('Erreur: ' + e.message));
     }
 
@@ -171,11 +173,82 @@ var Dashboard = (() => {
         return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
+    // ── Widget tâches : cocher sans quitter le tableau de bord ─────
+    window.widgetToggleTask = async function (e, id) {
+        e.stopPropagation();
+        const li = document.querySelector(`.task-widget-item[data-task-id="${id}"]`);
+        const r = await apiFetch(`${_baseUrl}/api/tasks/task/${id}/toggle`, { method: 'POST' });
+        if (!r.success || !li) return;
+        if (r.completed) {
+            // Le widget ne liste que les tâches en attente : une fois cochée, elle disparaît
+            // après un court délai plutôt que de rester affichée comme "terminée" indéfiniment.
+            li.style.opacity = '.4';
+            li.style.textDecoration = 'line-through';
+            setTimeout(() => li.remove(), 600);
+        }
+    };
+
+    // ── Digest hebdomadaire IA ───────────────────────────────────
+    function dismissWeeklyDigest() {
+        const modal = document.getElementById('weekly-digest-modal');
+        if (modal) modal.style.display = 'none';
+        apiFetch(`${_baseUrl}/api/dashboard/weekly-digest/dismiss`, { method: 'POST' }).catch(() => {});
+    }
+
+    // ── Horloge (bandeau du haut, utile surtout sur mobile/PWA) ──
+    function tickClock() {
+        const el = document.getElementById('dash-clock');
+        if (!el) return;
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        el.textContent = '🕐 ' + h + ':' + m;
+    }
+
+    // ── Feuille d'ajout rapide (mobile/PWA) ──────────────────────
+    function openQuickAdd() {
+        document.getElementById('dash-sheet-overlay').style.display = 'block';
+        document.getElementById('dash-sheet').style.display = 'block';
+    }
+    function closeQuickAdd() {
+        document.getElementById('dash-sheet-overlay').style.display = 'none';
+        document.getElementById('dash-sheet').style.display = 'none';
+    }
+
+    // ── Choix personnel du widget "Accès rapides" ────────────────
+    function openQuickAccessEditor() {
+        document.getElementById('quick-access-sheet-overlay').style.display = 'block';
+        document.getElementById('quick-access-sheet').style.display = 'block';
+    }
+    function closeQuickAccessEditor() {
+        document.getElementById('quick-access-sheet-overlay').style.display = 'none';
+        document.getElementById('quick-access-sheet').style.display = 'none';
+    }
+    function saveQuickAccessSelection() {
+        const picker = document.getElementById('quick-access-picker');
+        const slugs = Array.from(picker.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+
+        fetch(_baseUrl + '/api/dashboard/quick-access', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ slugs }),
+        })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(() => location.reload())
+        .catch(e => alert('Erreur: ' + e.message));
+    }
+
     // ── Init ─────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
         initDrag();
         loadWeather();
+        tickClock();
+        setInterval(tickClock, 30000);
+        if (typeof _hasWeeklyDigest !== 'undefined' && _hasWeeklyDigest) {
+            const modal = document.getElementById('weekly-digest-modal');
+            if (modal) modal.style.display = 'flex';
+        }
     });
 
-    return { toggleWidget, openWidgetManager, closeWidgetManager, saveWidgets };
+    return { toggleWidget, openWidgetManager, closeWidgetManager, saveWidgets, dismissWeeklyDigest, openQuickAdd, closeQuickAdd, openQuickAccessEditor, closeQuickAccessEditor, saveQuickAccessSelection };
 })();

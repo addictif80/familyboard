@@ -9,13 +9,19 @@ ob_start();
         <div>
             <h2 style="margin:.25rem 0"><?= htmlspecialchars($album['title']) ?></h2>
             <?php if ($album['description']): ?><p style="color:var(--text-muted);margin:0 0 .25rem"><?= nl2br(htmlspecialchars($album['description'])) ?></p><?php endif; ?>
-            <span class="album-meta">Créé par <?= htmlspecialchars($album['user_name']) ?><?php if ($album['custody_schedule_id']): ?> · 🔒 Partagé avec le co-parent<?php endif; ?></span>
+            <span class="album-meta">Créé par <?= htmlspecialchars($album['user_name']) ?><?php if (!empty($album['custody_schedule_ids'])): ?> · 🔒 Partagé avec le co-parent<?php endif; ?></span>
         </div>
         <?php if ($canManage): ?>
         <div class="album-header-actions">
+            <select class="album-wall-scope-select" title="Afficher dans l'onglet Photos du mur" onchange="albumSetWallScope(<?= (int)$album['id'] ?>, this.value)">
+                <option value="" <?= empty($album['wall_scope']) ? 'selected' : '' ?>>🚫 Pas sur le mur</option>
+                <option value="family" <?= ($album['wall_scope'] ?? '') === 'family' ? 'selected' : '' ?>>🏠 Mur — Famille</option>
+                <option value="personal" <?= ($album['wall_scope'] ?? '') === 'personal' ? 'selected' : '' ?>>🙋 Mur — Amis</option>
+                <option value="network" <?= ($album['wall_scope'] ?? '') === 'network' ? 'selected' : '' ?>>🤝 Mur — Familles amies</option>
+            </select>
             <button class="btn btn-secondary btn-sm" onclick="albumOpenEditModal(<?= (int)$album['id'] ?>, <?= htmlspecialchars(json_encode($album['title']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($album['description'] ?? ''), ENT_QUOTES) ?>)">Renommer</button>
             <?php if ($user['role'] === 'admin'): ?>
-            <button class="btn btn-secondary btn-sm" onclick="albumOpenShareModal(<?= (int)$album['id'] ?>, <?= (int)($album['custody_schedule_id'] ?? 0) ?>)">Partager</button>
+            <button class="btn btn-secondary btn-sm" onclick="albumOpenShareModal(<?= (int)$album['id'] ?>, <?= json_encode($album['custody_schedule_ids'] ?? '') ?>)">Partager</button>
             <button class="btn btn-secondary btn-sm" onclick="albumOpenPublicLinkModal(<?= (int)$album['id'] ?>, <?= htmlspecialchars(json_encode($shareLink ?: null), ENT_QUOTES) ?>)">🔗 Lien public</button>
             <?php endif; ?>
             <button class="btn btn-danger btn-sm" onclick="albumDelete(<?= (int)$album['id'] ?>)">Supprimer l'album</button>
@@ -46,6 +52,9 @@ ob_start();
             <img src="<?= BASE_URL . htmlspecialchars($photo['image_path']) ?>" alt="" loading="lazy" onclick="albumViewPhoto(this.src)">
             <div class="album-photo-meta">
                 <span title="<?= htmlspecialchars($photoAuthor) ?>" style="color:<?= htmlspecialchars($photoColor) ?>">● <?= htmlspecialchars($photoAuthor) ?></span>
+                <?php if ((int)$photo['user_id'] === (int)$user['id']): ?>
+                    <button class="album-photo-delete" onclick="openShareToWallModal(<?= (int)$photo['id'] ?>)" title="Partager sur le mur">📤</button>
+                <?php endif; ?>
                 <?php if ($canDeletePhoto): ?>
                     <button class="album-photo-delete" onclick="albumDeletePhoto(<?= (int)$photo['id'] ?>, this)" title="Supprimer">✕</button>
                 <?php endif; ?>
@@ -95,13 +104,16 @@ ob_start();
             <input type="hidden" id="album-share-id">
             <p style="color:var(--text-muted);font-size:.85rem">Le co-parent ayant accès au planning de garde sélectionné pourra voir cet album et y ajouter ses propres photos (il ne pourra pas les modifier ni les supprimer).</p>
             <div class="form-group">
-                <label>Planning de garde</label>
-                <select id="album-share-schedule">
-                    <option value="0">— Ne pas partager —</option>
-                    <?php foreach ($schedules as $s): ?>
-                        <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['child_name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <label>Enfant(s)</label>
+                <?php if (empty($schedules)): ?>
+                    <p style="color:var(--text-muted);font-size:.85rem">Aucun planning de garde configuré pour l'instant.</p>
+                <?php endif; ?>
+                <?php foreach ($schedules as $s): ?>
+                    <label class="radio-option">
+                        <input type="checkbox" class="album-share-child-cb" value="<?= (int)$s['id'] ?>">
+                        <span><?= htmlspecialchars($s['child_name']) ?></span>
+                    </label>
+                <?php endforeach; ?>
             </div>
         </div>
         <div class="modal-footer">
@@ -149,6 +161,35 @@ ob_start();
     </div>
 </div>
 
+<!-- Share to wall modal -->
+<div class="modal-overlay" id="album-share-to-wall-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>📤 Partager sur le mur</h3>
+            <button onclick="closeModal('album-share-to-wall-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="share-to-wall-photo-id">
+            <div class="form-group">
+                <label>Légende (optionnel)</label>
+                <textarea id="share-to-wall-caption" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Visible par</label>
+                <select id="share-to-wall-scope">
+                    <option value="personal">🙋 Amis (mes abonnés)</option>
+                    <option value="family">🏠 Ma famille</option>
+                    <option value="network">🤝 Familles amies</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('album-share-to-wall-modal')">Annuler</button>
+            <button class="btn btn-primary" onclick="confirmShareToWall()">Partager</button>
+        </div>
+    </div>
+</div>
+
 <!-- Lightbox -->
 <div class="modal-overlay" id="album-lightbox" style="display:none" onclick="closeModal('album-lightbox')">
     <img id="album-lightbox-img" src="" alt="" style="max-width:92vw;max-height:92vh;border-radius:8px">
@@ -157,15 +198,22 @@ ob_start();
 <style>
 .album-header { margin-bottom: 1rem; }
 .album-header-row { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-top:.5rem; }
-.album-header-actions { display:flex; gap:.5rem; flex-wrap:wrap; }
+.album-header-actions { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.album-wall-scope-select { padding:.4rem .6rem; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); color:var(--text); font-size:.8rem; }
 .album-upload-card { padding:1rem; margin-bottom:1rem; }
 .album-meta { font-size:.8rem; color:var(--text-muted); }
 .album-photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.75rem; }
-.album-photo { position:relative; border-radius:10px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border); }
+.album-photo {
+    position:relative; border-radius:10px; overflow:hidden; background:var(--card-bg); border:1px solid var(--border);
+    animation: fbFadeInUp .4s cubic-bezier(.2,1.4,.3,1) both;
+    transition: transform .2s cubic-bezier(.2,1.4,.3,1), box-shadow .2s ease;
+}
+.album-photo:hover { transform: translateY(-3px) scale(1.02); box-shadow: var(--shadow-lg); }
 .album-photo img { width:100%; aspect-ratio:1; object-fit:cover; cursor:pointer; display:block; }
 .album-photo-meta { display:flex; justify-content:space-between; align-items:center; padding:.35rem .5rem; font-size:.72rem; }
-.album-photo-delete { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:.85rem; }
-.album-photo-delete:hover { color:#E74C3C; }
+.album-photo-delete { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:.85rem; transition: transform .15s cubic-bezier(.3,1.5,.5,1), color .15s; }
+.album-photo-delete:hover { color:var(--danger); transform: scale(1.15); }
+@media (prefers-reduced-motion: reduce) { .album-photo { animation: none; } }
 #album-lightbox { background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; }
 </style>
 <?php

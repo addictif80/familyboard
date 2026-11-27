@@ -2,12 +2,13 @@
     "name": "FamilyBoard",
     "short_name": "FamilyBoard",
     "description": "Tableau de bord familial - calendrier, tâches, chat et plus",
+    "id": "/",
     "start_url": "/",
     "scope": "/",
     "display": "standalone",
-    "orientation": "portrait-primary",
-    "background_color": "#F6F2EA",
-    "theme_color": "#232A3D",
+    "launch_handler": { "client_mode": "navigate-existing" },
+    "background_color": "#F4F2FB",
+    "theme_color": "#7C5CFF",
     "lang": "fr",
     "icons": [
         {
@@ -27,6 +28,12 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
+        },
+        {
+            "src": "/public/icons/icon-monochrome.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "monochrome"
         }
     ],
     "shortcuts": [
@@ -41,5 +48,18 @@
             "icons": [{ "src": "/public/icons/icon.svg", "sizes": "any" }]
         }
     ],
-    "categories": ["productivity", "lifestyle"]
+    "categories": ["productivity", "lifestyle"],
+    "share_target": {
+        "action": "/share-target",
+        "method": "POST",
+        "enctype": "multipart/form-data",
+        "params": {
+            "title": "title",
+            "text": "text",
+            "url": "url",
+            "files": [
+                { "name": "file", "accept": ["image/*", "application/pdf", ".doc", ".docx"] }
+            ]
+        }
+    }
 }

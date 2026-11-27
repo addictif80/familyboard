@@ -44,6 +44,46 @@ class EmailContent
             'subject' => 'Nouveau post de {{author_name}}',
             'message' => "{{author_name}} a publié sur le mur familial :\n\n{{content}}",
         ],
+        'birthday_reminder' => [
+            'subject' => "🎂 L'anniversaire de {{birthday_name}} approche",
+            'message' => "Bonjour {{user_name}},\n\n{{birthday_name}} fête ses {{birthday_age}} ans le {{birthday_date}} !",
+        ],
+        'weekly_digest' => [
+            'subject' => '🗓️ Votre semaine avec {{family_name}}',
+            'message' => "Bonjour {{user_name}},\n\nVoici un résumé de la semaine à venir pour {{family_name}} :",
+        ],
+        'weekly_digest_coparent' => [
+            'subject' => '🗓️ La semaine de {{child_names}}',
+            'message' => "Bonjour {{user_name}},\n\nVoici le planning de garde et les rendez-vous de la semaine pour {{child_names}} :",
+        ],
+        'password_reset' => [
+            'subject' => 'Réinitialisation de votre mot de passe FamilyBoard',
+            'message' => "Bonjour {{user_name}},\n\nVous avez demandé la réinitialisation de votre mot de passe. Ce lien est valable 1 heure et à usage unique.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail : votre mot de passe reste inchangé.",
+        ],
+        'expiry_reminder' => [
+            'subject' => '⏳ {{item_label}} expire dans {{days_remaining}} jours',
+            'message' => "Bonjour {{user_name}},\n\n{{item_kind}} « {{item_label}} » arrive à échéance le {{expiry_date}}.",
+        ],
+        'account_deleted' => [
+            'subject' => 'Votre compte FamilyBoard a été supprimé',
+            'message' => "Bonjour {{user_name}},\n\nVotre compte FamilyBoard a été supprimé{{deleted_by}}, pour le motif suivant :\n\n{{reason}}\n\nSi vous pensez qu'il s'agit d'une erreur, contactez le support.",
+        ],
+        'subscription_downgraded' => [
+            'subject' => '{{family_name}} est repassée en offre Gratuite',
+            'message' => "Bonjour {{user_name}},\n\nL'essai gratuit de {{family_name}} s'est terminé sans abonnement (ou le dernier paiement a échoué) : les modules Premium sont maintenant bloqués pour toute la famille.\n\nVos données de ces modules sont conservées jusqu'au {{grace_end_date}} — réabonnez-vous avant cette date pour tout retrouver tel quel. Passé ce délai, elles seront supprimées définitivement.",
+        ],
+        'subscription_retention_reminder' => [
+            'subject' => '⏳ Il vous reste {{days_remaining}} jours pour retrouver vos modules Premium',
+            'message' => "Bonjour {{user_name}},\n\nLes données Premium de {{family_name}} sont toujours conservées, mais seulement jusqu'au {{grace_end_date}}. Réabonnez-vous avant cette date pour les retrouver exactement telles quelles.",
+        ],
+        'subscription_final_warning' => [
+            'subject' => '⚠️ Dernier avertissement avant suppression définitive de vos données Premium',
+            'message' => "Bonjour {{user_name}},\n\nDernier rappel : les données des modules Premium de {{family_name}} seront supprimées définitivement le {{grace_end_date}} si l'abonnement n'est pas repris avant cette date. Cette suppression est irréversible.",
+        ],
+        'subscription_data_purged' => [
+            'subject' => 'Vos données Premium ont été supprimées définitivement',
+            'message' => "Bonjour {{user_name}},\n\nComme annoncé, les données des modules Premium de {{family_name}} ({{modules_list}}) viennent d'être supprimées définitivement, faute de réabonnement dans le délai imparti.\n\nLe reste de vos données (calendrier, tâches, mur familial...) reste intact.",
+        ],
     ];
 
     public static function get(string $type): array
@@ -112,6 +152,16 @@ class EmailContent
             'budget_recurring'     => 'Rappel prélèvement/virement récurrent',
             'event_tomorrow_digest'=> 'Récapitulatif des événements du lendemain',
             'wall_post'            => 'Nouveau post sur le mur',
+            'birthday_reminder'    => 'Rappel anniversaire (7j avant)',
+            'weekly_digest'         => 'Résumé hebdomadaire (dimanche soir)',
+            'weekly_digest_coparent'=> 'Résumé hebdomadaire — accès co-parent',
+            'password_reset'        => 'Réinitialisation de mot de passe',
+            'expiry_reminder'       => 'Rappel d\'échéance (garantie/document J-30 et J-7, ou stock frigo/congélo J-3 et jour même)',
+            'account_deleted'       => 'Compte supprimé (motif et attribution renvoyés par l\'admin système ou en libre-service)',
+            'subscription_downgraded'         => 'Abonnement — bascule immédiate en offre Gratuite',
+            'subscription_retention_reminder' => 'Abonnement — rappel à mi-parcours du délai de rétention',
+            'subscription_final_warning'      => 'Abonnement — dernier avertissement avant suppression',
+            'subscription_data_purged'        => 'Abonnement — confirmation de suppression définitive des données Premium',
             default                => $type,
         };
     }
@@ -127,6 +177,16 @@ class EmailContent
             'budget_recurring'      => ['user_name', 'type_label', 'title', 'amount', 'due_date'],
             'event_tomorrow_digest' => ['user_name', 'event_count'],
             'wall_post'             => ['author_name', 'content'],
+            'birthday_reminder'     => ['user_name', 'birthday_name', 'birthday_age', 'birthday_date'],
+            'weekly_digest'         => ['user_name', 'family_name'],
+            'weekly_digest_coparent'=> ['user_name', 'child_names'],
+            'password_reset'        => ['user_name'],
+            'expiry_reminder'       => ['user_name', 'item_label', 'item_kind', 'expiry_date', 'days_remaining'],
+            'account_deleted'       => ['user_name', 'deleted_by', 'reason'],
+            'subscription_downgraded'         => ['user_name', 'family_name', 'grace_end_date'],
+            'subscription_retention_reminder' => ['user_name', 'family_name', 'grace_end_date', 'days_remaining'],
+            'subscription_final_warning'      => ['user_name', 'family_name', 'grace_end_date'],
+            'subscription_data_purged'        => ['user_name', 'family_name', 'modules_list'],
             default                 => [],
         };
     }

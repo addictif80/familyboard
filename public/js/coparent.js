@@ -7,6 +7,7 @@ let cpJournalLastId = 0;
 let cpJournalPolling = null;
 let cpProposalMonth = new Date();
 let cpProposalDays = {}; // 'YYYY-MM-DD' -> 1 | 2
+let cpEventsCache = [];
 
 function cpCurrentSchedule() {
     return CP_SCHEDULES.find(s => s.id == cpCurrentScheduleId) || CP_SCHEDULES[0];
@@ -28,8 +29,136 @@ function cpLoadAll() {
     cpLoadJournal();
     cpLoadAlbums();
     cpLoadDocuments();
+    cpLoadHealth();
     cpLoadEvents();
     cpLoadActivityLog();
+    cpLoadLinks();
+    cpLoadAdditions();
+}
+
+// ── Additions ────────────────────────────────────────────────────────────
+
+async function cpLoadAdditions() {
+    const list = document.getElementById('cp-additions-list');
+    if (!list) return;
+    const r = await apiFetch(BASE_URL + '/api/coparent/additions');
+    const additions = r.additions || [];
+    if (!additions.length) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucune addition partagée avec vous pour l\'instant.</p>';
+        return;
+    }
+    list.innerHTML = additions.map(a => {
+        const statusLabel = { pending: 'En attente de votre réponse', accepted: 'Acceptée', declined: 'Refusée' }[a.status] || a.status;
+        const amount = a.is_cagnotte ? '' : (' — votre part : ' + a.share_value + (a.split_mode === 'percentage' ? ' %' : ' €'));
+        let actions;
+        if (a.status === 'pending') {
+            actions = '<button class="btn btn-primary btn-sm" onclick="cpRespondAddition(' + a.id + `, 'accept')">Accepter</button>` +
+              '<button class="btn btn-secondary btn-sm" onclick="cpRespondAddition(' + a.id + `, 'decline')">Refuser</button>`;
+        } else if (a.status === 'accepted' && !a.is_cagnotte) {
+            // Déclaratif, comme côté famille (additions.js) : pas de vérification, juste une
+            // case partagée pour suivre qui a réglé sa part.
+            actions = a.paid_at
+                ? '<span class="badge" style="background:var(--success)">✅ Payé</span> ' +
+                  '<button class="btn btn-secondary btn-sm" onclick="cpTogglePaid(' + a.id + ', false)">↺ Annuler</button>'
+                : '<button class="btn btn-primary btn-sm" onclick="cpTogglePaid(' + a.id + ', true)">Marquer ma part payée</button>';
+        } else {
+            actions = '<span class="badge">' + statusLabel + '</span>';
+        }
+        return '<div class="card" style="padding:1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">' +
+            '<div style="flex:1"><strong>' + (a.is_cagnotte ? '🪙 ' : '') + escapeHtml(a.title) + '</strong>' +
+            '<div style="color:var(--text-muted);font-size:.82rem">' + escapeHtml(a.family_name) + amount + '</div></div>' +
+            actions + '</div>';
+    }).join('');
+}
+
+async function cpTogglePaid(participantId, paid) {
+    const r = await apiFetch(BASE_URL + '/api/additions/participants/' + participantId + '/paid', {
+        method: 'POST', body: JSON.stringify({ paid }),
+    });
+    if (r.success) cpLoadAdditions();
+}
+
+async function cpRespondAddition(participantId, decision) {
+    const r = await apiFetch(BASE_URL + '/api/additions/participants/' + participantId + '/respond', {
+        method: 'POST', body: JSON.stringify({ decision }),
+    });
+    if (r.success) cpLoadAdditions();
+}
+
+// ── Portail de liens ─────────────────────────────────────────────────────
+
+async function cpLoadLinks() {
+    const grid = document.getElementById('cp-links-grid');
+    if (!grid) return;
+    const r = await apiFetch(BASE_URL + '/api/coparent/links');
+    const links = r.links || [];
+    if (!links.length) {
+        grid.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucun lien partagé avec vous pour l\'instant.</p>';
+        return;
+    }
+    grid.innerHTML = links.map(l => {
+        const domain = (() => { try { return new URL(l.url).hostname; } catch (e) { return l.url; } })();
+        const thumb = l.image_path
+            ? `<div class="link-card-thumb has-image" style="background-image:url('${BASE_URL}${l.image_path}')"></div>`
+            : `<div class="link-card-thumb">🔗</div>`;
+        return `<div class="link-card">
+            <a href="${BASE_URL}/links/${l.id}/go" target="_blank" rel="noopener noreferrer">${thumb}</a>
+            <div class="link-card-body">
+                <div class="link-card-title"><a href="${BASE_URL}/links/${l.id}/go" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none">${escapeHtml(l.title)}</a></div>
+                <div class="link-card-domain">🌐 ${escapeHtml(domain)}</div>
+                ${l.description ? `<div class="link-card-desc">${escapeHtml(l.description)}</div>` : ''}
+                <div class="link-card-footer"><span class="link-card-clicks">👆 ${l.click_count} clic(s)</span></div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function cpOpenLinkModal() {
+    document.getElementById('cp-link-url').value = '';
+    document.getElementById('cp-link-title').value = '';
+    document.getElementById('cp-link-description').value = '';
+    document.getElementById('cp-link-modal-error').style.display = 'none';
+    openModal('cp-link-modal');
+}
+
+async function cpSubmitLink() {
+    const url = document.getElementById('cp-link-url').value.trim();
+    const errorEl = document.getElementById('cp-link-modal-error');
+    errorEl.style.display = 'none';
+    if (!url) {
+        errorEl.textContent = 'Le lien est requis.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const scheduleSelect = document.getElementById('cp-link-schedule');
+    const scheduleId = scheduleSelect ? parseInt(scheduleSelect.value) : cpCurrentScheduleId;
+
+    const btn = document.getElementById('cp-link-modal-submit');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Vérification du lien…';
+
+    const r = await apiFetch(BASE_URL + '/api/coparent/links', {
+        method: 'POST',
+        body: JSON.stringify({
+            schedule_id: scheduleId,
+            url,
+            title: document.getElementById('cp-link-title').value.trim(),
+            description: document.getElementById('cp-link-description').value.trim(),
+        }),
+    });
+
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+
+    if (r.success) {
+        closeModal('cp-link-modal');
+        Dialog.toast('Proposition envoyée, en attente de validation.');
+    } else {
+        errorEl.textContent = r.error || 'Erreur.';
+        errorEl.style.display = 'block';
+    }
 }
 
 // ── Albums photo partagés ────────────────────────────────────────────────
@@ -58,7 +187,7 @@ async function cpLoadAlbums() {
 
 async function cpOpenAlbum(id) {
     cpCurrentAlbumId = id;
-    document.getElementById('cp-album-photos').innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Chargement…</p>';
+    document.getElementById('cp-album-photos').innerHTML = fbSkeletonGrid(6);
     openModal('cp-album-modal');
 
     const data = await apiFetch(`${BASE_URL}/api/coparent/albums/${id}`);
@@ -94,7 +223,7 @@ async function cpUploadAlbumPhoto() {
     const fd = new FormData();
     fd.append('image', file);
 
-    const res = await fetch(`${BASE_URL}/api/coparent/albums/${cpCurrentAlbumId}/photos`, { method: 'POST', body: fd });
+    const res = await fetch(`${BASE_URL}/api/coparent/albums/${cpCurrentAlbumId}/photos`, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const result = await res.json();
     input.value = '';
 
@@ -281,7 +410,7 @@ async function cpSendVoiceJournal({ blob, mimeType, durationSec }) {
     fd.append('content', content);
     fd.append('duration', durationSec);
 
-    const res = await fetch(`${BASE_URL}/api/coparent/journal`, { method: 'POST', body: fd });
+    const res = await fetch(`${BASE_URL}/api/coparent/journal`, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const result = await res.json();
     if (result.success) {
         cpAppendJournalMessage(result.message);
@@ -328,6 +457,42 @@ async function cpLoadDocuments() {
     `).join('');
 }
 
+// ── Santé (lecture seule) ───────────────────────────────────────────────────
+
+async function cpLoadHealth() {
+    const r = await apiFetch(`${BASE_URL}/api/coparent/health?schedule_id=${cpCurrentScheduleId}`);
+    const entriesList = document.getElementById('cp-health-entries-list');
+    const entries = r.entries || [];
+    entriesList.innerHTML = entries.length ? entries.map(e => `
+        <div class="cp-doc-item">
+            ${e.type_icon} <strong>${escapeHtml(e.title)}</strong>
+            ${e.entry_date ? ` — ${new Date(e.entry_date + 'T00:00:00').toLocaleDateString('fr-FR')}` : ''}
+            ${e.description ? `<div style="color:var(--text-muted);font-size:.85rem">${escapeHtml(e.description)}</div>` : ''}
+        </div>
+    `).join('') : '<p style="color:var(--text-muted);font-size:.85rem">Aucune entrée partagée.</p>';
+
+    const doctorsList = document.getElementById('cp-health-doctors-list');
+    const doctors = r.doctors || [];
+    doctorsList.innerHTML = doctors.length ? doctors.map(d => `
+        <div class="cp-doc-item">
+            <strong>${escapeHtml(d.name)}</strong>${d.specialty ? ` — ${escapeHtml(d.specialty)}` : ''}
+            ${d.phone ? `<div style="font-size:.85rem">📞 ${escapeHtml(d.phone)}</div>` : ''}
+            ${d.address ? `<div style="font-size:.85rem">📍 ${escapeHtml(d.address)}</div>` : ''}
+        </div>
+    `).join('') : '<p style="color:var(--text-muted);font-size:.85rem">Aucun médecin partagé.</p>';
+
+    const contacts = await apiFetch(`${BASE_URL}/api/coparent/contacts?schedule_id=${cpCurrentScheduleId}`);
+    const contactsList = document.getElementById('cp-health-contacts-list');
+    contactsList.innerHTML = Array.isArray(contacts) && contacts.length ? contacts.map(c => `
+        <div class="cp-doc-item">
+            <strong>${escapeHtml(c.name)}</strong>
+            ${c.phone ? `<div style="font-size:.85rem">📞 ${escapeHtml(c.phone)}</div>` : ''}
+            ${c.email ? `<div style="font-size:.85rem">✉️ ${escapeHtml(c.email)}</div>` : ''}
+            ${c.address ? `<div style="font-size:.85rem">📍 ${escapeHtml(c.address)}</div>` : ''}
+        </div>
+    `).join('') : '<p style="color:var(--text-muted);font-size:.85rem">Aucun contact partagé.</p>';
+}
+
 async function cpUploadDocument() {
     const title = document.getElementById('cp-doc-title').value.trim();
     const file = document.getElementById('cp-doc-file').files[0];
@@ -338,7 +503,7 @@ async function cpUploadDocument() {
     fd.append('schedule_id', cpCurrentScheduleId);
     if (file) fd.append('file', file);
 
-    const res = await fetch(`${BASE_URL}/api/coparent/documents`, { method: 'POST', body: fd });
+    const res = await fetch(`${BASE_URL}/api/coparent/documents`, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const result = await res.json();
     if (result.success) {
         document.getElementById('cp-doc-title').value = '';
@@ -351,22 +516,72 @@ async function cpUploadDocument() {
 
 // ── Évènements calendrier tagués ──────────────────────────────────────────
 
+// Format "YYYY-MM-DD HH:MM:SS" en heure locale du navigateur — pas .toISOString(), qui
+// convertirait en UTC : les dates d'événements sont des chaînes "horloge murale" saisies
+// telles quelles (même convention que public/js/calendar.js), pas de vrais instants UTC.
+function cpLocalDateTimeParam(d) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+// Idem cpFormatDateTime, mais pour une date/heure "horloge murale" (événements) plutôt qu'un
+// horodatage serveur réel (created_at) : pas de suffixe 'Z', sans quoi l'heure affichée est
+// décalée de l'écart UTC du fuseau du navigateur par rapport à l'heure réellement saisie.
+function cpFormatEventDateTime(datetime) {
+    const iso = datetime.includes('T') ? datetime : datetime.replace(' ', 'T');
+    return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
 async function cpLoadEvents() {
     const start = new Date();
     const end = new Date();
     end.setDate(end.getDate() + 90);
-    const data = await apiFetch(`${BASE_URL}/api/coparent/events?schedule_id=${cpCurrentScheduleId}&start=${start.toISOString()}&end=${end.toISOString()}`);
+    const data = await apiFetch(`${BASE_URL}/api/coparent/events?schedule_id=${cpCurrentScheduleId}&start=${encodeURIComponent(cpLocalDateTimeParam(start))}&end=${encodeURIComponent(cpLocalDateTimeParam(end))}`);
+    cpEventsCache = Array.isArray(data) ? data : [];
     const list = document.getElementById('cp-events-list');
-    if (!Array.isArray(data) || !data.length) {
+    if (!cpEventsCache.length) {
         list.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucun évènement à venir.</p>';
         return;
     }
-    list.innerHTML = data.map(e => `
-        <div class="cp-event-item">
+    list.innerHTML = cpEventsCache.map(e => `
+        <div class="cp-event-item" onclick="cpShowEventDetails(${e.id})" role="button" tabindex="0">
             <strong>${escapeHtml(e.title)}</strong>
-            <div style="color:var(--text-muted);font-size:.8rem">${cpFormatDateTime(e.start_datetime)}</div>
+            <div style="color:var(--text-muted);font-size:.8rem">${cpFormatEventDateTime(e.start_datetime)}</div>
         </div>
     `).join('');
+}
+
+// Détail d'un évènement, en lecture seule — le co-parent voit les mêmes informations qu'un
+// membre de la famille (description, lieu, professionnel...) mais ne peut ni modifier ni
+// supprimer : ces évènements appartiennent à la famille du planning, pas à son propre compte.
+function cpShowEventDetails(eventId) {
+    const e = cpEventsCache.find(ev => ev.id === eventId || ev.id === String(eventId));
+    if (!e) return;
+
+    document.getElementById('cp-event-detail-title').textContent = e.title;
+
+    const range = e.is_all_day
+        ? cpFormatEventDateTime(e.start_datetime).split(' ')[0]
+        : `${cpFormatEventDateTime(e.start_datetime)} → ${cpFormatEventDateTime(e.end_datetime)}`;
+
+    const rows = [`<div class="cp-event-detail-row"><span>🕐</span><span>${escapeHtml(range)}</span></div>`];
+    if (e.location) {
+        const mapsUrl = e.location_lat && e.location_lng
+            ? `https://www.google.com/maps/search/?api=1&query=${e.location_lat},${e.location_lng}`
+            : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(e.location)}`;
+        rows.push(`<div class="cp-event-detail-row"><span>📍</span><a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${escapeHtml(e.location)}</a></div>`);
+    }
+    if (e.professional_name) {
+        rows.push(`<div class="cp-event-detail-row"><span>🩺</span><span>${escapeHtml(e.professional_name)}</span></div>`);
+    }
+    if (e.description) {
+        rows.push(`<div class="cp-event-detail-row"><span>📝</span><span style="white-space:pre-wrap">${escapeHtml(e.description)}</span></div>`);
+    }
+    if (e.user_name) {
+        rows.push(`<div class="cp-event-detail-row" style="color:var(--text-muted);font-size:.8rem"><span>👤</span><span>Ajouté par ${escapeHtml(e.user_name)}</span></div>`);
+    }
+    document.getElementById('cp-event-detail-body').innerHTML = rows.join('');
+    openModal('cp-event-detail-modal');
 }
 
 async function cpCreateEvent() {
@@ -417,6 +632,52 @@ async function cpCreateFamily() {
         Dialog.toast(result.error || 'Erreur lors de la création.', 'error');
     }
 }
+
+// ── Notifications push ───────────────────────────────────────────────────
+
+async function cpRefreshPushStatus() {
+    const btn = document.getElementById('cp-push-toggle-btn');
+    const status = document.getElementById('cp-push-status');
+    if (!btn || !status) return;
+
+    const { state, message } = await checkPushStatus();
+
+    status.textContent = message;
+    status.classList.toggle('push-status-warn', state === 'ios-not-installed' || state === 'blocked' || state === 'not-enabled');
+
+    switch (state) {
+        case 'unsupported':
+        case 'blocked':
+            btn.disabled = true;
+            btn.textContent = 'Activer les notifications push';
+            break;
+        case 'ios-not-installed':
+            btn.disabled = false;
+            btn.textContent = 'Activer les notifications push';
+            break;
+        case 'enabled':
+            btn.disabled = false;
+            btn.textContent = 'Désactiver les notifications push';
+            break;
+        default: // not-enabled
+            btn.disabled = false;
+            btn.textContent = 'Activer les notifications push';
+    }
+}
+
+async function cpTogglePushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+        await unsubscribeFromPush();
+    } else {
+        await subscribeToPush();
+    }
+    cpRefreshPushStatus();
+}
+
+cpRefreshPushStatus();
 
 // ── Init ──────────────────────────────────────────────────────────────────
 

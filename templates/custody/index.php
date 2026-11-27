@@ -14,7 +14,14 @@ ob_start();
                     <?php endif; ?>
                     <button onclick="openEditScheduleModal(<?= htmlspecialchars(json_encode($schedule)) ?>)" class="btn-chip">✏️</button>
                     <button onclick="openVacationModal(<?= (int)$schedule['id'] ?>, <?= htmlspecialchars(json_encode($schedule['child_name'])) ?>)" class="btn-chip" title="Périodes de vacances">🏖️</button>
+                    <?php if ($user['role'] === 'admin'): ?>
                     <button onclick="openInviteCoparentModal(<?= (int)$schedule['id'] ?>)" class="btn-chip" title="Inviter un co-parent">🔒</button>
+                    <?php endif; ?>
+                    <?php if ($additionsEnabled && !empty($coparentsBySchedule[$schedule['id']])): ?>
+                        <?php $cp = $coparentsBySchedule[$schedule['id']][0]; ?>
+                        <a class="btn-chip" title="Partager une dépense avec <?= htmlspecialchars($cp['name']) ?>"
+                           href="<?= BASE_URL ?>/additions?share_with=<?= (int)$cp['id'] ?>&share_label=<?= urlencode($schedule['child_name']) ?>">💰</a>
+                    <?php endif; ?>
                     <button onclick="openActivityLogModal(<?= (int)$schedule['id'] ?>, <?= htmlspecialchars(json_encode($schedule['child_name'])) ?>)" class="btn-chip" title="Journal d'activité">📜</button>
                     <button onclick="deleteSchedule(<?= $schedule['id'] ?>)" class="btn-chip">✕</button>
                 </span>
@@ -26,6 +33,43 @@ ob_start();
             <button class="btn btn-primary btn-sm" onclick="openCustodyEventModal()">+ Exception de garde</button>
         </div>
     </div>
+
+    <?php if (!empty($handoffChecklists)): ?>
+    <?php $scheduleById = array_column($schedules, null, 'id'); ?>
+    <div class="card settings-section" style="margin-bottom:1rem" id="custody-checklist-card">
+        <h3>📋 À ne pas oublier — transfert du jour</h3>
+        <?php foreach ($handoffChecklists as $scheduleId => $checklistItems): ?>
+        <?php $sched = $scheduleById[$scheduleId] ?? null; if (!$sched) continue; ?>
+        <div style="margin-bottom:1rem">
+            <div style="font-weight:600;margin-bottom:.4rem">👶 <?= htmlspecialchars($sched['child_name']) ?></div>
+            <?php if (empty($checklistItems)): ?>
+                <p style="color:var(--text-muted);font-size:.85rem">Aucun élément de checklist défini.</p>
+            <?php else: ?>
+            <div class="custody-checklist-items">
+                <?php foreach ($checklistItems as $ci): ?>
+                <label class="custody-checklist-item">
+                    <input type="checkbox" <?= $ci['checked'] ? 'checked' : '' ?>
+                           onchange="toggleCustodyChecklistItem(<?= (int)$ci['id'] ?>, this.checked)">
+                    <span><?= htmlspecialchars($ci['label']) ?></span>
+                    <button type="button" class="btn-chip" title="Supprimer ce modèle" onclick="deleteCustodyChecklistItem(<?= (int)$ci['id'] ?>)">✕</button>
+                </label>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+        <div style="display:flex;gap:.4rem;margin-top:.5rem">
+            <input type="text" id="custody-checklist-new-label" placeholder="Ex : Cartable, doudou, médicaments…" style="flex:1">
+            <select id="custody-checklist-new-schedule">
+                <option value="">Tous les enfants</option>
+                <?php foreach ($schedules as $s): ?>
+                <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['child_name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button class="btn btn-secondary btn-sm" onclick="addCustodyChecklistItem()">+ Ajouter</button>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <div id="custody-calendar"></div>
     <div id="custody-mobile-agenda" class="cal-agenda" style="display:none"></div>
@@ -55,8 +99,17 @@ ob_start();
         <div class="modal-body">
             <input type="hidden" id="schedule-id">
 
+            <div class="form-group" id="schedule-child-select-group">
+                <label>Enfant</label>
+                <select id="schedule-child-select" onchange="onScheduleChildSelect()">
+                    <?php foreach ($familyChildren as $fc): ?>
+                        <option value="<?= $fc['id'] ?>" data-color="<?= htmlspecialchars($fc['color']) ?>"><?= htmlspecialchars($fc['name']) ?></option>
+                    <?php endforeach; ?>
+                    <option value="__new__" selected>+ Nouvel enfant…</option>
+                </select>
+            </div>
             <div class="form-row">
-                <div class="form-group flex-2">
+                <div class="form-group flex-2" id="schedule-child-name-group">
                     <label>Prénom de l'enfant</label>
                     <input type="text" id="schedule-child-name" placeholder="Emma, Lucas…">
                 </div>
@@ -83,6 +136,12 @@ ob_start();
                         <option value="weekends_monthly">1 weekend par mois (1er sam du mois)</option>
                     </optgroup>
                 </select>
+            </div>
+
+            <div class="form-group">
+                <label>Heure de passage</label>
+                <input type="time" id="schedule-handover-time" value="18:00">
+                <small class="field-hint">L'heure à laquelle la garde bascule d'un parent à l'autre (ex. 18h) — s'applique à tous les passages de ce planning, week-ends comme semaine. Un week-end "1 sur 2" commence ainsi vendredi à cette heure et se termine lundi à cette heure, pas à minuit.</small>
             </div>
 
             <div id="recurrence-fields" style="display:none">
@@ -398,7 +457,7 @@ ob_start();
             <button onclick="closeModal('activity-log-modal')">✕</button>
         </div>
         <div class="modal-body">
-            <div id="activity-log-content"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+            <div id="activity-log-content"><div class="skel skel-text" aria-hidden="true" style="width:90%"></div><div class="skel skel-text" aria-hidden="true" style="width:75%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div></div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('activity-log-modal')">Fermer</button>
@@ -422,21 +481,21 @@ ob_start();
     border: 2px solid transparent;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     cursor: pointer; font-size: .75rem; font-weight: 500;
-    transition: transform .1s, box-shadow .1s;
+    transition: transform .18s cubic-bezier(.3,1.5,.5,1), box-shadow .15s;
     min-height: 36px;
     user-select: none;
 }
-.proposal-day:hover { transform: scale(1.08); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+.proposal-day:hover { transform: scale(1.1); box-shadow: var(--shadow-lg); }
 .proposal-day.pd-empty { visibility: hidden; pointer-events: none; }
 .proposal-day.pd-other-month { opacity: .35; }
-.proposal-day.pd-weekend { background: #f8f9fa; }
+.proposal-day.pd-weekend { background: var(--bg); }
 .proposal-day.pd-p1 { color: white !important; }
 .proposal-day.pd-p2 { color: white !important; }
 .proposal-day .pd-num { font-size: .75rem; }
 .proposal-day .pd-initial { font-size: .65rem; font-weight: 700; margin-top: 1px; opacity: .9; }
-.btn-xs { font-size: .7rem; padding: .15rem .45rem; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; white-space: nowrap; }
+.btn-xs { font-size: .7rem; padding: .15rem .45rem; border-radius: 5px; border: 1px solid var(--border); background: var(--card-bg); cursor: pointer; white-space: nowrap; }
 .btn-xs:hover { background: var(--bg); }
-.recurrence-info { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: .65rem .9rem; font-size: .8rem; color: #1e40af; margin-top: .5rem; }
+.recurrence-info { background: var(--info-bg); border: 1px solid color-mix(in srgb, var(--info) 35%, transparent); border-radius: 8px; padding: .65rem .9rem; font-size: .8rem; color: var(--info-text); margin-top: .5rem; }
 .field-hint { font-size: .75rem; color: var(--text-muted); margin-top: .2rem; display:block; }
 .recurrence-badge { font-size: .8rem; }
 .parent-block { background: var(--bg); border-radius: 8px; padding: .75rem; margin-bottom: .75rem; }

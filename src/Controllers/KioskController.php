@@ -8,8 +8,12 @@ use App\Models\Event;
 use App\Models\Family;
 use App\Models\KioskLink;
 use App\Models\MealPlan;
+use App\Models\NameDay;
+use App\Models\FamilyTimer;
 use App\Models\SitterLink;
 use App\Models\TaskList;
+use App\Models\LoginAttempt;
+use App\Core\DarkSchedule;
 
 class KioskController extends BaseController
 {
@@ -42,6 +46,42 @@ class KioskController extends BaseController
         });
     }
 
+    // ── Accès rapide TV (saisie d'un code court plutôt que l'URL complète) ──
+
+    public function tvEntry(array $params): void
+    {
+        $error = null;
+        if ($_SESSION['tv_error'] ?? null) {
+            $error = $_SESSION['tv_error'];
+            unset($_SESSION['tv_error']);
+        }
+        require BASE_PATH . '/templates/kiosk/tv_entry.php';
+    }
+
+    public function tvRedeem(array $params): void
+    {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (LoginAttempt::isLocked('tv', $ip)) {
+            $_SESSION['tv_error'] = 'Trop de tentatives. Réessayez dans ' . LoginAttempt::minutesUntilUnlock() . ' minutes.';
+            header('Location: ' . BASE_URL . '/tv');
+            exit;
+        }
+
+        $code = preg_replace('/\D/', '', $_POST['code'] ?? '');
+        $kiosk = ($code !== '' && strlen($code) === 6) ? KioskLink::findValidByShortCode($code) : null;
+
+        if (!$kiosk) {
+            LoginAttempt::record('tv', $ip);
+            $_SESSION['tv_error'] = 'Code invalide ou expiré.';
+            header('Location: ' . BASE_URL . '/tv');
+            exit;
+        }
+
+        LoginAttempt::clear('tv', $ip);
+        header('Location: ' . BASE_URL . '/kiosk/' . $kiosk['token']);
+        exit;
+    }
+
     // ── Public kiosk display (token-scoped, no login) ───────────────
 
     public function view(array $params): void
@@ -50,6 +90,8 @@ class KioskController extends BaseController
         $kiosk = KioskLink::findValidByToken($token);
         if (!$kiosk) {
             http_response_code(404);
+            $isDark = false;
+            $darkScheduleActive = false;
             require BASE_PATH . '/templates/kiosk/view.php';
             return;
         }
@@ -59,6 +101,8 @@ class KioskController extends BaseController
         $sitterUrl     = $activeSitter
             ? rtrim($this->originUrl(), '/') . BASE_URL . '/sitter/' . $activeSitter['token']
             : null;
+        $isDark        = DarkSchedule::isDarkNow($family ?? []);
+        $darkScheduleActive = ($family['dark_mode_type'] ?? 'off') !== 'off';
 
         require BASE_PATH . '/templates/kiosk/view.php';
     }
@@ -118,6 +162,30 @@ class KioskController extends BaseController
         });
     }
 
+    public function startTimer(array $params): void
+    {
+        $this->json(function () use ($params) {
+            $kiosk = KioskLink::findValidByToken($params['token'] ?? '');
+            if (!$kiosk) return ['success' => false];
+
+            $runId = FamilyTimer::start((int)$params['timerId'], (int)$kiosk['family_id'], (int)$kiosk['created_by']);
+            if (!$runId) return ['success' => false];
+            $run = Database::fetch('SELECT ends_at FROM family_timer_runs WHERE id=?', [$runId]);
+            return ['success' => true, 'run_id' => $runId, 'ends_at' => $run['ends_at']];
+        });
+    }
+
+    public function stopTimer(array $params): void
+    {
+        $this->json(function () use ($params) {
+            $kiosk = KioskLink::findValidByToken($params['token'] ?? '');
+            if (!$kiosk) return ['success' => false];
+
+            FamilyTimer::stop((int)$params['timerId'], (int)$kiosk['family_id']);
+            return ['success' => true];
+        });
+    }
+
     private function buildBoard(int $familyId): array
     {
         $family = Family::findById($familyId);
@@ -162,6 +230,9 @@ class KioskController extends BaseController
             'events'         => $events,
             'meals'          => $meals,
             'contacts'       => $contacts,
+            'name_day'       => NameDay::today(),
+            'dark'           => DarkSchedule::isDarkNow($family ?? []),
+            'timers'         => FamilyTimer::getForWall($familyId),
         ];
     }
 

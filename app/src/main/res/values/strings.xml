@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">FamilyBoard</string>
+    <string name="app_name_short">FamilyBoard</string>
+
+    <!-- API -->
+    <string name="api_base_url">https://api.familyboard.example.com/</string>
+
+    <!-- Shortcuts -->
+    <string name="shortcut_add_appointment">Ajouter RDV</string>
+    <string name="shortcut_add_document">Ajouter Document</string>
+    <string name="shortcut_add_budget">Ajouter Budget</string>
+    <string name="shortcut_view_location">Voir Localisation</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_general">Général</string>
+    <string name="notification_channel_location">Localisation</string>
+    <string name="notification_channel_updates">Mises à jour</string>
+    <string name="notification_location_title">Partage de localisation actif</string>
+    <string name="notification_location_text">Votre position est partagée avec la famille</string>
+    <string name="notification_update_available">Mise à jour disponible</string>
+    <string name="notification_update_downloading">Téléchargement de la mise à jour…</string>
+    <string name="notification_update_ready">Mise à jour prête à installer</string>
+    <string name="notification_update_failed">Échec de la mise à jour</string>
+
+    <!-- Permissions -->
+    <string name="permission_location_rationale">Cette application a besoin de votre localisation pour le partage en temps réel avec votre famille.</string>
+    <string name="permission_notification_rationale">Les notifications vous informent des nouveaux RDV, documents et mises à jour.</string>
+
+    <!-- UI -->
+    <string name="loading">Chargement…</string>
+    <string name="error_network">Erreur de connexion</string>
+    <string name="error_unknown">Erreur inconnue</string>
+    <string name="retry">Réessayer</string>
+    <string name="settings">Paramètres</string>
+    <string name="logout">Déconnexion</string>
+    <string name="version">Version %s</string>
+
+    <!-- Update -->
+    <string name="update_checking">Vérification des mises à jour…</string>
+    <string name="update_available">Une nouvelle version (%s) est disponible</string>
+    <string name="update_current">Vous avez la dernière version</string>
+    <string name="update_download">Télécharger</string>
+    <string name="update_install">Installer</string>
+    <string name="update_later">Plus tard</string>
+</resources>

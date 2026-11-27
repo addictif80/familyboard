@@ -30,6 +30,7 @@ class CustodyActivityLog
         'event_created'         => 'Évènement de calendrier ajouté',
         'event_updated'         => 'Évènement de calendrier modifié',
         'notification_sent'     => 'Notification envoyée au co-parent',
+        'coparent_access_removed' => "Accès co-parent retiré (compte supprimé par l'admin de famille)",
     ];
 
     public static function isActiveForSchedule(int $scheduleId): bool

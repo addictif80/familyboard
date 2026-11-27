@@ -15,11 +15,11 @@ class AlbumPhoto
         );
     }
 
-    /** Inclut family_id/custody_schedule_id de l'album parent pour les contrôles d'accès. */
+    /** Inclut family_id de l'album parent pour les contrôles d'accès. */
     public static function getById(int $id): ?array
     {
         return Database::fetch(
-            'SELECT p.*, a.family_id, a.custody_schedule_id
+            'SELECT p.*, a.family_id
              FROM album_photos p JOIN albums a ON a.id=p.album_id
              WHERE p.id=?',
             [$id]
@@ -42,6 +42,18 @@ class AlbumPhoto
         return Database::insert(
             'INSERT INTO album_photos (album_id, user_id, image_path, caption, uploader_name, share_link_id) VALUES (?,?,?,?,?,?)',
             [$albumId, $userId, $imagePath, $caption ?: null, $uploaderName ?: null, $shareLinkId]
+        );
+    }
+
+    /** Mes propres photos, toutes familles confondues, pour le sélecteur "Depuis un album" du
+     *  mur — jamais celles d'un autre membre, même dans un album partagé. */
+    public static function getByUser(int $userId, int $limit = 60): array
+    {
+        return Database::fetchAll(
+            'SELECT p.*, a.title as album_title
+             FROM album_photos p JOIN albums a ON a.id=p.album_id
+             WHERE p.user_id=? ORDER BY p.created_at DESC LIMIT ?',
+            [$userId, $limit]
         );
     }
 

@@ -37,6 +37,22 @@ class BaseController
             require BASE_PATH . '/templates/blocked.php';
             exit;
         }
+        // Déconnexion globale demandée après l'établissement de cette session ("déconnecter tous
+        // les appareils") : la session en cours doit être invalidée elle aussi.
+        if (!empty($user['force_logout_at'])) {
+            $forceLogoutTs = (new \DateTime($user['force_logout_at'], new \DateTimeZone('UTC')))->getTimestamp();
+            if ((int)(Session::get('login_at') ?? 0) < $forceLogoutTs) {
+                \App\Core\RememberMe::clear();
+                Session::destroy();
+                if ($this->isAjax()) {
+                    http_response_code(401);
+                    echo json_encode(['error' => 'Session déconnectée à distance.']);
+                    exit;
+                }
+                header('Location: ' . BASE_URL . '/login');
+                exit;
+            }
+        }
         if (!$allowCoparent && $user['role'] === 'coparent') {
             if ($this->isAjax()) {
                 http_response_code(403);
@@ -46,7 +62,19 @@ class BaseController
             header('Location: ' . BASE_URL . '/');
             exit;
         }
-        Session::set('user', $user);
+        Session::set('user', Session::sanitizeUser($user));
+
+        $tfaStatus = \App\Models\TwoFactorAuth::getPolicyStatus((int)$user['id']);
+        if (!empty($tfaStatus['blocked']) && !$this->isTwoFactorSetupPath()) {
+            if ($this->isAjax()) {
+                http_response_code(403);
+                echo json_encode(['error' => "La double authentification est obligatoire. Activez-la dans Paramètres pour continuer.", 'code' => 'two_factor_required']);
+                exit;
+            }
+            Session::flash('error', 'La double authentification est désormais obligatoire. Activez-la ci-dessous pour continuer.');
+            header('Location: ' . BASE_URL . '/settings');
+            exit;
+        }
 
         // Les appels fetch() JS envoient X-Requested-With/Accept (vérifié par isAjax()), ce qui
         // bloque déjà les soumissions de <form> cross-origin classiques vers ces endpoints ; le
@@ -56,6 +84,17 @@ class BaseController
             echo 'Jeton de sécurité invalide ou expiré. Rechargez la page et réessayez.';
             exit;
         }
+    }
+
+    /** Chemins toujours accessibles même bloqué par la politique 2FA obligatoire : la page de
+     *  paramètres (pour l'activer), ses propres routes 2FA, et la déconnexion. */
+    private function isTwoFactorSetupPath(): bool
+    {
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+        foreach ([BASE_URL . '/settings', BASE_URL . '/logout'] as $allowed) {
+            if ($path === $allowed || str_starts_with($path, $allowed . '/')) return true;
+        }
+        return false;
     }
 
     protected function requireModule(string $slug): void
@@ -68,15 +107,40 @@ class BaseController
         } catch (\Throwable) {
             return; // column may not exist yet during migration
         }
-        if (!in_array($slug, $disabled, true)) return;
-
-        if ($this->isAjax()) {
-            http_response_code(403);
-            echo json_encode(['error' => 'Module désactivé.']);
+        if (in_array($slug, $disabled, true)) {
+            if ($this->isAjax()) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Module désactivé.']);
+                exit;
+            }
+            Session::flash('error', 'Ce module est désactivé par votre administrateur familial.');
+            header('Location: ' . BASE_URL . '/');
             exit;
         }
-        Session::flash('error', 'Ce module est désactivé par votre administrateur familial.');
-        header('Location: ' . BASE_URL . '/');
+        if ($user['role'] === 'ado' && in_array($slug, \App\Models\Family::ADO_RESTRICTED_MODULES, true)) {
+            if ($this->isAjax()) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Module non accessible avec ce type de compte.']);
+                exit;
+            }
+            Session::flash('error', 'Ce module n\'est pas accessible avec ce type de compte.');
+            header('Location: ' . BASE_URL . '/');
+            exit;
+        }
+
+        try {
+            $entitled = \App\Models\FamilySubscription::isEntitled((int)$user['family_id'], $slug);
+        } catch (\Throwable) {
+            return; // table pas encore migrée
+        }
+        if ($entitled) return;
+
+        if ($this->isAjax()) {
+            http_response_code(402);
+            echo json_encode(['error' => 'Ce module fait partie de l\'offre Premium.', 'upsell' => true]);
+            exit;
+        }
+        header('Location: ' . BASE_URL . '/abonnement?upsell=' . urlencode($slug));
         exit;
     }
 
@@ -109,6 +173,21 @@ class BaseController
         }
     }
 
+    /** Construit un en-tête Content-Disposition sûr pour un nom de fichier arbitraire (souvent
+     *  fourni par l'utilisateur) : encodage RFC 6266 plutôt qu'un simple addslashes(), qui ne
+     *  protège pas contre tous les caractères pouvant perturber le parsing par certains clients. */
+    protected function contentDispositionHeader(string $filename, string $disposition = 'inline'): string
+    {
+        $ascii = preg_replace('/[^\x20-\x7E]/', '_', $filename);
+        $ascii = str_replace(['"', '\\'], '_', $ascii);
+        return sprintf(
+            "Content-Disposition: %s; filename=\"%s\"; filename*=UTF-8''%s",
+            $disposition,
+            $ascii,
+            rawurlencode($filename)
+        );
+    }
+
     protected function jsonInput(): array
     {
         $raw = file_get_contents('php://input');
@@ -127,16 +206,79 @@ class BaseController
 
     /**
      * Strip HTML to a safe subset (bold, italic, lists, links…).
-     * Removes event handlers and javascript: hrefs.
+     *
+     * Parses via DOMDocument rather than regex on raw text: a regex looking
+     * for the literal string "javascript:" in an href never sees it once the
+     * browser HTML-decodes an entity-obfuscated payload like
+     * `href="javascript&#58;alert(1)"` — DOMDocument decodes entities before
+     * we ever inspect the attribute value, so the check runs on the same
+     * string the browser will actually use.
      */
     protected function sanitizeHtml(string $html): string
     {
-        $allowed = '<p><br><strong><b><em><i><u><s><h2><h3><ul><ol><li><blockquote><a><span><pre><code>';
-        $html = strip_tags($html, $allowed);
-        // Remove event-handler attributes and javascript: hrefs
-        $html = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)/i', '', $html);
-        $html = preg_replace('/href\s*=\s*["\']?\s*javascript:[^"\'>\s]*/i', 'href="#"', $html);
-        return $html;
+        static $allowedTags = ['p','br','strong','b','em','i','u','s','h2','h3','ul','ol','li','blockquote','a','span','pre','code'];
+        static $allowedSchemes = ['http', 'https', 'mailto'];
+
+        if (trim($html) === '') return '';
+
+        $doc = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $doc->loadHTML(
+            '<?xml encoding="utf-8" ?><div>' . $html . '</div>',
+            LIBXML_NOERROR | LIBXML_NOWARNING
+        );
+        libxml_clear_errors();
+
+        $root = $doc->getElementsByTagName('div')->item(0);
+        if (!$root) return '';
+
+        $this->sanitizeNode($doc, $root, $allowedTags, $allowedSchemes);
+
+        $out = '';
+        foreach (iterator_to_array($root->childNodes) as $child) {
+            $out .= $doc->saveHTML($child);
+        }
+        return $out;
+    }
+
+    /** Recursively strips disallowed tags/attributes in place (allowlist-based). */
+    private function sanitizeNode(\DOMDocument $doc, \DOMNode $node, array $allowedTags, array $allowedSchemes): void
+    {
+        foreach (iterator_to_array($node->childNodes) as $child) {
+            if ($child instanceof \DOMText || $child instanceof \DOMCdataSection) {
+                continue;
+            }
+            if (!$child instanceof \DOMElement) {
+                $node->removeChild($child);
+                continue;
+            }
+            if (!in_array(strtolower($child->tagName), $allowedTags, true)) {
+                // Unwrap: keep the text content, drop the tag itself.
+                while ($child->firstChild) {
+                    $node->insertBefore($child->firstChild, $child);
+                }
+                $node->removeChild($child);
+                continue;
+            }
+
+            foreach (iterator_to_array($child->attributes ?? []) as $attr) {
+                if (strtolower($child->tagName) === 'a' && strtolower($attr->name) === 'href') {
+                    $scheme = strtolower((string)parse_url($attr->value, PHP_URL_SCHEME));
+                    $hasScheme = $scheme !== '';
+                    if ($hasScheme && !in_array($scheme, $allowedSchemes, true)) {
+                        $child->removeAttribute($attr->name);
+                    }
+                    continue;
+                }
+                $child->removeAttribute($attr->name);
+            }
+            if (strtolower($child->tagName) === 'a') {
+                $child->setAttribute('rel', 'noopener noreferrer nofollow ugc');
+                $child->setAttribute('target', '_blank');
+            }
+
+            $this->sanitizeNode($doc, $child, $allowedTags, $allowedSchemes);
+        }
     }
 
     /** Valide un code couleur hexadécimal (#rgb, #rrggbb…) ; retourne une valeur par défaut sinon. */
@@ -145,26 +287,129 @@ class BaseController
         return $color && preg_match('/^#[0-9a-fA-F]{3,8}$/', $color) ? $color : $fallback;
     }
 
+    /** Ne garde que les schedule_id qui appartiennent bien à la famille de l'appelant — reçus
+     *  du client, jamais fiables tels quels (sélection d'un ou plusieurs enfants pour rendre un
+     *  événement/document visible à leur accès co-parent). */
+    protected function validateFamilyScheduleIds(array $scheduleIds, int $familyId): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $scheduleIds)));
+        return array_values(array_filter($ids, function ($id) use ($familyId) {
+            $schedule = \App\Models\Custody::getScheduleById($id);
+            return $schedule && (int)$schedule['family_id'] === $familyId;
+        }));
+    }
+
+    /** Un événement du calendrier ne peut être tagué "congé/RTT/absence" que sur un profil du
+     *  module Suivi salarié appartenant réellement à la famille — jamais un id client arbitraire. */
+    protected function validateFamilyEmploymentProfileId(mixed $profileId, int $familyId): ?int
+    {
+        $profileId = (int)$profileId;
+        if (!$profileId) return null;
+        $profile = \App\Models\EmploymentProfile::getById($profileId);
+        return ($profile && (int)$profile['family_id'] === $familyId) ? $profileId : null;
+    }
+
+    /** Raison du dernier rejet de uploadImage() (null si succès, ou si rien n'a été soumis) —
+     *  les appelants qui veulent renvoyer un message précis à l'utilisateur (plutôt que de
+     *  laisser un envoi refusé passer inaperçu, ex. un format non supporté) lisent cette
+     *  propriété juste après l'appel. */
+    protected ?string $lastUploadError = null;
+
     protected function uploadImage(string $field): ?string
     {
-        if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) return null;
+        $this->lastUploadError = null;
+        if (!isset($_FILES[$field]) || $_FILES[$field]['error'] === UPLOAD_ERR_NO_FILE) return null;
+        if ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
+            // Détaillé par code plutôt qu'un message générique unique : la taille max autorisée
+            // par le serveur (upload_max_filesize/post_max_size) et une coupure réseau en cours
+            // d'envoi demandent des actions différentes de la part de l'utilisateur/l'admin.
+            $this->lastUploadError = match ($_FILES[$field]['error']) {
+                UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE =>
+                    'Fichier trop volumineux pour la configuration actuelle du serveur (upload_max_filesize/post_max_size).',
+                UPLOAD_ERR_PARTIAL =>
+                    'Envoi interrompu (connexion coupée en cours d\'envoi) — réessayez.',
+                UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE =>
+                    'Erreur serveur : impossible d\'écrire le fichier temporaire.',
+                UPLOAD_ERR_EXTENSION =>
+                    'Envoi bloqué par une extension PHP du serveur.',
+                default => 'Erreur d\'envoi inconnue (code ' . $_FILES[$field]['error'] . ').',
+            };
+            return null;
+        }
         $file = $_FILES[$field];
-        if ($file['size'] > UPLOAD_MAX_SIZE) return null;
+        if ($file['size'] > UPLOAD_MAX_SIZE) {
+            $this->lastUploadError = 'Fichier trop volumineux (' . round(UPLOAD_MAX_SIZE / 1024 / 1024) . ' Mo maximum).';
+            return null;
+        }
 
         // Ne jamais faire confiance au Content-Type ou au nom de fichier fournis par le
         // client (trivialement falsifiables) : on inspecte le contenu réel du fichier.
         $realType = @mime_content_type($file['tmp_name']) ?: '';
         $extByType = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
-        if (!in_array($realType, ALLOWED_IMAGE_TYPES, true) || !isset($extByType[$realType])) return null;
-        if (@getimagesize($file['tmp_name']) === false) return null;
+
+        // Les photos iPhone récentes sont par défaut au format HEIC/HEIF, jamais accepté par
+        // ALLOWED_IMAGE_TYPES : converti en JPEG si l'extension Imagick le permet, plutôt que de
+        // rejeter silencieusement l'immense majorité des photos envoyées depuis un iPhone. Le
+        // fichier converti n'est plus "l'upload" au sens strict de PHP (move_uploaded_file ne
+        // l'accepterait pas) — on le déplace donc explicitement avec rename() dans ce cas précis.
+        $convertedPath = null;
+        if (in_array($realType, ['image/heic', 'image/heif'], true) && class_exists(\Imagick::class)) {
+            try {
+                $convertedPath = tempnam(sys_get_temp_dir(), 'heic') . '.jpg';
+                $img = new \Imagick($file['tmp_name']);
+                $img->setImageFormat('jpeg');
+                $img->writeImage($convertedPath);
+                $img->destroy();
+                $realType = 'image/jpeg';
+            } catch (\Throwable) {
+                @unlink($convertedPath);
+                $this->lastUploadError = "Impossible de convertir cette photo (HEIC). Réessayez avec un JPEG/PNG.";
+                return null;
+            }
+        }
+
+        if (!in_array($realType, ALLOWED_IMAGE_TYPES, true) || !isset($extByType[$realType])) {
+            if ($convertedPath) @unlink($convertedPath);
+            $this->lastUploadError = in_array($realType, ['image/heic', 'image/heif'], true)
+                ? "Format HEIC (photo iPhone) non supporté par ce serveur — réglez l'appareil photo sur \"Le plus compatible\" (JPEG) ou convertissez la photo avant l'envoi."
+                : 'Format d\'image non supporté (JPEG, PNG, GIF ou WEBP uniquement).';
+            return null;
+        }
+        $sourcePath = $convertedPath ?: $file['tmp_name'];
+        if (@getimagesize($sourcePath) === false) {
+            if ($convertedPath) @unlink($convertedPath);
+            $this->lastUploadError = 'Fichier image invalide ou corrompu.';
+            return null;
+        }
 
         $filename = bin2hex(random_bytes(16)) . '.' . $extByType[$realType];
         $dest = UPLOAD_DIR . $filename;
 
         if (!is_dir(UPLOAD_DIR)) mkdir(UPLOAD_DIR, 0755, true);
-        if (move_uploaded_file($file['tmp_name'], $dest)) {
+        $moved = $convertedPath ? rename($convertedPath, $dest) : move_uploaded_file($file['tmp_name'], $dest);
+        if ($moved) {
             return '/public/uploads/' . $filename;
         }
+        if ($convertedPath) @unlink($convertedPath);
+        $this->lastUploadError = 'Échec de l\'enregistrement du fichier sur le serveur.';
         return null;
+    }
+
+    /**
+     * Variante de uploadImage() pour les images appartenant à une famille (avatars, photo de
+     * couverture co-parent, image de post du mur, photo d'album, bébé, contact) — écrit hors
+     * webroot via App\Core\FileStore::saveImage() et retourne une route "/files/{id}" au lieu
+     * d'un chemin public/uploads/ servi directement par le serveur web sans contrôle d'accès.
+     * Même convention $lastUploadError que uploadImage(). uploadImage() reste inchangée pour les
+     * images de contenu admin/CMS (hors périmètre famille, pas de quota, pas de contrôle d'accès
+     * nécessaire).
+     */
+    protected function uploadFamilyImage(string $field, string $module): ?string
+    {
+        $this->lastUploadError = null;
+        $user = \App\Core\Session::user();
+        if (!$user) return null;
+        $result = \App\Core\FileStore::saveImage($field, $module, (int)$user['family_id'], (int)$user['id'], $this->lastUploadError);
+        return $result['route'] ?? null;
     }
 }

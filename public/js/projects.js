@@ -292,7 +292,7 @@ function _renderProjCal() {
             const lbl = e.title.length > 18 ? e.title.slice(0, 16) + '…' : e.title;
             const taskId = e.extendedProps?.task_id;
             const onclick = taskId ? `onclick="projCalTaskClick(${taskId})"` : '';
-            eventsHtml += `<div class="cal-event" style="background:${e.color || '#4A90D9'}" ${onclick} title="${e.title}">${lbl}</div>`;
+            eventsHtml += `<div class="cal-event" style="background:${e.color || '#4A90D9'}" ${onclick} title="${escapeHtml(e.title)}">${escapeHtml(lbl)}</div>`;
         });
 
         html += `<div class="cal-day ${isCurrentMonth ? '' : 'cal-other-month'} ${isToday ? 'cal-today' : ''}">

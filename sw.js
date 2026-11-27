@@ -4,7 +4,12 @@
 // old one is deleted — so the PWA always serves fresh assets after an update.
 
 const VERSION = new URL(location.href).searchParams.get('v') || 'dev';
-const CACHE   = `familyboard-${VERSION}`;
+const CACHE     = `familyboard-${VERSION}`;
+// Cache des données dynamiques (pages HTML + réponses /api/ GET), tenue séparée du cache
+// d'assets statiques : ces réponses n'ont pas de rapport avec APP_VERSION (qui ne bouge
+// qu'au déploiement d'un fichier CSS/JS), donc elles survivent aux mises à jour de l'app
+// plutôt que d'être vidées à chaque déploiement.
+const DATA_CACHE = 'familyboard-data';
 
 self.addEventListener('install', e => {
     // skipWaiting unconditionally — cache pre-population is best-effort only
@@ -13,49 +18,112 @@ self.addEventListener('install', e => {
         caches.open(CACHE).then(c => c.addAll([
             new URL(`/public/css/app.css?v=${VERSION}`, location).href,
             new URL(`/public/js/app.js?v=${VERSION}`,  location).href,
+            new URL('/public/offline.html', location).href,
         ])).catch(() => { /* ignore cache errors, SW must activate regardless */ })
     );
 });
 
 self.addEventListener('activate', e => {
-    // Delete every cache that doesn't match the current version
+    // Delete every *static-asset* cache that doesn't match the current version. DATA_CACHE
+    // is intentionally never wiped here — see comment above.
     e.waitUntil(
         caches.keys()
             .then(keys => Promise.all(
-                keys.filter(k => k !== CACHE).map(k => caches.delete(k))
+                keys.filter(k => k !== CACHE && k !== DATA_CACHE).map(k => caches.delete(k))
             ))
             .then(() => self.clients.claim())
     );
 });
 
+// Réponse JSON synthétique : sert de dernier recours quand le réseau est indisponible et
+// qu'aucune réponse n'est en cache. On ne renvoie JAMAIS `undefined` depuis respondWith :
+// le navigateur traduirait cela en erreur réseau opaque (« Load failed » sur Safari).
+function jsonResponse(body, status) {
+    return new Response(JSON.stringify(body), {
+        status: status || 200,
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    });
+}
+
 self.addEventListener('fetch', e => {
     const url = new URL(e.request.url);
 
-    // Never intercept non-GET, API calls
+    // Jamais les requêtes non-GET (les POST ne marchent pas hors-ligne, pas de file d'attente).
     if (e.request.method !== 'GET') return;
-    if (url.pathname.startsWith('/api/')) return;
 
-    // Static assets (/public/): cache-first, store on miss
+    // On n'intercepte que les ressources de l'application : le cross-origin (polices Google,
+    // Nominatim, tuiles OpenStreetMap, iframes…) doit rester un fetch réseau direct, sans mise
+    // en cache ni repli — sinon un échec réseau y produirait aussi une erreur opaque.
+    if (url.origin !== location.origin) return;
+
+    // Assets statiques (/public/) : cache-first, puis réseau, puis 504 réel (jamais undefined).
     if (url.pathname.startsWith('/public/')) {
         e.respondWith(
-            caches.match(e.request).then(cached => {
+            caches.match(e.request)
+                .then(cached => {
+                    if (cached) return cached;
+                    return fetch(e.request).then(resp => {
+                        if (resp && resp.ok) {
+                            const clone = resp.clone();
+                            caches.open(CACHE).then(c => c.put(e.request, clone)).catch(() => {});
+                        }
+                        return resp;
+                    });
+                })
+                .catch(() => new Response('', { status: 504, statusText: 'Offline' }))
+        );
+        return;
+    }
+
+    // Données dynamiques (/api/ GET, ex. événements du calendrier) : réseau en priorité, la
+    // réponse est mise en cache au passage pour rester lisible hors-ligne (figée à la dernière
+    // valeur connue). Si le réseau échoue ET qu'aucune valeur n'est en cache, on renvoie une
+    // vraie réponse 503 JSON : le client affiche un message clair au lieu d'une erreur opaque.
+    if (url.pathname.startsWith('/api/')) {
+        e.respondWith(
+            fetch(e.request).then(resp => {
+                if (resp && resp.ok) {
+                    const clone = resp.clone();
+                    caches.open(DATA_CACHE).then(c => c.put(e.request, clone)).catch(() => {});
+                }
+                return resp;
+            }).catch(async () => {
+                const cached = await caches.match(e.request);
                 if (cached) return cached;
-                return fetch(e.request).then(resp => {
-                    if (resp.ok) {
-                        const clone = resp.clone();
-                        caches.open(CACHE).then(c => c.put(e.request, clone));
-                    }
-                    return resp;
-                });
+                return jsonResponse(
+                    { error: 'offline', message: 'Hors ligne — données indisponibles.' },
+                    503
+                );
             })
         );
         return;
     }
 
-    // HTML pages: network-first, fall back to cache when offline
-    e.respondWith(
-        fetch(e.request).catch(() => caches.match(e.request))
-    );
+    // Pages HTML : réseau en priorité, mise en cache de la réponse au passage. Hors-ligne, on
+    // sert la page déjà visitée, sinon l'écran « hors-ligne » précaché, sinon une page minimale
+    // — pour ne jamais montrer l'erreur « pas de connexion » générique ni une erreur opaque.
+    const accept = e.request.headers.get('accept') || '';
+    if (e.request.mode === 'navigate' || accept.includes('text/html')) {
+        e.respondWith(
+            fetch(e.request).then(resp => {
+                if (resp && resp.ok) {
+                    const clone = resp.clone();
+                    caches.open(DATA_CACHE).then(c => c.put(e.request, clone)).catch(() => {});
+                }
+                return resp;
+            }).catch(async () => {
+                const cached = await caches.match(e.request);
+                if (cached) return cached;
+                const offline = await caches.match('/public/offline.html');
+                if (offline) return offline;
+                return new Response(
+                    '<!doctype html><meta charset="utf-8"><title>Hors ligne</title>' +
+                    '<h1>Vous êtes hors ligne</h1><p>Reconnectez-vous à Internet puis réessayez.</p>',
+                    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+                );
+            })
+        );
+    }
 });
 
 // Web Push notifications
@@ -70,7 +138,52 @@ self.addEventListener('push', e => {
         badge: '/public/icons/icon-192.png',
         data: { url: data.url || '/' },
     };
-    e.waitUntil(self.registration.showNotification(title, options));
+    // Badge natif sur l'icône de l'app (Badging API) — seul endroit qui tourne encore quand
+    // l'app n'est pas ouverte, donc le seul moyen fiable de le tenir à jour en arrière-plan.
+    // 'unread' vient de Push::sendToUser(), déjà compté après l'insertion de cette notification.
+    const badgeCount = Promise.resolve()
+        .then(() => {
+            if (!('setAppBadge' in self)) return;
+            return data.unread ? self.setAppBadge(data.unread) : self.clearAppBadge();
+        })
+        .catch(() => {});
+    e.waitUntil(Promise.all([self.registration.showNotification(title, options), badgeCount]));
+});
+
+// Chrome fait parfois tourner/invalider l'abonnement push en silence (rotation interne, nettoyage
+// système...), y compris quand l'app n'est pas ouverte. Sans ce handler, l'ancien endpoint devient
+// mort côté serveur et l'utilisateur arrête de recevoir des notifications jusqu'à sa prochaine
+// visite — où public/js/app.js::initPushSubscription() ne fait que RE-ENVOYER l'abonnement
+// existant, sans jamais en recréer un nouveau. Ici, on se réabonne nous-mêmes avec la même clé
+// serveur et on prévient FamilyBoard, sans attendre que quelqu'un rouvre l'app.
+self.addEventListener('pushsubscriptionchange', e => {
+    const applicationServerKey = e.oldSubscription && e.oldSubscription.options
+        ? e.oldSubscription.options.applicationServerKey
+        : null;
+    if (!applicationServerKey) return;
+
+    e.waitUntil(
+        self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })
+            .then(newSub => fetch('/api/push/subscribe', {
+                method: 'POST',
+                // X-Requested-With est ce qui fait passer cette requête pour de l'AJAX côté
+                // serveur (voir BaseController::isAjax()) et donc dispense du jeton CSRF — sans
+                // lui, le serveur répond success:false et rien n'est corrigé silencieusement.
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                body: JSON.stringify(newSub.toJSON()),
+            }).then(() => {
+                if (e.oldSubscription) {
+                    return fetch('/api/push/unsubscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ endpoint: e.oldSubscription.endpoint }),
+                    });
+                }
+            }))
+            .catch(() => { /* retentera au prochain déclenchement ou à la prochaine visite */ })
+    );
 });
 
 self.addEventListener('notificationclick', e => {

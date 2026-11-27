@@ -51,8 +51,8 @@ class Contact
     {
         $color = $data['color'] ?? self::$COLORS[array_rand(self::$COLORS)];
         return Database::insert(
-            'INSERT INTO contacts (family_id, user_id, first_name, last_name, email, phone, phone2, address, birthday, notes, color)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO contacts (family_id, user_id, first_name, last_name, email, phone, phone2, address, birthday, notes, color, custody_schedule_ids)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $familyId, $userId,
                 $data['first_name'],
@@ -64,14 +64,35 @@ class Contact
                 $data['birthday']   ?? null,
                 $data['notes']      ?? null,
                 $color,
+                self::encodeScheduleIds($data),
             ]
+        );
+    }
+
+    /** CSV de schedule_id (comme Document::encodeScheduleIds()), ou NULL si aucun enfant
+     *  sélectionné — rend le contact visible à l'accès co-parent de l'enfant choisi. */
+    private static function encodeScheduleIds(array $data): ?string
+    {
+        $ids = array_values(array_unique(array_map('intval', (array)($data['custody_schedule_ids'] ?? []))));
+        return $ids ? implode(',', $ids) : null;
+    }
+
+    /** Contacts tagués à l'un des plannings de garde donnés (vue co-parent restreint). */
+    public static function getForSchedules(array $scheduleIds): array
+    {
+        $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
+        if (empty($scheduleIds)) return [];
+        $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, custody_schedule_ids)'));
+        return Database::fetchAll(
+            "SELECT * FROM contacts WHERE $ors ORDER BY last_name, first_name",
+            $scheduleIds
         );
     }
 
     public static function update(int $id, array $data): void
     {
         Database::execute(
-            'UPDATE contacts SET first_name=?, last_name=?, email=?, phone=?, phone2=?, address=?, birthday=?, notes=?, color=? WHERE id=?',
+            'UPDATE contacts SET first_name=?, last_name=?, email=?, phone=?, phone2=?, address=?, birthday=?, notes=?, color=?, custody_schedule_ids=? WHERE id=?',
             [
                 $data['first_name'],
                 $data['last_name']  ?? '',
@@ -82,6 +103,7 @@ class Contact
                 $data['birthday']   ?? null,
                 $data['notes']      ?? null,
                 $data['color']      ?? '#4A90D9',
+                self::encodeScheduleIds($data),
                 $id,
             ]
         );
@@ -116,5 +138,85 @@ class Contact
     private static function vcfEscape(string $s): string
     {
         return str_replace([',', ';', "\n", "\r"], ['\\,', '\\;', '\\n', ''], $s);
+    }
+
+    /** Importe un fichier .vcf (un ou plusieurs contacts — export standard de Google Contacts,
+     *  iCloud, Outlook ou du répertoire du téléphone) : pour quitter une autre app sans avoir à
+     *  ressaisir ses contacts à la main. Retourne le nombre de contacts créés. */
+    public static function importVcf(int $familyId, int $userId, string $vcfContent): int
+    {
+        $count = 0;
+        foreach (self::splitVcards($vcfContent) as $block) {
+            $parsed = self::parseVcard($block);
+            if (!$parsed || $parsed['first_name'] === '') continue;
+            self::create($familyId, $userId, $parsed);
+            $count++;
+        }
+        return $count;
+    }
+
+    private static function splitVcards(string $content): array
+    {
+        preg_match_all('/BEGIN:VCARD.*?END:VCARD/is', $content, $matches);
+        return $matches[0];
+    }
+
+    private static function parseVcard(string $block): ?array
+    {
+        // RFC 6350 : une ligne qui commence par un espace/tab est la continuation de la précédente.
+        $block = preg_replace('/\r?\n[ \t]/', '', $block);
+        $lines = preg_split('/\r\n|\n|\r/', $block);
+
+        $data = ['first_name' => '', 'last_name' => ''];
+        foreach ($lines as $line) {
+            if (!str_contains($line, ':')) continue;
+            [$prop, $value] = explode(':', $line, 2);
+            $value = self::vcfUnescape($value);
+            $propName = strtoupper(explode(';', $prop)[0]);
+            $propAttrs = strtoupper($prop);
+
+            switch ($propName) {
+                case 'N':
+                    $parts = explode(';', $value);
+                    $data['last_name']  = $parts[0] ?? '';
+                    $data['first_name'] = $parts[1] ?? '';
+                    break;
+                case 'FN':
+                    if ($data['first_name'] === '' && $data['last_name'] === '') {
+                        $spacePos = strrpos($value, ' ');
+                        $data['first_name'] = $spacePos !== false ? substr($value, 0, $spacePos) : $value;
+                        $data['last_name']  = $spacePos !== false ? substr($value, $spacePos + 1) : '';
+                    }
+                    break;
+                case 'TEL':
+                    if (str_contains($propAttrs, 'WORK') && empty($data['phone2'])) $data['phone2'] = $value;
+                    elseif (empty($data['phone'])) $data['phone'] = $value;
+                    break;
+                case 'EMAIL':
+                    if (empty($data['email'])) $data['email'] = $value;
+                    break;
+                case 'ADR':
+                    if (empty($data['address'])) {
+                        $data['address'] = trim(str_replace(';', ' ', $value));
+                    }
+                    break;
+                case 'BDAY':
+                    $digits = preg_replace('/\D/', '', $value);
+                    if (strlen($digits) === 8) {
+                        $data['birthday'] = substr($digits, 0, 4) . '-' . substr($digits, 4, 2) . '-' . substr($digits, 6, 2);
+                    }
+                    break;
+                case 'NOTE':
+                    $data['notes'] = $value;
+                    break;
+            }
+        }
+
+        return $data['first_name'] !== '' || $data['last_name'] !== '' ? $data : null;
+    }
+
+    private static function vcfUnescape(string $s): string
+    {
+        return str_replace(['\\,', '\\;', '\\n', '\\N'], [',', ';', "\n", "\n"], trim($s));
     }
 }

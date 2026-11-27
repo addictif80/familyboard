@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hors ligne — FamilyBoard</title>
+<style>
+  :root{
+    --bg:#F6F2EA; --card:#FFFFFF; --text:#23201B; --text-muted:#7C7568;
+    --border:#E6DFD1; --navy:#2C4368; --navy-deep:#1B2032; --gold:#C99A44;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#181C29; --card:#232A3D; --text:#EDEAE2; --text-muted:#9AA2B8; --border:#323A52; }
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
+    padding:1.5rem;
+  }
+  .card{
+    max-width:360px; width:100%;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:2.25rem 1.75rem;
+    text-align:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.08);
+  }
+  .mark{
+    width:64px; height:64px; margin:0 auto 1.25rem;
+    border-radius:18px;
+    background:linear-gradient(135deg,var(--navy),var(--navy-deep));
+    display:flex; align-items:center; justify-content:center;
+    font-size:30px;
+  }
+  h1{ font-size:1.15rem; margin:0 0 .5rem; }
+  p{ font-size:.9rem; color:var(--text-muted); line-height:1.55; margin:0 0 1.5rem; }
+  button{
+    appearance:none; border:none; cursor:pointer;
+    background:var(--gold); color:var(--navy-deep);
+    font-weight:700; font-size:.9rem;
+    padding:.7rem 1.4rem; border-radius:10px;
+  }
+  button:active{ transform:translateY(1px); }
+  .hint{ margin-top:1.1rem; font-size:.78rem; color:var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark">🏠</div>
+    <h1>Vous êtes hors ligne</h1>
+    <p>Impossible de joindre FamilyBoard pour le moment. Vérifiez votre connexion — les pages déjà consultées récemment restent accessibles depuis le menu.</p>
+    <button type="button" onclick="location.reload()">Réessayer</button>
+    <p class="hint">Cette page s'affiche automatiquement quand une page n'a pas encore été mise en cache pour une consultation hors-ligne.</p>
+  </div>
+</body>
+</html>

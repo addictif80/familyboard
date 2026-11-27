@@ -31,9 +31,9 @@ class CommLogMessage
         if (empty($scheduleIds)) return [];
         $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
         return Database::fetchAll(
-            "SELECT m.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
+            "SELECT m.*, COALESCE(u.name, m.former_user_name) as user_name, u.color as user_color, u.avatar as user_avatar
              FROM comm_log_messages m
-             JOIN users u ON u.id = m.user_id
+             LEFT JOIN users u ON u.id = m.user_id
              WHERE m.custody_schedule_id IN ($ph)
              ORDER BY m.created_at ASC
              LIMIT ?",
@@ -58,9 +58,9 @@ class CommLogMessage
         if (empty($scheduleIds)) return [];
         $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
         return Database::fetchAll(
-            "SELECT m.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
+            "SELECT m.*, COALESCE(u.name, m.former_user_name) as user_name, u.color as user_color, u.avatar as user_avatar
              FROM comm_log_messages m
-             JOIN users u ON u.id = m.user_id
+             LEFT JOIN users u ON u.id = m.user_id
              WHERE m.custody_schedule_id IN ($ph) AND m.id > ?
              ORDER BY m.created_at ASC",
             [...$scheduleIds, $afterId]
@@ -70,9 +70,9 @@ class CommLogMessage
     public static function getByFamily(int $familyId, int $limit = 200): array
     {
         return Database::fetchAll(
-            'SELECT m.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
+            'SELECT m.*, COALESCE(u.name, m.former_user_name) as user_name, u.color as user_color, u.avatar as user_avatar
              FROM comm_log_messages m
-             JOIN users u ON u.id = m.user_id
+             LEFT JOIN users u ON u.id = m.user_id
              WHERE m.family_id=?
              ORDER BY m.created_at ASC
              LIMIT ?',
@@ -80,12 +80,26 @@ class CommLogMessage
         );
     }
 
+    /** Tous les messages (sans limite), pour l'export judiciaire — filtrable par période. */
+    public static function getAllByFamily(int $familyId, ?string $from = null, ?string $to = null): array
+    {
+        $sql = 'SELECT m.*, COALESCE(u.name, m.former_user_name) as user_name
+                FROM comm_log_messages m
+                LEFT JOIN users u ON u.id = m.user_id
+                WHERE m.family_id=?';
+        $params = [$familyId];
+        if ($from) { $sql .= ' AND m.created_at >= ?'; $params[] = $from . ' 00:00:00'; }
+        if ($to)   { $sql .= ' AND m.created_at <= ?'; $params[] = $to . ' 23:59:59'; }
+        $sql .= ' ORDER BY m.created_at ASC, m.id ASC';
+        return Database::fetchAll($sql, $params);
+    }
+
     public static function getNew(int $familyId, int $afterId): array
     {
         return Database::fetchAll(
-            'SELECT m.*, u.name as user_name, u.color as user_color, u.avatar as user_avatar
+            'SELECT m.*, COALESCE(u.name, m.former_user_name) as user_name, u.color as user_color, u.avatar as user_avatar
              FROM comm_log_messages m
-             JOIN users u ON u.id = m.user_id
+             LEFT JOIN users u ON u.id = m.user_id
              WHERE m.family_id=? AND m.id > ?
              ORDER BY m.created_at ASC',
             [$familyId, $afterId]

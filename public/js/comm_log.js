@@ -15,6 +15,22 @@ async function sendCommLogMessage() {
     const content = input.value.trim();
     if (!content) return;
 
+    // Signalement discret d'un ton potentiellement conflictuel — jamais bloquant, jamais une
+    // réécriture automatique (analyse locale uniquement). Particulièrement utile ici : un
+    // message du journal parental ne peut ensuite être ni modifié ni supprimé.
+    if (typeof checkConflictualTone === 'function') {
+        const tone = checkConflictualTone(content);
+        if (tone.flagged) {
+            const reasons = tone.reasons.map(r => '• ' + r).join('\n');
+            const ok = await Dialog.confirm(
+                'Ce message contient ' + (tone.reasons.length > 1 ? 'plusieurs éléments' : 'un élément') + ' qui pourraient être perçus comme un reproche :\n\n' + reasons +
+                '\n\nRien n\'est modifié automatiquement — vous pouvez l\'envoyer tel quel, ou le relire.',
+                'Message un peu vif ?'
+            );
+            if (!ok) return;
+        }
+    }
+
     input.value = '';
     const data = await apiFetch(BASE_URL + '/api/comm-log/send', {
         method: 'POST',
@@ -38,7 +54,7 @@ async function sendCommLogVoiceMessage({ blob, mimeType, durationSec }) {
     fd.append('content', content);
     fd.append('duration', durationSec);
 
-    const res = await fetch(BASE_URL + '/api/comm-log/send', { method: 'POST', body: fd });
+    const res = await fetch(BASE_URL + '/api/comm-log/send', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
     if (data.success) {
         appendCommLogMessage(data.message, true);
@@ -61,10 +77,7 @@ function appendCommLogMessage(msg, own) {
     div.className = 'message-row ' + (isOwn ? 'own' : '');
     div.setAttribute('data-id', msg.id);
 
-    const avatar = !isOwn ? `
-        <div class="user-avatar-sm" style="background:${escapeHtml(msg.user_color)}" title="${escapeHtml(msg.user_name)}">
-            ${escapeHtml(msg.user_name[0])}
-        </div>` : '';
+    const avatar = !isOwn ? avatarHtml(msg.user_avatar, msg.user_color, msg.user_name, 'user-avatar-sm', msg.user_name) : '';
 
     const author = !isOwn ? `<div class="message-author" style="color:${escapeHtml(msg.user_color)}">${escapeHtml(msg.user_name)}</div>` : '';
 

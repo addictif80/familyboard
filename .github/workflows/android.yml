@@ -1,0 +1,63 @@
+name: Build Android APK (TWA)
+
+# Déclenchement manuel uniquement — chaque run produit un APK + un AAB signés avec la même
+# clé (indispensable : Android refuse une mise à jour signée avec une clé différente). Avant
+# de lancer, bump "appVersionCode"/"appVersionName" dans android/twa-manifest.json et commitez
+# ce changement — voir le guide dans README.android.md pour la mise en place initiale.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      # Bubblewrap lit sa config dans ~/.bubblewrap/config.json (jdkPath/androidSdkPath) ; en
+      # l'écrivant nous-mêmes avec les chemins fournis par les deux actions ci-dessus, on évite
+      # qu'il ne tente de télécharger son propre JDK/SDK de façon interactive (ce qui bloquerait
+      # le job, aucun terminal pour répondre aux prompts en CI).
+      - name: Configure Bubblewrap (JDK/SDK paths)
+        run: |
+          mkdir -p ~/.bubblewrap
+          cat > ~/.bubblewrap/config.json <<EOF
+          {"jdkPath": "$JAVA_HOME", "androidSdkPath": "$ANDROID_HOME"}
+          EOF
+
+      - name: Restore signing keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/android.keystore
+
+      # BUBBLEWRAP_KEYSTORE_PASSWORD / BUBBLEWRAP_KEY_PASSWORD : bubblewrap les lit directement
+      # depuis l'environnement et signe sans rien demander dès que les deux sont présentes.
+      - name: Build + sign APK and AAB
+        working-directory: android
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bubblewrap build
+
+      - name: Upload APK (installation directe / test)
+        uses: actions/upload-artifact@v4
+        with:
+          name: familyboard-apk
+          path: android/app-release-signed.apk
+
+      - name: Upload AAB (pour le Play Store)
+        uses: actions/upload-artifact@v4
+        with:
+          name: familyboard-aab
+          path: android/app-release-bundle.aab

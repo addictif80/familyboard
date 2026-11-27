@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\Baby;
+use App\Models\FamilyChild;
 
 class BabyController extends BaseController
 {
@@ -26,8 +27,13 @@ class BabyController extends BaseController
         $this->json(function () {
             $user = Session::user();
             $data = $this->jsonInput();
-            if (empty($data['name'])) return ['success' => false, 'error' => 'Nom requis'];
-            $id = Baby::create($user['family_id'], trim($data['name']));
+            $name = trim($data['name'] ?? '');
+            if ($name === '') return ['success' => false, 'error' => 'Nom requis'];
+            // Rattaché au registre familial central (voir App\Models\FamilyChild) : réutilise
+            // une fiche existante du même nom (ex. déjà créée dans un autre module) ou en crée
+            // une nouvelle, réutilisable ensuite dans Suivi scolaire/Suivi nounou/Garde alternée.
+            $familyChildId = FamilyChild::findOrCreateByName((int)$user['family_id'], (int)$user['id'], $name);
+            $id = Baby::create($user['family_id'], $name, $familyChildId);
             $baby = Baby::findById($id);
             return ['success' => true, 'baby' => $baby];
         });
@@ -58,8 +64,8 @@ class BabyController extends BaseController
             $id = (int)$params['id'];
             $baby = Baby::findById($id);
             if (!$baby || $baby['family_id'] !== $user['family_id']) return ['success' => false];
-            $path = $this->uploadImage('avatar');
-            if (!$path) return ['success' => false, 'error' => 'Upload échoué'];
+            $path = $this->uploadFamilyImage('avatar', 'avatar');
+            if (!$path) return ['success' => false, 'error' => $this->lastUploadError ?: 'Upload échoué'];
             Baby::updateAvatar($id, $path);
             return ['success' => true, 'path' => $path];
         });
@@ -145,7 +151,7 @@ class BabyController extends BaseController
                 for ($i = 0; $i < 10; $i++) {
                     $field = 'image_' . $i;
                     if (!isset($_FILES[$field])) break;
-                    $path = $this->uploadImage($field);
+                    $path = $this->uploadFamilyImage($field, 'baby');
                     if ($path) {
                         Baby::addPregnancyImage($id, $user['family_id'], $path, $_FILES[$field]['name']);
                     }
@@ -178,8 +184,7 @@ class BabyController extends BaseController
             $id = (int)$params['id'];
             $img = Baby::getPregnancyImageById($id);
             if (!$img || $img['family_id'] !== $user['family_id']) return ['success' => false];
-            $fullPath = BASE_PATH . $img['file_path'];
-            if (file_exists($fullPath)) @unlink($fullPath);
+            \App\Core\FileStore::deleteByRoute($img['file_path']);
             Baby::deletePregnancyImage($id);
             return ['success' => true];
         });

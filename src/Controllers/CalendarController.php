@@ -10,9 +10,21 @@ use App\Models\User;
 use App\Models\Vacation;
 use App\Models\SchoolHoliday;
 use App\Models\Notification;
+use App\Models\FamilyFriend;
+use App\Models\EventShare;
+use App\Core\DateHelper;
 
 class CalendarController extends BaseController
 {
+    /** Date/heure formatées pour le texte de la notification — un événement sans heure
+     *  (journée entière) n'affiche que la date. */
+    private function eventDateLabel(?array $event): string
+    {
+        if (!$event) return '';
+        $isAllDay = !empty($event['is_all_day']);
+        return DateHelper::format($event['start_datetime'], $isAllDay ? 'j F Y' : 'j F Y à H\hi');
+    }
+
     public function index(array $params): void
     {
         $this->requireAuth();
@@ -33,7 +45,13 @@ class CalendarController extends BaseController
         }
 
         $custodySchedules = \App\Models\Custody::getSchedules($familyId);
+        $employmentProfiles = \App\Models\EmploymentProfile::getByFamily($familyId);
         $hasProjects = !empty(\App\Models\Project::getByFamily($familyId));
+        try {
+            $friendFamilies = FamilyFriend::getAcceptedFor($familyId);
+        } catch (\Throwable $e) {
+            $friendFamilies = [];
+        }
         require BASE_PATH . '/templates/calendar/index.php';
     }
 
@@ -62,8 +80,19 @@ class CalendarController extends BaseController
             $user = Session::user();
             $start = $_GET['start'] ?? date('Y-m-01');
             $end = $_GET['end'] ?? date('Y-m-t');
-            $events = Event::getByFamily($user['family_id'], $start, $end);
-            $formatted = array_map(fn($e) => [
+            // $start/$end arrivent en date pure (YYYY-MM-DD) : sans heure, MySQL les compare à
+            // minuit, ce qui exclut silencieusement tout événement du dernier jour de la plage
+            // ayant une heure de début après 00h00 (ex. un rendez-vous à 14h le 31 du mois).
+            $rangeStart = str_contains($start, ':') ? $start : $start . ' 00:00:00';
+            $rangeEnd = str_contains($end, ':') ? $end : $end . ' 23:59:59';
+            $events = Event::getByFamily($user['family_id'], $rangeStart, $rangeEnd);
+            $formatted = array_map(function ($e) {
+                $statuses = array_filter(explode(',', (string)($e['share_statuses'] ?? '')));
+                $shareStatus = null;
+                if ($statuses) {
+                    $shareStatus = in_array('pending', $statuses, true) ? 'pending' : 'accepted';
+                }
+                return [
                 'id' => $e['id'],
                 'title' => $e['title'],
                 'start' => $e['is_all_day'] ? substr($e['start_datetime'], 0, 10) : $e['start_datetime'],
@@ -74,26 +103,47 @@ class CalendarController extends BaseController
                     'description' => $e['description'],
                     'user_name' => $e['user_name'],
                     'user_color' => $e['user_color'],
+                    // Rattaché à une personne : permet le filtrage par membre côté client.
+                    'user_id' => isset($e['user_id']) && $e['user_id'] !== null ? (int)$e['user_id'] : null,
                     'caldav' => (bool)$e['caldav_uid'],
                     'type' => 'event',
-                    'custody_schedule_id' => $e['custody_schedule_id'] ?? null,
+                    'custody_schedule_ids' => $e['custody_schedule_ids'] ?? null,
+                    'employment_profile_id' => $e['employment_profile_id'] ?? null,
+                    'employment_leave_type' => $e['employment_leave_type'] ?? null,
                     'professional_name' => $e['professional_name'] ?? null,
                     'location' => $e['location'] ?? null,
                     'location_lat' => $e['location_lat'] ?? null,
                     'location_lng' => $e['location_lng'] ?? null,
+                    'shared_from_family_name' => $e['shared_from_family_name'] ?? null,
+                    'share_status' => $shareStatus,
                 ],
-            ], $events);
+                ];
+            }, $events);
+
+            // Les sources optionnelles (garde alternée, congés, vacances scolaires, anniversaires,
+            // projets) sont indépendantes : si l'une échoue (table ou migration absente, donnée
+            // corrompue…), elle ne doit pas faire échouer tout le calendrier. Chacune est donc
+            // isolée et son échec est journalisé sans être remonté au client.
+            $safe = function (string $label, callable $fn) {
+                try {
+                    $fn();
+                } catch (\Throwable $e) {
+                    error_log('apiEvents(' . $label . '): ' . $e->getMessage());
+                }
+            };
 
             // Optionally include custody events
             if (!empty($_GET['custody'])) {
+                $safe('custody', function () use (&$formatted, $user, $start, $end) {
                 $custodyEvents = \App\Models\Custody::getAllEventsForFamily($user['family_id'], $start, $end);
                 foreach ($custodyEvents as $e) {
+                    $range = \App\Models\Custody::toDisplayRange($e);
                     $formatted[] = [
                         'id'    => 'custody_' . $e['id'],
                         'title' => $e['child_name'] . ' chez ' . $e['parent_name'],
-                        'start' => $e['start_date'],
-                        'end'   => date('Y-m-d', strtotime($e['end_date'] . ' +1 day')),
-                        'allDay' => true,
+                        'start' => $range['start'],
+                        'end'   => $range['end'],
+                        'allDay' => false,
                         'color' => $e['parent_color'] ?: '#aaa',
                         'extendedProps' => [
                             'type'        => 'custody',
@@ -103,10 +153,12 @@ class CalendarController extends BaseController
                         ],
                     ];
                 }
+                });
             }
 
             // Personal vacations
             if (!empty($_GET['vacations'])) {
+                $safe('vacations', function () use (&$formatted, $user, $start, $end) {
                 $vacations = Vacation::getByFamily($user['family_id'], $start, $end);
                 foreach ($vacations as $v) {
                     $formatted[] = [
@@ -123,10 +175,12 @@ class CalendarController extends BaseController
                         ],
                     ];
                 }
+                });
             }
 
             // School holidays (if family has a configured zone)
             if (!empty($_GET['school'])) {
+                $safe('school', function () use (&$formatted, $user, $start, $end) {
                 $family     = Family::findById($user['family_id']);
                 $schoolZone = $family['school_zone'] ?? null;
                 if ($schoolZone) {
@@ -143,9 +197,11 @@ class CalendarController extends BaseController
                         ];
                     }
                 }
+                });
             }
 
             // Birthdays from contacts directory
+            $safe('birthdays', function () use (&$formatted, $user, $start, $end) {
             $contactsWithBirthday = \App\Core\Database::fetchAll(
                 'SELECT id, first_name, last_name, birthday, color FROM contacts
                   WHERE family_id=? AND birthday IS NOT NULL AND birthday != \'\' AND is_system=0',
@@ -178,9 +234,11 @@ class CalendarController extends BaseController
                     }
                 }
             }
+            });
 
             // Optionally include project deadlines
             if (!empty($_GET['projects'])) {
+                $safe('projects', function () use (&$formatted, $user, $start, $end) {
                 $deadlines = \App\Models\Project::getDeadlines($user['family_id'], $start, $end);
                 foreach ($deadlines as $p) {
                     $formatted[] = [
@@ -196,6 +254,7 @@ class CalendarController extends BaseController
                         ],
                     ];
                 }
+                });
             }
 
             return $formatted;
@@ -211,16 +270,32 @@ class CalendarController extends BaseController
             $data['family_id'] = $user['family_id'];
             $data['user_id'] = $user['id'];
             $data['color'] = $this->safeColor($data['color'] ?? null);
-            if (!empty($data['custody_schedule_id'])) {
-                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
-                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
-            }
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds($data['custody_schedule_ids'] ?? [], $user['family_id']);
+            $data['employment_profile_id'] = $this->validateFamilyEmploymentProfileId($data['employment_profile_id'] ?? null, (int)$user['family_id']);
+            if (!$data['employment_profile_id']) $data['employment_leave_type'] = null;
             $id = Event::create($data);
             $event = Event::getById($id);
-            if (!empty($data['custody_schedule_id'])) {
-                CustodyActivityLog::record((int)$data['custody_schedule_id'], $user['id'], 'event_created', $data['title'] ?? null);
+            foreach ($data['custody_schedule_ids'] as $scheduleId) {
+                CustodyActivityLog::record($scheduleId, $user['id'], 'event_created', $data['title'] ?? null);
             }
-            Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Nouvel événement', $user['name'] . ' a ajouté : ' . $data['title'], BASE_URL . '/calendar');
+            Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Nouvel événement',
+                $user['name'] . ' a ajouté : ' . $data['title'] . ' — ' . $this->eventDateLabel($event),
+                BASE_URL . '/calendar', null, 'event', $id);
+
+            // Le partage inter-familles ne doit jamais faire échouer la création d'un événement
+            // "normal" — tolère l'absence des tables si la migration n'est pas encore appliquée.
+            try {
+                $shareFamilyIds = array_values(array_intersect(
+                    array_map('intval', (array)($data['share_family_ids'] ?? [])),
+                    array_column(FamilyFriend::getAcceptedFor((int)$user['family_id']), 'family_id')
+                ));
+                if ($shareFamilyIds) {
+                    EventShare::invite($id, (int)$user['family_id'], $shareFamilyIds, (int)$user['id']);
+                }
+            } catch (\Throwable $e) {
+                error_log('EventShare invite error: ' . $e->getMessage());
+            }
+
             return ['success' => true, 'id' => $id, 'event' => $event];
         });
     }
@@ -237,17 +312,26 @@ class CalendarController extends BaseController
             }
             $data = $this->jsonInput();
             $data['color'] = $this->safeColor($data['color'] ?? null);
-            if (!empty($data['custody_schedule_id'])) {
-                $schedule = \App\Models\Custody::getScheduleById((int)$data['custody_schedule_id']);
-                if (!$schedule || $schedule['family_id'] !== $user['family_id']) $data['custody_schedule_id'] = null;
-            }
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds($data['custody_schedule_ids'] ?? [], $user['family_id']);
+            $data['employment_profile_id'] = $this->validateFamilyEmploymentProfileId($data['employment_profile_id'] ?? null, (int)$user['family_id']);
+            if (!$data['employment_profile_id']) $data['employment_leave_type'] = null;
             Event::update($id, $data);
-            $loggedScheduleId = $data['custody_schedule_id'] ?? $event['custody_schedule_id'] ?? null;
-            if (!empty($loggedScheduleId)) {
-                CustodyActivityLog::record((int)$loggedScheduleId, $user['id'], 'event_updated', $data['title'] ?? $event['title']);
+            foreach ($data['custody_schedule_ids'] as $scheduleId) {
+                CustodyActivityLog::record($scheduleId, $user['id'], 'event_updated', $data['title'] ?? $event['title']);
             }
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement modifié',
-                $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']), BASE_URL . '/calendar');
+                $user['name'] . ' a modifié : ' . ($data['title'] ?? $event['title']) . ' — ' . $this->eventDateLabel(Event::getById($id)),
+                BASE_URL . '/calendar', null, 'event', $id);
+
+            // Jamais répercuté automatiquement chez les familles participantes : ça crée une
+            // alerte à résoudre individuellement, voir EventShare::propagateUpdate(). Ne doit
+            // jamais faire échouer la modification elle-même (ex. migration pas encore appliquée).
+            try {
+                EventShare::propagateUpdate($id, $data);
+            } catch (\Throwable $e) {
+                error_log('EventShare propagateUpdate error: ' . $e->getMessage());
+            }
+
             return ['success' => true];
         });
     }
@@ -262,10 +346,78 @@ class CalendarController extends BaseController
             if (!$event || $event['family_id'] !== $user['family_id']) {
                 return ['success' => false, 'error' => 'Non autorisé'];
             }
+            // Avant suppression : les familles participantes reçoivent une alerte à résoudre
+            // (accepter ou refuser la suppression), jamais une répercussion automatique — ne
+            // doit jamais empêcher la suppression elle-même (ex. migration pas encore appliquée).
+            try {
+                EventShare::propagateDelete($id);
+            } catch (\Throwable $e) {
+                error_log('EventShare propagateDelete error: ' . $e->getMessage());
+            }
             Event::delete($id);
             Notification::notifyFamily($user['family_id'], $user['id'], 'calendar', 'Événement supprimé',
-                $user['name'] . ' a supprimé : ' . $event['title'], BASE_URL . '/calendar');
+                $user['name'] . ' a supprimé : ' . $event['title'] . ' — ' . $this->eventDateLabel($event), BASE_URL . '/calendar');
+            // Pas d'entity_type/entity_id ici : l'événement vient d'être supprimé, un clic sur
+            // cette notification doit afficher son propre texte (déjà complet), pas tenter une
+            // prévisualisation d'un enregistrement qui n'existe plus.
             return ['success' => true];
+        });
+    }
+
+    // ── Partage inter-familles ──────────────────────────────────────
+
+    /** Familles amies acceptées, pour la case à cocher à la création d'un événement. */
+    public function apiFriendFamilies(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            return ['families' => FamilyFriend::getAcceptedFor((int)$user['family_id'])];
+        });
+    }
+
+    public function apiShareInvitations(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            return [
+                'invitations' => EventShare::getPendingInvitations((int)$user['family_id']),
+                'changes'     => EventShare::getPendingChanges((int)$user['family_id']),
+            ];
+        });
+    }
+
+    public function acceptShareInvitation(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $ok = EventShare::accept((int)$params['id'], (int)$user['family_id'], (int)$user['id']);
+            return ['success' => $ok];
+        });
+    }
+
+    public function declineShareInvitation(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $ok = EventShare::decline((int)$params['id'], (int)$user['family_id']);
+            return ['success' => $ok];
+        });
+    }
+
+    public function resolveShareChange(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $data = $this->jsonInput();
+            $decision = ($data['decision'] ?? '') === 'accept' ? 'accept' : 'decline';
+            $reason = trim($data['reason'] ?? '');
+            $ok = EventShare::resolveChange((int)$params['id'], (int)$user['family_id'], $decision, $reason ?: null);
+            return ['success' => $ok];
         });
     }
 
@@ -309,7 +461,9 @@ class CalendarController extends BaseController
 
     public function addCalDAV(array $params): void
     {
-        $this->requireAuth();
+        // La synchronisation déclenche une requête HTTP serveur vers une URL fournie par le
+        // client (SSRF potentiel vers le réseau interne) — réservé aux admins de la famille.
+        $this->requireAdmin();
         $this->json(function () {
             $user = Session::user();
             $data = $this->jsonInput();

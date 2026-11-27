@@ -66,19 +66,22 @@ async function albumDelete(id) {
     }
 }
 
-function albumOpenShareModal(id, currentScheduleId) {
+function albumOpenShareModal(id, currentScheduleIds) {
     document.getElementById('album-share-id').value = id;
-    document.getElementById('album-share-schedule').value = currentScheduleId || 0;
+    const current = (currentScheduleIds || '').toString().split(',').filter(Boolean).map(Number);
+    document.querySelectorAll('.album-share-child-cb').forEach(cb => {
+        cb.checked = current.includes(parseInt(cb.value, 10));
+    });
     openModal('album-share-modal');
 }
 
 async function albumSaveShare() {
     const id = document.getElementById('album-share-id').value;
-    const scheduleId = parseInt(document.getElementById('album-share-schedule').value, 10) || 0;
+    const scheduleIds = Array.from(document.querySelectorAll('.album-share-child-cb:checked')).map(cb => parseInt(cb.value, 10));
 
     const result = await apiFetch(BASE_URL + '/api/albums/' + id + '/share', {
         method: 'POST',
-        body: JSON.stringify({ schedule_id: scheduleId }),
+        body: JSON.stringify({ schedule_ids: scheduleIds }),
     });
 
     if (result.success) {
@@ -173,4 +176,43 @@ function albumCopyPublicLink() {
     const input = document.getElementById('album-public-link-url');
     input.select();
     navigator.clipboard?.writeText(input.value).then(() => Dialog.toast('Lien copié.', 'success'));
+}
+
+// ---- Portée d'affichage dans l'onglet Photos du mur ----
+
+async function albumSetWallScope(albumId, scope) {
+    const r = await apiFetch(BASE_URL + '/api/albums/' + albumId + '/wall-scope', {
+        method: 'POST',
+        body: JSON.stringify({ scope: scope || null }),
+    });
+    if (r.success) {
+        Dialog.toast(scope ? 'Album affiché sur le mur.' : 'Album retiré du mur.', 'success');
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
+}
+
+// ---- Partage vers le mur familial ----
+
+function openShareToWallModal(photoId) {
+    document.getElementById('share-to-wall-photo-id').value = photoId;
+    document.getElementById('share-to-wall-caption').value = '';
+    document.getElementById('share-to-wall-scope').value = 'personal';
+    openModal('album-share-to-wall-modal');
+}
+
+async function confirmShareToWall() {
+    const photoId = document.getElementById('share-to-wall-photo-id').value;
+    const caption = document.getElementById('share-to-wall-caption').value.trim();
+    const scope = document.getElementById('share-to-wall-scope').value;
+    const r = await apiFetch(BASE_URL + '/api/wall/share-photo', {
+        method: 'POST',
+        body: JSON.stringify({ photo_id: photoId, caption, scope }),
+    });
+    if (r.success) {
+        closeModal('album-share-to-wall-modal');
+        Dialog.toast(r.pending ? 'Publication envoyée à l\'administrateur pour validation.' : 'Photo partagée sur le mur !');
+    } else {
+        Dialog.toast(r.error || 'Erreur.', 'error');
+    }
 }

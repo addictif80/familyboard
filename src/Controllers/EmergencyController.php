@@ -54,11 +54,44 @@ class EmergencyController extends BaseController
             return;
         }
 
+        // Journal de consultation : ces données de santé sont accessibles sans authentification
+        // à quiconque possède le lien — la famille doit pouvoir savoir que le lien a été utilisé.
+        EmergencyCard::logAccess((int)$card['id'], $_SERVER['REMOTE_ADDR'] ?? null);
+
         $subjectName = $card['subject_type'] === 'baby'
             ? (Baby::findById((int)$card['subject_id'])['name'] ?? '')
             : (User::findById((int)$card['subject_id'])['name'] ?? '');
 
         require BASE_PATH . '/templates/emergency/public.php';
+    }
+
+    /** Révoque l'ancien lien public (perte d'un QR code imprimé, partage involontaire…) et en
+     *  génère un nouveau — la fiche et son contenu restent inchangés. */
+    public function regenerateToken(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $card = EmergencyCard::getById((int)($params['id'] ?? 0));
+            if (!$card || $card['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Fiche introuvable.'];
+            }
+            $token = EmergencyCard::regenerateToken((int)$card['id']);
+            return ['success' => true, 'token' => $token];
+        });
+    }
+
+    public function accessLog(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () use ($params) {
+            $user = Session::user();
+            $card = EmergencyCard::getById((int)($params['id'] ?? 0));
+            if (!$card || $card['family_id'] !== $user['family_id']) {
+                return ['success' => false, 'error' => 'Fiche introuvable.'];
+            }
+            return ['success' => true, 'log' => EmergencyCard::getAccessLog((int)$card['id'])];
+        });
     }
 
     private function subjectBelongsToFamily(string $type, int $id, int $familyId): bool

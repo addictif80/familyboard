@@ -36,6 +36,12 @@ function openViewModal(contact) {
         birthdayFmt = `${d}/${m}/${y}`;
     }
 
+    let nameDayFmt = '';
+    if (contact.name_day) {
+        const [m, d] = contact.name_day.split('-');
+        nameDayFmt = `${d}/${m}`;
+    }
+
     const avatarHtml = contact.avatar
         ? `<img src="${BASE_URL}${contact.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
         : initial;
@@ -53,6 +59,7 @@ function openViewModal(contact) {
             ${contact.email  ? `<div class="contact-detail-row"><span class="cd-icon">✉️</span><a href="mailto:${esc(contact.email)}">${esc(contact.email)}</a></div>` : ''}
             ${contact.address ? `<div class="contact-detail-row"><span class="cd-icon">📍</span>${mapsUrl ? `<a href="${mapsUrl}" target="_blank" rel="noopener">${esc(contact.address).replace(/\n/g,'<br>')}</a>` : esc(contact.address).replace(/\n/g,'<br>')}</div>` : ''}
             ${contact.birthday ? `<div class="contact-detail-row"><span class="cd-icon">🎂</span>${esc(birthdayFmt)}</div>` : ''}
+            ${contact.name_day ? `<div class="contact-detail-row"><span class="cd-icon">🎉</span>Fête : ${esc(nameDayFmt)}</div>` : ''}
             ${contact.notes  ? `<div class="contact-detail-row"><span class="cd-icon">📝</span><span style="white-space:pre-wrap">${esc(contact.notes)}</span></div>` : ''}
         </div>
     `;
@@ -83,6 +90,16 @@ function openContactModal(contact) {
     document.getElementById('ce-notes').value     = contact ? (contact.notes  || '') : '';
     document.getElementById('ce-color').value     = contact ? contact.color : '#4A90D9';
     document.getElementById('ce-avatar-file').value = '';
+
+    const custodyToggle = document.getElementById('ce-custody-toggle');
+    if (custodyToggle) {
+        const csIds = (contact && contact.custody_schedule_ids || '').toString().split(',').filter(Boolean).map(Number);
+        custodyToggle.checked = csIds.length > 0;
+        document.getElementById('ce-custody-select-wrap').style.display = csIds.length ? '' : 'none';
+        document.querySelectorAll('.ce-custody-child-cb').forEach(cb => {
+            cb.checked = csIds.includes(parseInt(cb.value, 10));
+        });
+    }
 
     const preview = document.getElementById('ce-avatar-preview');
     preview.style.background = contact ? contact.color : '#4A90D9';
@@ -131,6 +148,10 @@ async function saveContact() {
         notes:      document.getElementById('ce-notes').value.trim()   || null,
         color:      document.getElementById('ce-color').value,
     };
+    const custodyToggle = document.getElementById('ce-custody-toggle');
+    if (custodyToggle && custodyToggle.checked) {
+        data.custody_schedule_ids = Array.from(document.querySelectorAll('.ce-custody-child-cb:checked')).map(cb => parseInt(cb.value, 10));
+    }
 
     let result;
     if (id) {
@@ -193,7 +214,7 @@ function buildContactCard(c) {
     div.innerHTML = `
         <div class="contact-avatar" style="background:${safeColor(c.color)}">${avatarInner}</div>
         <div class="contact-info">
-            <div class="contact-name">${esc(fullName)}</div>
+            <div class="contact-name">${esc(fullName)} ${c.custody_schedule_ids ? '<span title="Partagé avec le co-parent">🔒</span>' : ''}</div>
             ${c.phone ? `<div class="contact-line">📞 <a href="tel:${esc(c.phone)}" onclick="event.stopPropagation()">${esc(c.phone)}</a></div>` : ''}
             ${c.email ? `<div class="contact-line">✉️ <a href="mailto:${esc(c.email)}" onclick="event.stopPropagation()">${esc(c.email)}</a></div>` : ''}
         </div>

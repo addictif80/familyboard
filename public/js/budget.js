@@ -62,7 +62,7 @@ function openGoalModal() {
     document.getElementById('goal-target').value = '';
     document.getElementById('goal-current').value = '0';
     document.getElementById('goal-deadline').value = '';
-    document.getElementById('goal-color').value = '#4A90D9';
+    document.getElementById('goal-color').value = '#7C5CFF';
     openModal('goal-modal');
 }
 
@@ -139,19 +139,29 @@ async function deleteCategory(id) {
 // Recurring items
 // ──────────────────────────────────────────────────────────────
 
+function toggleRecurringFrequency() {
+    const yearly = document.getElementById('rec-frequency').value === 'yearly';
+    document.getElementById('rec-month-group').style.display = yearly ? '' : 'none';
+    document.getElementById('rec-day-label-suffix').textContent = yearly ? 'du mois de renouvellement' : 'du mois';
+}
+
 function openRecurringModal() {
     document.getElementById('recurring-modal-title').textContent = 'Nouvelle opération récurrente';
     document.getElementById('rec-id').value = '';
     document.getElementById('rec-type-expense').checked = true;
     document.getElementById('rec-title').value = '';
+    document.getElementById('rec-provider').value = '';
     document.getElementById('rec-amount').value = '';
+    document.getElementById('rec-frequency').value = 'monthly';
     document.getElementById('rec-day').value = '1';
+    document.getElementById('rec-month').value = String(new Date().getMonth() + 1);
     document.getElementById('rec-category').value = '';
     document.getElementById('rec-alert').value = '3';
     document.getElementById('rec-notes').value = '';
     // Reset user to current user (first option)
     const sel = document.getElementById('rec-user');
     if (sel && sel.options.length) sel.selectedIndex = 0;
+    toggleRecurringFrequency();
     openModal('recurring-modal');
 }
 
@@ -160,13 +170,17 @@ function openEditRecurringModal(item) {
     document.getElementById('rec-id').value = item.id;
     document.querySelector(`input[name="rec-type-r"][value="${item.type}"]`).checked = true;
     document.getElementById('rec-title').value = item.title;
+    document.getElementById('rec-provider').value = item.provider || '';
     document.getElementById('rec-amount').value = item.amount;
+    document.getElementById('rec-frequency').value = item.frequency || 'monthly';
     document.getElementById('rec-day').value = item.day_of_month;
+    document.getElementById('rec-month').value = String(item.renewal_month || (new Date().getMonth() + 1));
     document.getElementById('rec-category').value = item.category_id || '';
     document.getElementById('rec-alert').value = item.alert_days_before;
     document.getElementById('rec-notes').value = item.notes || '';
     const sel = document.getElementById('rec-user');
     if (sel) sel.value = item.user_id;
+    toggleRecurringFrequency();
     openModal('recurring-modal');
 }
 
@@ -178,8 +192,11 @@ async function saveRecurring() {
 
     const data = {
         title, amount,
+        provider: document.getElementById('rec-provider').value.trim(),
         type: document.querySelector('input[name="rec-type-r"]:checked').value,
+        frequency: document.getElementById('rec-frequency').value,
         day_of_month: day,
+        renewal_month: parseInt(document.getElementById('rec-month').value, 10),
         category_id: document.getElementById('rec-category').value || null,
         user_id: document.getElementById('rec-user').value,
         alert_days_before: parseInt(document.getElementById('rec-alert').value, 10),
@@ -240,13 +257,17 @@ function renderBudgetChart() {
         return;
     }
 
+    const _rootStyle = getComputedStyle(document.documentElement);
+    const _fixedColor = _rootStyle.getPropertyValue('--primary').trim() || '#7C5CFF';
+    const _variableColor = _rootStyle.getPropertyValue('--warning').trim() || '#FFB84D';
+
     _budgetChart = new Chart(canvas, {
         type: 'bar',
         data: {
             labels,
             datasets: [
-                { label: 'Fixes (récurrents)', data: fixed,    backgroundColor: '#4A90D9', stack: 'a' },
-                { label: 'Variables',           data: variable, backgroundColor: '#F39C12', stack: 'a' },
+                { label: 'Fixes (récurrents)', data: fixed,    backgroundColor: _fixedColor, stack: 'a' },
+                { label: 'Variables',           data: variable, backgroundColor: _variableColor, stack: 'a' },
             ],
         },
         options: {

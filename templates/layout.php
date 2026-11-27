@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title><?= htmlspecialchars($pageTitle ?? APP_NAME) ?></title>
     <!-- Apply saved theme before first paint to avoid a flash of the wrong theme -->
     <script>
@@ -19,11 +19,47 @@
     <link rel="icon" href="<?= BASE_URL ?>/public/icons/icon-192.png" type="image/png">
     <!-- PWA -->
     <link rel="manifest" href="<?= BASE_URL ?>/public/manifest.json">
-    <meta name="theme-color" content="#232A3D">
+    <meta name="theme-color" content="#7C5CFF" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#15132A" media="(prefers-color-scheme: dark)">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="FamilyBoard">
     <link rel="apple-touch-icon" href="<?= BASE_URL ?>/public/icons/icon-192.png">
+    <?php
+    // Écrans de démarrage iOS (apple-touch-startup-image) : sans eux, Safari affiche un flash
+    // blanc à l'ouverture de l'app installée le temps que la page charge, au lieu d'une
+    // transition douce. Un fichier par profil d'appareil × orientation × thème (générés dans
+    // public/icons/splash/ par scripts/generate-pwa-icons.js, à relancer si le logo ou les
+    // couleurs changent). Ignoré par tout ce qui n'est pas Safari/iOS — sans coût ailleurs.
+    $__iosSplashDevices = [
+        ['iphone-se',       375, 667,  2],
+        ['iphone-standard', 390, 844,  3],
+        ['iphone-pro',      393, 852,  3],
+        ['iphone-plus',     414, 736,  3],
+        ['iphone-xr-11',    414, 896,  2],
+        ['iphone-max',      428, 926,  3],
+        ['iphone-pro-max',  430, 932,  3],
+        ['ipad',            768, 1024, 2],
+        ['ipad-air',        820, 1180, 2],
+        ['ipad-pro-11',     834, 1194, 2],
+        ['ipad-pro-129',    1024, 1366, 2],
+    ];
+    foreach ($__iosSplashDevices as [$__name, $__w, $__h, $__ratio]):
+        foreach (['portrait', 'landscape'] as $__orientation):
+            [$__mw, $__mh] = $__orientation === 'portrait' ? [$__w, $__h] : [$__h, $__w];
+            foreach (['light', 'dark'] as $__theme):
+                $__suffix = $__theme === 'dark' ? '-dark' : '';
+                $__colorScheme = $__theme === 'dark' ? ' and (prefers-color-scheme: dark)' : ' and (prefers-color-scheme: light)';
+    ?>
+    <link rel="apple-touch-startup-image"
+          media="(device-width: <?= $__mw ?>px) and (device-height: <?= $__mh ?>px) and (-webkit-device-pixel-ratio: <?= $__ratio ?>) and (orientation: <?= $__orientation ?>)<?= $__colorScheme ?>"
+          href="<?= BASE_URL ?>/public/icons/splash/<?= $__name ?>-<?= $__orientation . $__suffix ?>.png">
+    <?php
+            endforeach;
+        endforeach;
+    endforeach;
+    unset($__iosSplashDevices, $__name, $__w, $__h, $__ratio, $__orientation, $__mw, $__mh, $__theme, $__suffix, $__colorScheme);
+    ?>
     <!-- Styles -->
     <link rel="stylesheet" href="<?= ASSETS_URL ?>/css/app.css?v=<?= APP_VERSION ?>">
     <?php if (isset($extraCss)): ?>
@@ -32,10 +68,54 @@
         <?php endforeach; ?>
     <?php endif; ?>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Baloo+2:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
 </head>
 <body>
 
+<?php
+// Splash animé dans l'app (Lot PWA, Phase A artefact "Splash" figé) : reprend exactement le
+// splash natif (apple-touch-startup-image / icône Android ci-dessus) puis anime le logo avant
+// de s'effacer sur le tableau de bord — jamais de rupture visible avec l'image statique du
+// système. Affiché UNE SEULE FOIS par session de navigateur (sessionStorage), seulement quand
+// l'app tourne "installée" (display-mode: standalone / navigator.standalone), jamais à chaque
+// navigation. Le script ci-dessous le retire avant la première peinture s'il ne doit pas
+// s'afficher — aucun flash possible. Le kiosque a son propre template (templates/kiosk/*),
+// qui n'inclut pas layout.php : il n'est donc jamais concerné.
+$__fbSplashSvg = file_get_contents(BASE_PATH . '/public/icons/icon.svg');
+?>
+<div id="fb-splash" class="fb-app-splash" aria-hidden="true">
+    <div class="fb-splash-mark"><?= $__fbSplashSvg ?></div>
+    <div class="fb-splash-word">FamilyBoard</div>
+</div>
+<script>
+(function () {
+    try {
+        var el = document.getElementById('fb-splash');
+        var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+        var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var seen = sessionStorage.getItem('fb-splash-shown');
+        if (!standalone || reduced || seen) { el.remove(); return; }
+        sessionStorage.setItem('fb-splash-shown', '1');
+        var removed = false;
+        function removeSplash() {
+            if (removed) return;
+            removed = true;
+            el.classList.add('fade-out');
+            setTimeout(function () { el.remove(); }, 220);
+        }
+        window.addEventListener('load', function () { setTimeout(removeSplash, 200); });
+        setTimeout(removeSplash, 1400); // durée max avant retrait forcé, même si "load" tarde
+    } catch (e) {
+        var el2 = document.getElementById('fb-splash');
+        if (el2) el2.remove();
+    }
+})();
+</script>
+
+<div id="top-banners">
+<div class="impersonation-banner" id="offline-banner" style="background:#6B5B3D;display:none">
+    📴 Hors connexion — les données affichées peuvent être obsolètes.
+</div>
 <?php if (\App\Core\Session::isLoggedIn() && !empty($_SESSION['impersonation'])): ?>
 <div class="impersonation-banner">
     🕵️ Connecté en tant que <strong><?= htmlspecialchars(\App\Core\Session::user()['name'] ?? '') ?></strong> (accès support admin)
@@ -43,15 +123,52 @@
 </div>
 <?php endif; ?>
 
+<?php if (\App\Core\Session::isLoggedIn()):
+    $_tfaStatus = \App\Models\TwoFactorAuth::getPolicyStatus((int)\App\Core\Session::user()['id']);
+    if (!empty($_tfaStatus['enforced']) && empty($_tfaStatus['blocked'])): ?>
+<div class="impersonation-banner" style="background:#B8860B">
+    🔐 La double authentification devient obligatoire dans <strong><?= (int)$_tfaStatus['days_left'] ?> jour<?= $_tfaStatus['days_left'] > 1 ? 's' : '' ?></strong>.
+    <a href="<?= BASE_URL ?>/settings" class="btn btn-sm">Activer maintenant</a>
+</div>
+<?php endif; endif; ?>
+
+<?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) !== 'coparent'): ?>
+<div class="impersonation-banner" id="pwa-onboarding-banner" style="background:#2E6E4A;display:none">
+    <span id="pwa-onboarding-text"></span>
+    <a href="<?= BASE_URL ?>/settings#pwa-install-section" id="pwa-onboarding-link" class="btn btn-sm">Voir comment faire</a>
+</div>
+<?php endif; ?>
+</div>
+
+<!-- Barre de chargement (navigation, apiFetch, actualisation) — artefact figé "Barre épaisse".
+     position:fixed hors du DOM de .topbar : .topbar a overflow:hidden + backdrop-filter, qui
+     piègerait tout élément positionné à l'intérieur (même bug déjà rencontré sur le menu "⋯"
+     et la modale du guide). aria-live discret : l'arrivée du contenu lui-même suffit, la barre
+     n'a pas besoin d'être annoncée mot pour mot à chaque requête. -->
+<div class="fb-loadbar" id="fb-loadbar" role="status" aria-live="polite"><span class="fb-loadbar-fill" id="fb-loadbar-fill"></span><span class="sr-only" id="fb-loadbar-sr"></span></div>
+
+<script>
+// Fixe --banners-h dès le parsing du HTML (avant même le chargement d'app.js en bas de page) :
+// sans ça, la sidebar/topbar (position fixed/sticky) démarrent brièvement à top:0, sous les
+// bandeaux, le temps que le script principal se charge — un flash bref sur PC, mais qui peut
+// sembler permanent sur une connexion lente ou un appareil peu puissant.
+document.documentElement.style.setProperty('--banners-h', document.getElementById('top-banners').offsetHeight + 'px');
+</script>
+
 <?php if (\App\Core\Session::isLoggedIn() && (\App\Core\Session::user()['role'] ?? null) === 'coparent'): ?>
-<!-- Compte à accès restreint : pas de sidebar complète, seulement l'essentiel. -->
+<!-- Compte à accès restreint : pas de sidebar complète, seulement l'essentiel — et pas de
+     mise en avant ABHD non plus (ni bandeau, ni modale), contrairement au reste de l'app. -->
 <div class="coparent-shell">
     <header class="coparent-topbar">
         <div class="coparent-brand">
             <span class="logo-icon">🔒</span>
             <span>Garde partagée</span>
         </div>
-        <div style="display:flex;gap:.5rem;align-items:center">
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+            <a href="<?= BASE_URL ?>/settings" class="btn btn-secondary btn-sm">⚙️ Paramètres</a>
+            <a href="<?= BASE_URL ?>/aide" class="btn btn-secondary btn-sm">🧭 Guide</a>
+            <a href="<?= BASE_URL ?>/faq" class="btn btn-secondary btn-sm">❓ FAQ</a>
+            <a href="<?= BASE_URL ?>/support" class="btn btn-secondary btn-sm">🎫 Support</a>
             <button class="btn btn-secondary btn-sm" onclick="openReportIssueModal()" title="Signaler un problème">🐞 Signaler un problème</button>
             <a href="<?= BASE_URL ?>/logout" class="btn btn-secondary btn-sm">Déconnexion</a>
         </div>
@@ -68,10 +185,18 @@
 $currentUser = \App\Core\Session::user();
 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $unreadCount = \App\Models\Notification::getUnreadCount($currentUser['id']);
+$unreadAnnouncements = \App\Models\Announcement::unreadCountForUser($currentUser['id']);
 $family = \App\Models\Family::findById($currentUser['family_id']);
 $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
+$_hasCustodyAccess = \App\Models\Custody::getSchedulesForUser($currentUser['id']);
+$_navEnabled = fn (string $module) => !in_array($module, $_disabledModules)
+    && !($currentUser['role'] === 'ado' && in_array($module, \App\Models\Family::ADO_RESTRICTED_MODULES, true));
+$_vaultwarden = \App\Models\VaultwardenSettings::get();
+$_ollamaConfigured = \App\Core\AiProvider::isConfigured();
 ?>
+<?php require BASE_PATH . '/templates/partials/abhd_spotlight_modal.php'; ?>
 <div class="app-wrapper">
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -79,8 +204,16 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 <span class="logo-icon">🏠</span>
                 <span class="logo-text"><?= htmlspecialchars($family['name'] ?? APP_NAME) ?></span>
             </div>
-            <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+            <button class="sidebar-toggle" onclick="toggleSidebar()">✕</button>
         </div>
+
+        <?php require BASE_PATH . '/templates/partials/abhd_spotlight_sidebar.php'; ?>
+
+        <div class="sidebar-search">
+            <span class="sidebar-search-icon">🔎</span>
+            <input type="text" id="sidebar-search-input" placeholder="Rechercher un module ou un enregistrement…" autocomplete="off">
+        </div>
+        <p class="sidebar-search-empty" id="sidebar-search-empty" style="display:none">Aucun résultat.</p>
 
         <ul class="nav-menu">
             <li class="nav-item <?= $currentPath === BASE_URL . '/' || $currentPath === BASE_URL ? 'active' : '' ?>">
@@ -89,111 +222,7 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                     <span class="nav-label">Tableau de bord</span>
                 </a>
             </li>
-            <?php if (!in_array('wall', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/wall') && !str_contains($currentPath, '/family-wall') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/wall" class="nav-link">
-                    <span class="nav-icon">📸</span>
-                    <span class="nav-label">Mur familial</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('albums', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/albums" class="nav-link">
-                    <span class="nav-icon">🖼️</span>
-                    <span class="nav-label">Albums photo</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('calendar', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/calendar" class="nav-link">
-                    <span class="nav-icon">📅</span>
-                    <span class="nav-label">Calendrier</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('custody', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/custody') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/custody" class="nav-link">
-                    <span class="nav-icon">👶</span>
-                    <span class="nav-label">Garde alternée</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (\App\Models\Custody::getSchedulesForUser($currentUser['id'])): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/coparent') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/coparent" class="nav-link">
-                    <span class="nav-icon">🔒</span>
-                    <span class="nav-label">Garde partagée</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('tasks', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/tasks') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/tasks" class="nav-link">
-                    <span class="nav-icon">✅</span>
-                    <span class="nav-label">Tâches & Courses</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('chat', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/chat" class="nav-link">
-                    <span class="nav-icon">💬</span>
-                    <span class="nav-label">Chat familial</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('budget', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/budget') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/budget" class="nav-link">
-                    <span class="nav-icon">💰</span>
-                    <span class="nav-label">Budget</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('projects', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/projects') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/projects" class="nav-link">
-                    <span class="nav-icon">📋</span>
-                    <span class="nav-label">Projets</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('contacts', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/contacts') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/contacts" class="nav-link">
-                    <span class="nav-icon">📒</span>
-                    <span class="nav-label">Répertoire</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('warranties', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/warranties') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/warranties" class="nav-link">
-                    <span class="nav-icon">🛡️</span>
-                    <span class="nav-label">Garanties</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('documents', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/documents') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/documents" class="nav-link">
-                    <span class="nav-icon">🗂️</span>
-                    <span class="nav-label">Documents</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('cameras', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/cameras') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/cameras" class="nav-link">
-                    <span class="nav-icon">🎥</span>
-                    <span class="nav-label">Caméras</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            <?php if (!in_array('family-wall', $_disabledModules)): ?>
+            <?php if ($_navEnabled('family-wall')): ?>
             <li class="nav-item <?= str_contains($currentPath, '/family-wall') ? 'active' : '' ?>">
                 <a href="<?= BASE_URL ?>/family-wall" class="nav-link">
                     <span class="nav-icon">📺</span>
@@ -201,89 +230,511 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (!in_array('baby', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/baby') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/baby" class="nav-link">
-                    <span class="nav-icon">🍼</span>
-                    <span class="nav-label">Bébé</span>
+            <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
+            <li class="nav-item">
+                <button type="button" onclick="toggleAiAssistantPanel()" class="nav-link" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit">
+                    <span class="nav-icon">🤖</span>
+                    <span class="nav-label">Assistant IA</span>
+                </button>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('wall') || $_navEnabled('chat') || $_navEnabled('calendar') || $_navEnabled('tasks') || $_navEnabled('contacts') || $_navEnabled('meals') || $_navEnabled('stock') || $_navEnabled('links')): ?>
+            <li class="nav-section-label" data-section-toggle="quotidien" role="button" tabindex="0">
+                <span>Quotidien</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('wall')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/wall') && !str_contains($currentPath, '/family-wall') ? 'active' : '' ?>" data-section="quotidien">
+                <a href="<?= BASE_URL ?>/wall" class="nav-link">
+                    <span class="nav-icon">📸</span>
+                    <span class="nav-label">Mur familial</span>
+                </a>
+            </li>
+            <li class="nav-item <?= str_contains($currentPath, '/messages') ? 'active' : '' ?>" data-section="quotidien">
+                <a href="<?= BASE_URL ?>/messages" class="nav-link">
+                    <span class="nav-icon">✉️</span>
+                    <span class="nav-label">Messages privés</span>
+                    <?php $_dmUnread = \App\Models\DirectMessage::getUnreadTotal($currentUser['id']); ?>
+                    <?php if ($_dmUnread > 0): ?><span class="badge-dot"><?= $_dmUnread ?></span><?php endif; ?>
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (!in_array('location', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/location" class="nav-link">
-                    <span class="nav-icon">📍</span>
-                    <span class="nav-label">Position</span>
+            <?php if ($_navEnabled('chat')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/chat') ? 'active' : '' ?>" data-section="quotidien">
+                <a href="<?= BASE_URL ?>/chat" class="nav-link">
+                    <span class="nav-icon">💬</span>
+                    <span class="nav-label">Chat familial</span>
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (!in_array('emergency', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/emergency') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/emergency" class="nav-link">
-                    <span class="nav-icon">🚑</span>
-                    <span class="nav-label">Fiches urgence</span>
+            <?php if ($_navEnabled('calendar')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/calendar') ? 'active' : '' ?>" data-section="quotidien">
+                <a href="<?= BASE_URL ?>/calendar" class="nav-link">
+                    <span class="nav-icon">📅</span>
+                    <span class="nav-label">Calendrier</span>
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (!in_array('comm_log', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/comm-log') ? 'active' : '' ?>">
-                <a href="<?= BASE_URL ?>/comm-log" class="nav-link">
-                    <span class="nav-icon">📝</span>
-                    <span class="nav-label">Journal parental</span>
+            <?php if ($_navEnabled('tasks')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/tasks') ? 'active' : '' ?>" data-section="quotidien">
+                <a href="<?= BASE_URL ?>/tasks" class="nav-link">
+                    <span class="nav-icon">✅</span>
+                    <span class="nav-label">Tâches & Courses</span>
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (!in_array('meals', $_disabledModules)): ?>
-            <li class="nav-item <?= str_contains($currentPath, '/meals') ? 'active' : '' ?>">
+            <?php if ($_navEnabled('contacts')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/contacts') ? 'active' : '' ?>" data-section="quotidien">
+                <a href="<?= BASE_URL ?>/contacts" class="nav-link">
+                    <span class="nav-icon">📒</span>
+                    <span class="nav-label">Répertoire</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('meals')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/meals') ? 'active' : '' ?>" data-section="quotidien">
                 <a href="<?= BASE_URL ?>/meals" class="nav-link">
                     <span class="nav-icon">🍽️</span>
                     <span class="nav-label">Repas</span>
                 </a>
             </li>
             <?php endif; ?>
+            <?php if ($_navEnabled('stock')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/stock') ? 'active' : '' ?>" data-section="quotidien">
+                <a href="<?= BASE_URL ?>/stock" class="nav-link">
+                    <span class="nav-icon">🧊</span>
+                    <span class="nav-label">Stock frigo/congélo</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('links')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/links') ? 'active' : '' ?>" data-section="quotidien">
+                <a href="<?= BASE_URL ?>/links" class="nav-link">
+                    <span class="nav-icon">🔗</span>
+                    <span class="nav-label">Portail de liens</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('albums') || $_navEnabled('wishlist') || $_navEnabled('polls') || $_navEnabled('baby')): ?>
+            <li class="nav-section-label" data-section-toggle="souvenirs" role="button" tabindex="0">
+                <span>Souvenirs & famille</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('albums')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/albums') ? 'active' : '' ?>" data-section="souvenirs">
+                <a href="<?= BASE_URL ?>/albums" class="nav-link">
+                    <span class="nav-icon">🖼️</span>
+                    <span class="nav-label">Albums photo</span>
+                </a>
+            </li>
+            <li class="nav-item <?= str_contains($currentPath, '/annual-recap') ? 'active' : '' ?>" data-section="souvenirs">
+                <a href="<?= BASE_URL ?>/annual-recap" class="nav-link">
+                    <span class="nav-icon">🎞️</span>
+                    <span class="nav-label">Récap annuel</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('wishlist')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/wishlist') ? 'active' : '' ?>" data-section="souvenirs">
+                <a href="<?= BASE_URL ?>/wishlist" class="nav-link">
+                    <span class="nav-icon">🎁</span>
+                    <span class="nav-label">Liste de cadeaux</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('polls')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/polls') ? 'active' : '' ?>" data-section="souvenirs">
+                <a href="<?= BASE_URL ?>/polls" class="nav-link">
+                    <span class="nav-icon">🗳️</span>
+                    <span class="nav-label">Sondages</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('baby')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/baby') ? 'active' : '' ?>" data-section="souvenirs">
+                <a href="<?= BASE_URL ?>/baby" class="nav-link">
+                    <span class="nav-icon">🍼</span>
+                    <span class="nav-label">Bébé</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('custody') || $_hasCustodyAccess || $_navEnabled('comm_log')): ?>
+            <li class="nav-section-label" data-section-toggle="garde-partagee" role="button" tabindex="0">
+                <span>Garde partagée</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('custody')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/custody') ? 'active' : '' ?>" data-section="garde-partagee">
+                <a href="<?= BASE_URL ?>/custody" class="nav-link">
+                    <span class="nav-icon">👶</span>
+                    <span class="nav-label">Garde alternée</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_hasCustodyAccess): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/coparent') ? 'active' : '' ?>" data-section="garde-partagee">
+                <a href="<?= BASE_URL ?>/coparent" class="nav-link">
+                    <span class="nav-icon">🔒</span>
+                    <span class="nav-label">Garde partagée</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('comm_log')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/comm-log') ? 'active' : '' ?>" data-section="garde-partagee">
+                <a href="<?= BASE_URL ?>/comm-log" class="nav-link">
+                    <span class="nav-icon">📝</span>
+                    <span class="nav-label">Journal parental</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('budget') || $_navEnabled('deals') || $_navEnabled('additions') || $_navEnabled('loyalty_cards')): ?>
+            <li class="nav-section-label" data-section-toggle="finances" role="button" tabindex="0">
+                <span>Finances</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('budget')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/budget') ? 'active' : '' ?>" data-section="finances">
+                <a href="<?= BASE_URL ?>/budget" class="nav-link">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-label">Budget</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('deals')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/deals') ? 'active' : '' ?>" data-section="finances">
+                <a href="<?= BASE_URL ?>/deals" class="nav-link">
+                    <span class="nav-icon">🏷️</span>
+                    <span class="nav-label">Bons plans</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('additions')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/additions') ? 'active' : '' ?>" data-section="finances">
+                <a href="<?= BASE_URL ?>/additions" class="nav-link">
+                    <span class="nav-icon">🧾</span>
+                    <span class="nav-label">Additions</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('loyalty_cards')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/loyalty-cards') ? 'active' : '' ?>" data-section="finances">
+                <a href="<?= BASE_URL ?>/loyalty-cards" class="nav-link">
+                    <span class="nav-icon">💳</span>
+                    <span class="nav-label">Cartes de fidélité</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('health') || $_navEnabled('medication') || $_navEnabled('emergency') || $_navEnabled('location')): ?>
+            <li class="nav-section-label" data-section-toggle="sante-securite" role="button" tabindex="0">
+                <span>Santé & sécurité</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('health')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/health') ? 'active' : '' ?>" data-section="sante-securite">
+                <a href="<?= BASE_URL ?>/health" class="nav-link">
+                    <span class="nav-icon">🏥</span>
+                    <span class="nav-label">Santé</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('medication')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/medication') ? 'active' : '' ?>" data-section="sante-securite">
+                <a href="<?= BASE_URL ?>/medication" class="nav-link">
+                    <span class="nav-icon">💊</span>
+                    <span class="nav-label">Traitement médical</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('emergency')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/emergency') ? 'active' : '' ?>" data-section="sante-securite">
+                <a href="<?= BASE_URL ?>/emergency" class="nav-link">
+                    <span class="nav-icon">🚑</span>
+                    <span class="nav-label">Fiches urgence</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('location')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/location') ? 'active' : '' ?>" data-section="sante-securite">
+                <a href="<?= BASE_URL ?>/location" class="nav-link">
+                    <span class="nav-icon">📍</span>
+                    <span class="nav-label">Position</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('documents') || $_navEnabled('warranties') || $_navEnabled('letters') || $_navEnabled('disputes') || $_navEnabled('admin_procedures') || ($_navEnabled('vault') && $currentUser['role'] === 'admin') || $_vaultwarden || $_navEnabled('school') || $_navEnabled('employment') || $_navEnabled('nanny') || $_navEnabled('leave')): ?>
+            <li class="nav-section-label" data-section-toggle="juridique-administratif" role="button" tabindex="0">
+                <span>Juridique & administratif</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('documents')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/documents') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/documents" class="nav-link">
+                    <span class="nav-icon">🗂️</span>
+                    <span class="nav-label">Documents</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('warranties')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/warranties') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/warranties" class="nav-link">
+                    <span class="nav-icon">🛡️</span>
+                    <span class="nav-label">Garanties</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('letters')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/letters') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/letters" class="nav-link">
+                    <span class="nav-icon">✉️</span>
+                    <span class="nav-label">Courriers</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('disputes')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/disputes') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/disputes" class="nav-link">
+                    <span class="nav-icon">⚖️</span>
+                    <span class="nav-label">Dossiers de litige</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('admin_procedures')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/admin-procedures') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/admin-procedures" class="nav-link">
+                    <span class="nav-icon">🪪</span>
+                    <span class="nav-label">Démarches admin.</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('vault') && $currentUser['role'] === 'admin'): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/vault') && !str_contains($currentPath, '/vault-passwords') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/vault" class="nav-link">
+                    <span class="nav-icon">🔐</span>
+                    <span class="nav-label">Coffre-fort numérique</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_vaultwarden): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/vault-passwords') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/vault-passwords" class="nav-link">
+                    <span class="nav-icon">🔑</span>
+                    <span class="nav-label">Gestionnaire de mots de passe</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('school')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/school') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/school" class="nav-link">
+                    <span class="nav-icon">🎓</span>
+                    <span class="nav-label">Suivi scolaire</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('employment')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/employment') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/employment" class="nav-link">
+                    <span class="nav-icon">💼</span>
+                    <span class="nav-label">Suivi salarié</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('nanny')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/nanny') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/nanny" class="nav-link">
+                    <span class="nav-icon">🕒</span>
+                    <span class="nav-label">Suivi nounou</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('leave')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/leave') ? 'active' : '' ?>" data-section="juridique-administratif">
+                <a href="<?= BASE_URL ?>/leave" class="nav-link">
+                    <span class="nav-icon">🏖️</span>
+                    <span class="nav-label">Congés familiaux</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if ($_navEnabled('vehicles') || $_navEnabled('pets') || $_navEnabled('meters') || $_navEnabled('travels') || $_navEnabled('projects')): ?>
+            <li class="nav-section-label" data-section-toggle="biens-deplacements" role="button" tabindex="0">
+                <span>Biens & déplacements</span><span class="nav-section-chevron">▾</span>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('vehicles')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/vehicles') ? 'active' : '' ?>" data-section="biens-deplacements">
+                <a href="<?= BASE_URL ?>/vehicles" class="nav-link">
+                    <span class="nav-icon">🚗</span>
+                    <span class="nav-label">Véhicules</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('pets')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/pets') ? 'active' : '' ?>" data-section="biens-deplacements">
+                <a href="<?= BASE_URL ?>/pets" class="nav-link">
+                    <span class="nav-icon">🐾</span>
+                    <span class="nav-label">Animaux</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('meters')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/meters') ? 'active' : '' ?>" data-section="biens-deplacements">
+                <a href="<?= BASE_URL ?>/meters" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-label">Compteurs</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('travels')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/travels') ? 'active' : '' ?>" data-section="biens-deplacements">
+                <a href="<?= BASE_URL ?>/travels" class="nav-link">
+                    <span class="nav-icon">✈️</span>
+                    <span class="nav-label">Voyages & réservations</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ($_navEnabled('projects')): ?>
+            <li class="nav-item <?= str_contains($currentPath, '/projects') ? 'active' : '' ?>" data-section="biens-deplacements">
+                <a href="<?= BASE_URL ?>/projects" class="nav-link">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-label">Projets</span>
+                </a>
+            </li>
+            <?php endif; ?>
         </ul>
 
+        <!-- Le contenu trouvé (tâches, contacts...) vient APRÈS la liste des modules — un module
+             qui correspond à la recherche doit toujours apparaître en premier. -->
+        <div class="sidebar-content-results" id="sidebar-content-results"></div>
+
         <div class="sidebar-footer">
-            <a href="<?= BASE_URL ?>/support" class="nav-link <?= str_contains($currentPath, '/support') ? 'active' : '' ?>" title="Support">
-                <span class="nav-icon">🎫</span>
-                <span class="nav-label">Support</span>
-            </a>
-            <button id="pwa-install-btn" onclick="installPWA()" class="nav-link" style="display:none;background:none;border:none;width:100%;cursor:pointer;text-align:left" title="Installer l'application">
-                <span class="nav-icon">📲</span>
-                <span class="nav-label">Installer l'app</span>
-            </button>
-            <a href="<?= BASE_URL ?>/settings" class="nav-link <?= str_contains($currentPath, '/settings') ? 'active' : '' ?>">
-                <div class="user-avatar" style="background:<?= htmlspecialchars($currentUser['color']) ?>">
-                    <?php if ($currentUser['avatar']): ?>
-                        <img src="<?= BASE_URL . htmlspecialchars($currentUser['avatar']) ?>" alt="">
-                    <?php else: ?>
-                        <?= mb_substr($currentUser['name'], 0, 1) ?>
+            <div class="user-menu" id="user-menu">
+                <button type="button" class="user-menu-trigger" id="user-menu-trigger" onclick="toggleUserMenu()">
+                    <div class="user-avatar" style="background:<?= htmlspecialchars($currentUser['color']) ?>">
+                        <?php if ($currentUser['avatar']): ?>
+                            <img src="<?= BASE_URL . htmlspecialchars($currentUser['avatar']) ?>" alt="">
+                        <?php else: ?>
+                            <?= mb_substr($currentUser['name'], 0, 1) ?>
+                        <?php endif; ?>
+                    </div>
+                    <span class="user-menu-identity">
+                        <span class="user-menu-name"><?= htmlspecialchars($currentUser['name']) ?></span>
+                        <span class="user-menu-role"><?= ['admin' => 'Administrateur', 'coparent' => 'Co-parent'][$currentUser['role']] ?? 'Membre' ?></span>
+                    </span>
+                    <span class="user-menu-caret">▾</span>
+                </button>
+
+                <div class="user-menu-popover" id="user-menu-popover" style="display:none">
+                    <a href="<?= BASE_URL ?>/settings" class="user-menu-item">
+                        <span class="user-menu-item-icon">⚙️</span> Paramètres
+                    </a>
+                    <?php if ($currentUser['role'] === 'admin'): ?>
+                    <a href="<?= BASE_URL ?>/settings#tab-abonnement" class="user-menu-item">
+                        <span class="user-menu-item-icon">💳</span> Abonnement
+                    </a>
                     <?php endif; ?>
+                    <button type="button" id="pwa-install-btn" onclick="installPWA()" class="user-menu-item" style="display:none">
+                        <span class="user-menu-item-icon">📲</span> Installer l'app
+                    </button>
+                    <a href="<?= BASE_URL ?>/migration" class="user-menu-item">
+                        <span class="user-menu-item-icon">🚚</span> Vous venez d'une autre app ?
+                    </a>
+                    <a href="<?= BASE_URL ?>/aide" class="user-menu-item">
+                        <span class="user-menu-item-icon">🧭</span> Guide d'utilisation
+                    </a>
+                    <a href="<?= BASE_URL ?>/support" class="user-menu-item">
+                        <span class="user-menu-item-icon">🎫</span> Support
+                    </a>
+                    <a href="<?= BASE_URL ?>/faq" class="user-menu-item">
+                        <span class="user-menu-item-icon">❓</span> FAQ
+                    </a>
+                    <a href="<?= BASE_URL ?>/confidentialite" class="user-menu-item">
+                        <span class="user-menu-item-icon">📜</span> Confidentialité & CGU
+                    </a>
+                    <div class="user-menu-divider"></div>
+                    <a href="<?= BASE_URL ?>/logout" class="user-menu-item user-menu-item-danger">
+                        <span class="user-menu-item-icon">🚪</span> Déconnexion
+                    </a>
                 </div>
-                <span class="nav-label"><?= htmlspecialchars($currentUser['name']) ?></span>
-            </a>
+            </div>
         </div>
     </nav>
+
+    <?php if ($currentUser['role'] !== 'coparent'):
+        // Barre de navigation rapide (mobile/PWA uniquement, voir CSS) : Accueil + jusqu'à 3
+        // modules choisis par l'utilisateur (Paramètres → Barre rapide) ou, à défaut, une
+        // sélection par défaut — jamais recalculée automatiquement depuis l'usage réel, pour
+        // ne pas casser la mémoire musculaire d'une barre qui changerait toute seule.
+        $_availableQuickModules = array_values(array_filter(
+            array_keys(\App\Models\Family::QUICK_NAV_ROUTES),
+            fn($slug) => $_navEnabled($slug)
+        ));
+        $_quickNavStored = array_values(array_intersect(
+            array_filter(explode(',', $currentUser['quick_nav'] ?? '')),
+            $_availableQuickModules
+        ));
+        $_quickNavSlugs = array_slice($_quickNavStored ?: \App\Models\Family::defaultQuickNav($_availableQuickModules), 0, 3);
+    ?>
+    <nav class="bottom-nav" aria-label="Navigation rapide">
+        <a href="<?= BASE_URL ?>/" class="bottom-nav-item <?= $currentPath === BASE_URL . '/' || $currentPath === BASE_URL ? 'active' : '' ?>">
+            <span class="bottom-nav-icon">🏠</span>
+            <span class="bottom-nav-label">Accueil</span>
+        </a>
+        <?php foreach ($_quickNavSlugs as $_slug):
+            $_meta = \App\Models\Family::MODULES[$_slug];
+            $_route = \App\Models\Family::QUICK_NAV_ROUTES[$_slug];
+        ?>
+        <a href="<?= BASE_URL . $_route ?>" class="bottom-nav-item <?= str_contains($currentPath, $_route) ? 'active' : '' ?>">
+            <span class="bottom-nav-icon"><?= $_meta['icon'] ?></span>
+            <span class="bottom-nav-label"><?= htmlspecialchars($_meta['label']) ?></span>
+        </a>
+        <?php endforeach; ?>
+        <button type="button" class="bottom-nav-item bottom-nav-more" onclick="toggleSidebar()">
+            <span class="bottom-nav-icon">☰</span>
+            <span class="bottom-nav-label">Plus</span>
+        </button>
+        <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
+        <button type="button" class="bottom-nav-item" onclick="toggleAiAssistantPanel(true)">
+            <span class="bottom-nav-icon">🎤</span>
+            <span class="bottom-nav-label">Assistant</span>
+        </button>
+        <?php endif; ?>
+    </nav>
+    <?php endif; ?>
 
     <!-- Main content -->
     <div class="main-content">
         <!-- Top bar -->
         <header class="topbar">
-            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
             <h1 class="page-title"><?= htmlspecialchars($pageTitle ?? '') ?></h1>
+            <div class="alert-banner" id="alert-banner" style="display:none">
+                <div class="alert-banner-track" id="alert-banner-track"></div>
+            </div>
             <div class="topbar-actions">
-                <button class="btn-icon" onclick="openReportIssueModal()" title="Signaler un problème">🐞</button>
-                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Changer de thème">
-                    <span class="theme-icon-sun">☀️</span>
-                    <span class="theme-icon-moon">🌙</span>
+                <button class="nav-search-trigger" onclick="openNavSearch()" title="Recherche rapide (Ctrl/Cmd+K)">
+                    <span>🔎 Rechercher…</span>
+                    <span class="nav-search-kbd">Ctrl K</span>
                 </button>
+                <button class="btn-icon nav-search-trigger-mobile" onclick="openNavSearch()" title="Rechercher">🔎</button>
+
+                <button type="button" class="btn-icon topbar-menu-trigger" id="topbar-menu-trigger" onclick="toggleTopbarMenu()" title="Plus d'options">
+                    ⋯
+                    <?php if ($unreadAnnouncements > 0): ?>
+                        <span class="badge-dot"><?= $unreadAnnouncements ?></span>
+                    <?php endif; ?>
+                </button>
+
                 <button class="btn-icon" onclick="toggleNotifications()" title="Notifications">
                     🔔
                     <?php if ($unreadCount > 0): ?>
-                        <span class="badge" id="notif-badge"><?= $unreadCount ?></span>
+                        <span class="badge-dot" id="notif-badge"><?= $unreadCount ?></span>
                     <?php endif; ?>
                 </button>
-                <a href="<?= BASE_URL ?>/logout" class="btn-icon" title="Déconnexion">🚪</a>
             </div>
         </header>
 
@@ -296,6 +747,48 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
             <div id="notif-list"></div>
         </div>
 
+        <!-- Prévisualisation lecture seule d'une notification — voir readNotif() dans app.js.
+             Volontairement sans aucune action : seul un lien "Ouvrir la page complète" permet
+             d'agir, pour que cette modal reste un simple raccourci de consultation. -->
+        <div class="modal-overlay" id="notif-preview-modal" style="display:none">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3 id="notif-preview-title"></h3>
+                    <button onclick="closeModal('notif-preview-modal')">✕</button>
+                </div>
+                <div class="modal-body">
+                    <p id="notif-preview-time" style="color:var(--text-muted);font-size:.8rem;margin-top:0"></p>
+                    <div id="notif-preview-fields"></div>
+                </div>
+                <div class="modal-footer">
+                    <a href="#" id="notif-preview-link" class="btn btn-primary">Ouvrir la page complète</a>
+                    <button class="btn btn-secondary" onclick="closeModal('notif-preview-modal')">Fermer</button>
+                </div>
+            </div>
+        </div>
+
+        <?php if ($_navEnabled('ai_assistant') && $_ollamaConfigured): ?>
+        <!-- Assistant IA : bulle superposée, pas une page (voir toggleAiAssistantPanel()) -->
+        <div class="ai-assistant-panel" id="ai-assistant-panel">
+            <div class="ai-assistant-panel-header">
+                <span>🤖 Assistant</span>
+                <div style="display:flex;gap:.5rem;align-items:center">
+                    <a href="<?= BASE_URL ?>/ai-assistant" class="btn-text" title="Historique complet">Historique</a>
+                    <button onclick="toggleAiAssistantPanel()" class="btn-text" title="Fermer">✕</button>
+                </div>
+            </div>
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-input-bar">
+                    <input type="text" id="chat-input" placeholder="Écrire à l'assistant…" onkeydown="if(event.key==='Enter')sendAssistantMessage()">
+                    <button type="button" class="voice-record-btn" id="chat-mic-btn" onclick="toggleVoiceInput()" title="Dicter votre message" style="display:none">🎤</button>
+                    <button class="btn btn-primary" id="chat-send-btn" onclick="sendAssistantMessage()">Envoyer</button>
+                </div>
+            </div>
+        </div>
+        <script src="<?= ASSETS_URL ?>/js/ai_assistant.js?v=<?= APP_VERSION ?>"></script>
+        <?php endif; ?>
+
         <!-- Flash messages -->
         <?php $success = \App\Core\Session::getFlash('success'); $error = \App\Core\Session::getFlash('error'); ?>
         <?php if ($success): ?>
@@ -307,6 +800,17 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
 
         <!-- Page content -->
         <div class="content-area">
+            <?php
+            // Mise en avant ABHD sur la page d'accueil de chaque module — jamais sur les
+            // sous-pages (fiche d'un projet, d'un album…), pour éviter la lassitude.
+            $_moduleHomePaths = ['/wall','/albums','/calendar','/custody','/comm-log','/tasks',
+                '/projects','/budget','/documents','/warranties','/baby','/location','/emergency',
+                '/wishlist','/polls','/links','/contacts','/meals','/chat','/stock'];
+            if (in_array(rtrim(substr($currentPath, strlen(BASE_URL)), '/'), $_moduleHomePaths, true)) {
+                $placement = 'module_pages';
+                require BASE_PATH . '/templates/partials/abhd_spotlight.php';
+            }
+            ?>
             <?= $content ?? '' ?>
         </div>
     </div>
@@ -316,6 +820,27 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
     <?= $content ?? '' ?>
 </div>
 <?php endif; ?>
+
+<!-- Menu "⋯" de la topbar (Annonces, thème, signaler un problème, comment ça marche) — hors du
+     DOM de .topbar, qui a overflow:hidden + backdrop-filter (containing block pour
+     position:fixed) : dedans, ce menu serait tronqué/mal empilé quel que soit son z-index. -->
+<div class="topbar-menu-popover" id="topbar-menu-popover" style="display:none">
+    <a href="<?= BASE_URL ?>/announcements" class="topbar-menu-item">
+        <span class="topbar-menu-item-icon">📣</span> Annonces
+        <?php if ($unreadAnnouncements > 0): ?>
+            <span class="topbar-menu-item-badge"><?= $unreadAnnouncements ?></span>
+        <?php endif; ?>
+    </a>
+    <button type="button" class="topbar-menu-item" onclick="toggleTheme()">
+        <span class="topbar-menu-item-icon theme-icon-sun">☀️</span><span class="topbar-menu-item-icon theme-icon-moon">🌙</span> Changer de thème
+    </button>
+    <?php require BASE_PATH . '/templates/partials/tour_widget.php'; ?>
+    <button type="button" class="topbar-menu-item" onclick="openReportIssueModal()">
+        <span class="topbar-menu-item-icon">🐞</span> Signaler un problème
+    </button>
+</div>
+
+<?php require BASE_PATH . '/templates/partials/tour_modal.php'; ?>
 
 <!-- Signaler un problème (disponible sur toutes les pages, y compris l'accès co-parent restreint) -->
 <div class="modal-overlay" id="report-issue-modal" style="display:none">
@@ -343,6 +868,8 @@ $_disabledModules = \App\Models\Family::getDisabledModules($family ?? []);
 const BASE_URL = <?= json_encode(BASE_URL) ?>;
 const APP_TIMEZONE = <?= json_encode(defined('APP_TIMEZONE') ? APP_TIMEZONE : 'Europe/Paris') ?>;
 const APP_VERSION = <?= json_encode((string)APP_VERSION) ?>;
+const LOCATION_TRACKING_ENABLED = <?= json_encode(\App\Core\Session::isLoggedIn() && !empty(\App\Core\Session::user()['location_tracking_enabled'])) ?>;
+const CURRENT_USER_NAME = <?= json_encode(\App\Core\Session::isLoggedIn() ? (\App\Core\Session::user()['name'] ?? '') : '') ?>;
 </script>
 <script src="<?= ASSETS_URL ?>/js/app.js?v=<?= APP_VERSION ?>"></script>
 <script>
@@ -356,17 +883,25 @@ let deferredPrompt;
 window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferredPrompt = e;
-    const btn = document.getElementById('pwa-install-btn');
-    if (btn) btn.style.display = 'flex';
+    ['pwa-install-btn', 'pwa-install-btn-settings'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.style.display = id === 'pwa-install-btn' ? 'flex' : 'inline-block';
+    });
 });
 function installPWA() {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     deferredPrompt.userChoice.then(() => {
         deferredPrompt = null;
-        const btn = document.getElementById('pwa-install-btn');
-        if (btn) btn.style.display = 'none';
+        ['pwa-install-btn', 'pwa-install-btn-settings'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.style.display = 'none';
+        });
     });
+}
+if (typeof isStandalonePWA === 'function' && isStandalonePWA()) {
+    const statusEl = document.getElementById('pwa-install-status');
+    if (statusEl) statusEl.style.display = 'block';
 }
 </script>
 <?php if (isset($extraJs)): ?>

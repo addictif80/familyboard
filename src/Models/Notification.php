@@ -5,11 +5,17 @@ use App\Core\Database;
 
 class Notification
 {
-    public static function create(int $userId, string $type, string $title, string $message, ?string $link = null): int
-    {
+    /** $entityType/$entityId : l'enregistrement précis concerné (ex. 'event'/12), pour que le
+     *  clic sur la notification ouvre sa prévisualisation lecture seule (voir
+     *  NotificationController::preview()) au lieu de simplement renvoyer vers le module via
+     *  $link — qui reste affiché comme lien "page complète" de secours dans cette modal. */
+    public static function create(
+        int $userId, string $type, string $title, string $message, ?string $link = null,
+        ?string $entityType = null, ?int $entityId = null
+    ): int {
         $id = Database::insert(
-            'INSERT INTO notifications (user_id, type, title, message, link) VALUES (?,?,?,?,?)',
-            [$userId, $type, $title, $message, $link]
+            'INSERT INTO notifications (user_id, type, title, message, link, entity_type, entity_id) VALUES (?,?,?,?,?,?,?)',
+            [$userId, $type, $title, $message, $link, $entityType, $entityId]
         );
         try {
             \App\Core\Push::sendToUser($userId, $title, $message, $link);
@@ -17,6 +23,11 @@ class Notification
             error_log('Push notification error: ' . $e->getMessage());
         }
         return $id;
+    }
+
+    public static function getById(int $id): ?array
+    {
+        return Database::fetch('SELECT * FROM notifications WHERE id=?', [$id]);
     }
 
     public static function getByUser(int $userId, int $limit = 20): array
@@ -43,22 +54,84 @@ class Notification
         return (int)($row['cnt'] ?? 0);
     }
 
-    public static function notifyFamily(int $familyId, int $excludeUserId, string $type, string $title, string $message, ?string $link = null): void
-    {
+    /**
+     * $custodyScheduleId : quand l'évènement concerne un enfant en garde partagée précis (garde,
+     * proposition, journal parental…), passer l'ID du planning concerné pour que les comptes à
+     * accès restreint (role=coparent) ne reçoivent que les évènements pertinents pour eux — ils
+     * ne doivent jamais être notifiés d'un évènement familial générique (mur, chat, document,
+     * calendrier...) sans rapport avec la garde.
+     */
+    public static function notifyFamily(
+        int $familyId, int $excludeUserId, string $type, string $title, string $message, ?string $link = null,
+        ?int $custodyScheduleId = null, ?string $entityType = null, ?int $entityId = null
+    ): void {
         $users = User::getByFamily($familyId);
         foreach ($users as $user) {
-            if ($user['id'] !== $excludeUserId) {
-                self::create($user['id'], $type, $title, $message, $link);
+            if ($user['id'] === $excludeUserId) continue;
+            if ($user['role'] === 'coparent') {
+                if ($custodyScheduleId === null || !Custody::userHasAccessToSchedule((int)$user['id'], $custodyScheduleId)) {
+                    continue;
+                }
+            }
+            self::create((int)$user['id'], $type, $title, $message, $link, $entityType, $entityId);
+        }
+    }
+
+    /**
+     * Notification envoyée à ma famille ET à toutes mes familles amies (scope "familles amies"
+     * du mur social) — réutilise notifyFamily() pour ma propre famille (mêmes règles co-parent),
+     * puis notifie tous les membres non co-parent de chaque famille amie.
+     */
+    public static function notifyNetwork(
+        int $familyId, int $excludeUserId, string $type, string $title, string $message, ?string $link = null,
+        ?string $entityType = null, ?int $entityId = null
+    ): void {
+        self::notifyFamily($familyId, $excludeUserId, $type, $title, $message, $link, null, $entityType, $entityId);
+        foreach (\App\Models\FamilyFriend::getAcceptedFor($familyId) as $friendFamily) {
+            foreach (User::getByFamily((int)$friendFamily['family_id']) as $member) {
+                if ($member['role'] === 'coparent') continue;
+                self::create((int)$member['id'], $type, $title, $message, $link, $entityType, $entityId);
             }
         }
     }
 
-    /** Notification système envoyée par un administrateur à tous les utilisateurs, toutes familles confondues. */
-    public static function broadcastToAll(string $title, string $message, ?string $link = null): int
+    /**
+     * Notification système envoyée par un administrateur à tous les utilisateurs, toutes
+     * familles confondues. Le contenu long (WYSIWYG) est stocké une seule fois dans
+     * system_notifications ; chaque destinataire reçoit une notification pointant vers sa page
+     * dédiée (/notifications/{id}), affichée au clic depuis la cloche du site ou le push navigateur.
+     */
+    public static function broadcastToAll(string $title, string $shortText, string $contentHtml): int
     {
-        $userIds = Database::fetchAll('SELECT id FROM users');
-        foreach ($userIds as $row) {
-            self::create((int)$row['id'], 'system', $title, $message, $link);
+        $userIds = array_map(fn($row) => (int)$row['id'], Database::fetchAll('SELECT id FROM users'));
+        return self::sendSystemNotification($userIds, $title, $shortText, $contentHtml);
+    }
+
+    /**
+     * Variante ciblée de broadcastToAll() : même mécanique (contenu stocké une seule fois dans
+     * system_notifications, page dédiée au clic) mais réservée aux comptes listés dans
+     * $userIds — pour un administrateur système qui veut prévenir un ou quelques utilisateurs
+     * précis plutôt que tout FamilyBoard. Les ids invalides (utilisateur supprimé entre-temps,
+     * id qui n'existe pas) sont silencieusement ignorés plutôt que de faire échouer l'envoi aux
+     * destinataires valides.
+     */
+    public static function sendToUsers(array $userIds, string $title, string $shortText, string $contentHtml): int
+    {
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+        if (!$userIds) return 0;
+        $ph = implode(',', array_fill(0, count($userIds), '?'));
+        $validIds = array_map(fn($row) => (int)$row['id'], Database::fetchAll("SELECT id FROM users WHERE id IN ($ph)", $userIds));
+        return self::sendSystemNotification($validIds, $title, $shortText, $contentHtml);
+    }
+
+    private static function sendSystemNotification(array $userIds, string $title, string $shortText, string $contentHtml): int
+    {
+        if (!$userIds) return 0;
+        $sysId = SystemNotification::create($title, $shortText, $contentHtml);
+        $link  = BASE_URL . '/notifications/' . $sysId;
+
+        foreach ($userIds as $id) {
+            self::create($id, 'system', $title, $shortText, $link, 'system', $sysId);
         }
         return count($userIds);
     }

@@ -1,237 +1,140 @@
-# FamilyBoard
+# FamilyBoard - Application Familiale Android
 
-Application web familiale open-source — alternative à FamilyWall, développée en PHP/MySQL.
+Application Android native (Kotlin + Jetpack Compose) pour la gestion familiale :
+- 📅 Rendez-vous partagés
+- 📄 Documents familiaux
+- 💰 Budget commun
+- 📍 Géolocalisation temps réel
+- 🔔 Notifications natives
+- ⚡ Mise à jour automatique via GitHub Releases
 
 ## Fonctionnalités
 
-| Module | Description |
-|--------|-------------|
-| 🏠 **Tableau de bord** | Vue d'ensemble : prochains événements, tâches en cours, solde du mois |
-| 📸 **Mur familial** | Publications, photos, réactions emoji et commentaires |
-| 📅 **Calendrier partagé** | Événements récurrents, import CalDAV/iCal (Google, Nextcloud, iCloud…) |
-| 👶 **Garde alternée** | Planning de garde par enfant avec périodicité automatique |
-| ✅ **Tâches & Courses** | Listes partagées, assignation, priorités, échéances |
-| 💬 **Chat familial** | Messagerie en temps réel (long polling) |
-| 💰 **Budget partagé** | Transactions, catégories, objectifs d'épargne, charges récurrentes |
-| 📋 **Projets** | Gestion de projet : tâches kanban, budget, matériaux avec liens |
-| 🛡️ **Garanties** | Suivi des garanties produits avec OCR des factures |
-| 🗂️ **Documents** | Coffre-fort documentaire familial avec OCR et recherche plein texte |
-| 🎥 **Caméras IP** | Visualisation des flux RTSP/MJPEG/HLS via proxy PHP (go2rtc) |
-| 📺 **Écran mural** | Affichage plein écran pour télévision : agenda, tâches, budget, caméras en direct |
-| 🧩 **Modules** | Chaque famille peut activer/désactiver les modules indépendamment |
-| ✉️ **E-mails** | Notifications SMTP personnalisées avec templates modifiables |
-| 👥 **Multi-familles** | Invitation par code ou par e-mail, rôles admin/membre |
+### 🔄 Mise à jour automatique
+- Vérification au démarrage et toutes les 4h
+- Téléchargement depuis GitHub Releases
+- Installation silencieuse (si permission) ou guidée
+- Support des mises à jour forcées
 
-## Prérequis
+### 🔔 Notifications natives
+- Nouveaux rendez-vous
+- Nouveaux documents
+- Éléments de budget
+- Mises à jour disponibles
+- Canal de notification dédié par type
 
-- PHP 8.1+
-- MySQL 5.7+ ou MariaDB 10.4+ (JSON, FULLTEXT, InnoDB)
-- Apache avec `mod_rewrite` activé (ou Nginx)
+### 📱 Raccourcis d'application (Appui long sur l'icône)
+- **Ajouter RDV** → Ouvre formulaire rendez-vous
+- **Ajouter Document** → Ouvre sélecteur de fichiers
+- **Ajouter Budget** → Ouvre formulaire budget
+- **Voir Localisation** → Ouvre carte famille
 
-## Installation
+### 📍 Géolocalisation temps réel
+- Service avant-plan (foreground service)
+- Mise à jour position toutes les 10s (configurable)
+- Partage position avec membres famille
+- Fonctionne en arrière-plan (permission requise)
+- Optimisation batterie
 
-### 1. Cloner le dépôt
+## Architecture
 
+```
+app/
+├── data/
+│   ├── database/          # Room Database
+│   │   ├── dao/           # Data Access Objects
+│   │   ├── converters/    # Type Converters
+│   │   └── FamilyBoardDatabase.kt
+│   ├── model/             # Entités & DTOs
+│   ├── network/           # Retrofit API
+│   └── repository/        # Repository Pattern
+├── di/                    # Hilt Modules
+├── location/              # Service géolocalisation
+├── notification/          # Gestion notifications
+├── update/                # Auto-update Worker
+├── ui/
+│   ├── main/              # MainActivity & ViewModel
+│   └── theme/             # Material3 Theme
+└── FamilyBoardApplication.kt
+```
+
+## Dépendances principales
+
+- **Kotlin 2.0** + **Jetpack Compose**
+- **Hilt** (Injection de dépendances)
+- **Room** (Base de données locale)
+- **Retrofit + OkHttp** (API REST)
+- **WorkManager** (Tâches planifiées)
+- **Google Play Services Location** (GPS)
+- **Material3** (UI)
+
+## Configuration requise
+
+- Android 8.0+ (API 26)
+- Permissions : Internet, Localisation (avant/arrière-plan), Notifications
+- API REST personnalisée (voir `ApiService.kt`)
+
+## Build & Release
+
+### Build local
 ```bash
-git clone https://github.com/addictif80/familyboard.git
-cd familyboard
+./gradlew assembleRelease
 ```
 
-### 2. Créer la base de données
+### GitHub Actions (CI/CD)
+Le workflow `.github/workflows/release.yml` :
+1. Build à chaque push sur `main`
+2. Crée un Release GitHub avec l'APK
+3. Publie les notes de version
 
-```sql
-CREATE DATABASE familyboard
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-```
-
-### 3. Configurer l'application
-
-```bash
-cp config/config.local.php.example config/config.local.php
-# Éditer config/config.local.php avec vos paramètres DB et URL
-```
-
-Variables d'environnement acceptées en alternative :
-
-```
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=familyboard
-DB_USER=familyboard
-DB_PASS=secret
-```
-
-### 4. Importer le schéma (installation fraîche)
-
-```bash
-mysql -u root -p familyboard < database/schema.sql
-```
-
-> **Mise à jour d'une installation existante** : le schéma est appliqué
-> automatiquement au démarrage via `Database::autoMigrate()`. Toutes les
-> instructions utilisent `IF NOT EXISTS` — elles sont sans effet si la
-> structure existe déjà.
-
-### 5. Installer les dépendances PHP
-
-```bash
-composer install --no-dev
-```
-
-Requis pour les notifications push (bibliothèque `minishlink/web-push`).
-
-### 6. Permissions
-
-```bash
-chmod 755 public/uploads/
-chmod 755 storage/
-```
-
-### 7. Configuration Apache
-
-```apache
-<VirtualHost *:80>
-    ServerName familyboard.local
-    DocumentRoot /var/www/familyboard
-    <Directory /var/www/familyboard>
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>
-```
-
-Un fichier `.htaccess` est déjà présent à la racine.
-
-### Nginx (alternative)
-
-```nginx
-server {
-    root /var/www/familyboard;
-    index index.php;
-    location / { try_files $uri $uri/ /index.php?$query_string; }
-    location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.1-fpm.sock;
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-    }
+### Configuration GitHub Releases
+L'application attend un endpoint `/version/latest` retournant :
+```json
+{
+  "success": true,
+  "data": {
+    "version_code": 2,
+    "version_name": "1.1.0",
+    "download_url": "https://github.com/user/repo/releases/download/v1.1.0/app-release.apk",
+    "release_notes": "Nouvelles fonctionnalités...",
+    "force_update": false,
+    "min_supported_version": 1
+  }
 }
 ```
 
-## Structure du projet
+## Personnalisation
 
-```
-familyboard/
-├── config/              Configuration (DB, constantes)
-├── database/
-│   └── schema.sql       Schéma SQL complet (unique source de vérité)
-├── src/
-│   ├── Core/            Router, Database, Session, Mail…
-│   ├── Models/          Modèles de données
-│   └── Controllers/     Contrôleurs (un par module)
-├── templates/           Vues PHP
-│   ├── layout.php       Layout principal (sidebar + navigation)
-│   └── <module>/        Templates par module
-├── public/
-│   ├── css/app.css      Feuille de style principale
-│   ├── js/              Scripts JavaScript
-│   ├── uploads/         Fichiers uploadés
-│   └── manifest.json    Manifeste PWA
-├── storage/             Fichiers serveur (OCR, temp…)
-├── cron.php             Tâches planifiées
-└── index.php            Point d'entrée unique
-```
+### Changer l'URL de l'API
+Modifier `R.string.api_base_url` dans `strings.xml`
 
-## Modules désactivables
+### Icônes & Thème
+- `res/mipmap/` : Icônes application
+- `ui/theme/Theme.kt` : Couleurs Material3
+- `res/drawable/` : Icônes raccourcis
 
-Dans **Paramètres → Modules actifs** (admin uniquement), chaque famille peut
-activer ou désactiver les modules qu'elle utilise. Un module désactivé
-disparaît de la navigation et redirige vers le tableau de bord si l'URL est
-accédée directement. Tous les modules sont activés par défaut.
+### Fréquence mise à jour
+Modifier `UpdateCheckWorker.WORK_NAME` intervalle (défaut: 4h)
 
-## Caméras IP et flux RTSP
+## Permissions détaillées
 
-| Type | Description |
-|------|-------------|
-| `mjpeg` | Flux Motion JPEG — lecture directe dans le navigateur |
-| `snapshot` | Image JPEG rafraîchie toutes les 5 secondes |
-| `hls` | Flux HLS via player hls.js intégré |
-| `rtsp` | Flux RTSP via **go2rtc** — proxy PHP, sans accès direct depuis le navigateur |
-
-### Configurer go2rtc
-
-```bash
-docker run -d --network=host alexxit/go2rtc
-```
-
-Renseignez l'URL dans **Paramètres → Famille** : `http://127.0.0.1:1984`
-si go2rtc tourne sur le même serveur.
-
-Le flux passe entièrement par PHP (MJPEG pour les vignettes, HLS avec
-audio pour le plein écran) — go2rtc n'a pas besoin d'être accessible
-depuis le navigateur.
-
-## Calendriers CalDAV
-
-| Service | URL exemple |
-|---------|-------------|
-| Google Calendar | `https://calendar.google.com/calendar/ical/EMAIL/public/basic.ics` |
-| Nextcloud | `https://nextcloud.example.com/remote.php/dav/calendars/USER/NOM/` |
-| iCloud | URL de partage iCal depuis l'app Calendrier |
-
-## SMTP et e-mails
-
-Configurez votre serveur SMTP dans **Paramètres → SMTP** pour activer :
-
-- Invitations par e-mail (lien valide 7 jours)
-- Templates personnalisables par famille
-- Alertes de charges récurrentes (budget)
-- Journal des envois
-
-## Tâches planifiées (cron)
-
-```bash
-# Alertes budget récurrent — toutes les heures
-0 * * * * php /var/www/familyboard/cron.php
-```
-
-## PWA
-
-L'application peut être installée sur mobile et bureau via **📲 Installer
-l'app** dans la barre latérale. Elle fonctionne en mode hors-ligne partiel
-grâce au Service Worker.
-
-## Application Android
-
-Un vrai client Android (`android/`) est disponible en plus de la PWA : c'est
-une app WebView légère qui demande l'adresse de votre serveur au premier
-lancement (celle que vous utilisez déjà dans le navigateur), puis se comporte
-comme une app native (icône, session persistante, upload de fichiers,
-téléchargement des exports/documents).
-
-- **Téléchargement** : un utilisateur connecté trouve le lien dans
-  *Paramètres → Application Android* (route `/app/android`), qui redirige
-  vers le dernier APK publié sur GitHub Releases.
-- **Build** : `.github/workflows/android-release.yml` compile et publie
-  automatiquement l'APK (déclenchable manuellement ou via un tag `android-vX.Y.Z`).
-- **Signature** : pour produire un APK installable (signé), configurez ces
-  secrets du dépôt GitHub avant de lancer le workflow :
-  - `FAMILYBOARD_KEYSTORE_BASE64` — un keystore encodé en base64
-    (`keytool -genkeypair -v -keystore release.keystore -alias familyboard -keyalg RSA -keysize 2048 -validity 10000`
-    puis `base64 -w0 release.keystore`)
-  - `FAMILYBOARD_KEYSTORE_PASSWORD`, `FAMILYBOARD_KEY_ALIAS`, `FAMILYBOARD_KEY_PASSWORD`
-
-  Sans ces secrets, le workflow compile quand même mais produit un APK non
-  signé (non installable) — utile pour vérifier que le build passe.
-- **URL personnalisée** : si vous préférez héberger l'APK vous-même plutôt
-  que d'utiliser GitHub Releases, définissez `ANDROID_APK_URL` dans
-  `config/config.local.php`.
+| Permission | Utilisation |
+|------------|-------------|
+| `INTERNET` | Appels API REST |
+| `ACCESS_FINE_LOCATION` | GPS précis |
+| `ACCESS_BACKGROUND_LOCATION` | Tracking continu |
+| `FOREGROUND_SERVICE_LOCATION` | Service localisation |
+| `POST_NOTIFICATIONS` | Notifications Android 13+ |
+| `RECEIVE_BOOT_COMPLETED` | Redémarrage services |
+| `REQUEST_INSTALL_PACKAGES` | Installation APK update |
 
 ## Sécurité
 
-- Sessions PHP sécurisées (régénération à la connexion)
-- Mots de passe hashés avec bcrypt
-- Isolation stricte par famille (`family_id` vérifié à chaque requête)
-- Validation des uploads (type MIME, taille maximale)
-- Échappement systématique des sorties HTML (`htmlspecialchars`)
-- Requêtes préparées PDO (protection injection SQL)
+- Communication HTTPS uniquement
+- Token d'authentification stocké sécurisé (SharedPreferences chiffré recommandé)
+- Pas de logs sensibles en release
+- ProGuard activé pour release
+
+## Licence
+
+Projet privé - Familial

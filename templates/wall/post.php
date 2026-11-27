@@ -1,14 +1,13 @@
 <div class="post-card" id="post-<?= $post['id'] ?>" data-post-id="<?= $post['id'] ?>">
     <div class="post-header">
-        <div class="user-avatar" style="background:<?= htmlspecialchars($post['user_color']) ?>">
-            <?php if ($post['user_avatar']): ?>
-                <img src="<?= BASE_URL . htmlspecialchars($post['user_avatar']) ?>" alt="">
-            <?php else: ?>
-                <?= mb_substr($post['user_name'], 0, 1) ?>
-            <?php endif; ?>
-        </div>
+        <?= \App\Core\Avatar::html($post['user_avatar'], $post['user_color'], $post['user_name']) ?>
         <div class="post-meta">
             <strong><?= htmlspecialchars($post['user_name']) ?></strong>
+            <?php if (($post['post_type'] ?? 'personal') === 'family'): ?>
+                <span class="badge-custom" title="Publié au nom de la famille">🏠 Famille</span>
+            <?php elseif (($post['post_type'] ?? 'personal') === 'network'): ?>
+                <span class="badge-custom" title="Visible par les familles amies">🤝 Familles amies</span>
+            <?php endif; ?>
             <span class="post-date"><?= \App\Core\DateHelper::fromUtc($post['created_at'], 'd/m/Y \à H:i') ?></span>
         </div>
         <?php if ($post['user_id'] === $user['id'] || $user['role'] === 'admin'): ?>
@@ -42,7 +41,7 @@
         <button class="reaction-btn <?= $post['user_reaction'] ? 'reacted' : '' ?>"
                 onclick="toggleReaction(<?= $post['id'] ?>, this)"
                 data-count="<?= $post['reaction_count'] ?>">
-            ❤️ <span class="reaction-count"><?= $post['reaction_count'] ?></span>
+            <span class="heart" aria-hidden="true">❤️</span> <span class="reaction-count"><?= $post['reaction_count'] ?></span>
         </button>
         <button class="comment-toggle-btn" onclick="toggleComments(<?= $post['id'] ?>)">
             💬 <?= $post['comment_count'] ?> commentaire<?= $post['comment_count'] != 1 ? 's' : '' ?>
@@ -53,9 +52,7 @@
         <div class="comments-list" id="comment-list-<?= $post['id'] ?>">
             <?php foreach ($post['comments'] as $comment): ?>
                 <div class="comment-item">
-                    <div class="user-avatar-sm" style="background:<?= htmlspecialchars($comment['user_color']) ?>">
-                        <?= mb_substr($comment['user_name'], 0, 1) ?>
-                    </div>
+                    <?= \App\Core\Avatar::html($comment['user_avatar'] ?? null, $comment['user_color'], $comment['user_name'], 'user-avatar-sm') ?>
                     <div class="comment-body">
                         <strong><?= htmlspecialchars($comment['user_name']) ?></strong>
                         <p><?= nl2br(htmlspecialchars($comment['content'])) ?></p>

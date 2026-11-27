@@ -22,6 +22,17 @@ ob_start();
 </div>
 <?php endif; ?>
 
+<?php if ($subscriptionWarning): ?>
+<div class="card" style="padding:1.25rem;margin-bottom:1rem;border-left:4px solid var(--danger)">
+    <strong>⚠️ Abonnement non renouvelé</strong>
+    <p style="color:var(--text-muted);font-size:.85rem;margin:.3rem 0 0">
+        L'abonnement de la famille n'est plus à jour. Vous gardez cet accès pour le moment, mais si rien n'est fait,
+        les données de ce planning seront supprimées définitivement le <?= (new DateTime($subscriptionWarning['grace_ends_at']))->format('d/m/Y') ?>.
+        Contactez l'administrateur de cette famille pour régulariser la situation.
+    </p>
+</div>
+<?php endif; ?>
+
 <?php if (count($schedules) > 1): ?>
 <div class="form-group coparent-child-picker">
     <label>Enfant</label>
@@ -38,8 +49,12 @@ ob_start();
     <button class="coparent-tab" data-panel="cp-panel-journal" onclick="cpShowTab('cp-panel-journal')">📝 Journal parental</button>
     <button class="coparent-tab" data-panel="cp-panel-albums" onclick="cpShowTab('cp-panel-albums')">🖼️ Albums</button>
     <button class="coparent-tab" data-panel="cp-panel-documents" onclick="cpShowTab('cp-panel-documents')">🗂️ Documents</button>
+    <button class="coparent-tab" data-panel="cp-panel-health" onclick="cpShowTab('cp-panel-health')">🏥 Santé</button>
     <button class="coparent-tab" data-panel="cp-panel-events" onclick="cpShowTab('cp-panel-events')">📆 Évènements</button>
     <button class="coparent-tab" data-panel="cp-panel-activity" onclick="cpShowTab('cp-panel-activity')">📜 Journal d'activité</button>
+    <button class="coparent-tab" data-panel="cp-panel-links" onclick="cpShowTab('cp-panel-links')">🔗 Liens utiles</button>
+    <button class="coparent-tab" data-panel="cp-panel-additions" onclick="cpShowTab('cp-panel-additions')">🧾 Additions</button>
+    <button class="coparent-tab" data-panel="cp-panel-notifications" onclick="cpShowTab('cp-panel-notifications')">🔔 Notifications</button>
 </div>
 
 <div class="coparent-panel active" id="cp-panel-calendar">
@@ -48,7 +63,7 @@ ob_start();
             <h3 style="margin:0">Prochains jours de garde</h3>
             <button class="btn btn-primary btn-sm" onclick="cpOpenProposalModal()">Proposer des jours</button>
         </div>
-        <div id="cp-custody-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        <div id="cp-custody-list"><div class="skel skel-text" aria-hidden="true" style="width:85%"></div><div class="skel skel-text" aria-hidden="true" style="width:65%"></div><div class="skel skel-text" aria-hidden="true" style="width:75%"></div></div>
     </div>
 </div>
 
@@ -70,7 +85,7 @@ ob_start();
         <p style="color:var(--text-muted);font-size:.8rem;margin-top:-.5rem;margin-bottom:1rem">
             Vous pouvez ajouter vos propres photos aux albums partagés ci-dessous, et voir celles ajoutées par l'autre parent.
         </p>
-        <div id="cp-albums-grid" class="album-grid"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        <div id="cp-albums-grid" class="album-grid"><div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div><div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div><div class="skel" aria-hidden="true" style="height:90px;border-radius:var(--radius-sm)"></div></div>
     </div>
 </div>
 
@@ -91,7 +106,25 @@ ob_start();
     </div>
     <div class="card" style="padding:1.25rem">
         <h3 style="margin-top:0">Documents</h3>
-        <div id="cp-documents-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        <div id="cp-documents-list"><div class="skel skel-text" aria-hidden="true" style="width:80%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div></div>
+    </div>
+</div>
+
+<div class="coparent-panel" id="cp-panel-health">
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+        <h3 style="margin-top:0">Carnet de santé</h3>
+        <p style="color:var(--text-muted);font-size:.8rem;margin-top:-.5rem;margin-bottom:1rem">
+            Seules les entrées explicitement partagées par l'administrateur de la famille apparaissent ici.
+        </p>
+        <div id="cp-health-entries-list"><div class="skel skel-text" aria-hidden="true" style="width:80%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div></div>
+    </div>
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+        <h3 style="margin-top:0">Médecins</h3>
+        <div id="cp-health-doctors-list"><div class="skel skel-text" aria-hidden="true" style="width:70%"></div></div>
+    </div>
+    <div class="card" style="padding:1.25rem">
+        <h3 style="margin-top:0">Contacts</h3>
+        <div id="cp-health-contacts-list"><div class="skel skel-text" aria-hidden="true" style="width:70%"></div></div>
     </div>
 </div>
 
@@ -116,7 +149,7 @@ ob_start();
     </div>
     <div class="card" style="padding:1.25rem">
         <h3 style="margin-top:0">Évènements à venir</h3>
-        <div id="cp-events-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        <div id="cp-events-list"><div class="skel skel-text" aria-hidden="true" style="width:85%"></div><div class="skel skel-text" aria-hidden="true" style="width:65%"></div></div>
     </div>
 </div>
 
@@ -126,7 +159,102 @@ ob_start();
         <p style="color:var(--text-muted);font-size:.8rem;margin-top:-.5rem;margin-bottom:1rem">
             Historique horodaté (fuseau de la famille) et IP de toutes les actions liées à cet enfant, des deux côtés — visible par les deux parents.
         </p>
-        <div id="cp-activity-list"><p style="color:var(--text-muted);font-size:.85rem">Chargement…</p></div>
+        <div id="cp-activity-list"><div class="skel skel-text" aria-hidden="true" style="width:90%"></div><div class="skel skel-text" aria-hidden="true" style="width:75%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div><div class="skel skel-text" aria-hidden="true" style="width:80%"></div></div>
+    </div>
+</div>
+
+<div class="coparent-panel" id="cp-panel-links">
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+            <h3 style="margin:0">🔗 Liens utiles</h3>
+            <button class="btn btn-primary btn-sm" onclick="cpOpenLinkModal()">+ Proposer un lien</button>
+        </div>
+        <p style="color:var(--text-muted);font-size:.85rem;margin:.5rem 0 0">
+            Liens partagés par la famille et marqués visibles pour votre accès. Une proposition de
+            votre part attend la validation d'un administrateur avant de s'afficher ici.
+        </p>
+    </div>
+    <div class="links-grid" id="cp-links-grid"><div class="skel" aria-hidden="true" style="height:70px;border-radius:var(--radius-sm)"></div><div class="skel" aria-hidden="true" style="height:70px;border-radius:var(--radius-sm)"></div></div>
+</div>
+
+<!-- Propose link modal -->
+<div class="modal-overlay" id="cp-link-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Proposer un lien</h3>
+            <button onclick="closeModal('cp-link-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <?php if (count($schedules) > 1): ?>
+            <div class="form-group">
+                <label>Concerne</label>
+                <select id="cp-link-schedule">
+                    <?php foreach ($schedules as $s): ?>
+                        <option value="<?= (int)$s['id'] ?>"><?= htmlspecialchars($s['child_name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php endif; ?>
+            <div class="form-group">
+                <label>Adresse du site</label>
+                <input type="url" id="cp-link-url" placeholder="https://exemple.fr" required>
+            </div>
+            <div class="form-group">
+                <label>Titre</label>
+                <input type="text" id="cp-link-title" placeholder="Laissez vide pour le détecter automatiquement">
+            </div>
+            <div class="form-group">
+                <label>Description (optionnel)</label>
+                <textarea id="cp-link-description" rows="2"></textarea>
+            </div>
+            <p id="cp-link-modal-error" style="color:var(--danger,#E74C3C);font-size:.82rem;display:none"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" id="cp-link-modal-submit" onclick="cpSubmitLink()">Proposer</button>
+            <button class="btn btn-secondary" onclick="closeModal('cp-link-modal')">Annuler</button>
+        </div>
+    </div>
+</div>
+
+<!-- Détail d'un évènement (lecture seule) -->
+<div class="modal-overlay" id="cp-event-detail-modal" style="display:none">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="cp-event-detail-title">Évènement</h3>
+            <button onclick="closeModal('cp-event-detail-modal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="cp-event-detail-body"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('cp-event-detail-modal')">Fermer</button>
+        </div>
+    </div>
+</div>
+
+<div class="coparent-panel" id="cp-panel-additions">
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+        <h3 style="margin:0">🧾 Additions</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin:.5rem 0 0">
+            Additions et cagnottes partagées avec vous, en tant qu'entité indépendante (pas au
+            nom d'une famille).
+        </p>
+    </div>
+    <div id="cp-additions-list"><div class="skel skel-text" aria-hidden="true" style="width:80%"></div><div class="skel skel-text" aria-hidden="true" style="width:60%"></div></div>
+</div>
+
+<div class="coparent-panel" id="cp-panel-notifications">
+    <div class="card" style="padding:1.25rem">
+        <h3 style="margin-top:0">🔔 Notifications push</h3>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:1rem">
+            Recevez une notification directement sur cet appareil (ordinateur ou mobile) dès qu'un
+            évènement concerne cette garde partagée (nouveau message, document, évènement…), même
+            quand l'application est fermée.
+        </p>
+        <button type="button" class="btn btn-primary" id="cp-push-toggle-btn" onclick="cpTogglePushNotifications()">
+            Activer les notifications push
+        </button>
+        <p id="cp-push-status" class="push-status" style="font-size:.8rem;margin-top:.5rem"></p>
     </div>
 </div>
 
@@ -207,7 +335,9 @@ ob_start();
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; font-size: .8rem; font-weight: 600; background: var(--card-bg); color: var(--text);
     min-height: 38px; user-select: none;
+    transition: transform .18s cubic-bezier(.3,1.5,.5,1), box-shadow .15s;
 }
+.cp-proposal-day:hover { transform: scale(1.08); box-shadow: var(--shadow-lg); }
 .cp-proposal-day.cp-empty { visibility: hidden; }
 .cp-legend-dot { display:inline-block; width:.7rem; height:.7rem; border-radius:50%; margin-right:.25rem; vertical-align:middle; }
 .cp-doc-item, .cp-event-item, .cp-custody-item { padding:.6rem 0; border-bottom:1px solid var(--border); font-size:.88rem; }
@@ -215,7 +345,8 @@ ob_start();
 .cp-journal-msg { background:var(--bg); border-radius:10px; padding:.5rem .75rem; font-size:.88rem; }
 .cp-journal-msg .cp-journal-meta { font-size:.72rem; color:var(--text-muted); margin-bottom:.15rem; }
 .album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:1rem; }
-.album-card { display:block; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-decoration:none; color:var(--text); cursor:pointer; }
+.album-card { display:block; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; overflow:hidden; text-decoration:none; color:var(--text); cursor:pointer; transition: transform .2s cubic-bezier(.2,1.4,.3,1), box-shadow .2s ease; }
+.album-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 .album-cover { aspect-ratio:1; background:var(--bg) center/cover no-repeat; display:flex; align-items:center; justify-content:center; }
 .album-cover-placeholder { font-size:2.5rem; opacity:.4; }
 .album-info { padding:.5rem .65rem; display:flex; flex-direction:column; gap:.1rem; }

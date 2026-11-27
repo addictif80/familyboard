@@ -62,12 +62,16 @@ ob_start();
                 <?php endif; ?>
             </div>
             <div class="contact-info">
-                <div class="contact-name"><?= htmlspecialchars($fullName) ?></div>
+                <div class="contact-name"><?= htmlspecialchars($fullName) ?> <?php if (!empty($c['custody_schedule_ids'])): ?><span title="Partagé avec le co-parent">🔒</span><?php endif; ?></div>
                 <?php if ($c['phone']): ?>
                     <div class="contact-line">📞 <a href="tel:<?= htmlspecialchars($c['phone']) ?>" onclick="event.stopPropagation()"><?= htmlspecialchars($c['phone']) ?></a></div>
                 <?php endif; ?>
                 <?php if ($c['email']): ?>
                     <div class="contact-line">✉️ <a href="mailto:<?= htmlspecialchars($c['email']) ?>" onclick="event.stopPropagation()"><?= htmlspecialchars($c['email']) ?></a></div>
+                <?php endif; ?>
+                <?php if (!empty($c['name_day'])): ?>
+                    <?php [$fm, $fd] = explode('-', $c['name_day']); ?>
+                    <div class="contact-line contact-fete">🎉 Fête : <?= (int)$fd ?>/<?= (int)$fm ?></div>
                 <?php endif; ?>
             </div>
         </div>
@@ -83,7 +87,7 @@ ob_start();
 .emergency-card {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-decoration: none; border-radius: 12px; padding: .75rem 1.25rem;
-    background: color-mix(in srgb, var(--ec-color) 12%, white);
+    background: color-mix(in srgb, var(--ec-color) 12%, var(--card-bg));
     border: 2px solid var(--ec-color);
     min-width: 90px; transition: transform .15s, box-shadow .15s;
 }
@@ -168,6 +172,23 @@ ob_start();
                 <label>Notes</label>
                 <textarea id="ce-notes" rows="2" placeholder="Informations complémentaires…"></textarea>
             </div>
+            <?php if (!empty($custodySchedules)): ?>
+            <div class="form-group">
+                <label class="radio-option" style="border:none;padding:0">
+                    <input type="checkbox" id="ce-custody-toggle" onchange="document.getElementById('ce-custody-select-wrap').style.display = this.checked ? '' : 'none'">
+                    <span>Garde alternée</span>
+                </label>
+                <div id="ce-custody-select-wrap" style="display:none;margin-top:.4rem">
+                    <?php foreach ($custodySchedules as $cs): ?>
+                        <label class="radio-option">
+                            <input type="checkbox" class="ce-custody-child-cb" value="<?= (int)$cs['id'] ?>">
+                            <span><?= htmlspecialchars($cs['child_name']) ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                    <small class="form-hint">Ce contact sera visible par le(s) co-parent(s) à accès restreint des enfants sélectionnés.</small>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('contact-edit-modal')">Annuler</button>
@@ -177,7 +198,6 @@ ob_start();
 </div>
 
 <script>
-const BASE_URL = <?= json_encode(BASE_URL) ?>;
 // Pass server-side contacts for initial JS state (system contacts excluded — shown separately)
 let contactsData = <?= json_encode($regularContacts) ?>;
 </script>

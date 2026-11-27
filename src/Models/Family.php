@@ -18,16 +18,81 @@ class Family
         'contacts'    => ['label' => 'Répertoire',        'icon' => '📒'],
         'warranties'  => ['label' => 'Garanties',         'icon' => '🛡️'],
         'documents'   => ['label' => 'Documents',         'icon' => '🗂️'],
-        'cameras'     => ['label' => 'Caméras',           'icon' => '🎥'],
         'family-wall' => ['label' => 'Écran mural',       'icon' => '📺'],
         'baby'        => ['label' => 'Bébé',               'icon' => '🍼'],
         'location'    => ['label' => 'Position',          'icon' => '📍'],
         'emergency'   => ['label' => 'Fiches urgence',    'icon' => '🚑'],
         'comm_log'    => ['label' => 'Journal parental',  'icon' => '📝'],
         'meals'       => ['label' => 'Repas',              'icon' => '🍽️'],
+        'stock'       => ['label' => 'Stock frigo/congélo', 'icon' => '🧊'],
         'sitter'      => ['label' => 'Accès baby-sitter',  'icon' => '👶'],
         'kiosk'       => ['label' => 'Écran mural (kiosque)', 'icon' => '🖥️'],
+        'wishlist'    => ['label' => 'Liste de cadeaux',   'icon' => '🎁'],
+        'polls'       => ['label' => 'Sondages familiaux', 'icon' => '🗳️'],
+        'links'       => ['label' => 'Portail de liens',   'icon' => '🔗'],
+        'additions'   => ['label' => 'Additions',          'icon' => '🧾'],
+        'letters'     => ['label' => 'Courriers',          'icon' => '✉️'],
+        'disputes'    => ['label' => 'Dossiers de litige',  'icon' => '⚖️'],
+        'school'      => ['label' => 'Suivi scolaire',      'icon' => '🎓'],
+        'employment'  => ['label' => 'Suivi salarié',       'icon' => '💼'],
+        'nanny'       => ['label' => 'Suivi nounou',         'icon' => '🕒'],
+        'deals'       => ['label' => 'Bons plans',           'icon' => '🏷️'],
+        'health'      => ['label' => 'Santé',                'icon' => '🏥'],
+        'vehicles'    => ['label' => 'Véhicules',             'icon' => '🚗'],
+        'pets'        => ['label' => 'Animaux de compagnie',  'icon' => '🐾'],
+        'meters'      => ['label' => 'Compteurs',             'icon' => '📊'],
+        'admin_procedures' => ['label' => 'Démarches admin.', 'icon' => '🪪'],
+        'leave'       => ['label' => 'Congés familiaux',      'icon' => '🏖️'],
+        'travels'     => ['label' => 'Voyages & réservations', 'icon' => '✈️'],
+        'vault'       => ['label' => 'Coffre-fort numérique',  'icon' => '🔐'],
+        'ai_assistant' => ['label' => 'Assistant IA',           'icon' => '🤖'],
+        'medication'  => ['label' => 'Traitement médical',     'icon' => '💊'],
+        'loyalty_cards' => ['label' => 'Cartes de fidélité',    'icon' => '💳'],
     ];
+
+    /** Modules automatiquement masqués aux comptes au rôle 'ado' — financier, juridique ou
+     *  administratif sensible. Bloqué côté serveur dans BaseController::requireModule(), en plus
+     *  d'être masqué côté navigation (voir templates/layout.php, $_navEnabled). Un administrateur
+     *  famille ne peut pas réactiver ces modules pour un compte ado : c'est une restriction de
+     *  rôle, pas une préférence de famille comme disabled_modules. */
+    public const ADO_RESTRICTED_MODULES = [
+        'budget', 'vault', 'admin_procedures', 'disputes', 'letters', 'employment', 'nanny', 'comm_log', 'additions',
+    ];
+
+    /** Modules ayant une page de destination directe (donc utilisables dans la barre de
+     *  navigation rapide) : exclut 'sitter' et 'kiosk', qui se gèrent depuis les réglages via
+     *  des liens générés plutôt que d'être des pages qu'on visite au quotidien. */
+    public const QUICK_NAV_ROUTES = [
+        'wall' => '/wall', 'albums' => '/albums', 'calendar' => '/calendar', 'custody' => '/custody',
+        'tasks' => '/tasks', 'chat' => '/chat', 'budget' => '/budget', 'projects' => '/projects',
+        'contacts' => '/contacts', 'warranties' => '/warranties', 'documents' => '/documents',
+        'family-wall' => '/family-wall', 'baby' => '/baby', 'location' => '/location',
+        'emergency' => '/emergency', 'comm_log' => '/comm-log', 'meals' => '/meals',
+        'wishlist' => '/wishlist', 'polls' => '/polls', 'links' => '/links', 'stock' => '/stock',
+        'additions' => '/additions', 'letters' => '/letters', 'disputes' => '/disputes',
+        'school' => '/school', 'employment' => '/employment', 'nanny' => '/nanny', 'deals' => '/deals', 'health' => '/health', 'vehicles' => '/vehicles', 'pets' => '/pets', 'meters' => '/meters', 'admin_procedures' => '/admin-procedures', 'leave' => '/leave', 'travels' => '/travels', 'vault' => '/vault', 'ai_assistant' => '/ai-assistant', 'medication' => '/medication', 'loyalty_cards' => '/loyalty-cards',
+    ];
+
+    /** Ordre de priorité partagé par les deux raccourcis par défaut ci-dessous (barre de
+     *  navigation rapide mobile et widget "Accès rapides" du tableau de bord), tant que
+     *  l'utilisateur n'a pas choisi sa propre sélection. */
+    private const QUICK_ACCESS_PRIORITY = ['calendar', 'tasks', 'wall', 'chat', 'custody', 'budget', 'contacts', 'documents', 'wishlist', 'albums', 'projects', 'stock'];
+
+    /** Sélection par défaut de la barre de navigation rapide (mobile/PWA), tant que
+     *  l'utilisateur n'a pas choisi la sienne — filtré sur les modules réellement activés
+     *  pour la famille, jamais recalculé depuis l'usage réel (une barre qui bouge toute
+     *  seule casse la mémoire musculaire). */
+    public static function defaultQuickNav(array $availableSlugs): array
+    {
+        return array_slice(array_values(array_intersect(self::QUICK_ACCESS_PRIORITY, $availableSlugs)), 0, 3);
+    }
+
+    /** Sélection par défaut du widget "Accès rapides" du tableau de bord (même logique que
+     *  defaultQuickNav, mais pas limité à 3 puisqu'il a toute la largeur d'une carte). */
+    public static function defaultQuickAccess(array $availableSlugs): array
+    {
+        return array_slice(array_values(array_intersect(self::QUICK_ACCESS_PRIORITY, $availableSlugs)), 0, 8);
+    }
 
     public static function findById(int $id): ?array
     {
@@ -37,6 +102,33 @@ class Family
     public static function findByInviteCode(string $code): ?array
     {
         return Database::fetch('SELECT * FROM families WHERE invite_code = ?', [$code]);
+    }
+
+    public static function findByReferralCode(string $code): ?array
+    {
+        return Database::fetch('SELECT * FROM families WHERE referral_code = ?', [$code]);
+    }
+
+    /** Code de parrainage stable (voir Referral) — généré à la demande plutôt qu'à la création
+     *  (auto-guérison pour les familles créées avant l'ajout de cette fonctionnalité). */
+    public static function ensureReferralCode(int $id): ?string
+    {
+        $family = self::findById($id);
+        if (!$family) return null;
+        if (!empty($family['referral_code'])) return $family['referral_code'];
+        $code = self::generateReferralCode();
+        Database::execute('UPDATE families SET referral_code=? WHERE id=? AND referral_code IS NULL', [$code, $id]);
+        $row = Database::fetch('SELECT referral_code FROM families WHERE id=?', [$id]);
+        return $row['referral_code'] ?? $code;
+    }
+
+    private static function generateReferralCode(): string
+    {
+        do {
+            $code = strtoupper(substr(bin2hex(random_bytes(4)), 0, 7));
+            $existing = Database::fetch('SELECT id FROM families WHERE referral_code = ?', [$code]);
+        } while ($existing);
+        return $code;
     }
 
     public static function create(string $name): int
@@ -57,15 +149,29 @@ class Family
         $syncInterval = isset($settings['caldav_sync_interval']) ? (int)$settings['caldav_sync_interval'] : 0;
         $syncInterval = in_array($syncInterval, $allowedIntervals, true) ? $syncInterval : null;
 
+        $darkModeType = $settings['dark_mode_type'] ?? 'off';
+        if (!in_array($darkModeType, ['off', 'fixed', 'sunset'], true)) $darkModeType = 'off';
+        $timePattern = '/^([01]\d|2[0-3]):[0-5]\d$/';
+        $darkStart = ($darkModeType === 'fixed' && preg_match($timePattern, $settings['dark_mode_start'] ?? '')) ? $settings['dark_mode_start'] : null;
+        $darkEnd   = ($darkModeType === 'fixed' && preg_match($timePattern, $settings['dark_mode_end'] ?? ''))   ? $settings['dark_mode_end']   : null;
+        // Horaires fixes incomplets (un seul des deux renseigné) : la programmation ne peut pas
+        // fonctionner, on retombe sur "désactivé" plutôt que de bloquer en sombre ou en clair.
+        if ($darkModeType === 'fixed' && (!$darkStart || !$darkEnd)) $darkModeType = 'off';
+
         Database::execute(
-            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, go2rtc_url=?, school_zone=?, caldav_sync_interval=? WHERE id=?',
+            'UPDATE families SET name=?, timezone=COALESCE(?,timezone), weather_city=?, school_zone=?, caldav_sync_interval=?,
+             dark_mode_type=?, dark_mode_start=?, dark_mode_end=?, sender_address=?, sender_postal_city=? WHERE id=?',
             [
                 $name,
                 $settings['timezone'] ?: null,
                 isset($settings['weather_city']) ? (trim($settings['weather_city']) ?: null) : null,
-                isset($settings['go2rtc_url'])   ? (trim($settings['go2rtc_url'])   ?: null) : null,
                 $schoolZone,
                 $syncInterval,
+                $darkModeType,
+                $darkStart,
+                $darkEnd,
+                isset($settings['sender_address']) ? (trim($settings['sender_address']) ?: null) : null,
+                isset($settings['sender_postal_city']) ? (trim($settings['sender_postal_city']) ?: null) : null,
                 $id,
             ]
         );
@@ -108,4 +214,5 @@ class Family
         } while ($existing);
         return $code;
     }
+
 }

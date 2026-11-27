@@ -23,6 +23,34 @@ class EmergencyCard
         return Database::fetch('SELECT * FROM emergency_cards WHERE public_token=?', [$token]);
     }
 
+    public static function getById(int $id): ?array
+    {
+        return Database::fetch('SELECT * FROM emergency_cards WHERE id=?', [$id]);
+    }
+
+    /** Révoque l'ancien lien public et en génère un nouveau — utile en cas de perte d'un
+     *  QR code imprimé ou de partage involontaire du lien. */
+    public static function regenerateToken(int $id): string
+    {
+        $token = bin2hex(random_bytes(24));
+        Database::execute('UPDATE emergency_cards SET public_token=? WHERE id=?', [$token, $id]);
+        return $token;
+    }
+
+    public static function logAccess(int $cardId, ?string $ip): void
+    {
+        Database::execute('INSERT INTO emergency_card_access_log (card_id, ip) VALUES (?,?)', [$cardId, $ip]);
+    }
+
+    /** 50 accès les plus récents — journal de consultation visible par la famille. */
+    public static function getAccessLog(int $cardId): array
+    {
+        return Database::fetchAll(
+            'SELECT * FROM emergency_card_access_log WHERE card_id=? ORDER BY accessed_at DESC LIMIT 50',
+            [$cardId]
+        );
+    }
+
     public static function save(int $familyId, int $userId, string $subjectType, int $subjectId, array $data): array
     {
         $existing = self::getBySubject($familyId, $subjectType, $subjectId);

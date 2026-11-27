@@ -8,6 +8,32 @@ function openNewListModal() {
     openModal('new-list-modal');
 }
 
+function openLinkEventModal() {
+    document.getElementById('link-event-select').value = '';
+    openModal('link-event-modal');
+}
+
+async function linkListEvent() {
+    const eventId = document.getElementById('link-event-select').value;
+    if (!eventId) return;
+    const res = await apiFetch(BASE_URL + '/api/tasks/list/' + LIST_ID + '/link-event', {
+        method: 'POST',
+        body: JSON.stringify({ event_id: eventId }),
+    });
+    if (res && res.success) {
+        location.reload();
+    } else {
+        Dialog.alert((res && res.error) || "Impossible de lier cet événement.");
+    }
+}
+
+async function unlinkListEvent() {
+    const confirmed = await Dialog.confirm('Délier cette liste de l\'événement ? Les tâches déjà cochées restent inchangées.');
+    if (!confirmed) return;
+    const res = await apiFetch(BASE_URL + '/api/tasks/list/' + LIST_ID + '/unlink-event', { method: 'POST' });
+    if (res && res.success) location.reload();
+}
+
 function openNewTaskModal() {
     editingTaskId = null;
     document.getElementById('task-modal-title').textContent = 'Nouvelle tâche';
@@ -58,23 +84,91 @@ async function saveTask() {
     }
 }
 
+// Mise à jour optimiste (Lot 4) : l'interface change avant la réponse du serveur — une case à
+// cocher doit réagir à l'instant, pas après un aller-retour réseau. On revient en arrière si
+// la requête échoue (ex. un autre membre a supprimé la tâche entre-temps).
 async function toggleTask(id) {
+    const item = document.querySelector(`[data-task-id="${id}"]`);
+    if (!item) return;
+    const wasCompleted = item.classList.contains('completed');
+    const nowCompleted = !wasCompleted;
+
+    item.classList.toggle('completed', nowCompleted);
+    const btn = item.querySelector('.task-check');
+    if (btn) {
+        btn.textContent = nowCompleted ? '✅' : '⬜';
+        btn.classList.remove('just-toggled');
+        void btn.offsetWidth;
+        btn.classList.add('just-toggled');
+    }
+    // Dernière tâche de la liste à être cochée : petite fête, discrète (confettis verts,
+    // jamais pour un décochage accidentel ni quand il restait déjà des tâches avant).
+    if (nowCompleted) {
+        const list = item.closest('.task-list') || item.parentElement;
+        const items = list ? list.querySelectorAll('[data-task-id]') : [];
+        const allDone = items.length > 0 && Array.from(items).every(i => i.classList.contains('completed'));
+        if (allDone && typeof fbConfetti === 'function') fbConfetti(['#2BD4A8', '#7C5CFF'], 28);
+    }
+
     const result = await apiFetch(`${BASE_URL}/api/tasks/task/${id}/toggle`, { method: 'POST' });
-    if (result.success) {
-        const item = document.querySelector(`[data-task-id="${id}"]`);
-        if (item) {
-            item.classList.toggle('completed', result.completed);
-            const btn = item.querySelector('.task-check');
-            if (btn) btn.textContent = result.completed ? '✅' : '⬜';
-        }
+    if (!result.success) {
+        item.classList.toggle('completed', wasCompleted);
+        if (btn) btn.textContent = wasCompleted ? '✅' : '⬜';
+        Dialog.toast("Impossible de mettre à jour la tâche.", 'error');
     }
 }
 
-async function deleteTask(id) {
-    if (!await Dialog.confirm('Supprimer cette tâche ?')) return;
-    const result = await apiFetch(`${BASE_URL}/api/tasks/task/${id}/delete`, { method: 'POST' });
-    if (result.success) {
-        const item = document.querySelector(`[data-task-id="${id}"]`);
-        if (item) item.remove();
+// Suppression avec annulation (Lot 4) : jamais de confirm() bloquant pour une tâche — l'élément
+// disparaît tout de suite, un toast "Annuler" de 5s précède l'appel réel à l'API.
+function deleteTask(id) {
+    const item = document.querySelector(`[data-task-id="${id}"]`);
+    if (!item) return;
+    item.style.display = 'none';
+    Dialog.undoableRemove(
+        'Tâche supprimée.',
+        async () => {
+            const result = await apiFetch(`${BASE_URL}/api/tasks/task/${id}/delete`, { method: 'POST' });
+            if (result.success) item.remove();
+            else { item.style.display = ''; Dialog.toast('Impossible de supprimer la tâche.', 'error'); }
+        },
+        () => { item.style.display = ''; }
+    );
+}
+
+// ---- Partage public (lien, sans compte) ----
+
+function showShareLink(share) {
+    const container = document.getElementById('share-qr-container');
+    container.innerHTML = '';
+    const qr = qrcode(0, 'M');
+    qr.addData(share.url);
+    qr.make();
+    container.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 4 });
+    document.getElementById('share-link-text').textContent = share.url;
+    document.getElementById('share-open-link').href = share.url;
+    document.getElementById('share-copy-btn').onclick = () => copyCode(share.url);
+    openModal('share-list-modal');
+}
+
+async function openShareModal(listId) {
+    const r = await apiFetch(`${BASE_URL}/api/tasks/list/${listId}/share`, { method: 'POST', body: '{}' });
+    if (r.success) showShareLink(r.share);
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+async function regenerateShareLink() {
+    const ok = await Dialog.confirm('Régénérer le lien ? L\'ancien lien cessera immédiatement de fonctionner.');
+    if (!ok) return;
+    const r = await apiFetch(`${BASE_URL}/api/tasks/list/${LIST_ID}/share/regenerate`, { method: 'POST', body: '{}' });
+    if (r.success) showShareLink(r.share);
+}
+
+async function revokeShareLink() {
+    const ok = await Dialog.confirm('Révoquer ce lien de partage ?');
+    if (!ok) return;
+    const r = await apiFetch(`${BASE_URL}/api/tasks/list/${LIST_ID}/share/revoke`, { method: 'POST' });
+    if (r.success) {
+        closeModal('share-list-modal');
+        Dialog.toast('Lien révoqué.');
     }
 }

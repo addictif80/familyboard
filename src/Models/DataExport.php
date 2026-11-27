@@ -36,6 +36,31 @@ class DataExport
         'lieux_enregistres'          => 'saved_places',
         'pointages_position'         => 'location_checkins',
         'tickets_support'            => 'support_tickets',
+        'liste_cadeaux'              => 'wishlist_items',
+        'sondages'                   => 'polls',
+        'portail_liens'              => 'portal_links',
+        'additions'                  => 'additions',
+        'albums'                     => 'albums',
+        'liens_baby_sitter'          => 'sitter_links',
+        'liens_ecran_mural'          => 'kiosk_links',
+        'courriers'                  => 'letters',
+        'modeles_courriers'          => 'letter_templates',
+        'dossiers_litige'            => 'dispute_cases',
+        'eleves_suivi_scolaire'      => 'school_students',
+        'enfants_nounou'             => 'nanny_children',
+        'heures_nounou'              => 'nanny_hours_entries',
+        'bons_plans'                 => 'deals',
+        'entrees_sante'              => 'health_entries',
+        'croissance_sante'           => 'health_growth',
+        'medecins_sante'             => 'health_doctors',
+        'vehicules'                  => 'vehicles',
+        'animaux'                    => 'pets',
+        'compteurs'                  => 'meters',
+        'demarches_administratives'  => 'admin_procedures',
+        'conges_familiaux'           => 'leave_requests',
+        'voyages'                    => 'travels',
+        'coffre_fort_entrees'        => 'vault_entries',
+        'coffre_fort_personnes_confiance' => 'vault_trustees',
     ];
 
     /**
@@ -65,6 +90,16 @@ class DataExport
         'recettes_creees'        => ['recipes', 'created_by'],
         'plans_repas_crees'      => ['meal_plans', 'created_by'],
         'tickets_support'        => ['support_tickets', 'user_id'],
+        'souhaits_crees'         => ['wishlist_items', 'user_id'],
+        'cadeaux_reserves'       => ['wishlist_items', 'reserved_by'],
+        'sondages_crees'         => ['polls', 'user_id'],
+        'votes_sondages'         => ['poll_votes', 'user_id'],
+        'liens_proposes'         => ['portal_links', 'submitted_by'],
+        'abonnements_suivis'     => ['follows', 'follower_id'],
+        'abonnes'                => ['follows', 'followee_id'],
+        'messages_prives_envoyes'=> ['dm_messages', 'sender_id'],
+        'additions_creees'       => ['additions', 'created_by'],
+        'participations_additions' => ['addition_participants', 'user_id'],
     ];
 
     /**
@@ -77,6 +112,22 @@ class DataExport
         'depenses_projet'     => ['project_expenses', 'projects', 'project_id'],
         'commentaires_mur'    => ['post_comments', 'posts', 'post_id'],
         'periodes_garde'      => ['custody_events', 'custody_schedules', 'schedule_id'],
+        'options_sondages'    => ['poll_options', 'polls', 'poll_id'],
+        'votes_sondages'      => ['poll_votes', 'polls', 'poll_id'],
+        'photos_albums'            => ['album_photos', 'albums', 'album_id'],
+        'envois_courriers'         => ['letter_sends', 'letters', 'letter_id'],
+        'documents_litige'         => ['dispute_documents', 'dispute_cases', 'dispute_id'],
+        'echanges_litige'          => ['dispute_exchanges', 'dispute_cases', 'dispute_id'],
+        'matieres_scolaires'       => ['school_subjects', 'school_students', 'student_id'],
+        'emploi_temps_scolaire'    => ['school_timetable_slots', 'school_students', 'student_id'],
+        'notes_scolaires'          => ['school_grades', 'school_students', 'student_id'],
+        'absences_scolaires'       => ['school_absences', 'school_students', 'student_id'],
+        'activites_scolaires'      => ['school_activities', 'school_students', 'student_id'],
+        'documents_scolaires'      => ['school_documents', 'school_students', 'student_id'],
+        'entretien_vehicules'      => ['vehicle_maintenance', 'vehicles', 'vehicle_id'],
+        'soins_animaux'            => ['pet_care_entries', 'pets', 'pet_id'],
+        'releves_compteurs'        => ['meter_readings', 'meters', 'meter_id'],
+        'reservations_voyages'     => ['travel_reservations', 'travels', 'travel_id'],
     ];
 
     /** [table, colonne(s) contenant un chemin de fichier] pour la copie des pièces jointes. */
@@ -88,12 +139,37 @@ class DataExport
         'comm_log_messages' => 'audio_path',
         'babies'     => 'avatar',
         'contacts'   => 'avatar',
+        'portal_links' => 'image_path',
+        'deals'        => 'file_path',
+        'vault_entries' => 'file_path',
+    ];
+
+    /** Comme FILE_COLUMNS, mais pour des tables sans family_id propre (jointes via une table
+     *  parente) : [table, colonne fichier, table parente, colonne de jointure]. */
+    private const FILE_JOIN_COLUMNS = [
+        ['album_photos', 'image_path', 'albums', 'album_id'],
+        ['dispute_documents', 'file_path', 'dispute_cases', 'dispute_id'],
+        ['school_documents', 'file_path', 'school_students', 'student_id'],
     ];
 
     /**
      * @return string Chemin absolu vers le fichier ZIP temporaire généré (à supprimer après envoi).
      */
     public static function build(int $userId, int $familyId, bool $wholeFamily): string
+    {
+        $data = self::collect($userId, $familyId, $wholeFamily);
+        $filePaths = $data['_file_paths'];
+        unset($data['_file_paths']);
+        return self::zip($data, $filePaths);
+    }
+
+    /**
+     * Assemble les mêmes données que build(), mais retourne le tableau associatif brut plutôt
+     * qu'un ZIP — pour un usage qui n'a pas besoin des fichiers joints (ex. la page HTML envoyée
+     * par e-mail lors d'une suppression de compte, voir buildHtmlPage()). La clé interne
+     * '_file_paths' n'est pas destinée à l'affichage, seulement à build() ci-dessus.
+     */
+    public static function collect(int $userId, int $familyId, bool $wholeFamily): array
     {
         $family = Family::findById($familyId);
         $data = [
@@ -120,6 +196,25 @@ class DataExport
                     [$familyId]
                 );
             }
+            // Tables à double appartenance famille (partage inter-familles) : pas de colonne
+            // family_id unique, donc hors des boucles génériques ci-dessus.
+            $data['familles_amies'] = Database::fetchAll(
+                'SELECT * FROM family_friends WHERE requester_family_id=? OR target_family_id=?',
+                [$familyId, $familyId]
+            );
+            $data['evenements_partages'] = Database::fetchAll(
+                'SELECT * FROM event_shares WHERE origin_family_id=? OR target_family_id=?',
+                [$familyId, $familyId]
+            );
+            $data['changements_evenements_partages'] = Database::fetchAll(
+                'SELECT esc.* FROM event_share_changes esc JOIN event_shares es ON es.id=esc.event_share_id
+                 WHERE es.origin_family_id=? OR es.target_family_id=?',
+                [$familyId, $familyId]
+            );
+            $data['perceptions_cagnotte'] = Database::fetchAll(
+                'SELECT ap.* FROM addition_payments ap JOIN additions a ON a.id=ap.addition_id WHERE a.family_id=?',
+                [$familyId]
+            );
             $filePaths = self::collectFilePaths($familyId, null);
             foreach (Database::fetchAll('SELECT avatar FROM users WHERE family_id=?', [$familyId]) as $row) {
                 if (!empty($row['avatar'])) $filePaths[] = $row['avatar'];
@@ -130,11 +225,15 @@ class DataExport
             foreach (self::USER_TABLES as $key => [$table, $col]) {
                 $data[$key] = Database::fetchAll("SELECT * FROM `$table` WHERE `$col`=?", [$userId]);
             }
+            $data['perceptions_cagnotte_enregistrees'] = Database::fetchAll(
+                'SELECT * FROM addition_payments WHERE recorded_by=?', [$userId]
+            );
             $filePaths = self::collectFilePaths($familyId, $userId);
             if (!empty($me['avatar'])) $filePaths[] = $me['avatar'];
         }
 
-        return self::zip($data, $filePaths);
+        $data['_file_paths'] = $filePaths;
+        return $data;
     }
 
     private static function collectFilePaths(int $familyId, ?int $userId): array
@@ -145,7 +244,7 @@ class DataExport
             if ($userId !== null) {
                 if (in_array($table, ['documents', 'warranties', 'posts', 'messages', 'comm_log_messages'], true)) {
                     $ownerCol = 'user_id';
-                } elseif ($table === 'babies' || $table === 'contacts') {
+                } elseif (in_array($table, ['babies', 'contacts', 'portal_links', 'deals', 'vault_entries'], true)) {
                     continue; // ressources partagées, non attribuables à un seul membre
                 }
             }
@@ -153,6 +252,20 @@ class DataExport
             $params = $ownerCol ? [$familyId, $userId] : [$familyId];
             foreach (Database::fetchAll($sql, $params) as $row) {
                 if (!empty($row['p'])) $paths[] = $row['p'];
+            }
+        }
+        // Fichiers de tables sans family_id propre (jointes via une table parente) — uniquement
+        // pertinent pour l'export famille entière : pour l'export personnel, ces pièces jointes
+        // ne sont de toute façon pas attribuables à un seul membre (mêmes raisons que ci-dessus).
+        if ($userId === null) {
+            foreach (self::FILE_JOIN_COLUMNS as [$table, $col, $parent, $joinCol]) {
+                $rows = Database::fetchAll(
+                    "SELECT c.`$col` as p FROM `$table` c JOIN `$parent` par ON c.`$joinCol`=par.id WHERE par.family_id=?",
+                    [$familyId]
+                );
+                foreach ($rows as $row) {
+                    if (!empty($row['p'])) $paths[] = $row['p'];
+                }
             }
         }
         return array_unique($paths);
@@ -167,8 +280,8 @@ class DataExport
 
         $used = [];
         foreach ($filePaths as $relPath) {
-            $abs = BASE_PATH . $relPath;
-            if (!is_file($abs)) continue;
+            $abs = \App\Core\FileStore::resolveLocalPath($relPath);
+            if (!$abs) continue;
             $name = basename($abs);
             // Évite les collisions de noms (fichiers uploadés avec des hash différents mais... par précaution)
             if (isset($used[$name])) $name = uniqid() . '_' . $name;
@@ -178,5 +291,117 @@ class DataExport
 
         $zip->close();
         return $tmpZip;
+    }
+
+    /**
+     * Rend les mêmes données que collect() sous forme d'une page HTML autonome (une seule
+     * balise <style>, aucune ressource externe) — utilisée en pièce jointe de l'e-mail envoyé
+     * lors d'une suppression de compte par un administrateur système : plus lisible qu'un JSON
+     * brut, ouvrable directement dans un navigateur. Les pièces jointes (photos, documents...)
+     * ne sont volontairement pas incluses ici (voir build()/zip() pour l'export complet avec
+     * fichiers, réservé au téléchargement volontaire par l'utilisateur lui-même).
+     */
+    public static function buildHtmlPage(array $data, string $userName): string
+    {
+        $generatedAt = htmlspecialchars($data['genere_le'] ?? date('Y-m-d H:i:s'), ENT_QUOTES, 'UTF-8');
+        unset($data['genere_le'], $data['perimetre'], $data['_file_paths']);
+
+        $sections = '';
+        foreach ($data as $key => $value) {
+            if ($value === null || $value === []) continue;
+            $label = ucfirst(str_replace('_', ' ', $key));
+            $sections .= self::isSingleRecord($value)
+                ? self::renderRecordSection($label, $value)
+                : self::renderListSection($label, $value);
+        }
+
+        if ($sections === '') {
+            $sections = '<p style="color:#7C7568">Aucune donnée personnelle enregistrée.</p>';
+        }
+
+        $safeName = htmlspecialchars($userName, ENT_QUOTES, 'UTF-8');
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Données FamilyBoard de {$safeName}</title>
+<style>
+    body { margin:0; padding:32px 16px; background:#F6F2EA; font-family:Inter,Arial,sans-serif; color:#23201B; }
+    .wrap { max-width:900px; margin:0 auto; }
+    h1 { font-family:Georgia,'Fraunces',serif; font-size:24px; color:#3D5A8A; margin:0 0 4px; }
+    .meta { color:#7C7568; font-size:.85rem; margin-bottom:28px; }
+    section { background:#FFFFFF; border:1px solid #E6DFD1; border-radius:14px; padding:20px 24px; margin-bottom:18px; box-shadow:0 2px 10px rgba(35,32,27,.06); }
+    h2 { font-family:Georgia,'Fraunces',serif; font-size:17px; color:#3D5A8A; margin:0 0 12px; }
+    table { width:100%; border-collapse:collapse; font-size:.82rem; }
+    th, td { text-align:left; padding:.4rem .6rem; border-bottom:1px solid #E6DFD1; vertical-align:top; word-break:break-word; }
+    th { color:#7C7568; font-weight:600; white-space:nowrap; }
+    dl { display:grid; grid-template-columns:auto 1fr; gap:.3rem 1rem; font-size:.85rem; margin:0; }
+    dt { color:#7C7568; }
+    dd { margin:0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <h1>🏡 Données FamilyBoard de {$safeName}</h1>
+    <p class="meta">Généré le {$generatedAt}</p>
+    {$sections}
+</div>
+</body>
+</html>
+HTML;
+    }
+
+    /** Vrai pour un enregistrement unique (ex. issu de Database::fetch()) plutôt qu'une liste de lignes. */
+    private static function isSingleRecord(array $value): bool
+    {
+        return $value !== [] && !array_is_list($value);
+    }
+
+    private static function renderRecordSection(string $label, array $record): string
+    {
+        $rows = '';
+        foreach ($record as $field => $val) {
+            if ($val === null || $val === '') continue;
+            $rows .= '<dt>' . htmlspecialchars(ucfirst(str_replace('_', ' ', (string)$field)), ENT_QUOTES, 'UTF-8') . '</dt>'
+                   . '<dd>' . htmlspecialchars(self::stringify($val), ENT_QUOTES, 'UTF-8') . '</dd>';
+        }
+        if ($rows === '') return '';
+        return '<section><h2>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</h2><dl>' . $rows . '</dl></section>';
+    }
+
+    private static function renderListSection(string $label, array $rows): string
+    {
+        // Ne garde que les lignes qui sont elles-mêmes des tableaux associatifs (schéma
+        // hétérogène improbable mais pas impossible selon la source) ; ignore silencieusement
+        // les autres pour ne jamais faire planter l'export sur une donnée inattendue.
+        $rows = array_values(array_filter($rows, 'is_array'));
+        if (!$rows) return '';
+
+        $columns = array_keys($rows[0]);
+        $head = implode('', array_map(
+            fn($c) => '<th>' . htmlspecialchars(ucfirst(str_replace('_', ' ', (string)$c)), ENT_QUOTES, 'UTF-8') . '</th>',
+            $columns
+        ));
+
+        $body = '';
+        foreach ($rows as $row) {
+            $body .= '<tr>' . implode('', array_map(
+                fn($c) => '<td>' . htmlspecialchars(self::stringify($row[$c] ?? ''), ENT_QUOTES, 'UTF-8') . '</td>',
+                $columns
+            )) . '</tr>';
+        }
+
+        return '<section><h2>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . ' <small style="color:#7C7568;font-weight:400">(' . count($rows) . ')</small></h2>'
+             . '<table><thead><tr>' . $head . '</tr></thead><tbody>' . $body . '</tbody></table></section>';
+    }
+
+    /** Aplati une valeur (scalaire, ou tableau imbriqué du JSON export) en texte affichable, tronqué si très long. */
+    private static function stringify($val): string
+    {
+        if (is_array($val)) $val = json_encode($val, JSON_UNESCAPED_UNICODE);
+        return mb_strimwidth((string)$val, 0, 300, '…');
     }
 }

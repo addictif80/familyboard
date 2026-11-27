@@ -32,7 +32,7 @@ class ChatController extends BaseController
                 if (mb_strlen($content) > 2000) return ['success' => false, 'error' => 'Message trop long'];
                 try {
                     [$audioPath, $audioOriginal, $audioMime] =
-                        OcrHelper::saveUploadedFile($audioFile, 'voice', $user['family_id'], OcrHelper::VOICE_MIMES, self::MAX_VOICE_SIZE);
+                        \App\Core\FileStore::save('voice', $user['family_id'], (int)$user['id'], $audioFile, OcrHelper::VOICE_MIMES, self::MAX_VOICE_SIZE);
                 } catch (\RuntimeException $e) {
                     return ['success' => false, 'error' => $e->getMessage()];
                 }
@@ -51,7 +51,7 @@ class ChatController extends BaseController
             }
 
             Notification::notifyFamily($user['family_id'], $user['id'], 'chat',
-                $user['name'], $notifText, BASE_URL . '/chat');
+                $user['name'], $notifText, BASE_URL . '/chat', null, 'chat_message', $id);
 
             return [
                 'success' => true,
@@ -79,12 +79,12 @@ class ChatController extends BaseController
 
         if (!$msg || !$msg['audio_path']) { http_response_code(404); echo 'Introuvable.'; return; }
 
-        $path = BASE_PATH . $msg['audio_path'];
-        if (!file_exists($path)) { http_response_code(404); echo 'Introuvable.'; return; }
+        $path = \App\Core\FileStore::resolveLocalPath($msg['audio_path']);
+        if (!$path) { http_response_code(404); echo 'Introuvable.'; return; }
 
         header('Content-Type: ' . ($msg['audio_mime'] ?: 'audio/webm'));
         header('Content-Length: ' . filesize($path));
-        header('Content-Disposition: inline; filename="' . addslashes($msg['audio_original'] ?: basename($path)) . '"');
+        header($this->contentDispositionHeader($msg['audio_original'] ?: basename($path)));
         header('Cache-Control: private, max-age=3600');
         header('Accept-Ranges: bytes');
         readfile($path);

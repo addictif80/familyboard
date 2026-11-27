@@ -54,3 +54,20 @@ define('SESSION_LIFETIME', 86400 * 30); // 30 days
 // Admin credentials (override in config.local.php)
 if (!defined('ADMIN_USER')) define('ADMIN_USER', getenv('ADMIN_USER') ?: 'admin');
 if (!defined('ADMIN_PASS')) define('ADMIN_PASS', getenv('ADMIN_PASS') ?: 'changeme');
+
+// Dépôt/branche cible des Pull Requests de correctifs proposés par l'IA (voir
+// App\Core\GitHubPublisher) — volontairement pas un réglage admin : changer la cible d'une
+// fonctionnalité qui publie du code est une décision de déploiement, pas un réglage courant.
+if (!defined('GITHUB_FIX_REPO_OWNER')) define('GITHUB_FIX_REPO_OWNER', getenv('GITHUB_FIX_REPO_OWNER') ?: 'addictif80');
+if (!defined('GITHUB_FIX_REPO_NAME')) define('GITHUB_FIX_REPO_NAME', getenv('GITHUB_FIX_REPO_NAME') ?: 'familyboard');
+if (!defined('GITHUB_FIX_BASE_BRANCH')) define('GITHUB_FIX_BASE_BRANCH', getenv('GITHUB_FIX_BASE_BRANCH') ?: 'claude/pre-launch-verification-1ca1d7');
+
+// Clé de chiffrement applicative (secrets 2FA au repos, voir src/Core/Crypto.php). Recommandée
+// en production (config.local.php ou variable d'environnement APP_KEY) : sans elle une clé est
+// générée automatiquement dans storage/app_key.bin, ce qui fonctionne mais ne survit pas à une
+// suppression du dossier storage/ (les secrets TOTP déjà chiffrés deviendraient illisibles).
+if (!defined('APP_ENCRYPTION_KEY')) define('APP_ENCRYPTION_KEY', getenv('APP_KEY') ?: '');
+
+// Désactivé par défaut : le détail d'une exception (souvent des fragments de requête SQL, des
+// chemins serveur...) ne doit jamais atteindre le navigateur d'un visiteur en production.
+if (!defined('APP_DEBUG')) define('APP_DEBUG', getenv('APP_DEBUG') === '1');

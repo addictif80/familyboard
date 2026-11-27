@@ -2,6 +2,75 @@
 // FamilyBoard - Core JS
 // ============================================
 
+// ---- Confettis (canvas natif, sans dépendance — artefact Mouvement, Lot 2) ----
+// Utilisé pour une liste de tâches entièrement cochée ; prévu pour d'autres déclencheurs
+// (ex. anniversaire du jour) le moment venu. Toujours silencieux sous mouvement réduit.
+function fbConfetti(colors, count) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    colors = colors || ['#7C5CFF', '#FF6B5B', '#2BD4A8', '#FFB84D'];
+    count = count || 32;
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9998';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    const parts = [];
+    for (let i = 0; i < count; i++) {
+        parts.push({
+            x: canvas.width / 2, y: canvas.height / 2,
+            vx: (Math.random() - .5) * 9, vy: (Math.random() - 1.4) * 9,
+            size: 4 + Math.random() * 5, color: colors[i % colors.length],
+            rot: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
+        });
+    }
+    let start = null;
+    function frame(ts) {
+        if (!start) start = ts;
+        const t = ts - start;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        parts.forEach(p => {
+            p.vy += .22; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+            ctx.fillStyle = p.color; ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * .6);
+            ctx.restore();
+        });
+        if (t < 1600) requestAnimationFrame(frame); else canvas.remove();
+    }
+    requestAnimationFrame(frame);
+}
+
+// ---- Skeletons (remplacent "Chargement…" — artefact Design System, Lot 3) ----
+// Mêmes dimensions approximatives que le contenu réel, pour qu'il n'y ait aucun saut de mise
+// en page quand les vraies données arrivent.
+// aria-hidden="true" (Lot 5) : un lecteur d'écran n'a rien à lire dans ces blocs purement
+// visuels — l'annonce utile est le vrai contenu, une fois arrivé.
+function fbSkeletonRows(n) {
+    n = n || 3;
+    const widths = [90, 75, 60, 85, 70];
+    let html = '';
+    for (let i = 0; i < n; i++) html += '<div class="skel skel-text" aria-hidden="true" style="width:' + widths[i % widths.length] + '%"></div>';
+    return html;
+}
+function fbSkeletonGrid(n) {
+    n = n || 4;
+    let html = '<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.5rem">';
+    for (let i = 0; i < n; i++) html += '<div class="skel" style="height:90px;border-radius:var(--radius-sm)"></div>';
+    return html + '</div>';
+}
+
+// ---- Bannière hors-ligne ----
+function updateOfflineBanner() {
+    const banner = document.getElementById('offline-banner');
+    if (!banner) return;
+    banner.style.display = navigator.onLine ? 'none' : 'block';
+    const container = document.getElementById('top-banners');
+    if (container) document.documentElement.style.setProperty('--banners-h', container.offsetHeight + 'px');
+}
+window.addEventListener('online', updateOfflineBanner);
+window.addEventListener('offline', updateOfflineBanner);
+updateOfflineBanner();
+
 // ---- Theme (clair / sombre) ----
 function toggleTheme() {
     const root = document.documentElement;
@@ -28,7 +97,10 @@ const Dialog = (() => {
     @keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .dlg-toast.success{background:var(--success,#27ae60)}
     .dlg-toast.error  {background:var(--danger,#e74c3c)}
-    .dlg-toast.info   {background:var(--primary,#4a90d9)}
+    .dlg-toast.info   {background:var(--info,#3fb8e8)}
+    .dlg-toast-undo{display:flex;align-items:center;gap:.75rem}
+    .dlg-toast-undo-btn{background:rgba(255,255,255,.22);border:none;color:#fff;font-weight:700;font-size:.8rem;padding:.3rem .65rem;border-radius:6px;cursor:pointer}
+    .dlg-toast-undo-btn:hover{background:rgba(255,255,255,.34)}
     @media(max-width:768px){.dlg-overlay{align-items:flex-end;padding:0}.dlg-box{border-radius:var(--radius) var(--radius) 0 0;max-width:100%}}
     `;
     document.head.appendChild(s);
@@ -87,7 +159,42 @@ const Dialog = (() => {
         });
     }
 
-    return { toast, alert, confirm };
+    // Suppression avec annulation (Lot 4, artefact Mouvement) : pour les suppressions
+    // courantes/réversibles, jamais de confirm() bloquant — un toast "Annuler" de 5s avant
+    // d'appeler réellement onCommit(). Les actions irréversibles lourdes (compte, famille
+    // entière…) gardent Dialog.confirm().
+    function undoableRemove(message, onCommit, onCancel, duration = 5000) {
+        const t = document.createElement('div');
+        t.className = 'dlg-toast info dlg-toast-undo';
+        t.setAttribute('role', 'status');
+        let settled = false;
+        const label = document.createElement('span');
+        label.textContent = message;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dlg-toast-undo-btn';
+        btn.textContent = 'Annuler';
+        btn.addEventListener('click', () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            t.remove();
+            if (typeof onCancel === 'function') onCancel();
+        });
+        t.appendChild(label);
+        t.appendChild(btn);
+        getToastWrap().appendChild(t);
+        const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            t.style.transition = 'opacity .3s';
+            t.style.opacity = '0';
+            setTimeout(() => t.remove(), 300);
+            onCommit();
+        }, duration);
+    }
+
+    return { toast, alert, confirm, undoableRemove };
 })();
 
 /** Helper for forms with confirmation: <form onsubmit="return confirmSubmit(this,'msg')"> */
@@ -98,13 +205,42 @@ function confirmSubmit(form, msg) {
 
 // ---- Modal management ----
 function openModal(id) {
-    document.getElementById(id).style.display = 'flex';
+    const modal = document.getElementById(id);
+    modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    // Focus automatique (Lot 4) : le premier champ texte vide de la modale, pour pouvoir
+    // taper tout de suite sans avoir à cliquer dedans — jamais un champ déjà rempli (on ne
+    // vole pas le focus d'un formulaire de modification pré-rempli en sautant la relecture).
+    requestAnimationFrame(() => {
+        const candidates = modal.querySelectorAll('input[type="text"], input[type="email"], textarea');
+        for (const field of candidates) {
+            if (!field.value) { field.focus(); break; }
+        }
+    });
 }
 
 function closeModal(id) {
     document.getElementById(id).style.display = 'none';
     document.body.style.overflow = '';
+}
+
+// ---- Sélecteur "enfant du registre familial" (Suivi scolaire, Suivi nounou, Garde alternée,
+// Bébé) : bascule l'affichage du champ de saisie du nom quand "+ Nouvel enfant…" est choisi.
+// Voir App\Models\FamilyChild — le nom saisi est enregistré (ou réutilisé s'il existe déjà)
+// dans le registre commun côté serveur.
+function toggleNewChildInput(prefix) {
+    const select = document.getElementById(`${prefix}-child-select`) || document.getElementById(`${prefix}-child`);
+    const input = document.getElementById(`${prefix}-child-new-name`);
+    if (!select || !input) return;
+    input.style.display = select.value === '__new__' ? '' : 'none';
+    if (select.value === '__new__') input.focus();
+}
+
+function copyCode(text) {
+    navigator.clipboard?.writeText(text).then(
+        () => Dialog.toast('Copié !'),
+        () => Dialog.toast('Impossible de copier.', 'error')
+    );
 }
 
 // Close modal on overlay click
@@ -127,10 +263,258 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Sidebar toggle
+// Sidebar toggle (tiroir de menu sur mobile : bascule aussi le fond assombri qui le ferme au tap)
 function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
+    const isOpen = document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-backdrop')?.classList.toggle('open', isOpen);
 }
+
+// Tiroir d'applications façon smartphone : uniquement pour la PWA installée (pas le navigateur
+// classique en onglet) — au-delà de 768px le sidebar reste la liste permanente habituelle (voir
+// la media query dans app.css), cette classe n'a donc d'effet que sur le tiroir mobile.
+if (typeof isStandalonePWA === 'function' && isStandalonePWA()) {
+    document.getElementById('sidebar')?.classList.add('pwa-app-drawer');
+}
+
+// ---- Sections repliables de la sidebar (état mémorisé par appareil) ----
+(function initNavSections() {
+    const STORAGE_KEY = 'fb-nav-collapsed';
+    let collapsed;
+    try { collapsed = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY)) || []); }
+    catch { collapsed = new Set(); }
+
+    const apply = (id, isCollapsed) => {
+        document.querySelectorAll(`[data-section="${id}"]`).forEach(li => li.classList.toggle('nav-section-collapsed', isCollapsed));
+        const label = document.querySelector(`[data-section-toggle="${id}"]`);
+        if (label) label.classList.toggle('collapsed', isCollapsed);
+    };
+
+    const toggle = (id) => {
+        if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+        apply(id, collapsed.has(id));
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...collapsed])); } catch {}
+    };
+
+    // Palette de recherche rapide (Ctrl/Cmd+K) — construite depuis les liens déjà présents
+    // dans le DOM (sidebar + menu compte), aucune liste dupliquée à maintenir côté serveur.
+    window.__navSearchIndex = null;
+    function buildNavSearchIndex() {
+        const items = [];
+        document.querySelectorAll('#sidebar .nav-link').forEach(a => {
+            const li = a.closest('li');
+            const group = li && li.dataset.section
+                ? (document.querySelector(`[data-section-toggle="${li.dataset.section}"] span`)?.textContent || 'Menu')
+                : 'Général';
+            items.push({
+                label: a.querySelector('.nav-label')?.textContent.trim() || a.textContent.trim(),
+                icon: a.querySelector('.nav-icon')?.textContent.trim() || '📄',
+                href: a.getAttribute('href'),
+                group,
+            });
+        });
+        document.querySelectorAll('.user-menu-item[href]').forEach(a => {
+            items.push({
+                label: a.textContent.replace(a.querySelector('.user-menu-item-icon')?.textContent || '', '').trim(),
+                icon: a.querySelector('.user-menu-item-icon')?.textContent.trim() || '⚙️',
+                href: a.getAttribute('href'),
+                group: 'Compte',
+            });
+        });
+        return items;
+    }
+
+    const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    // Recherche dans le contenu r\u00e9el (t\u00e2ches, \u00e9v\u00e9nements, contacts, documents...), pas
+    // seulement les pages/modules \u2014 voir SearchController::search(). Annule la requ\u00eate
+    // pr\u00e9c\u00e9dente si une nouvelle frappe arrive avant la r\u00e9ponse, pour ne jamais afficher un
+    // r\u00e9sultat p\u00e9rim\u00e9 plus r\u00e9cent que ce que l'utilisateur a tap\u00e9 depuis.
+    let __searchAbort = null;
+    function fetchContentResults(query) {
+        if (query.length < 2) return Promise.resolve([]);
+        if (__searchAbort) __searchAbort.abort();
+        __searchAbort = new AbortController();
+        return apiFetch(BASE_URL + '/api/search?q=' + encodeURIComponent(query), { signal: __searchAbort.signal })
+            .then(d => (d.results || []).map(r => ({ label: r.label, icon: r.icon, href: BASE_URL + r.url, group: r.group })))
+            .catch(() => []);
+    }
+
+    function openNavSearchImpl() {
+        if (!document.getElementById('sidebar')) return;
+        if (!window.__navSearchIndex) window.__navSearchIndex = buildNavSearchIndex();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'nav-search-overlay';
+        overlay.innerHTML = `
+            <div class="nav-search-box">
+                <input type="text" class="nav-search-input" placeholder="Aller à… (calendrier, budget, paramètres…)" autocomplete="off">
+                <div class="nav-search-results"></div>
+            </div>`;
+        document.body.appendChild(overlay);
+        const input = overlay.querySelector('.nav-search-input');
+        const results = overlay.querySelector('.nav-search-results');
+        let selected = 0;
+        let shown = [];
+        let requestToken = 0;
+
+        const paint = (items, loading) => {
+            shown = items;
+            selected = 0;
+            const rows = items.map((it, i) => `
+                <a href="${it.href}" class="nav-search-item ${i === 0 ? 'selected' : ''}" data-idx="${i}">
+                    <span class="nav-icon">${escapeHtml(it.icon)}</span><span>${escapeHtml(it.label)}</span>
+                    <span class="nav-search-item-group">${escapeHtml(it.group)}</span>
+                </a>`).join('');
+            results.innerHTML = rows || (loading ? '' : `<div class="nav-search-empty">Aucun résultat.</div>`);
+        };
+        let debounceTimer = null;
+        const render = () => {
+            const raw = input.value.trim();
+            const q = normalize(raw);
+            const navMatches = !q ? window.__navSearchIndex : window.__navSearchIndex.filter(it => normalize(it.label).includes(q));
+            paint(navMatches, raw.length >= 2);
+
+            clearTimeout(debounceTimer);
+            const token = ++requestToken;
+            debounceTimer = setTimeout(() => {
+                fetchContentResults(raw).then(contentResults => {
+                    if (token !== requestToken) return; // une frappe plus récente a déjà relancé une recherche
+                    // Le contenu trouvé (résultat concret d'une recherche) passe avant les pages/
+                    // modules : sinon, une recherche qui ne correspond à aucun module pousse ce
+                    // qu'on cherche vraiment tout en bas d'une liste de pages non pertinentes.
+                    paint([...contentResults, ...navMatches], false);
+                });
+            }, 200);
+        };
+        const updateSelection = () => {
+            results.querySelectorAll('.nav-search-item').forEach((el, i) => el.classList.toggle('selected', i === selected));
+            results.querySelector('.nav-search-item.selected')?.scrollIntoView({ block: 'nearest' });
+        };
+        const close = () => overlay.remove();
+
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+        input.addEventListener('input', render);
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { close(); }
+            else if (e.key === 'ArrowDown') { e.preventDefault(); if (selected < shown.length - 1) { selected++; updateSelection(); } }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); if (selected > 0) { selected--; updateSelection(); } }
+            else if (e.key === 'Enter') { e.preventDefault(); const href = shown[selected]?.href; if (href) window.location.href = href; }
+        });
+
+        render();
+        input.focus();
+    }
+    window.openNavSearch = openNavSearchImpl;
+
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            openNavSearchImpl();
+        }
+    });
+
+    // Recherche en direct dans le tiroir (mobile) : filtre la liste déjà affichée (modules) et
+    // interroge en plus le contenu réel (tâches, contacts, documents...) — plutôt que de
+    // rouvrir une palette par-dessus un tiroir déjà ouvert.
+    const searchInput = document.getElementById('sidebar-search-input');
+    const searchEmpty = document.getElementById('sidebar-search-empty');
+    const contentResultsBox = document.getElementById('sidebar-content-results');
+    const navMenu = document.querySelector('.nav-menu');
+    if (searchInput && navMenu) {
+        let drawerRequestToken = 0;
+        let drawerDebounce = null;
+        searchInput.addEventListener('input', () => {
+            const raw = searchInput.value.trim();
+            const q = normalize(raw);
+            const searching = q.length > 0;
+            navMenu.classList.toggle('searching', searching);
+            document.querySelectorAll('.nav-section-label').forEach(el => { el.style.display = searching ? 'none' : ''; });
+
+            let anyVisible = false;
+            navMenu.querySelectorAll('.nav-item').forEach(li => {
+                if (!searching) { li.classList.remove('nav-search-hidden'); return; }
+                const label = li.querySelector('.nav-label')?.textContent || '';
+                const matches = normalize(label).includes(q);
+                li.classList.toggle('nav-search-hidden', !matches);
+                if (matches) anyVisible = true;
+            });
+
+            if (contentResultsBox) contentResultsBox.innerHTML = '';
+            clearTimeout(drawerDebounce);
+            const token = ++drawerRequestToken;
+            if (!searching) {
+                if (searchEmpty) searchEmpty.style.display = 'none';
+                return;
+            }
+            drawerDebounce = setTimeout(() => {
+                fetchContentResults(raw).then(contentResults => {
+                    if (token !== drawerRequestToken) return;
+                    if (searchEmpty) searchEmpty.style.display = (!anyVisible && !contentResults.length) ? 'block' : 'none';
+                    if (contentResultsBox && contentResults.length) {
+                        contentResultsBox.innerHTML = `<p class="sidebar-content-results-label">Contenu</p>` +
+                            contentResults.map(it => `
+                                <a href="${it.href}" class="sidebar-content-result">
+                                    <span class="nav-icon">${escapeHtml(it.icon)}</span>
+                                    <span>${escapeHtml(it.label)}</span>
+                                </a>`).join('');
+                    }
+                });
+            }, 200);
+        });
+    }
+
+    document.querySelectorAll('[data-section-toggle]').forEach(label => {
+        const id = label.dataset.sectionToggle;
+        // Une section contenant la page active reste toujours dépliée à l'arrivée, même si
+        // elle avait été repliée lors d'une précédente visite — jamais cacher où on se trouve.
+        const hasActiveItem = document.querySelector(`[data-section="${id}"].active`);
+        if (hasActiveItem) collapsed.delete(id);
+        apply(id, collapsed.has(id));
+
+        label.addEventListener('click', () => toggle(id));
+        label.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(id); }
+        });
+    });
+})();
+
+// User menu (sidebar footer popover)
+let userMenuOpen = false;
+
+function toggleUserMenu() {
+    const popover = document.getElementById('user-menu-popover');
+    if (!popover) return;
+    userMenuOpen = !userMenuOpen;
+    popover.style.display = userMenuOpen ? 'flex' : 'none';
+    document.getElementById('user-menu-trigger')?.classList.toggle('open', userMenuOpen);
+}
+
+// Topbar "⋯" menu (Annonces, thème, signaler un problème, comment ça marche)
+let topbarMenuOpen = false;
+
+function toggleTopbarMenu() {
+    const popover = document.getElementById('topbar-menu-popover');
+    const trigger = document.getElementById('topbar-menu-trigger');
+    if (!popover || !trigger) return;
+    topbarMenuOpen = !topbarMenuOpen;
+    if (topbarMenuOpen) {
+        // Positionné en JS (position:fixed) : le popover vit hors du DOM de .topbar, qui le
+        // tronquerait sinon (overflow:hidden + backdrop-filter, voir layout.php).
+        const rect = trigger.getBoundingClientRect();
+        popover.style.top = (rect.bottom + 8) + 'px';
+        popover.style.right = (window.innerWidth - rect.right) + 'px';
+    }
+    popover.style.display = topbarMenuOpen ? 'flex' : 'none';
+    trigger.classList.toggle('open', topbarMenuOpen);
+}
+
+// Referme le menu dès qu'on choisit une de ses entrées (elles ouvrent une page ou une modale,
+// jamais le menu lui-même).
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('topbar-menu-popover')?.addEventListener('click', e => {
+        if (e.target.closest('.topbar-menu-item')) toggleTopbarMenu();
+    });
+});
 
 // Notifications
 let notifOpen = false;
@@ -142,6 +526,39 @@ function toggleNotifications() {
     if (notifOpen) loadNotifications();
 }
 
+// Badge natif sur l'icône de l'app (Badging API) — non supporté partout (Firefox, Safari en
+// dehors d'iOS 16.4+...), toujours vérifié avant usage ; échec silencieux sinon (confort en
+// plus, jamais bloquant). Tenu à jour ici au chargement de la page, et depuis le service worker
+// à la réception d'un push (voir sw.js) pour rester juste même app fermée.
+function updateAppBadge(count) {
+    if (!('setAppBadge' in navigator)) return;
+    (count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge()).catch(() => {});
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('notifications-panel')) loadNotifications();
+});
+
+// Un type par origine de notification, pour que l'utilisateur distingue au premier coup d'œil
+// une annonce système (tous utilisateurs), une annonce de son admin famille, et les
+// notifications automatiques de chaque module (icône + couleur + libellé de niveau).
+const NOTIF_TYPES = {
+    system:       { icon: '🛡️', color: '#8E44AD', level: 'Annonce système' },
+    family_admin: { icon: '📣', color: '#E67E22', level: 'Admin famille' },
+    calendar:     { icon: '📅', color: '#2E86DE', level: 'Calendrier' },
+    task:         { icon: '✅', color: '#27AE60', level: 'Tâches' },
+    wall:         { icon: '📝', color: '#D6336C', level: 'Mur familial' },
+    chat:         { icon: '💬', color: '#16A2A2', level: 'Chat' },
+    custody:      { icon: '👨‍👧', color: '#4A5FC1', level: 'Garde partagée' },
+    comm_log:     { icon: '📓', color: '#4A5FC1', level: 'Journal parental' },
+    location:     { icon: '📍', color: '#E74C3C', level: 'Position' },
+    documents:    { icon: '📄', color: '#7F8C8D', level: 'Documents' },
+    projects:     { icon: '🗂️', color: '#8E44AD', level: 'Projets' },
+    warranties:   { icon: '🧾', color: '#A0692B', level: 'Garanties' },
+    addition:     { icon: '💶', color: '#27AE60', level: 'Additions' },
+};
+const NOTIF_TYPE_DEFAULT = { icon: '🔔', color: 'var(--accent)', level: null };
+
 function loadNotifications() {
     fetch(BASE_URL + '/api/notifications')
         .then(r => r.json())
@@ -150,6 +567,7 @@ function loadNotifications() {
             const badge = document.getElementById('notif-badge');
             if (badge) badge.textContent = data.unread || '';
             if (!data.unread) document.getElementById('notif-badge')?.remove();
+            updateAppBadge(data.unread || 0);
 
             // Only show unread notifications — once read (or after "Tout lire"),
             // they disappear from the panel. They stay marked read in the DB.
@@ -159,35 +577,221 @@ function loadNotifications() {
                 list.innerHTML = '<p style="padding:.75rem 1rem;color:var(--text-muted);font-size:.8rem">Aucune notification.</p>';
                 return;
             }
-            list.innerHTML = unread.map(n => `
-                <div class="notif-item notif-unread" onclick="readNotif(${n.id}, '${n.link || '#'}')">
-                    <div class="notif-title">${escapeHtml(n.title)}</div>
+            list.innerHTML = unread.map(n => {
+                const t = NOTIF_TYPES[n.type] || NOTIF_TYPE_DEFAULT;
+                return `
+                <div class="notif-item notif-unread" data-notif-id="${n.id}" data-notif-link="${escapeHtml(n.link || '#')}" style="--notif-color:${t.color}">
+                    <div class="notif-title"><span class="notif-icon">${t.icon}</span>${escapeHtml(n.title)}</div>
+                    ${t.level ? `<div class="notif-level">${escapeHtml(t.level)}</div>` : ''}
                     <div class="notif-msg">${escapeHtml(n.message)}</div>
                     <div class="notif-time">${formatTime(n.created_at)}</div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
+            list.querySelectorAll('.notif-item').forEach(el => {
+                el.addEventListener('click', () => readNotif(el.dataset.notifId, el.dataset.notifLink));
+            });
         });
 }
 
-function readNotif(id, link) {
-    fetch(BASE_URL + '/api/notifications/' + id + '/read', { method: 'POST' });
-    if (link && link !== '#') window.location.href = link;
+async function readNotif(id, link) {
+    apiFetch(BASE_URL + '/api/notifications/' + id + '/read', { method: 'POST' }).then(() => loadNotifications());
     toggleNotifications();
+    openNotifPreview(id, link);
+}
+
+async function openNotifPreview(id, fallbackLink) {
+    const titleEl = document.getElementById('notif-preview-title');
+    const timeEl = document.getElementById('notif-preview-time');
+    const fieldsEl = document.getElementById('notif-preview-fields');
+    const linkEl = document.getElementById('notif-preview-link');
+
+    titleEl.innerHTML = '<span class="skel skel-title" aria-hidden="true" style="width:140px;display:inline-block"></span>';
+    timeEl.textContent = '';
+    fieldsEl.innerHTML = fbSkeletonRows(2);
+    linkEl.style.display = 'none';
+    openModal('notif-preview-modal');
+
+    const r = await apiFetch(BASE_URL + '/api/notifications/' + id + '/preview');
+    if (!r.success) {
+        titleEl.textContent = 'Notification';
+        fieldsEl.innerHTML = '<p style="color:var(--text-muted)">Impossible de charger le détail.</p>';
+        if (fallbackLink && fallbackLink !== '#') {
+            linkEl.href = fallbackLink;
+            linkEl.style.display = '';
+        }
+        return;
+    }
+
+    titleEl.textContent = (r.icon ? r.icon + ' ' : '') + r.title;
+    timeEl.textContent = formatTime(r.created_at);
+
+    const hasFields = Array.isArray(r.fields) && r.fields.length > 0;
+    fieldsEl.innerHTML = hasFields
+        ? r.fields.map(f => `
+            <div style="margin-bottom:.6rem">
+                <div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em">${escapeHtml(f.label)}</div>
+                <div style="white-space:pre-wrap">${escapeHtml(f.value)}</div>
+            </div>
+        `).join('')
+        : `<p style="white-space:pre-wrap">${escapeHtml(r.message || '')}</p>`;
+
+    if (r.link) {
+        linkEl.href = r.link;
+        linkEl.style.display = '';
+    } else {
+        linkEl.style.display = 'none';
+    }
+}
+
+// Libellé générique par type, pour l'en-tête de la modal quand on clique directement sur un
+// enregistrement (tableau de bord, page de module) — pas de "titre" fourni dans ce cas-là,
+// contrairement au flux notification, qui a son propre titre déjà écrit par l'action d'origine.
+const RECORD_TYPE_LABELS = {
+    event: 'Événement', task: 'Tâche', custody_event: 'Garde', custody_schedule: 'Garde',
+    comm_log: 'Journal parental', post: 'Publication', document: 'Document', warranty: 'Garantie',
+    project: 'Projet', album_photo: 'Photo', addition: 'Addition', stock_item: 'Article',
+    user: 'Anniversaire', baby: 'Bébé', contact: 'Contact', health_entry: 'Carnet de santé',
+};
+
+/** Ouvre la même modal de prévisualisation que les notifications (readNotif()), mais pour un
+ *  clic direct sur une ligne (widget du tableau de bord, liste d'un module) — jamais de
+ *  navigation, toujours une lecture seule. Voir App\Core\RecordPreview côté serveur. */
+async function openRecordPreview(type, id) {
+    const titleEl = document.getElementById('notif-preview-title');
+    const timeEl = document.getElementById('notif-preview-time');
+    const fieldsEl = document.getElementById('notif-preview-fields');
+    const linkEl = document.getElementById('notif-preview-link');
+
+    titleEl.innerHTML = '<span class="skel skel-title" aria-hidden="true" style="width:140px;display:inline-block"></span>';
+    timeEl.textContent = '';
+    fieldsEl.innerHTML = fbSkeletonRows(2);
+    linkEl.style.display = 'none';
+    openModal('notif-preview-modal');
+
+    const r = await apiFetch(BASE_URL + '/api/records/' + encodeURIComponent(type) + '/' + id + '/preview');
+    if (!r.success) {
+        titleEl.textContent = RECORD_TYPE_LABELS[type] || 'Détail';
+        fieldsEl.innerHTML = `<p style="color:var(--text-muted)">${escapeHtml(r.error || 'Impossible de charger le détail.')}</p>`;
+        return;
+    }
+
+    titleEl.textContent = (r.icon ? r.icon + ' ' : '') + (RECORD_TYPE_LABELS[type] || 'Détail');
+    fieldsEl.innerHTML = r.fields.map(f => `
+        <div style="margin-bottom:.6rem">
+            <div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em">${escapeHtml(f.label)}</div>
+            <div style="white-space:pre-wrap">${escapeHtml(f.value)}</div>
+        </div>
+    `).join('');
 }
 
 function markAllRead() {
-    fetch(BASE_URL + '/api/notifications/read-all', { method: 'POST' })
+    apiFetch(BASE_URL + '/api/notifications/read-all', { method: 'POST' })
         .then(() => loadNotifications());
 }
+
+// ---- Keep sidebar/topbar clear of the stacked top banners ----
+// syncBannersHeight() is exposed globally so any code that shows/hides a banner (ex. the PWA
+// onboarding banner below) can call it directly right away, instead of relying solely on the
+// ResizeObserver notification — belt and suspenders, since a banner shown via a delayed async
+// check should never wait an extra frame to be accounted for.
+window.syncBannersHeight = function () {
+    const banners = document.getElementById('top-banners');
+    if (banners) document.documentElement.style.setProperty('--banners-h', banners.offsetHeight + 'px');
+};
+(function () {
+    const banners = document.getElementById('top-banners');
+    if (!banners) return;
+    syncBannersHeight();
+    if (typeof ResizeObserver === 'function') {
+        new ResizeObserver(syncBannersHeight).observe(banners);
+    } else {
+        window.addEventListener('resize', syncBannersHeight);
+    }
+})();
+
+// ---- Official alerts banner (veille informationnelle) ----
+let officialAlerts = [];
+let officialAlertIndex = 0;
+let officialAlertTimer = null;
+
+function loadOfficialAlerts() {
+    const banner = document.getElementById('alert-banner');
+    if (!banner) return;
+    fetch(BASE_URL + '/api/alerts/active')
+        .then(r => r.json())
+        .then(data => {
+            officialAlerts = data.alerts || [];
+            if (officialAlertTimer) { clearInterval(officialAlertTimer); officialAlertTimer = null; }
+            if (!officialAlerts.length) { banner.style.display = 'none'; return; }
+            banner.style.display = 'flex';
+            officialAlertIndex = 0;
+            renderCurrentOfficialAlert();
+            if (officialAlerts.length > 1) {
+                officialAlertTimer = setInterval(() => {
+                    officialAlertIndex = (officialAlertIndex + 1) % officialAlerts.length;
+                    renderCurrentOfficialAlert();
+                }, 7000);
+            }
+        })
+        .catch(() => {});
+}
+
+function renderCurrentOfficialAlert() {
+    const track = document.getElementById('alert-banner-track');
+    if (!track || !officialAlerts.length) return;
+    const a = officialAlerts[officialAlertIndex];
+    track.innerHTML = `
+        <span class="alert-banner-icon">${a.icon}</span>
+        <span class="alert-banner-cat">${escapeHtml(a.label)}</span>
+        <span class="alert-banner-title" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</span>
+        <a href="${BASE_URL}/alertes/${encodeURIComponent(a.category)}" class="alert-banner-btn">S'informer</a>
+    `;
+    // Restart the fade-in animation on each rotation
+    track.style.animation = 'none';
+    void track.offsetWidth;
+    track.style.animation = '';
+}
+
+loadOfficialAlerts();
+
+// ---- Bandeau d'accompagnement PWA (installation + notifications) ----
+async function checkPwaOnboardingBanner() {
+    const banner = document.getElementById('pwa-onboarding-banner');
+    const text = document.getElementById('pwa-onboarding-text');
+    const link = document.getElementById('pwa-onboarding-link');
+    if (!banner || !text || !link) return;
+
+    if (typeof isStandalonePWA !== 'function' || !isStandalonePWA()) {
+        text.textContent = "📲 Installez FamilyBoard sur votre écran d'accueil pour une meilleure expérience et les notifications.";
+        link.href = BASE_URL + '/settings#pwa-install-section';
+        banner.style.display = 'flex';
+        syncBannersHeight?.();
+        return;
+    }
+    const { state } = await checkPushStatus();
+    if (state !== 'enabled') {
+        text.textContent = '🔔 Activez les notifications pour ne rien manquer.';
+        link.href = BASE_URL + '/settings#push-notifications-section';
+        banner.style.display = 'flex';
+        syncBannersHeight?.();
+        return;
+    }
+    banner.style.display = 'none';
+    syncBannersHeight?.();
+}
+checkPwaOnboardingBanner();
 
 // Add notification styles
 const style = document.createElement('style');
 style.textContent = `
 .notif-item { padding: .75rem 1rem; cursor: pointer; border-bottom: 1px solid var(--border); font-size: .8rem; border-left: 3px solid transparent; transition: background .15s; }
 .notif-item:hover { background: var(--bg); }
-.notif-unread { background: color-mix(in srgb, var(--primary) 8%, var(--card-bg)); border-left-color: var(--accent); }
+.notif-unread { background: color-mix(in srgb, var(--notif-color, var(--accent)) 8%, var(--card-bg)); border-left-color: var(--notif-color, var(--accent)); }
 .notif-title { font-weight: 600; margin-bottom: .15rem; display: flex; align-items: center; gap: .4rem; }
-.notif-unread .notif-title::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.notif-icon { flex-shrink: 0; }
+.notif-unread .notif-title::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--notif-color, var(--accent)); flex-shrink: 0; margin-left: auto; }
+.notif-level { color: var(--notif-color, var(--accent)); font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; margin-bottom: .25rem; }
 .notif-msg { color: var(--text-muted); }
 .notif-time { color: var(--text-muted); font-size: .7rem; margin-top: .2rem; }
 `;
@@ -199,6 +803,20 @@ document.addEventListener('click', function(e) {
     if (panel && notifOpen && !panel.contains(e.target) && !e.target.closest('.btn-icon')) {
         notifOpen = false;
         panel.style.display = 'none';
+    }
+    const userMenu = document.getElementById('user-menu');
+    if (userMenu && userMenuOpen && !userMenu.contains(e.target)) {
+        userMenuOpen = false;
+        document.getElementById('user-menu-popover').style.display = 'none';
+        document.getElementById('user-menu-trigger')?.classList.remove('open');
+    }
+    const topbarTrigger = document.getElementById('topbar-menu-trigger');
+    const topbarPopover = document.getElementById('topbar-menu-popover');
+    if (topbarMenuOpen && topbarTrigger && topbarPopover
+        && !topbarTrigger.contains(e.target) && !topbarPopover.contains(e.target)) {
+        topbarMenuOpen = false;
+        topbarPopover.style.display = 'none';
+        topbarTrigger.classList.remove('open');
     }
 });
 
@@ -338,6 +956,20 @@ function safeColor(c, fallback = '#4A90D9') {
     return typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : fallback;
 }
 
+// Rendu JS du badge utilisateur (photo si dispo, sinon initiale) — pendant côté client du
+// helper PHP App\Core\Avatar::html(), pour les éléments ajoutés dynamiquement (chat, mur...)
+// sans recharger la page.
+function avatarHtml(avatarPath, color, name, className = 'user-avatar', title = '') {
+    const cls = escapeHtml(className);
+    const bg = safeColor(color);
+    const titleAttr = title ? ` title="${escapeHtml(title)}"` : '';
+    if (avatarPath) {
+        return `<div class="${cls}" style="background:${bg}"${titleAttr}><img src="${escapeHtml(BASE_URL + avatarPath)}" alt=""></div>`;
+    }
+    const initial = escapeHtml((name || '').substring(0, 1));
+    return `<div class="${cls}" style="background:${bg}"${titleAttr}>${initial}</div>`;
+}
+
 // Month/day-name formatting shared by every month-grid view (calendar, custody, coparent).
 const _intlMonth = new Intl.DateTimeFormat('fr-FR', { month: 'long', timeZone: APP_TIMEZONE });
 const _intlDay   = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', timeZone: APP_TIMEZONE });
@@ -360,7 +992,14 @@ function fmtDayNames() {
 }
 
 function formatTime(datetime) {
-    const d = new Date(datetime);
+    if (!datetime) return '';
+    // Le serveur stocke et renvoie les dates en UTC sans indicateur de fuseau
+    // ("2026-08-07 17:06:00") : sans "Z", la plupart des moteurs JS interprètent une
+    // chaîne non-ISO comme une heure LOCALE, pas UTC, ce qui décale l'affichage de
+    // toute la différence de fuseau (ex. "il y a 2h" pour une notification qui vient
+    // d'arriver, en UTC+2). On force l'interprétation UTC en passant au format ISO.
+    const iso = datetime.replace(' ', 'T');
+    const d = new Date(/[Z+]|-\d{2}:\d{2}$/.test(iso) ? iso : iso + 'Z');
     const now = new Date();
     const diff = now - d;
     if (diff < 60000) return 'à l\'instant';
@@ -373,8 +1012,159 @@ async function apiFetch(url, options = {}) {
     const defaults = {
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
     };
-    const res = await fetch(url, { ...defaults, ...options, headers: { ...defaults.headers, ...(options.headers || {}) } });
-    return res.json();
+    FbLoadBar.requestStart();
+    try {
+        const res = await fetch(url, { ...defaults, ...options, headers: { ...defaults.headers, ...(options.headers || {}) } });
+        if (!res.ok) FbLoadBar.requestError(); else FbLoadBar.requestEnd();
+        return await res.json();
+    } catch (e) {
+        FbLoadBar.requestError();
+        throw e;
+    }
+}
+
+// ---- Barre de chargement (Lot PWA, artefact "Barre épaisse" figé) ----
+// Un seul composant pour trois sources : navigation (clic sur un lien interne), requêtes
+// apiFetch (via requestStart/End/Error ci-dessus) et actualisation manuelle (tirer-pour-
+// actualiser). Respecte prefers-reduced-motion (le CSS ramène les durées à 1ms) et reste muet
+// à l'écran kiosque, qui n'inclut pas ce template.
+const FbLoadBar = (function () {
+    let inFlight = 0;
+    let doneTimer = null;
+    const bar = () => document.getElementById('fb-loadbar');
+    const fill = () => document.getElementById('fb-loadbar-fill');
+
+    function show(pct) {
+        const b = bar(), f = fill();
+        if (!b || !f) return;
+        b.classList.remove('error');
+        f.style.opacity = '1';
+        f.style.transform = 'scaleX(' + (pct / 100) + ')';
+    }
+    function hide() {
+        const f = fill();
+        if (!f) return;
+        f.style.opacity = '0';
+        setTimeout(() => { if (inFlight === 0) f.style.transform = 'scaleX(0)'; }, 200);
+    }
+
+    function requestStart() {
+        inFlight++;
+        clearTimeout(doneTimer);
+        if (inFlight === 1) show(15);
+        else show(Math.min(80, 15 + inFlight * 10));
+    }
+    function requestEnd() {
+        inFlight = Math.max(0, inFlight - 1);
+        if (inFlight === 0) {
+            show(100);
+            doneTimer = setTimeout(hide, 150);
+        }
+    }
+    function requestError() {
+        inFlight = Math.max(0, inFlight - 1);
+        const b = bar();
+        if (b) b.classList.add('error');
+        show(100);
+        doneTimer = setTimeout(hide, 500);
+    }
+    // Démarrage : la page vient de charger, dernier petit tronçon jusqu'à 100% puis disparition.
+    function pageStart() { show(20); }
+    function pageDone() {
+        show(100);
+        setTimeout(hide, 150);
+    }
+
+    return { requestStart, requestEnd, requestError, pageStart, pageDone };
+})();
+
+FbLoadBar.pageStart();
+window.addEventListener('load', () => setTimeout(FbLoadBar.pageDone, 50));
+
+// Navigation : un clic sur un lien interne lance tout de suite la barre (l'ancienne page va
+// disparaître avec elle au déchargement ; la nouvelle page la relance elle-même via pageStart).
+document.addEventListener('click', e => {
+    const a = e.target.closest('a[href]');
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (a.target === '_blank' || a.hasAttribute('download')) return;
+    if (a.origin !== window.location.origin) return;
+    FbLoadBar.requestStart();
+});
+
+// ---- Tirer pour actualiser (app installée uniquement, voir PWA_STANDALONE) ----
+(function () {
+    if (typeof window === 'undefined') return;
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    if (!standalone) return;
+
+    let ring = null, startY = null, pulling = false, refreshing = false;
+    function ensureRing() {
+        if (ring) return ring;
+        ring = document.createElement('div');
+        ring.className = 'fb-ptr-ring';
+        ring.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 3v12M6 9l6-6 6 6"/></svg>';
+        document.body.appendChild(ring);
+        return ring;
+    }
+    function setPull(px) {
+        const r = ensureRing();
+        const clamped = Math.max(0, Math.min(px, 90));
+        r.style.setProperty('--fb-ptr-pull', Math.round(clamped * 4));
+        r.style.setProperty('--fb-ptr-opacity', Math.min(1, clamped / 40));
+    }
+    function onStart(y) {
+        if (refreshing || window.scrollY > 0) return;
+        const main = document.querySelector('.main-content');
+        if (main && main.scrollTop > 0) return;
+        startY = y; pulling = true;
+    }
+    function onMove(y) {
+        if (!pulling || startY === null) return;
+        const dy = y - startY;
+        setPull(dy > 0 ? dy * .5 : 0);
+    }
+    function onEnd() {
+        if (!pulling) return;
+        pulling = false;
+        const r = ensureRing();
+        const dy = (parseFloat(getComputedStyle(r).getPropertyValue('--fb-ptr-pull')) || 0) / 4;
+        startY = null;
+        if (dy > 64) {
+            refreshing = true;
+            r.classList.add('refreshing');
+            FbLoadBar.requestStart();
+            setTimeout(() => window.location.reload(), 250);
+        } else {
+            setPull(0);
+        }
+    }
+    window.addEventListener('touchstart', e => onStart(e.touches[0].clientY), { passive: true });
+    window.addEventListener('touchmove', e => onMove(e.touches[0].clientY), { passive: true });
+    window.addEventListener('touchend', onEnd);
+})();
+
+// ---- Suivi de position (minuteurs — "quelqu'un est-il à la maison ?") ----
+// Actif uniquement si LOCATION_TRACKING_ENABLED (défini par layout.php : connecté + pas
+// désactivé dans le profil). Une position ponctuelle par envoi, jamais un tracé continu — voir
+// App\Models\HomePresence. Ne tourne que sur les pages "normales" (layout.php) : l'écran mural
+// et le kiosque sont des écrans partagés fixes, pas le téléphone d'une personne.
+function _locationPing() {
+    if (typeof LOCATION_TRACKING_ENABLED === 'undefined' || !LOCATION_TRACKING_ENABLED) return;
+    if (!('geolocation' in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            apiFetch(BASE_URL + '/api/location/ping', {
+                method: 'POST',
+                body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            }).catch(() => {});
+        },
+        () => { /* refusé ou indisponible — on retentera au prochain intervalle/chargement */ },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+    );
+}
+if (typeof LOCATION_TRACKING_ENABLED !== 'undefined' && LOCATION_TRACKING_ENABLED) {
+    setTimeout(_locationPing, 5000);
+    setInterval(_locationPing, 5 * 60 * 1000);
 }
 
 // ---- Push notifications ----
@@ -477,6 +1267,18 @@ async function initPushSubscription() {
     } catch { /* ignore — retried on next page load */ }
 }
 
+// La déconnexion (bouton, lien) doit vider le cache SW des pages/données dynamiques : sur
+// un appareil partagé (tablette familiale, co-parent), sans ça, les données de la personne
+// précédente resteraient consultables hors-ligne après qu'un autre membre se soit connecté.
+document.addEventListener('click', e => {
+    const link = e.target.closest('a[href]');
+    if (!link || !/\/logout(\?|$)/.test(link.getAttribute('href') || '')) return;
+    e.preventDefault();
+    (('caches' in window) ? caches.delete('familyboard-data') : Promise.resolve())
+        .catch(() => {})
+        .then(() => { window.location.href = link.href; });
+});
+
 // Auto-dismiss alerts
 document.querySelectorAll('.alert').forEach(el => {
     setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .5s'; setTimeout(() => el.remove(), 500); }, 4000);
@@ -547,6 +1349,15 @@ async function collectDiagnostics() {
         if ('caches' in window) {
             const keys = await caches.keys();
             diag['Caches PWA'] = keys.join(', ') || '(aucun)';
+        }
+    } catch { /* best-effort diagnostic only */ }
+    try {
+        diag['Mode d\'affichage'] = isStandalonePWA() ? 'standalone (installée)' : 'navigateur (non installée)';
+        diag['Permission notifications'] = ('Notification' in window) ? Notification.permission : 'API absente';
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+            const reg = await navigator.serviceWorker.getRegistration();
+            const sub = reg ? await reg.pushManager.getSubscription() : null;
+            diag['Abonnement push'] = sub ? 'actif (' + sub.endpoint.slice(0, 40) + '…)' : 'aucun';
         }
     } catch { /* best-effort diagnostic only */ }
     return diag;

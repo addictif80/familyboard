@@ -8,5 +8,11 @@
 // define('DB_USER', 'your_user');
 // define('DB_PASS', 'your_password');
 
-// Android app download link (defaults to the GitHub Releases "latest" APK)
-// define('ANDROID_APK_URL', 'https://example.com/downloads/familyboard.apk');
+// Debug (ne JAMAIS activer en production : affiche le détail des erreurs aux visiteurs)
+// define('APP_DEBUG', true);
+
+// Clé de chiffrement applicative (secrets 2FA au repos). Recommandée en production —
+// sans elle une clé est générée automatiquement dans storage/app_key.bin (fonctionne,
+// mais ne survit pas à une suppression de storage/). Générer par exemple avec :
+//   php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
+// define('APP_ENCRYPTION_KEY', 'votre-clé-générée');

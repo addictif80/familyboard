@@ -4,7 +4,7 @@
 html, body.kiosk-body {
     height: 100%;
     background: var(--bg);
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 .kiosk-error {
@@ -19,15 +19,33 @@ html, body.kiosk-body {
 }
 .kiosk-error h1 { font-family: var(--font-display); margin-bottom: .75rem; }
 
+/* Écran large (TV, tablette en mode paysage) : la grille occupe exactement la
+   hauteur de l'écran (barre d'état/adresse masquée par le plein écran, cf.
+   kiosk.js) et ne défile jamais — chaque carte défile individuellement si son
+   propre contenu dépasse la place qui lui est allouée. */
 .kiosk-board {
+    box-sizing: border-box;
     padding: 1.25rem;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto 1fr 1fr auto;
     gap: 1.25rem;
-    min-height: 100vh;
+    height: 100dvh;
+    height: 100vh;
 }
+.kiosk-board > .kiosk-section { min-height: 0; } /* laisse la grille contraindre la hauteur, pas le contenu */
+
+/* Écran étroit (tablette en mode portrait) : une colonne, on repasse en
+   défilement de page classique — impossible de tout caser sans scroll. */
 @media (max-width: 900px) {
-    .kiosk-board { grid-template-columns: 1fr; }
+    html, body.kiosk-body { overflow-y: auto; }
+    .kiosk-board {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        height: auto;
+        min-height: 100vh;
+    }
+    .kiosk-board > .kiosk-section { min-height: auto; }
 }
 
 .kiosk-header {
@@ -40,10 +58,22 @@ html, body.kiosk-body {
     border-radius: var(--radius-lg);
     padding: 1.1rem 1.5rem;
     box-shadow: var(--shadow-lg);
+    animation: fbFadeInUp .5s cubic-bezier(.2,1.4,.3,1) both;
 }
 .kiosk-header h1 { font-family: var(--font-display); font-size: 1.4rem; }
 .kiosk-clock { font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .kiosk-date { font-size: .85rem; color: rgba(255,255,255,.65); text-transform: capitalize; }
+.kiosk-nameday {
+    font-size: .9rem;
+    font-weight: 500;
+    background: rgba(255,255,255,.15);
+    padding: .3rem .75rem;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+@media (max-width: 700px) {
+    .kiosk-nameday { display: none; }
+}
 
 .kiosk-section {
     background: var(--card-bg);
@@ -54,8 +84,15 @@ html, body.kiosk-body {
     display: flex;
     flex-direction: column;
     gap: .5rem;
-    max-height: 70vh;
     overflow-y: auto;
+    animation: fbFadeInUp .5s cubic-bezier(.2,1.4,.3,1) both;
+}
+.kiosk-board > .kiosk-section:nth-of-type(1) { animation-delay: .05s; }
+.kiosk-board > .kiosk-section:nth-of-type(2) { animation-delay: .1s; }
+.kiosk-board > .kiosk-section:nth-of-type(3) { animation-delay: .15s; }
+.kiosk-board > .kiosk-section:nth-of-type(n+4) { animation-delay: .2s; }
+@media (prefers-reduced-motion: reduce) {
+    .kiosk-header, .kiosk-section { animation: none; }
 }
 .kiosk-section h2 {
     font-family: var(--font-display);
@@ -71,8 +108,8 @@ html, body.kiosk-body {
 .kiosk-list-name { font-size: .8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
 .kiosk-task-item { display: flex; align-items: center; gap: .6rem; padding: .45rem 0; border-bottom: 1px solid var(--border); font-size: .95rem; cursor: pointer; }
 .kiosk-task-item:last-child { border-bottom: none; }
-.kiosk-task-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.kiosk-task-item:active .kiosk-task-check { border-color: var(--primary); }
+.kiosk-task-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: transform .2s cubic-bezier(.3,1.5,.5,1), border-color .15s, background .15s; }
+.kiosk-task-item:active .kiosk-task-check { border-color: var(--primary); transform: scale(1.15); }
 .kiosk-add-row { display: flex; gap: .4rem; margin-top: .4rem; }
 .kiosk-add-row input { flex: 1; padding: .5rem .7rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); }
 .kiosk-add-row button { padding: .5rem .9rem; border-radius: var(--radius-sm); border: none; background: var(--primary); color: #fff; cursor: pointer; font-weight: 600; }
@@ -83,6 +120,44 @@ html, body.kiosk-body {
 .kiosk-contact-name { font-weight: 600; }
 .kiosk-contact-phone { color: var(--text-muted); margin-left: auto; white-space: nowrap; }
 .kiosk-empty { color: var(--text-muted); font-size: .85rem; padding: .5rem 0; }
+
+/* ---- Minuteurs ---- */
+.kiosk-timers-section { grid-column: 1 / -1; max-height: none; }
+.kiosk-timers { display: flex; flex-wrap: wrap; gap: .75rem; }
+.kiosk-timer {
+    display: flex; align-items: center; gap: .6rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: .6rem 1rem;
+}
+.kiosk-timer.running { border-color: var(--primary); }
+.kiosk-timer.alarming {
+    border-color: #E74C3C; background: rgba(231,76,60,.12);
+    animation: kiosk-timer-pulse 1s ease-in-out infinite;
+}
+@keyframes kiosk-timer-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,.5); } 50% { box-shadow: 0 0 0 8px rgba(231,76,60,0); } }
+.kiosk-timer-label { font-weight: 600; }
+.kiosk-timer-value { font-variant-numeric: tabular-nums; color: var(--text-muted); min-width: 3.2em; }
+.kiosk-timer.alarming .kiosk-timer-value { color: #E74C3C; font-weight: 700; }
+.kiosk-timer-btn {
+    border: none; border-radius: 50%; width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; font-size: .9rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .18s cubic-bezier(.3,1.5,.5,1);
+}
+.kiosk-timer-btn:active { transform: scale(.9); }
+.kiosk-timer.alarming .kiosk-timer-btn.kiosk-timer-stop { background: #E74C3C; }
+
+.kiosk-alarm-overlay {
+    position: fixed; inset: 0; z-index: 999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1rem; cursor: pointer;
+    background: #C0392B;
+    animation: kiosk-alarm-flash .6s step-start infinite;
+}
+@keyframes kiosk-alarm-flash { 50% { background: #1a1a1a; } }
+.kiosk-alarm-icon { font-size: 6rem; }
+.kiosk-alarm-label { font-size: 3rem; font-weight: 800; color: #fff; text-align: center; padding: 0 2rem; }
+.kiosk-alarm-hint { font-size: 1.2rem; color: rgba(255,255,255,.85); }
 
 /* ---- Privacy screen (babysitter mode) ---- */
 .kiosk-privacy {
@@ -101,6 +176,10 @@ html, body.kiosk-body {
     padding: 2.5rem;
     text-align: center;
     max-width: 420px;
+    animation: fbPop .4s cubic-bezier(.2,1.4,.3,1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+    .kiosk-privacy-card { animation: none; }
 }
 .kiosk-privacy-card h1 { font-family: var(--font-display); font-size: 1.4rem; margin-bottom: .5rem; }
 .kiosk-privacy-card p { color: var(--text-muted); font-size: .9rem; margin-bottom: 1.5rem; }

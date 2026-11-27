@@ -3,6 +3,8 @@ namespace App\Controllers;
 
 use App\Core\Session;
 use App\Models\Contact;
+use App\Models\Custody;
+use App\Models\NameDay;
 
 class ContactController extends BaseController
 {
@@ -13,6 +15,12 @@ class ContactController extends BaseController
         $user = Session::user();
         Contact::seedEmergency($user['family_id'], $user['id']);
         $contacts = Contact::getByFamily($user['family_id']);
+        foreach ($contacts as &$c) {
+            $c['name_day'] = NameDay::forName($c['first_name']);
+        }
+        unset($c);
+        // Pour la case "Partager avec le co-parent".
+        $custodySchedules = Custody::getSchedules((int)$user['family_id']);
         require BASE_PATH . '/templates/contacts/index.php';
     }
 
@@ -24,6 +32,7 @@ class ContactController extends BaseController
             $data = $this->jsonInput();
             if (empty($data['first_name'])) return ['success' => false, 'error' => 'Prénom requis'];
             if (isset($data['color'])) $data['color'] = $this->safeColor($data['color']);
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), (int)$user['family_id']);
             $id = Contact::create($user['family_id'], $user['id'], $data);
             return ['success' => true, 'contact' => Contact::getById($id)];
         });
@@ -40,6 +49,7 @@ class ContactController extends BaseController
             if ($contact['is_system']) return ['success' => false, 'error' => 'Ce contact système ne peut pas être modifié.'];
             $data = $this->jsonInput();
             if (isset($data['color'])) $data['color'] = $this->safeColor($data['color']);
+            $data['custody_schedule_ids'] = $this->validateFamilyScheduleIds((array)($data['custody_schedule_ids'] ?? []), (int)$user['family_id']);
             Contact::update($id, $data);
             return ['success' => true, 'contact' => Contact::getById($id)];
         });
@@ -56,8 +66,7 @@ class ContactController extends BaseController
             if ($contact['is_system']) return ['success' => false, 'error' => 'Ce contact système ne peut pas être supprimé.'];
             // Delete avatar file if any
             if ($contact['avatar']) {
-                $path = BASE_PATH . $contact['avatar'];
-                if (file_exists($path)) @unlink($path);
+                \App\Core\FileStore::deleteByRoute($contact['avatar']);
             }
             Contact::delete($id);
             return ['success' => true];
@@ -73,13 +82,12 @@ class ContactController extends BaseController
             $contact = Contact::getById($id);
             if (!$contact || $contact['family_id'] !== $user['family_id']) return ['success' => false, 'error' => 'Non autorisé'];
 
-            $path = $this->uploadImage('avatar');
-            if (!$path) return ['success' => false, 'error' => 'Fichier invalide ou trop volumineux'];
+            $path = $this->uploadFamilyImage('avatar', 'avatar');
+            if (!$path) return ['success' => false, 'error' => $this->lastUploadError ?: 'Fichier invalide ou trop volumineux'];
 
             // Delete old avatar
             if ($contact['avatar']) {
-                $old = BASE_PATH . $contact['avatar'];
-                if (file_exists($old)) @unlink($old);
+                \App\Core\FileStore::deleteByRoute($contact['avatar']);
             }
             Contact::updateAvatar($id, $path);
             return ['success' => true, 'avatar' => $path];
@@ -115,5 +123,29 @@ class ContactController extends BaseController
         foreach ($contacts as $c) {
             echo Contact::toVcard($c);
         }
+    }
+
+    /** POST /api/contacts/import-vcf — import groupé depuis un fichier .vcf (export standard de
+     *  Google Contacts, iCloud, Outlook ou du répertoire du téléphone — voir /migration). */
+    public function importVcf(array $params): void
+    {
+        $this->requireAuth();
+        $this->json(function () {
+            $user = Session::user();
+            if (empty($_FILES['file']['tmp_name']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+                return ['success' => false, 'error' => 'Fichier manquant ou invalide.'];
+            }
+            if ($_FILES['file']['size'] > 2 * 1024 * 1024) {
+                return ['success' => false, 'error' => 'Fichier trop volumineux (max 2 Mo).'];
+            }
+            $content = file_get_contents($_FILES['file']['tmp_name']);
+            if ($content === false || !str_contains($content, 'BEGIN:VCARD')) {
+                return ['success' => false, 'error' => "Ce fichier ne semble pas être un fichier .vcf valide."];
+            }
+            $count = Contact::importVcf((int)$user['family_id'], (int)$user['id'], $content);
+            return $count > 0
+                ? ['success' => true, 'count' => $count]
+                : ['success' => false, 'error' => 'Aucun contact exploitable trouvé dans ce fichier.'];
+        });
     }
 }

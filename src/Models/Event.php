@@ -7,42 +7,71 @@ class Event
 {
     public static function getByFamily(int $familyId, string $start, string $end): array
     {
-        return Database::fetchAll(
-            'SELECT e.*, u.name as user_name, u.color as user_color FROM events e
-             JOIN users u ON u.id = e.user_id
-             WHERE e.family_id = ? AND e.start_datetime < ? AND e.end_datetime > ?
-             ORDER BY e.start_datetime',
-            [$familyId, $end, $start]
-        );
+        try {
+            return Database::fetchAll(
+                "SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name, u.color as user_color, sf.name as shared_from_family_name,
+                        (SELECT GROUP_CONCAT(DISTINCT es.status) FROM event_shares es WHERE es.origin_event_id = e.id AND es.ended_at IS NULL) as share_statuses
+                 FROM events e
+                 LEFT JOIN users u ON u.id = e.user_id
+                 LEFT JOIN families sf ON sf.id = e.shared_from_family_id
+                 WHERE e.family_id = ? AND e.start_datetime < ? AND e.end_datetime > ?
+                 ORDER BY e.start_datetime",
+                [$familyId, $end, $start]
+            );
+        } catch (\Throwable $e) {
+            // Repli : le partage inter-familles est une fonctionnalité optionnelle dont les
+            // tables/colonnes (event_shares, shared_from_family_id, former_user_name) peuvent
+            // être absentes si la migration n'a pas encore été appliquée. Un calendrier vide
+            // ou en erreur serait pire que l'absence des seuls indicateurs de partage : on
+            // relance alors une requête minimale qui reste fonctionnelle.
+            error_log('Event::getByFamily: repli sans partage inter-familles — ' . $e->getMessage());
+            return Database::fetchAll(
+                "SELECT e.*, u.name as user_name, u.color as user_color
+                 FROM events e
+                 LEFT JOIN users u ON u.id = e.user_id
+                 WHERE e.family_id = ? AND e.start_datetime < ? AND e.end_datetime > ?
+                 ORDER BY e.start_datetime",
+                [$familyId, $end, $start]
+            );
+        }
     }
 
     public static function getById(int $id): ?array
     {
-        return Database::fetch('SELECT e.*, u.name as user_name FROM events e JOIN users u ON u.id=e.user_id WHERE e.id=?', [$id]);
+        return Database::fetch('SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name FROM events e LEFT JOIN users u ON u.id=e.user_id WHERE e.id=?', [$id]);
+    }
+
+    /** CSV de schedule_id (comme Invitation::create()), ou NULL si aucun enfant sélectionné. */
+    private static function encodeScheduleIds(array $data): ?string
+    {
+        $ids = array_values(array_unique(array_map('intval', (array)($data['custody_schedule_ids'] ?? []))));
+        return $ids ? implode(',', $ids) : null;
     }
 
     public static function create(array $data): int
     {
         return Database::insert(
-            'INSERT INTO events (family_id, user_id, title, description, start_datetime, end_datetime, is_all_day, color, recurrence, recurrence_end, custody_schedule_id, professional_name, location, location_lat, location_lng) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            'INSERT INTO events (family_id, user_id, title, description, start_datetime, end_datetime, is_all_day, color, recurrence, recurrence_end, custody_schedule_ids, professional_name, location, location_lat, location_lng, employment_profile_id, employment_leave_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [$data['family_id'], $data['user_id'], $data['title'], $data['description'] ?? null,
              $data['start_datetime'], $data['end_datetime'], $data['is_all_day'] ?? 0,
              $data['color'] ?? '#4A90D9', $data['recurrence'] ?? null, $data['recurrence_end'] ?? null,
-             !empty($data['custody_schedule_id']) ? $data['custody_schedule_id'] : null,
+             self::encodeScheduleIds($data),
              $data['professional_name'] ?? null, $data['location'] ?? null,
-             $data['location_lat'] ?? null, $data['location_lng'] ?? null]
+             $data['location_lat'] ?? null, $data['location_lng'] ?? null,
+             $data['employment_profile_id'] ?? null, $data['employment_leave_type'] ?? null]
         );
     }
 
     public static function update(int $id, array $data): void
     {
         Database::execute(
-            'UPDATE events SET title=?, description=?, start_datetime=?, end_datetime=?, is_all_day=?, color=?, recurrence=?, recurrence_end=?, custody_schedule_id=?, professional_name=?, location=?, location_lat=?, location_lng=? WHERE id=?',
+            'UPDATE events SET title=?, description=?, start_datetime=?, end_datetime=?, is_all_day=?, color=?, recurrence=?, recurrence_end=?, custody_schedule_ids=?, professional_name=?, location=?, location_lat=?, location_lng=?, employment_profile_id=?, employment_leave_type=? WHERE id=?',
             [$data['title'], $data['description'] ?? null, $data['start_datetime'], $data['end_datetime'],
              $data['is_all_day'] ?? 0, $data['color'] ?? '#4A90D9', $data['recurrence'] ?? null, $data['recurrence_end'] ?? null,
-             !empty($data['custody_schedule_id']) ? $data['custody_schedule_id'] : null,
+             self::encodeScheduleIds($data),
              $data['professional_name'] ?? null, $data['location'] ?? null,
-             $data['location_lat'] ?? null, $data['location_lng'] ?? null, $id]
+             $data['location_lat'] ?? null, $data['location_lng'] ?? null,
+             $data['employment_profile_id'] ?? null, $data['employment_leave_type'] ?? null, $id]
         );
     }
 
@@ -51,11 +80,11 @@ class Event
     {
         $scheduleIds = array_values(array_unique(array_map('intval', $scheduleIds)));
         if (empty($scheduleIds)) return [];
-        $ph = implode(',', array_fill(0, count($scheduleIds), '?'));
+        $ors = implode(' OR ', array_fill(0, count($scheduleIds), 'FIND_IN_SET(?, e.custody_schedule_ids)'));
         return Database::fetchAll(
-            "SELECT e.*, u.name as user_name, u.color as user_color FROM events e
-             JOIN users u ON u.id = e.user_id
-             WHERE e.custody_schedule_id IN ($ph) AND e.start_datetime < ? AND e.end_datetime > ?
+            "SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name, u.color as user_color FROM events e
+             LEFT JOIN users u ON u.id = e.user_id
+             WHERE ($ors) AND e.start_datetime < ? AND e.end_datetime > ?
              ORDER BY e.start_datetime",
             [...$scheduleIds, $end, $start]
         );
@@ -81,6 +110,20 @@ class Event
         Database::execute('DELETE FROM events WHERE caldav_source_id=?', [$sourceId]);
     }
 
+    /** Événements récents/à venir sélectionnables pour rattacher une checklist (voir
+     *  TaskList::linkToEvent) — fenêtre plus large que getUpcoming() puisqu'on veut pouvoir
+     *  choisir un événement commencé il y a peu (ex. relier la checklist après coup). */
+    public static function getSelectableForFamily(int $familyId): array
+    {
+        $from = date('Y-m-d H:i:s', strtotime('-30 days'));
+        return Database::fetchAll(
+            'SELECT id, title, start_datetime FROM events
+             WHERE family_id=? AND start_datetime >= ?
+             ORDER BY start_datetime LIMIT 100',
+            [$familyId, $from]
+        );
+    }
+
     public static function getUpcoming(int $familyId, int $days = 7): array
     {
         // start_datetime est enregistré tel quel depuis un <input datetime-local> (heure locale
@@ -89,7 +132,7 @@ class Event
         $now = date('Y-m-d H:i:s');
         $until = date('Y-m-d H:i:s', strtotime("+{$days} days"));
         return Database::fetchAll(
-            'SELECT e.*, u.name as user_name, u.color as user_color FROM events e JOIN users u ON u.id=e.user_id
+            'SELECT e.*, COALESCE(u.name, e.former_user_name) as user_name, u.color as user_color FROM events e LEFT JOIN users u ON u.id=e.user_id
              WHERE e.family_id=? AND e.start_datetime BETWEEN ? AND ?
              ORDER BY e.start_datetime LIMIT 10',
             [$familyId, $now, $until]

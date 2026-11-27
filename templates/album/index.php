@@ -12,7 +12,7 @@ ob_start();
         <a class="album-card" href="<?= BASE_URL ?>/albums/<?= (int)$album['id'] ?>">
             <div class="album-cover" <?= $album['cover_path'] ? 'style="background-image:url(\'' . BASE_URL . htmlspecialchars($album['cover_path']) . '\')"' : '' ?>>
                 <?php if (!$album['cover_path']): ?><span class="album-cover-placeholder">🖼️</span><?php endif; ?>
-                <?php if ($album['custody_schedule_id']): ?><span class="album-shared-badge" title="Partagé avec le co-parent">🔒</span><?php endif; ?>
+                <?php if (!empty($album['custody_schedule_ids'])): ?><span class="album-shared-badge" title="Partagé avec le co-parent">🔒</span><?php endif; ?>
             </div>
             <div class="album-info">
                 <strong><?= htmlspecialchars($album['title']) ?></strong>

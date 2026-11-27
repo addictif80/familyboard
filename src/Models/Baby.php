@@ -20,11 +20,11 @@ class Baby
         return Database::fetch('SELECT * FROM babies WHERE id = ?', [$id]);
     }
 
-    public static function create(int $familyId, string $name): int
+    public static function create(int $familyId, string $name, ?int $familyChildId = null): int
     {
         return Database::insert(
-            'INSERT INTO babies (family_id, name) VALUES (?, ?)',
-            [$familyId, $name]
+            'INSERT INTO babies (family_id, name, family_child_id) VALUES (?, ?, ?)',
+            [$familyId, $name, $familyChildId]
         );
     }
 
@@ -46,11 +46,15 @@ class Baby
 
     public static function updateAvatar(int $id, string $path): void
     {
+        $existing = Database::fetch('SELECT avatar FROM babies WHERE id=?', [$id]);
+        if ($existing && $existing['avatar']) \App\Core\FileStore::deleteByRoute($existing['avatar']);
         Database::execute('UPDATE babies SET avatar=? WHERE id=?', [$path, $id]);
     }
 
     public static function delete(int $id): void
     {
+        $existing = Database::fetch('SELECT avatar FROM babies WHERE id=?', [$id]);
+        if ($existing && $existing['avatar']) \App\Core\FileStore::deleteByRoute($existing['avatar']);
         Database::execute('DELETE FROM babies WHERE id=?', [$id]);
     }
 
@@ -313,6 +317,19 @@ class Baby
     }
 
     // ── Stats helpers ─────────────────────────────────────────
+
+    /** Horodatage du dernier événement de chaque type (feeding, diaper, stool, urine, bath...),
+     *  pour un affichage "dernier repas il y a 2h" plutôt qu'un simple compteur du jour. */
+    public static function getLastEventTimes(int $babyId): array
+    {
+        $rows = Database::fetchAll(
+            'SELECT type, MAX(event_at) as last_at FROM baby_events WHERE baby_id=? GROUP BY type',
+            [$babyId]
+        );
+        $out = [];
+        foreach ($rows as $r) $out[$r['type']] = $r['last_at'];
+        return $out;
+    }
 
     public static function getDailyStats(int $babyId, string $date): array
     {

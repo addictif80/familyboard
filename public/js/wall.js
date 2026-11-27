@@ -6,6 +6,40 @@ let wallOffset = 20;
 let wallLoading = false;
 let postQuill = null;
 let editQuill = null;
+let selectedAlbumPhotoId = null;
+
+// ---- Tabs (Fil d'actualité / Photos) ----
+function switchWallTab(tab) {
+    document.getElementById('wall-panel-feed').style.display = tab === 'feed' ? 'block' : 'none';
+    document.getElementById('wall-panel-photos').style.display = tab === 'photos' ? 'block' : 'none';
+    document.getElementById('wall-tab-feed').classList.toggle('active', tab === 'feed');
+    document.getElementById('wall-tab-photos').classList.toggle('active', tab === 'photos');
+}
+
+// ---- Import d'une photo depuis un de mes albums ----
+async function openAlbumPicker() {
+    openModal('wall-album-picker-modal');
+    const grid = document.getElementById('wall-album-picker-grid');
+    const data = await apiFetch(BASE_URL + '/api/wall/my-album-photos');
+    const photos = data.photos || [];
+    if (!photos.length) {
+        grid.innerHTML = '<p style="color:var(--text-muted);font-size:.85rem">Aucune photo dans vos albums pour l\'instant.</p>';
+        return;
+    }
+    grid.innerHTML = photos.map(p => `
+        <div class="album-photo" onclick="pickAlbumPhoto(${p.id}, '${escapeHtml(p.image_path)}')">
+            <img src="${BASE_URL}${escapeHtml(p.image_path)}" alt="" loading="lazy">
+        </div>
+    `).join('');
+}
+
+function pickAlbumPhoto(photoId, path) {
+    selectedAlbumPhotoId = photoId;
+    document.getElementById('post-image').value = '';
+    document.getElementById('preview-img').src = BASE_URL + path;
+    document.getElementById('image-preview').style.display = 'block';
+    closeModal('wall-album-picker-modal');
+}
 
 // ---- Quill toolbar config ----
 const QUILL_TOOLBAR = [
@@ -41,15 +75,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const isEmpty = postQuill.getText().trim() === '';
 
             // Allow submit if image is attached even if text is empty
-            const hasImage = document.getElementById('post-image')?.files?.length > 0;
+            const hasImage = document.getElementById('post-image')?.files?.length > 0 || selectedAlbumPhotoId;
             if (isEmpty && !hasImage) {
                 e.preventDefault();
                 Dialog.toast('Rédigez un message ou ajoutez une photo.', 'error');
                 return;
             }
+            if (!btn || btn.disabled) { e.preventDefault(); return; }
+
+            // Photo importée d'un album : le formulaire ne l'a jamais chargée (elle vit déjà sur
+            // le serveur), on passe donc par l'API de partage plutôt qu'un envoi multipart.
+            if (selectedAlbumPhotoId) {
+                e.preventDefault();
+                btn.disabled = true;
+                btn.textContent = 'Publication…';
+                apiFetch(BASE_URL + '/api/wall/share-photo', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        photo_id: selectedAlbumPhotoId,
+                        caption: isEmpty ? '' : html,
+                        scope: document.getElementById('post-type-select').value,
+                    }),
+                }).then(r => {
+                    if (r.success) {
+                        if (r.pending) Dialog.toast('Publication envoyée à l\'administrateur pour validation.');
+                        window.location.reload();
+                    } else {
+                        Dialog.toast(r.error || 'Erreur lors de la publication.', 'error');
+                        btn.disabled = false;
+                        btn.textContent = 'Publier';
+                    }
+                });
+                return;
+            }
 
             document.getElementById('post-content-hidden').value = isEmpty ? '' : html;
-            if (!btn || btn.disabled) { e.preventDefault(); return; }
             btn.disabled = true;
             btn.textContent = 'Publication…';
         });
@@ -58,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ---- Image upload preview ----
 function previewImage(input) {
+    selectedAlbumPhotoId = null;
     if (input.files && input.files[0]) {
         const reader = new FileReader();
         reader.onload = e => {
@@ -72,6 +133,7 @@ function clearImage() {
     document.getElementById('post-image').value = '';
     document.getElementById('image-preview').style.display = 'none';
     document.getElementById('preview-img').src = '';
+    selectedAlbumPhotoId = null;
 }
 
 // ---- Reactions ----
@@ -80,6 +142,11 @@ async function toggleReaction(postId, btn) {
     if (data.success) {
         btn.classList.toggle('reacted', data.action === 'added');
         btn.querySelector('.reaction-count').textContent = data.count;
+        if (data.action === 'added') {
+            btn.classList.remove('pop');
+            void btn.offsetWidth;
+            btn.classList.add('pop');
+        }
     }
 }
 
@@ -106,7 +173,7 @@ async function addComment(postId) {
         const div = document.createElement('div');
         div.className = 'comment-item';
         div.innerHTML = `
-            <div class="user-avatar-sm" style="background:${escapeHtml(c.user_color)}">${escapeHtml(c.user_name[0])}</div>
+            ${avatarHtml(c.user_avatar, c.user_color, c.user_name, 'user-avatar-sm')}
             <div class="comment-body">
                 <strong>${escapeHtml(c.user_name)}</strong>
                 <p>${escapeHtml(c.content).replace(/\n/g,'<br>')}</p>
@@ -192,7 +259,7 @@ async function loadMorePosts() {
     if (wallLoading) return;
     wallLoading = true;
     const btn = document.getElementById('load-more-btn');
-    btn.textContent = 'Chargement…';
+    btn.classList.add('btn-loading');
 
     const data = await apiFetch(BASE_URL + '/api/wall/more?offset=' + wallOffset);
     if (data.posts && data.posts.length > 0) {
@@ -204,5 +271,33 @@ async function loadMorePosts() {
         document.getElementById('load-more-container').style.display = 'none';
     }
     wallLoading = false;
-    btn.textContent = 'Charger plus';
+    btn.classList.remove('btn-loading');
+}
+
+// ---- Abonnements (mur "réseau social") ----
+
+async function requestFollow(userId) {
+    const r = await apiFetch(BASE_URL + '/api/follow/request', { method: 'POST', body: JSON.stringify({ user_id: userId }) });
+    if (r.success) { Dialog.toast('Demande envoyée.'); window.location.reload(); }
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+async function acceptFollow(followerId) {
+    const r = await apiFetch(BASE_URL + '/api/follow/accept', { method: 'POST', body: JSON.stringify({ user_id: followerId }) });
+    if (r.success) window.location.reload();
+    else Dialog.toast(r.error || 'Erreur.', 'error');
+}
+
+async function removeFollower(followerId) {
+    const r = await apiFetch(BASE_URL + '/api/follow/remove-follower', { method: 'POST', body: JSON.stringify({ user_id: followerId }) });
+    if (r.success) window.location.reload();
+    else Dialog.toast('Erreur.', 'error');
+}
+
+async function unfollow(userId) {
+    const ok = await Dialog.confirm('Se désabonner de ce membre ?');
+    if (!ok) return;
+    const r = await apiFetch(BASE_URL + '/api/follow/remove', { method: 'POST', body: JSON.stringify({ user_id: userId }) });
+    if (r.success) window.location.reload();
+    else Dialog.toast('Erreur.', 'error');
 }

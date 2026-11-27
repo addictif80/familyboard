@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="add_appointment"
+        android:enabled="true"
+        android:icon="@drawable/ic_calendar_plus"
+        android:shortcutShortLabel="@string/shortcut_add_appointment"
+        android:shortcutLongLabel="@string/shortcut_add_appointment"
+        android:shortcutDisabledMessage="@string/shortcut_add_appointment">
+        <intent
+            android:action="com.familyboard.app.action.ADD_APPOINTMENT"
+            android:targetClass="com.familyboard.app.ui.main.MainActivity"
+            android:targetPackage="com.familyboard.app" />
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="add_document"
+        android:enabled="true"
+        android:icon="@drawable/ic_document_plus"
+        android:shortcutShortLabel="@string/shortcut_add_document"
+        android:shortcutLongLabel="@string/shortcut_add_document"
+        android:shortcutDisabledMessage="@string/shortcut_add_document">
+        <intent
+            android:action="com.familyboard.app.action.ADD_DOCUMENT"
+            android:targetClass="com.familyboard.app.ui.main.MainActivity"
+            android:targetPackage="com.familyboard.app" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="add_budget"
+        android:enabled="true"
+        android:icon="@drawable/ic_budget_plus"
+        android:shortcutShortLabel="@string/shortcut_add_budget"
+        android:shortcutLongLabel="@string/shortcut_add_budget"
+        android:shortcutDisabledMessage="@string/shortcut_add_budget">
+        <intent
+            android:action="com.familyboard.app.action.ADD_BUDGET"
+            android:targetClass="com.familyboard.app.ui.main.MainActivity"
+            android:targetPackage="com.familyboard.app" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="view_location"
+        android:enabled="true"
+        android:icon="@drawable/ic_location"
+        android:shortcutShortLabel="@string/shortcut_view_location"
+        android:shortcutLongLabel="@string/shortcut_view_location"
+        android:shortcutDisabledMessage="@string/shortcut_view_location">
+        <intent
+            android:action="com.familyboard.app.action.VIEW_LOCATION"
+            android:targetClass="com.familyboard.app.ui.main.MainActivity"
+            android:targetPackage="com.familyboard.app" />
+    </shortcut>
+</shortcuts>

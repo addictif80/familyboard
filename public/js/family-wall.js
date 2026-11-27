@@ -108,6 +108,156 @@ async function wallToggle(id, el) {
     }
 }
 
+// ── Minuteurs ────────────────────────────────────────────────
+// L'échéance ("alarming") n'est jamais un état serveur : chaque tick la déduit lui-même de
+// data-ends-at, ce qui garde tous les écrans (mural + kiosque) cohérents sans synchronisation
+// particulière. L'alarme est un bip généré via Web Audio API (pas de fichier audio à charger).
+
+let _timerAlarmCtx = null;
+let _timerAlarmInterval = null;
+
+function _timerBeep() {
+    try {
+        _timerAlarmCtx = _timerAlarmCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const osc = _timerAlarmCtx.createOscillator();
+        const gain = _timerAlarmCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.25, _timerAlarmCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, _timerAlarmCtx.currentTime + 0.4);
+        osc.connect(gain).connect(_timerAlarmCtx.destination);
+        osc.start();
+        osc.stop(_timerAlarmCtx.currentTime + 0.4);
+    } catch (_) { /* contexte audio indisponible (pas d'interaction utilisateur encore) */ }
+}
+
+function _timerStartAlarmLoop() {
+    if (_timerAlarmInterval) return;
+    _timerBeep();
+    _timerAlarmInterval = setInterval(_timerBeep, 1200);
+}
+
+function _timerStopAlarmLoop() {
+    clearInterval(_timerAlarmInterval);
+    _timerAlarmInterval = null;
+}
+
+function _showAlarmOverlay(label) {
+    const overlay = document.getElementById('fwAlarmOverlay');
+    if (!overlay) return;
+    document.getElementById('fwAlarmLabel').textContent = label;
+    overlay.style.display = 'flex';
+}
+
+function _hideAlarmOverlay() {
+    const overlay = document.getElementById('fwAlarmOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+/** Arrête tous les minuteurs actuellement en alarme — déclenché en tapant n'importe où sur le
+ *  calque plein écran, peu importe le nombre de minuteurs sonnant en même temps. */
+function _dismissAllAlarms() {
+    document.querySelectorAll('.fw-timer.alarming').forEach(el => wallStopTimer(el.dataset.timerId));
+    _hideAlarmOverlay();
+    _timerStopAlarmLoop();
+}
+
+function _timersTick() {
+    const els = document.querySelectorAll('.fw-timer[data-run-id]');
+    let anyAlarming = false;
+    let alarmLabel = '';
+    els.forEach(el => {
+        const held = el.dataset.held === '1';
+        const endsAt = new Date(el.dataset.endsAt.replace(' ', 'T') + 'Z').getTime();
+        const remaining = Math.round((endsAt - Date.now()) / 1000);
+        const valueEl = el.querySelector('.fw-timer-value');
+        if (remaining > 0) {
+            const m = String(Math.floor(remaining / 60)).padStart(2, '0');
+            const s = String(remaining % 60).padStart(2, '0');
+            if (valueEl) valueEl.textContent = `${m}:${s}`;
+            el.classList.remove('alarming');
+        } else if (held) {
+            // Personne à la maison à l'échéance : en attente d'un retour (voir cron.php),
+            // pas d'alarme tant que held_for_return n'est pas relâché côté serveur.
+            if (valueEl) valueEl.textContent = '🏃 absent';
+            el.classList.remove('alarming');
+        } else {
+            if (valueEl) valueEl.textContent = '00:00';
+            el.classList.add('alarming');
+            anyAlarming = true;
+            alarmLabel = el.dataset.label || '';
+        }
+    });
+    if (anyAlarming) {
+        _timerStartAlarmLoop();
+        _showAlarmOverlay(alarmLabel);
+    } else {
+        _timerStopAlarmLoop();
+        _hideAlarmOverlay();
+    }
+}
+
+/** Rafraîchit held_for_return/ends_at/run_id depuis le serveur sans recharger toute la page —
+ *  sinon un held_for_return relâché par le cron (quelqu'un vient de rentrer) attendrait jusqu'à
+ *  5 minutes (le prochain rechargement complet) avant de sonner. */
+async function _timersPoll() {
+    try {
+        const data = await apiFetch(`${BASE_URL}/api/family-wall/timers-status`);
+        if (!data.success) return;
+        data.timers.forEach(t => {
+            const el = document.getElementById('fw-timer-' + t.id);
+            if (!el) return;
+            if (t.run_id) {
+                el.dataset.runId = t.run_id;
+                el.dataset.endsAt = t.ends_at;
+                el.dataset.held = t.held_for_return ? '1' : '0';
+                if (!el.classList.contains('running')) {
+                    el.classList.add('running');
+                    el.querySelector('.fw-timer-start').style.display = 'none';
+                    el.querySelector('.fw-timer-stop').style.display = '';
+                }
+            } else if (el.dataset.runId) {
+                delete el.dataset.runId;
+                delete el.dataset.endsAt;
+                delete el.dataset.held;
+                el.classList.remove('running', 'alarming');
+                el.querySelector('.fw-timer-value').textContent = el.dataset.durationMin + ' min';
+                el.querySelector('.fw-timer-start').style.display = '';
+                el.querySelector('.fw-timer-stop').style.display = 'none';
+            }
+        });
+        _timersTick();
+    } catch (_) {}
+}
+
+async function wallStartTimer(id) {
+    const data = await apiFetch(`${BASE_URL}/api/family-wall/timers/${id}/start`, { method: 'POST' });
+    if (!data.success) return;
+    const el = document.getElementById('fw-timer-' + id);
+    if (!el) return;
+    el.dataset.runId = data.run_id;
+    el.dataset.endsAt = data.ends_at;
+    el.dataset.held = '0';
+    el.classList.add('running');
+    el.querySelector('.fw-timer-start').style.display = 'none';
+    el.querySelector('.fw-timer-stop').style.display = '';
+    _timersTick();
+}
+
+async function wallStopTimer(id) {
+    await apiFetch(`${BASE_URL}/api/family-wall/timers/${id}/stop`, { method: 'POST' });
+    const el = document.getElementById('fw-timer-' + id);
+    if (!el) return;
+    delete el.dataset.runId;
+    delete el.dataset.endsAt;
+    delete el.dataset.held;
+    el.classList.remove('running', 'alarming');
+    el.querySelector('.fw-timer-value').textContent = el.dataset.durationMin + ' min';
+    el.querySelector('.fw-timer-start').style.display = '';
+    el.querySelector('.fw-timer-stop').style.display = 'none';
+    _timersTick();
+}
+
 // ── Auto-refresh countdown ──────────────────────────────────
 
 let _refreshRemaining = 5 * 60;
@@ -147,203 +297,16 @@ async function _wakeLock() {
     }
 }
 
-// ── Wall camera panel ────────────────────────────────────────
-// Each tile: POST go2rtcRegister → if ok, show MJPEG img
-// Fullscreen: HLS via hls.js proxied through PHP (with audio)
-
-let _wallCamOpen   = false;
-let _wallCamStreams = {}; // camId -> { img }
-let _wallFsHls     = null;
-let _wallFsImg     = null;
-
-async function _startWallCamTile(camId) {
-    const statusEl  = document.getElementById(`fw-status-${camId}`);
-    const previewEl = document.getElementById(`fw-preview-${camId}`);
-    if (!statusEl || !previewEl) return;
-
-    try {
-        const reg = await apiFetch(`${BASE_URL}/api/cameras/${camId}/go2rtc`, { method: 'POST', body: '{}' });
-        if (!reg.ok) {
-            statusEl.innerHTML = `<span>⚠️</span>${reg.error || 'Erreur go2rtc'}`;
-            return;
-        }
-    } catch (_) {
-        statusEl.innerHTML = '<span>⚠️</span>Erreur réseau';
-        return;
-    }
-
-    const img = document.createElement('img');
-    img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
-
-    img.onerror = () => {
-        img.remove();
-        if (statusEl) statusEl.innerHTML = '<span>⚠️</span>Flux inaccessible';
-    };
-
-    const showImg = () => {
-        if (statusEl && statusEl.parentNode) statusEl.remove();
-        if (!previewEl.contains(img)) previewEl.appendChild(img);
-    };
-
-    img.onload = showImg;
-    setTimeout(showImg, 4000);
-
-    img.src = `${BASE_URL}/api/cameras/${camId}/go2rtc`;
-    _wallCamStreams[camId] = { img };
-}
-
-function _stopWallCamTile(camId) {
-    const s = _wallCamStreams[camId];
-    if (s) {
-        s.img.src = '';
-        s.img.remove();
-        delete _wallCamStreams[camId];
-    }
-    const previewEl = document.getElementById(`fw-preview-${camId}`);
-    if (previewEl) {
-        const st = document.createElement('div');
-        st.id = `fw-status-${camId}`;
-        st.className = 'fw-cam-tile-status';
-        st.innerHTML = '<span>⏹</span>Arrêté';
-        previewEl.innerHTML = '';
-        previewEl.appendChild(st);
-    }
-}
-
-function toggleWallCams() {
-    _wallCamOpen ? closeWallCams() : openWallCams();
-}
-
-function openWallCams() {
-    const panel = document.getElementById('fw-cam-panel');
-    const btn   = document.getElementById('fwCamBtn');
-    if (!panel) return;
-    _wallCamOpen = true;
-    panel.classList.add('open');
-    if (btn) btn.classList.add('active');
-
-    const cameras = (typeof WALL_CAMERAS !== 'undefined') ? WALL_CAMERAS : [];
-    cameras.forEach(c => _startWallCamTile(c.id));
-}
-
-function closeWallCams() {
-    const panel = document.getElementById('fw-cam-panel');
-    const btn   = document.getElementById('fwCamBtn');
-    if (!panel) return;
-
-    const cameras = (typeof WALL_CAMERAS !== 'undefined') ? WALL_CAMERAS : [];
-    cameras.forEach(c => _stopWallCamTile(c.id));
-
-    _wallCamOpen = false;
-    panel.classList.remove('open');
-    if (btn) btn.classList.remove('active');
-}
-
-function openWallCamFs(camId, camName) {
-    const modal = document.getElementById('fw-cam-fs');
-    const body  = document.getElementById('fw-cam-fs-body');
-    const title = document.getElementById('fw-cam-fs-title');
-    if (!modal) return;
-
-    title.textContent = camName || 'Caméra';
-    body.innerHTML    = '<div class="fw-cam-fs-loading">⏳ Chargement du flux…</div>';
-    modal.classList.add('open');
-
-    const hlsSrc = `${BASE_URL}/api/cameras/${camId}/go2rtc/hls`;
-
-    // Try HLS (with audio) first, fallback to MJPEG img
-    if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-        _launchFsHls(body, hlsSrc, camId);
-    } else {
-        // Load hls.js on demand
-        const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
-        s.onload = () => {
-            if (Hls.isSupported()) {
-                _launchFsHls(body, hlsSrc, camId);
-            } else {
-                _launchFsMjpeg(body, camId);
-            }
-        };
-        s.onerror = () => _launchFsMjpeg(body, camId);
-        document.head.appendChild(s);
-    }
-}
-
-function _launchFsHls(body, hlsSrc, camId) {
-    const video = document.createElement('video');
-    video.controls  = true;
-    video.autoplay  = true;
-    video.muted     = false;
-    video.playsInline = true;
-    video.style.cssText = 'max-width:100%;max-height:100%;border-radius:8px;';
-
-    const hls = new Hls({ enableWorker: false });
-    hls.loadSource(hlsSrc);
-    hls.attachMedia(video);
-    _wallFsHls = hls;
-
-    // Fallback to MJPEG if HLS fails after 6s
-    const fallbackTimer = setTimeout(() => {
-        hls.destroy();
-        _wallFsHls = null;
-        _launchFsMjpeg(body, camId);
-    }, 6000);
-
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        clearTimeout(fallbackTimer);
-        body.innerHTML = '';
-        body.appendChild(video);
-        video.play().catch(() => { video.muted = true; video.play(); });
-    });
-
-    hls.on(Hls.Events.ERROR, (ev, data) => {
-        if (data.fatal) {
-            clearTimeout(fallbackTimer);
-            hls.destroy();
-            _wallFsHls = null;
-            _launchFsMjpeg(body, camId);
-        }
-    });
-}
-
-function _launchFsMjpeg(body, camId) {
-    const img = document.createElement('img');
-    img.alt = 'Flux caméra';
-    img.style.cssText = 'max-width:100%;max-height:100%;border-radius:8px;';
-
-    img.onerror = () => {
-        body.innerHTML = '<div class="fw-cam-fs-loading">⚠️ Flux inaccessible</div>';
-    };
-    const show = () => {
-        if (body.querySelector('.fw-cam-fs-loading')) {
-            body.innerHTML = '';
-            body.appendChild(img);
-        }
-    };
-    img.onload = show;
-    setTimeout(show, 4000);
-
-    img.src = `${BASE_URL}/api/cameras/${camId}/go2rtc`;
-    _wallFsImg = img;
-}
-
-function closeWallCamFs() {
-    const modal = document.getElementById('fw-cam-fs');
-    if (!modal) return;
-
-    if (_wallFsHls) { _wallFsHls.destroy(); _wallFsHls = null; }
-    if (_wallFsImg) { _wallFsImg.src = ''; _wallFsImg = null; }
-
-    document.getElementById('fw-cam-fs-body').innerHTML = '';
-    modal.classList.remove('open');
-}
-
 // ── Init ────────────────────────────────────────────────────
 
 _wallClock();
+_timersTick();
 setInterval(_wallClock, 1000);
 setInterval(_tickRefresh, 1000);
+setInterval(_timersTick, 1000);
+setInterval(_timersPoll, 15000);
+
+document.getElementById('fwAlarmOverlay')?.addEventListener('click', _dismissAllAlarms);
 
 _wallWeather();
 _wakeLock();

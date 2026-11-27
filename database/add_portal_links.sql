@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS portal_links (
+    id                INT AUTO_INCREMENT PRIMARY KEY,
+    family_id         INT           NOT NULL,
+    title             VARCHAR(255)  NOT NULL,
+    url               VARCHAR(500)  NOT NULL,
+    description       VARCHAR(500)  NULL DEFAULT NULL,
+    image_path        VARCHAR(500)  NULL DEFAULT NULL,
+    status            ENUM('approved','pending','rejected') NOT NULL DEFAULT 'pending',
+    visible_to_coparent TINYINT(1)  NOT NULL DEFAULT 0,
+    click_count       INT           NOT NULL DEFAULT 0,
+    submitted_by      INT           NOT NULL,
+    reviewed_by       INT           NULL DEFAULT NULL,
+    reviewed_at       DATETIME      NULL DEFAULT NULL,
+    rejection_reason  VARCHAR(255)  NULL DEFAULT NULL,
+    created_at        DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (family_id)    REFERENCES families(id) ON DELETE CASCADE,
+    FOREIGN KEY (submitted_by) REFERENCES users(id)    ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by)  REFERENCES users(id)    ON DELETE SET NULL,
+    INDEX idx_family_status (family_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

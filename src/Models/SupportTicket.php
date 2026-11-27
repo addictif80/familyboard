@@ -5,6 +5,16 @@ use App\Core\Database;
 
 class SupportTicket
 {
+    /** RGPD (durée de conservation) : un ticket clos depuis longtemps (diagnostics techniques,
+     *  échanges avec l'utilisateur) n'a plus d'utilité opérationnelle passé un délai raisonnable. */
+    public static function purgeClosedOlderThan(int $months = 18): int
+    {
+        return Database::execute(
+            "DELETE FROM support_tickets WHERE status='closed' AND updated_at < DATE_SUB(NOW(), INTERVAL ? MONTH)",
+            [$months]
+        );
+    }
+
     // ── Tickets ─────────────────────────────────────────────────
 
     public static function getAll(): array
@@ -31,6 +41,21 @@ class SupportTicket
         );
     }
 
+    /** Un accès co-parent appartient, en base, à la famille qui l'a invité (voir
+     *  InvitationController::accept()) — il ne doit voir/pouvoir répondre qu'à SES PROPRES
+     *  tickets, jamais ceux ouverts par les autres membres de cette famille. */
+    public static function getByFamilyAndUser(int $familyId, int $userId): array
+    {
+        return Database::fetchAll(
+            'SELECT t.*,
+             (SELECT COUNT(*) FROM support_messages m WHERE m.ticket_id=t.id) as msg_count
+             FROM support_tickets t
+             WHERE t.family_id=? AND t.user_id=?
+             ORDER BY t.updated_at DESC',
+            [$familyId, $userId]
+        );
+    }
+
     public static function getById(int $id): ?array
     {
         return Database::fetch(
@@ -50,7 +75,26 @@ class SupportTicket
             [$familyId, $userId, $subject]
         );
         self::addMessage($id, $userId, false, $firstMessage);
+        self::notifyAdminOfNewTicket($id, $familyId, $userId, $subject, $firstMessage);
         return $id;
+    }
+
+    /** Prévient l'administrateur système par email (si une adresse est renseignée) qu'un nouveau ticket a été ouvert. */
+    private static function notifyAdminOfNewTicket(int $id, int $familyId, int $userId, string $subject, string $firstMessage): void
+    {
+        $adminEmail = AppSetting::get('admin_email');
+        if (!$adminEmail) return;
+
+        try {
+            $user = User::findById($userId);
+            $html = '<p>Nouveau ticket de support ouvert par ' . htmlspecialchars($user['name'] ?? 'un utilisateur') . ' :</p>'
+                  . '<p><strong>' . htmlspecialchars($subject) . '</strong></p>'
+                  . '<p>' . nl2br(htmlspecialchars($firstMessage)) . '</p>'
+                  . '<p><a href="' . BASE_URL . '/admin/tickets/' . $id . '">Voir le ticket dans l\'administration</a></p>';
+            \App\Core\Mail::send($familyId, $adminEmail, 'Administrateur', '[FamilyBoard] Nouveau ticket : ' . $subject, $html, 'admin_ticket_notification');
+        } catch (\Throwable $e) {
+            error_log('Admin ticket notification email error: ' . $e->getMessage());
+        }
     }
 
     public static function setStatus(int $id, string $status): void
@@ -70,6 +114,52 @@ class SupportTicket
     public static function markSource(int $id, string $source, ?string $hash = null): void
     {
         Database::execute('UPDATE support_tickets SET source=?, error_hash=? WHERE id=?', [$source, $hash, $id]);
+    }
+
+    // ── Correction assistée par IA (voir App\Core\AiCodeFixer / GitHubPublisher) ──────
+
+    public static function setErrorLocation(int $id, string $file, ?int $line): void
+    {
+        Database::execute('UPDATE support_tickets SET error_file=?, error_line=? WHERE id=?', [$file, $line, $id]);
+    }
+
+    public static function saveAiFixProposal(int $id, string $diagnosis, string $relativePath, string $originalContent, string $proposedContent): void
+    {
+        Database::execute(
+            "UPDATE support_tickets SET ai_fix_status='proposed', ai_fix_diagnosis=?, ai_fix_relative_path=?, ai_fix_original_content=?,
+             ai_fix_proposed_content=?, ai_fix_pr_url=NULL, ai_fix_error=NULL, ai_fix_updated_at=NOW() WHERE id=?",
+            [$diagnosis, $relativePath, $originalContent, $proposedContent, $id]
+        );
+    }
+
+    public static function saveAiFixError(int $id, string $error): void
+    {
+        Database::execute(
+            "UPDATE support_tickets SET ai_fix_status='error', ai_fix_error=?, ai_fix_updated_at=NOW() WHERE id=?",
+            [$error, $id]
+        );
+    }
+
+    public static function saveAiFixPrUrl(int $id, string $prUrl): void
+    {
+        Database::execute(
+            "UPDATE support_tickets SET ai_fix_status='pr_open', ai_fix_pr_url=?, ai_fix_updated_at=NOW() WHERE id=?",
+            [$prUrl, $id]
+        );
+    }
+
+    /** « Rejeter » la proposition en cours (ex. correctif jugé incorrect) — remet le ticket en
+     *  état « non analysé » plutôt que de garder une proposition écartée, pour permettre une
+     *  nouvelle tentative immédiate. Refusé si une Pull Request a déjà été ouverte (il faut alors
+     *  la fermer/traiter directement sur GitHub, pas depuis FamilyBoard). */
+    public static function clearAiFixProposal(int $id): void
+    {
+        Database::execute(
+            "UPDATE support_tickets SET ai_fix_status='none', ai_fix_diagnosis=NULL, ai_fix_original_content=NULL,
+             ai_fix_proposed_content=NULL, ai_fix_error=NULL, ai_fix_updated_at=NOW()
+             WHERE id=? AND ai_fix_status!='pr_open'",
+            [$id]
+        );
     }
 
     // ── Messages ────────────────────────────────────────────────

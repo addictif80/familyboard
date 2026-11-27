@@ -6,6 +6,10 @@ use App\Models\EmailLog;
 
 class Mail
 {
+    /**
+     * $attachments : liste de ['filename' => string, 'content' => string (données brutes,
+     * pas encore encodées), 'mime' => string].
+     */
     public static function send(
         int $familyId,
         string $to,
@@ -13,7 +17,8 @@ class Mail
         string $subject,
         string $htmlBody,
         string $type = 'manual',
-        ?int $sentBy = null
+        ?int $sentBy = null,
+        array $attachments = []
     ): bool {
         $settings = SmtpSettings::get();
         if (!$settings) {
@@ -21,25 +26,41 @@ class Mail
             return false;
         }
 
-        [$ok, $error] = self::sendViaSMTP($settings, $to, $toName, $subject, $htmlBody);
+        // $toName (et $subject/$to par défense en profondeur) atterrissent en clair dans les
+        // en-têtes bruts du client SMTP maison ci-dessous : un \r\n non filtré permettrait d'y
+        // injecter des en-têtes arbitraires (ex. Bcc:) — $toName en particulier peut provenir
+        // d'un champ libre saisi par un utilisateur (ex. nom d'un invité externe à une addition).
+        $to      = self::stripHeaderInjection($to);
+        $toName  = self::stripHeaderInjection($toName);
+        $subject = self::stripHeaderInjection($subject);
+
+        [$ok, $error] = self::sendViaSMTP($settings, $to, $toName, $subject, $htmlBody, $attachments);
         EmailLog::add($familyId, $sentBy, $to, $toName, $subject, $htmlBody, $type, $ok, $error);
         return $ok;
+    }
+
+    /** Retire tout caractère de saut de ligne (CR/LF) — jamais valide dans un en-tête e-mail,
+     *  toujours suspect d'injection d'en-tête si présent dans un champ censé tenir sur une ligne. */
+    private static function stripHeaderInjection(string $value): string
+    {
+        return trim(str_replace(["\r", "\n"], ' ', $value));
     }
 
     /**
      * Returns [bool $success, string $errorMessage]
      */
-    private static function sendViaSMTP(array $s, string $to, string $toName, string $subject, string $body): array
+    private static function sendViaSMTP(array $s, string $to, string $toName, string $subject, string $body, array $attachments = []): array
     {
         $port   = (int)$s['port'];
         $host   = $s['host'];
         $prefix = $s['encryption'] === 'ssl' ? 'ssl://' : '';
 
-        // Allow self-signed certs (common on shared/internal SMTP servers)
+        // Vérification TLS activée par défaut : la désactiver exposerait les identifiants SMTP
+        // (AUTH LOGIN) à une interception réseau (MITM) sur CHAQUE email envoyé.
         $ctx = stream_context_create(['ssl' => [
-            'verify_peer'       => false,
-            'verify_peer_name'  => false,
-            'allow_self_signed' => true,
+            'verify_peer'       => true,
+            'verify_peer_name'  => true,
+            'allow_self_signed' => false,
         ]]);
 
         $errno  = 0;
@@ -117,19 +138,43 @@ class Mail
             return [false, "DATA refusé : " . trim($dataStart)];
         }
 
-        $headers = implode("\r\n", [
-            'MIME-Version: 1.0',
-            'Content-Type: text/html; charset=UTF-8',
-            'From: ' . $s['from_name'] . ' <' . $s['from_email'] . '>',
-            'To: ' . $toName . ' <' . $to . '>',
-            'Subject: =?UTF-8?B?' . base64_encode($subject) . '?=',
-            'X-Mailer: FamilyBoard',
-        ]);
-
         // Dot-stuffing: lines starting with '.' must be escaped as '..'
         $safeBody = preg_replace('/^\.(?=.)/m', '..', $body);
 
-        self::raw($socket, $headers . "\r\n\r\n" . $safeBody . "\r\n.\r\n");
+        if ($attachments) {
+            // Base64 n'utilise jamais '.', donc les parties jointes n'ont pas besoin de
+            // dot-stuffing — seul le corps HTML (déjà traité ci-dessus) en a besoin.
+            $boundary = 'fbnd_' . bin2hex(random_bytes(12));
+            $headers = implode("\r\n", [
+                'MIME-Version: 1.0',
+                'Content-Type: multipart/mixed; boundary="' . $boundary . '"',
+                'From: ' . $s['from_name'] . ' <' . $s['from_email'] . '>',
+                'To: ' . $toName . ' <' . $to . '>',
+                'Subject: =?UTF-8?B?' . base64_encode($subject) . '?=',
+                'X-Mailer: FamilyBoard',
+            ]);
+            $mime = "--{$boundary}\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n{$safeBody}\r\n";
+            foreach ($attachments as $att) {
+                $mime .= "--{$boundary}\r\n"
+                    . 'Content-Type: ' . ($att['mime'] ?? 'application/octet-stream') . '; name="' . $att['filename'] . '"' . "\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n"
+                    . 'Content-Disposition: attachment; filename="' . $att['filename'] . '"' . "\r\n\r\n"
+                    . chunk_split(base64_encode($att['content']))
+                    . "\r\n";
+            }
+            $mime .= "--{$boundary}--\r\n";
+            self::raw($socket, $headers . "\r\n\r\n" . $mime . "\r\n.\r\n");
+        } else {
+            $headers = implode("\r\n", [
+                'MIME-Version: 1.0',
+                'Content-Type: text/html; charset=UTF-8',
+                'From: ' . $s['from_name'] . ' <' . $s['from_email'] . '>',
+                'To: ' . $toName . ' <' . $to . '>',
+                'Subject: =?UTF-8?B?' . base64_encode($subject) . '?=',
+                'X-Mailer: FamilyBoard',
+            ]);
+            self::raw($socket, $headers . "\r\n\r\n" . $safeBody . "\r\n.\r\n");
+        }
         $dataResp = fgets($socket, 512);
         self::raw($socket, "QUIT\r\n");
         fclose($socket);
@@ -181,7 +226,7 @@ class Mail
         $steps  = [];
 
         $ctx = stream_context_create(['ssl' => [
-            'verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true,
+            'verify_peer' => true, 'verify_peer_name' => true, 'allow_self_signed' => false,
         ]]);
 
         $errno = 0; $errstr = '';
@@ -275,9 +320,9 @@ class Mail
         $prefix = $s['encryption'] === 'ssl' ? 'ssl://' : '';
 
         $ctx = stream_context_create(['ssl' => [
-            'verify_peer'       => false,
-            'verify_peer_name'  => false,
-            'allow_self_signed' => true,
+            'verify_peer'       => true,
+            'verify_peer_name'  => true,
+            'allow_self_signed' => false,
         ]]);
 
         $errno  = 0;
