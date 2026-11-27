@@ -103,7 +103,8 @@ async function fetchEventsWithTimeout(url, ms) {
     }
 }
 
-// Intl formatters — use APP_TIMEZONE so display matches the server
+// Les dates d'événements sont des heures « murales » de la famille, sans fuseau
+// (ex. « 2026-11-28 17:00:00 ») : on ne les convertit jamais via Date/Intl.
 function tzDate(dateStr) {
     // For date-only strings (YYYY-MM-DD), parse as local noon to avoid DST off-by-one
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -114,11 +115,11 @@ function tzDate(dateStr) {
 
 // fmtMonthYear / fmtDayNames now live in app.js (loaded on every page) so
 // other month-grid views (custody, coparent) format headers correctly too.
-const _intlTime  = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIMEZONE });
-
 function fmtEventTime(dateStr) {
     if (!dateStr || dateStr.length === 10) return '';
-    return _intlTime.format(new Date(dateStr));
+    // Extraction directe de HH:MM : pas de conversion de fuseau (heure murale stockée).
+    const m = /^\d{4}-\d{2}-\d{2}[T ](\d{2}):(\d{2})/.exec(dateStr);
+    return m ? m[1] + ':' + m[2] : '';
 }
 
 // Icônes de partage cohérentes avec les autres modules : 🔒 co-parent, 🔗 invitation famille
@@ -837,7 +838,7 @@ async function loadShareInvitations() {
 
     (r.invitations || []).forEach(inv => {
         const when = inv.is_all_day
-            ? new Date(inv.start_datetime).toLocaleDateString('fr-FR')
+            ? new Date(inv.start_datetime.substring(0, 10) + 'T12:00:00').toLocaleDateString('fr-FR')
             : new Date(inv.start_datetime.replace(' ', 'T')).toLocaleString('fr-FR');
         parts.push(
             '<div class="card share-alert-card" style="padding:.85rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">' +
