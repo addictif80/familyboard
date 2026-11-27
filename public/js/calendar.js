@@ -114,11 +114,12 @@ function tzDate(dateStr) {
 
 // fmtMonthYear / fmtDayNames now live in app.js (loaded on every page) so
 // other month-grid views (custody, coparent) format headers correctly too.
-const _intlTime  = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIMEZONE });
-
+// Les heures d'événements sont stockées en heure « murale » de la famille, sans fuseau :
+// on lit HH:MM directement dans la chaîne (aucune conversion, quel que soit le fuseau de l'appareil).
 function fmtEventTime(dateStr) {
     if (!dateStr || dateStr.length === 10) return '';
-    return _intlTime.format(new Date(dateStr));
+    const m = /^\d{4}-\d{2}-\d{2}[T ](\d{2}):(\d{2})/.exec(dateStr);
+    return m ? m[1] + ':' + m[2] : '';
 }
 
 // Icônes de partage cohérentes avec les autres modules : 🔒 co-parent, 🔗 invitation famille
@@ -837,7 +838,7 @@ async function loadShareInvitations() {
 
     (r.invitations || []).forEach(inv => {
         const when = inv.is_all_day
-            ? new Date(inv.start_datetime).toLocaleDateString('fr-FR')
+            ? new Date(inv.start_datetime.slice(0, 10) + 'T12:00:00').toLocaleDateString('fr-FR')
             : new Date(inv.start_datetime.replace(' ', 'T')).toLocaleString('fr-FR');
         parts.push(
             '<div class="card share-alert-card" style="padding:.85rem 1rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">' +
